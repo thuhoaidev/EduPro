@@ -3,6 +3,9 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
+// Import routes
+const authRoutes = require('./src/routes/auth');
+
 const app = express();
 
 // Các middleware cơ bản
@@ -10,13 +13,24 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Định nghĩa các routes
-// TODO: Import và sử dụng các routes API
+// Routes
+app.use('/api/auth', authRoutes);
 
 // Middleware xử lý lỗi
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ message: 'Có lỗi xảy ra!' });
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Có lỗi xảy ra!',
+  });
+});
+
+// Middleware xử lý 404
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Không tìm thấy trang',
+  });
 });
 
 // Kết nối đến MongoDB
