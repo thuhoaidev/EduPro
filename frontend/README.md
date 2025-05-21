@@ -3,9 +3,15 @@
 ## Công nghệ và Thư viện sử dụng
 
 ### 1. UI Framework và Components
-- **Material-UI** (@mui/material, @mui/icons-material)
-  - Framework UI components chính
+- **Ant Design** (@ant-design/icons, antd)
+  - UI component library chính
   - Cung cấp các components đẹp, responsive và dễ tùy chỉnh
+  - Version: ^5.0.0
+  - Icons: ^5.0.0
+
+- **Material-UI** (@mui/material, @mui/icons-material)
+  - Framework UI components bổ sung
+  - Cung cấp thêm các components đẹp và responsive
   - Version: ^5.12.1
 
 - **Emotion** (@emotion/react, @emotion/styled)
