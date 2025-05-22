@@ -5,6 +5,9 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { store } from '@store/index';
 import theme from './theme';
+import React from 'react';
+import { Button, Space } from 'antd';
+import { SmileOutlined } from '@ant-design/icons';
 
 // Components
 import Header from '@components/layout/Header';
