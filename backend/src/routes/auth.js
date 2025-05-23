@@ -8,6 +8,7 @@ const {
   sendVerification,
   verifyEmail,
 } = require('../controllers/auth');
+const {updateOrCreateInstructorProfile} = require('../controllers/instructorprofile')
 const { auth, checkRole, checkPermission, requireAuth } = require('../middlewares/auth');
 const { ROLES } = require('../constants/roles');
 // const userController = require('../controllers/user');
@@ -22,6 +23,9 @@ router.put('/profile', auth, updateProfile); // Cập nhật thông tin người
 // Routes xác thực email
 router.post('/send-verification', auth, sendVerification);
 router.post('/verify-email', verifyEmail);
+
+// Routes hồ sơ giảng viên
+router.put('/instructor-profile', auth, requireAuth, updateOrCreateInstructorProfile);
 
 // Route chỉ cho admin
 // router.get('/admin/users', auth, checkRole(ROLES.ADMIN), userController.getAllUsers);
