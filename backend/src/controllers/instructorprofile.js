@@ -32,11 +32,14 @@ const updateOrCreateInstructorProfile = async (req, res) => {
       ...(experience !== undefined && { experience }),
     };
 
+    // Tự động chuyển trạng thái thành 'inactive' để chờ duyệt
+    user.status = 'inactive';
+
     await user.save();
 
     return res.json({
       success: true,
-      message: 'Hồ sơ giảng viên đã được cập nhật thành công',
+      message: 'Hồ sơ giảng viên đã được cập nhật và đang chờ duyệt',
       data: {
         instructorInfo: user.instructorInfo,
       },
