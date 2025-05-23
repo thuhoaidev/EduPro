@@ -5,21 +5,28 @@ const {
   register,
   login,
   verifyEmail,
-  resendVerificationEmail,
-  forgotPassword,
-  resetPassword,
-  getMe,
-  updateMe,
-  changePassword,
-} = require('../controllers/authController');
+} = require('../controllers/auth');
+const {updateOrCreateInstructorProfile} = require('../controllers/instructorprofile')
+const { auth, checkRole, checkPermission, requireAuth } = require('../middlewares/auth');
+const { ROLES } = require('../constants/roles');
+// const userController = require('../controllers/user');
+// const courseController = require('../controllers/course');
 
-// Routes công khai
-router.post('/register', register);
-router.post('/login', login);
-router.get('/verify-email/:token', verifyEmail);
-router.post('/resend-verification', resendVerificationEmail);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password/:token', resetPassword);
+// Routes xác thực
+router.post('/register', register); // Đăng ký tài khoản
+router.post('/login', login); // Đăng nhập
+router.get('/profile', auth, requireAuth, getProfile); // Lấy thông tin người dùng
+router.put('/profile', auth, updateProfile); // Cập nhật thông tin người dùng
+
+// Routes xác thực email
+router.post('/send-verification', auth, sendVerification);
+router.post('/verify-email', verifyEmail);
+
+// Routes hồ sơ giảng viên
+router.put('/instructor-profile', auth, requireAuth, updateOrCreateInstructorProfile);
+
+// Route chỉ cho admin
+// router.get('/admin/users', auth, checkRole(ROLES.ADMIN), userController.getAllUsers);
 
 // Routes yêu cầu xác thực
 router.use(protect);
