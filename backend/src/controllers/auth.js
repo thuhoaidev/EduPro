@@ -8,6 +8,7 @@ const { sendVerificationEmail } = require('../services/emailService');
 // Đăng ký tài khoản mới
 const register = async (req, res) => {
   try {
+    console.log('Register body:', req.body);
     const { name, email, password } = req.body;
 
     // Kiểm tra email đã tồn tại

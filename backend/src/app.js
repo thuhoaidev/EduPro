@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const { sequelize } = require('./models');
 const routes = require('./routes');
+const authRoutes = require('./routes/auth'); 
 const errorHandler = require('./middlewares/error');
 
 // Load environment variables
@@ -17,7 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api', routes);
-
+app.use('/api/auth', authRoutes);
 // Error handling
 app.use(errorHandler);
 
