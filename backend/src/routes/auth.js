@@ -1,42 +1,32 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  register, 
-  login, 
-  getProfile, 
-  updateProfile,
-  sendVerification,
+const { auth, checkRole, checkPermission, requireAuth, requireVerifiedEmail } = require('../middlewares/auth');
+const {
+  register,
+  login,
   verifyEmail,
-} = require('../controllers/auth');
-const {updateOrCreateInstructorProfile} = require('../controllers/instructorprofile')
-const {getPendingInstructors, approveInstructorProfile} = require('../controllers/instructorapproval')
-const { auth, checkRole, checkPermission, requireAuth } = require('../middlewares/auth');
-const { ROLES } = require('../constants/roles');
-// const userController = require('../controllers/user');
-// const courseController = require('../controllers/course');
+  resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
+  getMe,
+  updateMe,
+  changePassword,
+} = require('../controllers/authController');
 
-// Routes xác thực
-router.post('/register', register); // Đăng ký tài khoản
-router.post('/login', login); // Đăng nhập
-router.get('/profile', auth, requireAuth, getProfile); // Lấy thông tin người dùng
-router.put('/profile', auth, updateProfile); // Cập nhật thông tin người dùng
+// Routes công khai
+router.post('/register', register);
+router.post('/login', login);
+router.get('/verify-email/:token', verifyEmail);
+router.post('/resend-verification', resendVerificationEmail);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password/:token', resetPassword);
 
-// Routes xác thực email
-router.post('/send-verification', auth, sendVerification);
-router.post('/verify-email', verifyEmail);
+// Routes yêu cầu xác thực
+router.use(auth); // Middleware xác thực cho tất cả routes bên dưới
 
-// Routes hồ sơ giảng viên
-router.put('/instructor-profile', auth, requireAuth, updateOrCreateInstructorProfile);
-router.get('/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), getPendingInstructors);
-router.post('/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), approveInstructorProfile);
-
-// Route chỉ cho admin
-// router.get('/admin/users', auth, checkRole(ROLES.ADMIN), userController.getAllUsers);
-
-// Route cho instructor và admin
-// router.post('/courses', auth, checkRole(ROLES.ADMIN, ROLES.INSTRUCTOR), courseController.createCourse);
-
-// Route kiểm tra quyền cụ thể
-// router.delete('/courses/:id', auth, checkPermission('manage_courses'), courseController.deleteCourse);
+// Routes cho tất cả user đã đăng nhập
+router.get('/me', requireAuth, getMe);
+router.patch('/me', requireAuth, updateMe);
+router.patch('/change-password', requireAuth, changePassword);
 
 module.exports = router; 

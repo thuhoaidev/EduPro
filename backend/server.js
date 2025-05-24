@@ -2,22 +2,24 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 require('dotenv').config();
+const app = require('./src/app');
 
 // Import routes
 const authRoutes = require('./src/routes/auth');
 
-const app = express();
+const PORT = process.env.PORT || 5000;
 
 // Các middleware cơ bản
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const appMiddleware = express();
+appMiddleware.use(cors());
+appMiddleware.use(express.json());
+appMiddleware.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/auth', authRoutes);
+appMiddleware.use('/api/auth', authRoutes);
 
 // Middleware xử lý lỗi
-app.use((err, req, res, next) => {
+appMiddleware.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({
     success: false,
@@ -26,7 +28,7 @@ app.use((err, req, res, next) => {
 });
 
 // Middleware xử lý 404
-app.use((req, res) => {
+appMiddleware.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Không tìm thấy trang',
@@ -39,12 +41,23 @@ mongoose
   .then(() => {
     console.log('Đã kết nối đến MongoDB');
     // Khởi động server
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
-      console.log(`Server đang chạy tại port ${PORT}`);
+    appMiddleware.listen(PORT, () => {
+      console.log(`Server đang chạy trên port ${PORT}`);
     });
   })
   .catch((err) => {
     console.error('Lỗi kết nối MongoDB:', err);
     process.exit(1);
-  }); 
+  });
+
+// Xử lý lỗi chưa được bắt
+process.on('unhandledRejection', (err) => {
+  console.error('Lỗi chưa được xử lý:', err);
+  process.exit(1);
+});
+
+// Xử lý lỗi chưa được bắt trong async
+process.on('uncaughtException', (err) => {
+  console.error('Lỗi chưa được bắt:', err);
+  process.exit(1);
+}); 
