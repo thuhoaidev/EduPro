@@ -4,11 +4,14 @@ const Role = require('../models/Role');
 
 // Role mới cần thêm
 const newRole = {
-  name: 'tên_role', // Thay đổi tên role ở đây
-  description: 'Mô tả role mới',
+  name: 'instructor', // Thay đổi tên role ở đây
+  description: 'Giảng viên',
   permissions: {
     // Thêm các quyền cho role mới
     view_courses: true,
+    create_courses: true,
+    edit_courses: true,
+    delete_courses: true,
     // Thêm các quyền khác tùy theo nhu cầu
   },
 };

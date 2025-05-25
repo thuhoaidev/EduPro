@@ -9,18 +9,119 @@ const xss = require('xss-clean');
 const cookieParser = require('cookie-parser');
 const compression = require('compression');
 const path = require('path');
+const Role = require('./models/Role');
 require('dotenv').config();
 
 // Import routes
 const authRoutes = require('./routes/auth');
+const roleRoutes = require('./routes/roleRoutes');
 
 // Khởi tạo app
 const app = express();
 
-// Kết nối MongoDB
+// Hàm khởi tạo roles mặc định
+async function initializeDefaultRoles() {
+  try {
+    const defaultRoles = [
+      {
+        name: 'admin',
+        description: 'Quản trị viên hệ thống',
+        permissions: [
+          'manage_users',
+          'manage_roles',
+          'manage_courses',
+          'manage_categories',
+          'manage_quizzes',
+          'manage_questions',
+          'manage_announcements',
+          'manage_reports',
+          'manage_settings',
+          'approve_courses',
+          'approve_instructors',
+          'view_statistics',
+          'manage_moderators',
+        ],
+      },
+      {
+        name: 'moderator',
+        description: 'Người kiểm duyệt nội dung',
+        permissions: [
+          'manage_courses',
+          'manage_categories',
+          'manage_quizzes',
+          'manage_questions',
+          'manage_announcements',
+          'manage_reports',
+          'approve_courses',
+          'approve_instructors',
+          'view_statistics',
+        ],
+      },
+      {
+        name: 'instructor',
+        description: 'Giảng viên',
+        permissions: [
+          'create_courses',
+          'edit_own_courses',
+          'delete_own_courses',
+          'create_quizzes',
+          'edit_own_quizzes',
+          'delete_own_quizzes',
+          'create_questions',
+          'edit_own_questions',
+          'delete_own_questions',
+          'view_own_statistics',
+          'manage_own_announcements',
+        ],
+      },
+      {
+        name: 'student',
+        description: 'Sinh viên',
+        permissions: [
+          'view_courses',
+          'enroll_courses',
+          'take_quizzes',
+          'view_own_progress',
+          'view_own_certificates',
+          'create_discussions',
+          'comment_on_discussions',
+        ],
+      },
+      {
+        name: 'guest',
+        description: 'Khách',
+        permissions: [
+          'view_courses',
+          'view_categories',
+          'search_courses',
+          'view_announcements',
+        ],
+      },
+    ];
+
+    // Tạo hoặc cập nhật roles
+    for (const roleData of defaultRoles) {
+      await Role.findOneAndUpdate(
+        { name: roleData.name },
+        roleData,
+        { upsert: true, new: true },
+      );
+      console.log(`Đã tạo/cập nhật role: ${roleData.name}`);
+    }
+    console.log('Khởi tạo roles thành công');
+  } catch (error) {
+    console.error('Lỗi khởi tạo roles:', error);
+  }
+}
+
+// Kết nối MongoDB và khởi tạo roles
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => console.log('Đã kết nối với MongoDB'))
+  .then(async () => {
+    console.log('Đã kết nối với MongoDB');
+    // Khởi tạo roles sau khi kết nối database thành công
+    await initializeDefaultRoles();
+  })
   .catch((err) => {
     console.error('Lỗi kết nối MongoDB:', err);
     process.exit(1);
@@ -59,6 +160,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/roles', roleRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
