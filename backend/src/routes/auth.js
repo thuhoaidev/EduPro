@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { auth, checkRole, checkPermission, requireAuth, requireVerifiedEmail } = require('../middlewares/auth');
+const { protect, checkRole, checkPermission, requireVerifiedEmail } = require('../middlewares/auth');
 const {
   register,
   login,
@@ -22,11 +22,11 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 
 // Routes yêu cầu xác thực
-router.use(auth); // Middleware xác thực cho tất cả routes bên dưới
+router.use(protect);
 
 // Routes cho tất cả user đã đăng nhập
-router.get('/me', requireAuth, getMe);
-router.patch('/me', requireAuth, updateMe);
-router.patch('/change-password', requireAuth, changePassword);
+router.get('/me', getMe);
+router.patch('/me', updateMe);
+router.patch('/change-password', changePassword);
 
 module.exports = router; 

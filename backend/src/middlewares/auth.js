@@ -1,86 +1,82 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const Role = require('../models/Role');
 
-// Middleware xác thực token
-exports.auth = async (req, res, next) => {
+// Middleware xác thực người dùng
+exports.protect = async (req, res, next) => {
   try {
-    // Lấy token từ header
-    const token = req.headers.authorization?.split(' ')[1];
+    let token;
+
+    // Kiểm tra token trong header Authorization
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
 
     if (!token) {
-      // Nếu không có token, gán role guest
-      const guestRole = await Role.findOne({ name: 'guest' });
-      if (!guestRole) {
-        return res.status(500).json({
-          success: false,
-          message: 'Không tìm thấy role guest',
-        });
-      }
-      req.user = { role: guestRole };
-      return next();
-    }
-
-    // Xác thực token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).populate('role');
-
-    if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Token không hợp lệ',
+        message: 'Vui lòng đăng nhập để truy cập',
       });
     }
 
-    // Kiểm tra trạng thái tài khoản
-    if (user.status === 'banned') {
-      return res.status(403).json({
+    try {
+      // Xác thực token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Tìm user theo id từ token
+      const user = await User.findById(decoded.id).select('-password');
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Không tìm thấy người dùng',
+        });
+      }
+
+      // Kiểm tra trạng thái tài khoản
+      if (user.status === 'banned') {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài khoản đã bị khóa',
+        });
+      }
+
+      // Gán user vào request để sử dụng ở các middleware tiếp theo
+      req.user = user;
+      next();
+    } catch (error) {
+      return res.status(401).json({
         success: false,
-        message: 'Tài khoản đã bị khóa',
+        message: 'Token không hợp lệ hoặc đã hết hạn',
       });
     }
-
-    req.user = user;
-    next();
   } catch (error) {
     console.error('Lỗi xác thực:', error);
-    res.status(401).json({
+    res.status(500).json({
       success: false,
-      message: 'Không có quyền truy cập',
+      message: 'Lỗi server khi xác thực',
     });
   }
 };
 
-// Middleware kiểm tra quyền
-exports.checkPermission = (requiredPermission) => {
+// Middleware kiểm tra quyền dựa trên vai trò
+exports.checkRole = (...allowedRoles) => {
   return async (req, res, next) => {
     try {
-      const userRole = req.user.role;
-
-      // Nếu là guest, chỉ cho phép các quyền cơ bản
-      if (userRole.name === 'guest') {
-        const guestPermissions = [
-          'view_courses',
-          'view_course_details',
-          'view_instructor_profiles',
-          'view_course_preview',
-          'search_courses',
-          'filter_courses',
-        ];
-
-        if (!guestPermissions.includes(requiredPermission)) {
-          return res.status(403).json({
-            success: false,
-            message: 'Vui lòng đăng nhập để thực hiện chức năng này',
-          });
-        }
+      // Lấy thông tin user từ request (được set bởi middleware protect)
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Không có quyền truy cập',
+        });
       }
 
-      // Kiểm tra quyền của role
-      if (!userRole.permissions.includes(requiredPermission)) {
+      // Populate thông tin role của user
+      await user.populate('role');
+      // Kiểm tra xem role của user có trong danh sách được phép không
+      if (!allowedRoles.includes(user.role.name)) {
         return res.status(403).json({
           success: false,
-          message: 'Không có quyền thực hiện chức năng này',
+          message: 'Bạn không có quyền thực hiện hành động này',
         });
       }
 
@@ -89,87 +85,73 @@ exports.checkPermission = (requiredPermission) => {
       console.error('Lỗi kiểm tra quyền:', error);
       res.status(500).json({
         success: false,
-        message: 'Lỗi kiểm tra quyền',
+        message: 'Lỗi server khi kiểm tra quyền',
       });
     }
   };
 };
 
-// Middleware kiểm tra role
-exports.checkRole = (roles) => {
+// Middleware kiểm tra quyền dựa trên permission
+exports.checkPermission = (...requiredPermissions) => {
   return async (req, res, next) => {
     try {
-      const userRole = req.user.role;
-
-      // Nếu là guest, chỉ cho phép truy cập các route công khai
-      if (userRole.name === 'guest' && !roles.includes('guest')) {
-        return res.status(403).json({
-          success: false,
-          message: 'Vui lòng đăng nhập để thực hiện chức năng này',
-        });
-      }
-
-      if (!roles.includes(userRole.name)) {
-        return res.status(403).json({
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({
           success: false,
           message: 'Không có quyền truy cập',
         });
       }
 
+      // Populate thông tin role và permissions của user
+      await user.populate('role');
+      // Kiểm tra xem user có tất cả các quyền cần thiết không
+      const hasAllPermissions = requiredPermissions.every(permission => 
+        user.role.permissions.includes(permission),
+      );
+
+      if (!hasAllPermissions) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có đủ quyền để thực hiện hành động này',
+        });
+      }
+
       next();
     } catch (error) {
-      console.error('Lỗi kiểm tra role:', error);
+      console.error('Lỗi kiểm tra quyền:', error);
       res.status(500).json({
         success: false,
-        message: 'Lỗi kiểm tra role',
+        message: 'Lỗi server khi kiểm tra quyền',
       });
     }
   };
 };
 
-// Middleware yêu cầu đăng nhập
-exports.requireAuth = async (req, res, next) => {
-  try {
-    if (!req.user || req.user.role.name === 'guest') {
-      return res.status(401).json({
-        success: false,
-        message: 'Vui lòng đăng nhập để thực hiện chức năng này',
-      });
-    }
-    next();
-  } catch (error) {
-    console.error('Lỗi yêu cầu đăng nhập:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi xác thực',
-    });
-  }
-};
-
-// Middleware kiểm tra email đã xác thực
+// Middleware yêu cầu xác thực email
 exports.requireVerifiedEmail = async (req, res, next) => {
   try {
-    if (!req.user) {
+    const user = req.user;
+    if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Vui lòng đăng nhập để truy cập',
+        message: 'Không có quyền truy cập',
       });
     }
 
-    if (!req.user.email_verified) {
+    if (!user.email_verified) {
       return res.status(403).json({
         success: false,
-        message: 'Vui lòng xác thực email để tiếp tục',
+        message: 'Vui lòng xác thực email trước khi thực hiện hành động này',
       });
     }
 
     next();
   } catch (error) {
-    console.error('Lỗi kiểm tra email:', error);
+    console.error('Lỗi kiểm tra xác thực email:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi kiểm tra email',
-      error: error.message,
+      message: 'Lỗi server khi kiểm tra xác thực email',
     });
   }
 }; 

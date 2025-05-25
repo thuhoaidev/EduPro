@@ -13,7 +13,7 @@ const createToken = (userId) => {
 // Đăng ký tài khoản
 exports.register = async (req, res) => {
   try {
-    const { email, password, repassword, fullName } = req.body;
+    const { email, password, repassword, fullName, role: requestedRole } = req.body;
 
     // Validate dữ liệu đầu vào
     if (!email || !password || !repassword || !fullName) {
@@ -48,21 +48,44 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Tìm role student
-    const studentRole = await Role.findOne({ name: 'student' });
-    if (!studentRole) {
-      return res.status(500).json({
-        success: false,
-        message: 'Không tìm thấy role student',
-      });
+    // Xác định role cho user mới
+    let role;
+    if (requestedRole) {
+      // Nếu có yêu cầu role cụ thể, kiểm tra xem có phải admin không
+      role = await Role.findOne({ name: requestedRole });
+      if (!role) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vai trò không hợp lệ',
+        });
+      }
+      // Chỉ cho phép tạo tài khoản admin đầu tiên
+      if (requestedRole === 'admin') {
+        const adminCount = await User.countDocuments({ role: role._id });
+        if (adminCount > 0) {
+          return res.status(403).json({
+            success: false,
+            message: 'Không thể tạo thêm tài khoản admin',
+          });
+        }
+      }
+    } else {
+      // Mặc định là role student
+      role = await Role.findOne({ name: 'student' });
+      if (!role) {
+        return res.status(500).json({
+          success: false,
+          message: 'Không tìm thấy role student',
+        });
+      }
     }
 
-    // Tạo user mới với role student
+    // Tạo user mới
     const user = new User({
       email,
       password,
       fullName,
-      role: studentRole._id, // Luôn gán role student cho user mới
+      role: role._id,
     });
 
     // Tạo mã xác thực email
@@ -88,7 +111,7 @@ exports.register = async (req, res) => {
           _id: user._id,
           email: user.email,
           fullName: user.fullName,
-          role: user.role,
+          role: role.name,
           isVerified: user.email_verified,
           createdAt: user.created_at,
         },
