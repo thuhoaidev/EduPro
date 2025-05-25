@@ -47,6 +47,21 @@ function App() {
         { path: "users/admin/:id", element: <AdminDetail /> },
       ],
     },
+    {
+      path: "/admin",
+      element: <AdminLayout />,
+      children: [
+        { path: "course/Learning-Path", element: < LearningPathTable /> },
+        { path: "course/list", element: < CourseListPage /> },
+        { path: "course/add", element: < CourseAddPage /> },
+        { path: "coupons", element: < CouponManagement /> },
+        { path: "history", element: < TransactionHistory /> },
+        { path: "users/student", element: < StudentList /> },
+        { path: "users/student/:id", element: < StudentDetail /> },
+        { path: "users/admin", element: <AdminList /> },
+        { path: "users/admin/:id", element: <AdminDetail /> },
+      ],
+    },
   ];
 
   const element = useRoutes(routes);
