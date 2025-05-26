@@ -15,6 +15,7 @@ import StudentList from "./pages/admin/Users/StudentList";
 import StudentDetail from "./pages/admin/Users/StudentDetail";
 import AdminDetail from "./pages/admin/Users/AdminDetail";
 import AdminList from "./pages/admin/Users/AdminList";
+import VerifyEmail from "./pages/verifyEmail";
 
 axios.defaults.baseURL = "http://localhost:3000";
 
@@ -27,21 +28,23 @@ function App() {
       element: <ClientLayout />,
       children: [
         { index: true, element: <Homepage /> },
+        { path: 'verify-email/:token', element: <VerifyEmail /> },
       ],
+
     },
     {
       path: "/admin",
       element: <AdminLayout />,
       children: [
-        { path: "course/Learning-Path", element: < LearningPathTable/> },
-        { path: "course/list", element: < CourseListPage/> },
-        { path: "course/add", element: < CourseAddPage/> },
-        { path: "coupons", element: < CouponManagement/> },
-        { path: "history", element: < TransactionHistory/> },
-        { path: "users/student", element: < StudentList/> },
-        { path: "users/student/:id", element: < StudentDetail/> },
-        { path: "users/admin", element: <AdminList /> }, 
-        { path: "users/admin/:id", element: <AdminDetail /> }, 
+        { path: "course/Learning-Path", element: < LearningPathTable /> },
+        { path: "course/list", element: < CourseListPage /> },
+        { path: "course/add", element: < CourseAddPage /> },
+        { path: "coupons", element: < CouponManagement /> },
+        { path: "history", element: < TransactionHistory /> },
+        { path: "users/student", element: < StudentList /> },
+        { path: "users/student/:id", element: < StudentDetail /> },
+        { path: "users/admin", element: <AdminList /> },
+        { path: "users/admin/:id", element: <AdminDetail /> },
       ],
     },
   ];

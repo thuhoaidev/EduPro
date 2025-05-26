@@ -1,17 +1,17 @@
 const nodemailer = require('nodemailer');
 
-// Tạo transporter với cấu hình SMTP
+// Create transporter with SMTP configuration
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: process.env.SMTP_PORT === '465',
+  // host: process.env.SMTP_HOST || 'smtp.example.com',
+  // port: process.env.SMTP_PORT || 587,
+  // secure: process.env.SMTP_PORT === '465',
+  service: 'gmail',
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
   },
 });
 
-// Hàm gửi email
 const sendEmail = async (to, subject, html) => {
   try {
     const mailOptions = {
@@ -22,22 +22,21 @@ const sendEmail = async (to, subject, html) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('Email đã được gửi:', info.messageId);
+    console.log('Email sent:', info.messageId);
     return info;
   } catch (error) {
-    console.error('Lỗi gửi email:', error);
-    throw error;
+    console.error('Error sending email:', error);
+    throw new Error('Failed to send email');
   }
 };
 
-// Hàm gửi email xác thực
 exports.sendVerificationEmail = async (email, token) => {
   const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`;
   const subject = 'Xác thực email - EduPro';
   const html = `
     <h1>Xác thực email của bạn</h1>
     <p>Xin chào,</p>
-    <p>Cảm ơn bạn đã đăng ký tài khoản tại EduPro. Vui lòng click vào link bên dưới để xác thực email của bạn:</p>
+    <p>Cảm ơn bạn đã đăng ký tài khoản tại EduPro. Vui lòng click vào nút bên dưới để xác thực email của bạn:</p>
     <p>
       <a href="${verificationUrl}" style="
         display: inline-block;
@@ -59,14 +58,13 @@ exports.sendVerificationEmail = async (email, token) => {
   return sendEmail(email, subject, html);
 };
 
-// Hàm gửi email reset mật khẩu
 exports.sendPasswordResetEmail = async (email, token) => {
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
   const subject = 'Đặt lại mật khẩu - EduPro';
   const html = `
     <h1>Đặt lại mật khẩu</h1>
     <p>Xin chào,</p>
-    <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Vui lòng click vào link bên dưới để đặt lại mật khẩu:</p>
+    <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Vui lòng click vào nút bên dưới để đặt lại mật khẩu:</p>
     <p>
       <a href="${resetUrl}" style="
         display: inline-block;
@@ -86,4 +84,4 @@ exports.sendPasswordResetEmail = async (email, token) => {
   `;
 
   return sendEmail(email, subject, html);
-}; 
+};
