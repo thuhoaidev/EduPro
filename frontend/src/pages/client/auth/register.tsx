@@ -5,7 +5,7 @@ import {
       message,
 } from "antd";
 import { Link, useNavigate } from "react-router-dom";
-import useRegister from "../../hooks/useRegister";
+import useRegister from "../../../hooks/useRegister";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useState } from "react";
 
@@ -22,9 +22,10 @@ export function RegisterPage() {
             }
 
             const newObject = {
-                  name: formData.name,
+                  fullName: formData.fullName,
                   email: formData.email,
                   password: formData.password,
+                  repassword: formData.repassword,
                   captchaToken,
             };
 
@@ -52,7 +53,7 @@ export function RegisterPage() {
                         </h2>
                         <Form layout="vertical" onFinish={onFinish}>
                               <Form.Item
-                                    name="name"
+                                    name="fullName"
                                     rules={[{ required: true, message: "Vui lòng nhập họ tên!" }]}
                               >
                                     <Input
@@ -90,7 +91,7 @@ export function RegisterPage() {
                                     />
                               </Form.Item>
                               <Form.Item
-                                    name="confirm"
+                                    name="repassword"
                                     // label="Confirm Password"
                                     dependencies={["password"]}
                                     hasFeedback

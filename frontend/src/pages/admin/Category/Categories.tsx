@@ -20,8 +20,8 @@ import {
 // import { Link } from 'react-router-dom';
 
 // Import CKEditor 5 React Component và Classic Build
-import { CKEditor } from '@ckeditor/ckeditor5-react'; // Bỏ import CKEditorProps
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+// import { CKEditor } from '@ckeditor/ckeditor5-react'; // Bỏ import CKEditorProps
+// import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
 const { Option } = Select;
 
