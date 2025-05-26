@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  register, 
-  login, 
-  getProfile, 
+const {
+  register,
+  login,
+  getProfile,
   updateProfile,
   sendVerification,
   verifyEmail,
 } = require('../controllers/auth');
-const {updateOrCreateInstructorProfile} = require('../controllers/instructorprofile')
-const {getPendingInstructors, approveInstructorProfile} = require('../controllers/instructorapproval')
+const { updateOrCreateInstructorProfile, getInstructorProfile } = require('../controllers/instructorprofile')
+const { getPendingInstructors, approveInstructorProfile } = require('../controllers/instructorapproval')
 const { auth, checkRole, checkPermission, requireAuth } = require('../middlewares/auth');
 const { ROLES } = require('../constants/roles');
 // const userController = require('../controllers/user');
@@ -26,7 +26,8 @@ router.post('/send-verification', auth, sendVerification);
 router.post('/verify-email', verifyEmail);
 
 // Routes hồ sơ giảng viên
-router.put('/instructor-profile', auth, requireAuth, updateOrCreateInstructorProfile);
+router.put('/instructor-profile/:userId?', auth, requireAuth, updateOrCreateInstructorProfile);
+router.get('/instructor-profile/:userId?', auth, getInstructorProfile);
 router.get('/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), getPendingInstructors);
 router.post('/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), approveInstructorProfile);
 
