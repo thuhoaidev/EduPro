@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Mật khẩu là bắt buộc'],
     minlength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
-    select: false, // Không trả về password khi query
+    select: false,
   },
   avatar: {
     type: String,
@@ -57,10 +57,10 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-// Tạo index cho email
+
 userSchema.index({ email: 1 }, { unique: true });
 
-// Mã hóa mật khẩu trước khi lưu
+
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   try {
@@ -72,40 +72,39 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// Phương thức kiểm tra mật khẩu
+
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Phương thức tạo token xác thực email
 userSchema.methods.createEmailVerificationToken = function() {
   const token = crypto.randomBytes(32).toString('hex');
   this.email_verification_token = crypto
     .createHash('sha256')
     .update(token)
     .digest('hex');
-  this.email_verification_expires = Date.now() + 24 * 60 * 60 * 1000; // 24 giờ
+  this.email_verification_expires = Date.now() + 24 * 60 * 60 * 1000; 
   return token;
 };
 
-// Phương thức tạo token reset mật khẩu
+
 userSchema.methods.createPasswordResetToken = function() {
   const token = crypto.randomBytes(32).toString('hex');
   this.reset_password_token = crypto
     .createHash('sha256')
     .update(token)
     .digest('hex');
-  this.reset_password_expires = Date.now() + 1 * 60 * 60 * 1000; // 1 giờ
+  this.reset_password_expires = Date.now() + 1 * 60 * 60 * 1000; 
   return token;
 };
 
-// Phương thức kiểm tra quyền
+
 userSchema.methods.hasPermission = async function(permission) {
   await this.populate('role');
   return this.role.permissions.get(permission) || false;
 };
 
-// Phương thức lấy thông tin user (không bao gồm các trường nhạy cảm)
+
 userSchema.methods.toJSON = function() {
   const user = this.toObject();
   delete user.password;
@@ -117,5 +116,4 @@ userSchema.methods.toJSON = function() {
 };
 
 const User = mongoose.model('User', userSchema);
-
-module.exports = User; 
+module.exports = User;
