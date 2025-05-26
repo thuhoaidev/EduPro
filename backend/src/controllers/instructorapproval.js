@@ -1,21 +1,30 @@
-const User = require('../models/user/User');
-const { ROLES } = require('../constants/roles');
+const User = require('../models/User');
+const Role = require('../models/Role');
 
-// [GET] /api/instructors/pending
+// Lấy danh sách giảng viên chờ duyệt
 const getPendingInstructors = async (req, res) => {
   try {
+    // Tìm role giảng viên
+    const instructorRole = await Role.findOne({ name: 'instructor' });
+    if (!instructorRole) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy vai trò giảng viên',
+      });
+    }
+
     // Tìm các giảng viên chưa được duyệt
     const pendingInstructors = await User.find({
-      role: ROLES.INSTRUCTOR,
-      status: 'inactive',
-    }).select('-password'); // loại bỏ mật khẩu khỏi kết quả
+      role_id: instructorRole._id,
+      approval_status: 'pending',
+    }).select('-password').populate('role_id');
 
     res.status(200).json({
       success: true,
       data: pendingInstructors,
     });
   } catch (error) {
-    console.error('[InstructorController] Error fetching pending instructors:', error);
+    console.error('Lỗi lấy danh sách giảng viên chờ duyệt:', error);
     res.status(500).json({
       success: false,
       message: 'Đã xảy ra lỗi máy chủ',
@@ -28,25 +37,30 @@ const approveInstructorProfile = async (req, res) => {
   try {
     const { userId, approve } = req.body;
 
-    const user = await User.findById(userId);
+    // Tìm role giảng viên
+    const instructorRole = await Role.findOne({ name: 'instructor' });
+    if (!instructorRole) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy vai trò giảng viên',
+      });
+    }
 
-    if (!user || user.role !== ROLES.INSTRUCTOR) {
+    const user = await User.findOne({
+      _id: userId,
+      role_id: instructorRole._id,
+    });
+
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy giảng viên',
       });
     }
 
-    // Cập nhật trạng thái is_approved
-    user.instructorInfo.is_approved = approve;
-    
-    // Nếu được duyệt -> set status active & role thành INSTRUCTOR
-    if (approve) {
-      user.status = 'active';
-    } else {
-      user.status = 'inactive';
-    }
-
+    // Cập nhật trạng thái duyệt
+    user.approval_status = approve ? 'approved' : 'rejected';
+    user.status = approve ? 'active' : 'inactive';
     await user.save();
 
     return res.json({
@@ -55,11 +69,12 @@ const approveInstructorProfile = async (req, res) => {
       data: {
         id: user._id,
         name: user.name,
-        is_approved: user.instructorInfo.is_approved,
+        nickname: user.nickname,
+        email: user.email,
+        approval_status: user.approval_status,
         status: user.status,
       },
     });
-
   } catch (error) {
     console.error('Lỗi duyệt giảng viên:', error);
     res.status(500).json({

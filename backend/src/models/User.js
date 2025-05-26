@@ -3,14 +3,18 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
-  role: {
+  role_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Role',
     required: [true, 'Vai trò là bắt buộc'],
   },
-  fullName: {
+  name: {
     type: String,
-    required: [true, 'Họ tên là bắt buộc'],
+    required: [true, 'Tên đầy đủ là bắt buộc'],
+    trim: true,
+  },
+  nickname: {
+    type: String,
     trim: true,
   },
   email: {
@@ -30,6 +34,23 @@ const userSchema = new mongoose.Schema({
   avatar: {
     type: String,
     default: 'default-avatar.png',
+  },
+  bio: {
+    type: String,
+    default: '',
+  },
+  social_links: {
+    type: Map,
+    of: String,
+    default: {},
+  },
+  followers_count: {
+    type: Number,
+    default: 0,
+  },
+  following_count: {
+    type: Number,
+    default: 0,
   },
   status: {
     type: String,
@@ -100,8 +121,8 @@ userSchema.methods.createPasswordResetToken = function() {
 
 
 userSchema.methods.hasPermission = async function(permission) {
-  await this.populate('role');
-  return this.role.permissions.get(permission) || false;
+  await this.populate('role_id');
+  return this.role_id.permissions.includes(permission) || false;
 };
 
 
