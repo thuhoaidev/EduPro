@@ -21,7 +21,7 @@ exports.getRoles = async (req, res) => {
 // Tạo vai trò mới
 exports.createRole = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, permissions } = req.body;
 
     // Kiểm tra vai trò đã tồn tại chưa
     const existingRole = await Role.findOne({ name });
@@ -35,6 +35,7 @@ exports.createRole = async (req, res) => {
     const role = await Role.create({
       name,
       description,
+      permissions,
     });
 
     res.status(201).json({
@@ -54,7 +55,7 @@ exports.createRole = async (req, res) => {
 exports.updateRole = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, permissions } = req.body;
 
     // Kiểm tra vai trò có tồn tại không
     const role = await Role.findById(id);
@@ -78,7 +79,7 @@ exports.updateRole = async (req, res) => {
 
     const updatedRole = await Role.findByIdAndUpdate(
       id,
-      { name, description },
+      { name, description, permissions },
       { new: true, runValidators: true },
     );
 
@@ -110,7 +111,7 @@ exports.deleteRole = async (req, res) => {
     }
 
     // Kiểm tra xem có user nào đang sử dụng vai trò này không
-    const usersWithRole = await User.findOne({ role: id });
+    const usersWithRole = await User.findOne({ role_id: id });
     if (usersWithRole) {
       return res.status(400).json({
         success: false,
@@ -158,7 +159,11 @@ exports.assignUserRole = async (req, res) => {
     }
 
     // Cập nhật vai trò cho user
-    user.role = roleId;
+    user.role_id = roleId;
+    // Nếu là giảng viên thì cần xét duyệt lại
+    if (role.name === 'instructor') {
+      user.approval_status = 'pending';
+    }
     await user.save();
 
     res.status(200).json({

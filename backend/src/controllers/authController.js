@@ -2,8 +2,8 @@ const User = require('../models/User');
 const Role = require('../models/Role');
 const jwt = require('jsonwebtoken');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../config/email');
-
 const crypto = require('crypto');
+
 // Tạo JWT token
 const createToken = (userId) => {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
@@ -12,127 +12,11 @@ const createToken = (userId) => {
 };
 
 // Đăng ký tài khoản
-// exports.register = async (req, res) => {
-//   try {
-//     const { email, password, repassword, fullName, role: requestedRole } = req.body;
-
-//     // Validate dữ liệu đầu vào
-//     if (!email || !password || !repassword || !fullName) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Vui lòng điền đầy đủ thông tin',
-//       });
-//     }
-
-//     // Kiểm tra password và repassword
-//     if (password !== repassword) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Mật khẩu xác nhận không khớp',
-//       });
-//     }
-
-//     // Kiểm tra độ dài password
-//     if (password.length < 6) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Mật khẩu phải có ít nhất 6 ký tự',
-//       });
-//     }
-
-//     // Kiểm tra email đã tồn tại
-//     const existingUser = await User.findOne({ email });
-//     if (existingUser) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Email đã được sử dụng',
-//       });
-//     }
-
-//     // Xác định role cho user mới
-//     let role;
-//     if (requestedRole) {
-//       // Nếu có yêu cầu role cụ thể, kiểm tra xem có phải admin không
-//       role = await Role.findOne({ name: requestedRole });
-//       if (!role) {
-//         return res.status(400).json({
-//           success: false,
-//           message: 'Vai trò không hợp lệ',
-//         });
-//       }
-//       // Chỉ cho phép tạo tài khoản admin đầu tiên
-//       if (requestedRole === 'admin') {
-//         const adminCount = await User.countDocuments({ role: role._id });
-//         if (adminCount > 0) {
-//           return res.status(403).json({
-//             success: false,
-//             message: 'Không thể tạo thêm tài khoản admin',
-//           });
-//         }
-//       }
-//     } else {
-//       // Mặc định là role student
-//       role = await Role.findOne({ name: 'student' });
-//       if (!role) {
-//         return res.status(500).json({
-//           success: false,
-//           message: 'Không tìm thấy role student',
-//         });
-//       }
-//     }
-
-//     // Tạo user mới
-//     const user = new User({
-//       email,
-//       password,
-//       fullName,
-//       role: role._id,
-//     });
-
-//     // Tạo mã xác thực email
-//     await user.createEmailVerificationToken();
-
-//     // Lưu user
-//     await user.save();
-
-//     // Gửi email xác thực
-//     try {
-//       await sendVerificationEmail(user.email, user.email_verification_token);
-//     } catch (emailError) {
-//       console.error('Lỗi gửi email xác thực:', emailError);
-//       // Không trả về lỗi nếu gửi email thất bại
-//     }
-
-//     // Trả về thông tin user (không bao gồm token)
-//     res.status(201).json({
-//       success: true,
-//       message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
-//       data: {
-//         user: {
-//           _id: user._id,
-//           email: user.email,
-//           fullName: user.fullName,
-//           role: role.name,
-//           isVerified: user.email_verified,
-//           createdAt: user.created_at,
-//         },
-//       },
-//     });
-//   } catch (error) {
-//     console.error('Lỗi đăng ký:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Lỗi server',
-//       error: error.message,
-//     });
-//   }
-// };
-
 exports.register = async (req, res) => {
   try {
     const { email, password, repassword, fullName, role: requestedRole } = req.body;
 
-    // Validate input
+    // Validate dữ liệu đầu vào
     if (!email || !password || !repassword || !fullName) {
       return res.status(400).json({
         success: false,
@@ -140,7 +24,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Check password match
+    // Kiểm tra password và repassword
     if (password !== repassword) {
       return res.status(400).json({
         success: false,
@@ -148,7 +32,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Check password length
+    // Kiểm tra độ dài password
     if (password.length < 6) {
       return res.status(400).json({
         success: false,
@@ -156,7 +40,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Check if email exists
+    // Kiểm tra email đã tồn tại
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -165,7 +49,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Determine user role
+    // Xác định role cho user mới
     let role;
     if (requestedRole) {
       role = await Role.findOne({ name: requestedRole });
@@ -175,9 +59,9 @@ exports.register = async (req, res) => {
           message: 'Vai trò không hợp lệ',
         });
       }
-      // Restrict admin role creation
+      // Chỉ cho phép tạo tài khoản admin đầu tiên
       if (requestedRole === 'admin') {
-        const adminCount = await User.countDocuments({ role: role._id });
+        const adminCount = await User.countDocuments({ role_id: role._id });
         if (adminCount > 0) {
           return res.status(403).json({
             success: false,
@@ -195,27 +79,28 @@ exports.register = async (req, res) => {
       }
     }
 
-    // Create new user
+    // Tạo user mới
     const user = new User({
       email,
       password,
-      fullName,
-      role: role._id,
+      name: fullName,
+      role_id: role._id,
+      approval_status: requestedRole === 'instructor' ? 'pending' : 'approved',
     });
 
-    // Generate email verification token
-    const verificationToken = await user.createEmailVerificationToken();
+    // Tạo mã xác thực email
+    const verificationToken = user.createEmailVerificationToken();
     await user.save();
 
-    // Send verification email
+    // Gửi email xác thực
     try {
       await sendVerificationEmail(user.email, verificationToken);
     } catch (emailError) {
       console.error('Lỗi gửi email xác thực:', emailError);
-      // Log error but don't fail registration
+      // Không trả về lỗi nếu gửi email thất bại
     }
 
-    // Respond with user data
+    // Trả về thông tin user (không bao gồm token)
     res.status(201).json({
       success: true,
       message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
@@ -223,9 +108,10 @@ exports.register = async (req, res) => {
         user: {
           _id: user._id,
           email: user.email,
-          fullName: user.fullName,
+          fullName: user.name,
           role: role.name,
           isVerified: user.email_verified,
+          approval_status: user.approval_status,
           createdAt: user.created_at,
         },
       },
@@ -240,45 +126,7 @@ exports.register = async (req, res) => {
   }
 };
 
-exports.verifyEmail = async (req, res) => {
-  try {
-    const { token } = req.params;
-
-    const user = await User.findOne({
-      email_verification_token: crypto
-        .createHash('sha256')
-        .update(token)
-        .digest('hex'),
-      email_verification_expires: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token không hợp lệ hoặc đã hết hạn',
-      });
-    }
-
-    // Update verification status
-    user.email_verified = true;
-    user.email_verification_token = undefined;
-    user.email_verification_expires = undefined;
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Xác thực email thành công',
-    });
-  } catch (error) {
-    console.error('Lỗi xác thực email:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi xác thực email',
-      error: error.message,
-    });
-  }
-};
-
+// Đăng nhập
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -308,12 +156,11 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Cập nhật last_login
-    user.last_login = Date.now();
-    await user.save();
-
     // Tạo JWT token
     const token = createToken(user._id);
+
+    // Populate role để lấy thông tin vai trò
+    await user.populate('role_id');
 
     res.json({
       success: true,
@@ -323,10 +170,11 @@ exports.login = async (req, res) => {
         user: {
           _id: user._id,
           email: user.email,
-          fullName: user.fullName,
-          role: user.role,
-          isVerified: user.email_verified,
+          fullName: user.name,
+          role: user.role_id.name,
           avatar: user.avatar,
+          isVerified: user.email_verified,
+          approval_status: user.approval_status,
           createdAt: user.created_at,
         },
       },
@@ -342,45 +190,42 @@ exports.login = async (req, res) => {
 };
 
 // Xác thực email
-// exports.verifyEmail = async (req, res) => {
-//   try {
-//     const { token } = req.params;
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
 
-//     // Tìm user với token hợp lệ
-//     const user = await User.findOne({
-//       email_verification_token: crypto
-//         .createHash('sha256')
-//         .update(token)
-//         .digest('hex'),
-//       email_verification_expires: { $gt: Date.now() },
-//     });
+    const user = await User.findOne({
+      email_verification_token: crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex'),
+    });
 
-//     if (!user) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Token không hợp lệ hoặc đã hết hạn',
-//       });
-//     }
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token không hợp lệ',
+      });
+    }
 
-//     // Cập nhật trạng thái xác thực
-//     user.email_verified = true;
-//     user.email_verification_token = undefined;
-//     user.email_verification_expires = undefined;
-//     await user.save();
+    // Cập nhật trạng thái xác thực
+    user.email_verified = true;
+    user.email_verification_token = undefined;
+    await user.save();
 
-//     res.json({
-//       success: true,
-//       message: 'Xác thực email thành công',
-//     });
-//   } catch (error) {
-//     console.error('Lỗi xác thực email:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Lỗi xác thực email',
-//       error: error.message,
-//     });
-//   }
-// };
+    res.json({
+      success: true,
+      message: 'Xác thực email thành công',
+    });
+  } catch (error) {
+    console.error('Lỗi xác thực email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi xác thực email',
+      error: error.message,
+    });
+  }
+};
 
 // Gửi lại email xác thực
 exports.resendVerificationEmail = async (req, res) => {
@@ -520,7 +365,7 @@ exports.resetPassword = async (req, res) => {
 // Lấy thông tin user hiện tại
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).populate('role');
+    const user = await User.findById(req.user.id).populate('role_id');
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -545,7 +390,7 @@ exports.getMe = async (req, res) => {
 // Cập nhật thông tin user
 exports.updateMe = async (req, res) => {
   try {
-    const allowedUpdates = ['name', 'avatar'];
+    const allowedUpdates = ['name', 'nickname', 'avatar', 'bio', 'social_links'];
 
     // Lọc các trường được phép cập nhật
     const updates = Object.keys(req.body)
@@ -559,7 +404,7 @@ exports.updateMe = async (req, res) => {
       req.user.id,
       { $set: updates },
       { new: true, runValidators: true },
-    ).populate('role');
+    ).populate('role_id');
 
     if (!user) {
       return res.status(404).json({
