@@ -1,12 +1,30 @@
-import { Button, Checkbox, Form, Input, message } from "antd";
+import { Button, Checkbox, Form, Input, message, Modal } from "antd";
 import { Link, useNavigate } from "react-router-dom";
 import useLogin from "../../../hooks/useLogin";
 import bgrImage from "../../../assets/images/bgr-login-register.jpg"
+import { useState } from "react";
+import { config } from "../../../api/axios";
 
 export function LoginPage() {
       const [messageApi, contextHolder] = message.useMessage();
       const navigate = useNavigate();
       const { mutate } = useLogin({ resource: "login" });
+      const [showVerificationModal, setShowVerificationModal] = useState(false);
+      const [verificationEmail, setVerificationEmail] = useState("");
+      const [resendingVerification, setResendingVerification] = useState(false);
+
+      const handleResendVerification = async () => {
+            try {
+                  setResendingVerification(true);
+                  await config.post('/auth/resend-verification', { email: verificationEmail });
+                  messageApi.success("Đã gửi lại email xác thực. Vui lòng kiểm tra hộp thư của bạn.");
+                  setShowVerificationModal(false);
+            } catch (error: any) {
+                  messageApi.error(error?.response?.data?.message || "Lỗi gửi lại email xác thực");
+            } finally {
+                  setResendingVerification(false);
+            }
+      };
 
       const onFinish = (formData: any) =>
             mutate(formData, {
@@ -17,7 +35,13 @@ export function LoginPage() {
                         }, 1000);
                   },
                   onError: (error: any) => {
-                        messageApi.error(error?.response?.data || "Đăng nhập thất bại.");
+                        const errorData = error?.response?.data;
+                        if (errorData?.data?.canResendVerification) {
+                              setVerificationEmail(errorData.data.email);
+                              setShowVerificationModal(true);
+                        } else {
+                              messageApi.error(errorData?.message || "Đăng nhập thất bại.");
+                        }
                   },
             });
 
@@ -88,7 +112,6 @@ export function LoginPage() {
             // </div>
             <div className="min-h-screen flex items-center justify-center bg-white px-4">
                   <div className="flex bg-white shadow-md rounded-md overflow-hidden w-full max-w-5xl min-h-[500px]">
-
                         <div className="hidden md:flex items-center justify-center w-1/2 p-4">
                               <img
                                     src={bgrImage}
@@ -162,8 +185,37 @@ export function LoginPage() {
 
                               {contextHolder}
                         </div>
+                        <div className="text-center text-base mt-2">
+                              <Link to="/register" className="text-blue-500 hover:underline">
+                                    Bạn chưa có tài khoản?
+                              </Link>
+                        </div>
+                        {contextHolder}
+                        <Modal
+                              title="Xác thực email"
+                              open={showVerificationModal}
+                              onCancel={() => setShowVerificationModal(false)}
+                              footer={[
+                                    <Button key="cancel" onClick={() => setShowVerificationModal(false)}>
+                                          Đóng
+                                    </Button>,
+                                    <Button
+                                          key="resend"
+                                          type="primary"
+                                          loading={resendingVerification}
+                                          onClick={handleResendVerification}
+                                          className="!bg-gradient-to-r !from-cyan-500 !to-green-400 !text-white !font-semibold hover:opacity-90 border-none"
+                                    >
+                                          Gửi lại email xác thực
+                                    </Button>,
+                              ]}
+                        >
+                              <p>Vui lòng xác thực email của bạn trước khi đăng nhập.</p>
+                              <p>Email: {verificationEmail}</p>
+                              <p>Bạn có thể nhấn nút bên dưới để gửi lại email xác thực.</p>
+                        </Modal>
                   </div>
-            </div>
+            // </div>
 
       );
 }

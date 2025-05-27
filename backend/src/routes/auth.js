@@ -4,7 +4,9 @@ const { protect, checkRole, checkPermission, requireVerifiedEmail,auth,requireAu
 const {
   register,
   login,
-  verifyEmail,getMe
+  verifyEmail,
+  getMe,
+  resendVerificationEmail,
 } = require('../controllers/authController');
 const {updateOrCreateInstructorProfile} = require('../controllers/instructorprofile')
 const {getPendingInstructors, approveInstructorProfile} = require('../controllers/instructorapproval')
@@ -26,6 +28,7 @@ router.post('/reset-password/:token', resetPassword);//Đặt lại mật khẩu
 // Routes xác thực email
 // router.post('/send-verification', auth, sendVerification);
 router.get('/verify-email/:token', verifyEmail);
+router.post('/resend-verification', resendVerificationEmail);
 
 // Routes hồ sơ giảng viên
 // router.put('/instructor-profile', auth, requireAuth, updateOrCreateInstructorProfile);
