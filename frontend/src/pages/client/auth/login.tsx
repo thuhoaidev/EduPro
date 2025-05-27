@@ -1,6 +1,6 @@
 import { Button, Checkbox, Form, Input, message } from "antd";
 import { Link, useNavigate } from "react-router-dom";
-import useLogin from "../../hooks/useLogin";
+import useLogin from "../../../hooks/useLogin";
 
 export function LoginPage() {
       const [messageApi, contextHolder] = message.useMessage();
@@ -44,7 +44,9 @@ export function LoginPage() {
 
                               <Form.Item
                                     name="password"
-                                    rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
+                                    rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" },
+                                    { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },
+                                    ]}
                               >
                                     <Input.Password
                                           size="large"

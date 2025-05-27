@@ -16,8 +16,11 @@ import StudentDetail from "./pages/admin/Users/StudentDetail";
 import AdminDetail from "./pages/admin/Users/AdminDetail";
 import AdminList from "./pages/admin/Users/AdminList";
 import VerifyEmail from "./pages/verifyEmail";
-
-axios.defaults.baseURL = "http://localhost:3000";
+import LoginPage from "./pages/client/auth/login";
+import RegisterPage from "./pages/client/auth/register";
+import ForgotPassword from "./pages/client/auth/forgotPassword";
+import ResetPassword from "./pages/client/auth/resetPassword";
+// axios.defaults.baseURL = "http://localhost:3000";
 
 const queryClient = new QueryClient();
 
@@ -29,9 +32,11 @@ function App() {
       children: [
         { index: true, element: <Homepage /> },
         { path: 'verify-email/:token', element: <VerifyEmail /> },
+
       ],
 
     },
+
     {
       path: "/admin",
       element: <AdminLayout />,
@@ -47,6 +52,10 @@ function App() {
         { path: "users/admin/:id", element: <AdminDetail /> },
       ],
     },
+    { path: '/login', element: <LoginPage /> },
+    { path: '/register', element: <RegisterPage /> },
+    { path: '/forgot-password', element: <ForgotPassword /> },
+    { path: '/reset-password/:token', element: < ResetPassword /> }
   ];
 
   const element = useRoutes(routes);
