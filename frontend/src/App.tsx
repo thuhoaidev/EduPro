@@ -4,6 +4,7 @@ import "antd/dist/reset.css";
 import Homepage from "./pages/Homepage";
 import AdminLayout from "./pages/layout/AdminLayout";
 import ClientLayout from "./pages/layout/ClientLayout";
+import AuthLayout from "./pages/layout/AuthLayout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import LearningPathTable from "./pages/admin/Category/Categories";
@@ -52,10 +53,16 @@ function App() {
         { path: "users/admin/:id", element: <AdminDetail /> },
       ],
     },
-    { path: '/login', element: <LoginPage /> },
-    { path: '/register', element: <RegisterPage /> },
-    { path: '/forgot-password', element: <ForgotPassword /> },
-    { path: '/reset-password/:token', element: < ResetPassword /> }
+    {
+      element: <AuthLayout />,
+      children: [
+        { path: '/login', element: <LoginPage /> },
+        { path: '/register', element: <RegisterPage /> },
+        { path: '/forgot-password', element: <ForgotPassword /> },
+        { path: '/reset-password/:token', element: < ResetPassword /> }
+      ]
+    }
+
   ];
 
   const element = useRoutes(routes);
