@@ -5,7 +5,7 @@ import {
       message,
 } from "antd";
 import { Link, useNavigate } from "react-router-dom";
-import useRegister from "../../hooks/useRegister";
+import useRegister from "../../../hooks/Auths/useRegister";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useState } from "react";
 

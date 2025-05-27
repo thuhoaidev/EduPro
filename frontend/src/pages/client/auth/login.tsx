@@ -1,6 +1,6 @@
 import { Button, Checkbox, Form, Input, message } from "antd";
 import { Link, useNavigate } from "react-router-dom";
-import useLogin from "../../hooks/useLogin";
+import useLogin from "../../../hooks/Auths/useLogin";
 
 export function LoginPage() {
       const [messageApi, contextHolder] = message.useMessage();
