@@ -82,7 +82,7 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ email: 1 }, { unique: true });
 
 
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   try {
     const salt = await bcrypt.genSalt(10);
@@ -94,39 +94,39 @@ userSchema.pre('save', async function (next) {
 });
 
 
-userSchema.methods.comparePassword = async function (candidatePassword) {
+userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-userSchema.methods.createEmailVerificationToken = function () {
+userSchema.methods.createEmailVerificationToken = function() {
   const token = crypto.randomBytes(32).toString('hex');
   this.email_verification_token = crypto
     .createHash('sha256')
     .update(token)
     .digest('hex');
-  this.email_verification_expires = Date.now() + 24 * 60 * 60 * 1000;
+  this.email_verification_expires = Date.now() + 24 * 60 * 60 * 1000; 
   return token;
 };
 
 
-userSchema.methods.createPasswordResetToken = function () {
+userSchema.methods.createPasswordResetToken = function() {
   const token = crypto.randomBytes(32).toString('hex');
   this.reset_password_token = crypto
     .createHash('sha256')
     .update(token)
     .digest('hex');
-  this.reset_password_expires = Date.now() + 1 * 60 * 60 * 1000;
+  this.reset_password_expires = Date.now() + 1 * 60 * 60 * 1000; 
   return token;
 };
 
 
-userSchema.methods.hasPermission = async function (permission) {
+userSchema.methods.hasPermission = async function(permission) {
   await this.populate('role_id');
   return this.role_id.permissions.includes(permission) || false;
 };
 
 
-userSchema.methods.toJSON = function () {
+userSchema.methods.toJSON = function() {
   const user = this.toObject();
   delete user.password;
   delete user.email_verification_token;
