@@ -81,7 +81,7 @@ export function RegisterPage() {
 
                               <Form.Item
                                     name="password"
-                                    rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
+                                    rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }, { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },]}
                               >
                                     <Input.Password
                                           size="large"
@@ -98,7 +98,7 @@ export function RegisterPage() {
                                     rules={[
                                           {
                                                 required: true,
-                                                message: "Please confirm your password!",
+                                                message: "Vui lòng xác nhận mật khẩu của bạn!",
                                           },
                                           ({ getFieldValue }) => ({
                                                 validator(_, value) {
@@ -106,7 +106,7 @@ export function RegisterPage() {
                                                             return Promise.resolve();
                                                       }
                                                       return Promise.reject(
-                                                            new Error("The new password that you entered do not match!")
+                                                            new Error("Mật khẩu mới bạn nhập không khớp!")
                                                       );
                                                 },
                                           }),
