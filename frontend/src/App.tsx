@@ -16,6 +16,7 @@ import StudentDetail from "./pages/admin/Users/StudentDetail";
 import AdminDetail from "./pages/admin/Users/AdminDetail";
 import AdminList from "./pages/admin/Users/AdminList";
 import VerifyEmail from "./pages/verifyEmail";
+import Earnings from "./pages/client/earnings/Earnings";
 
 axios.defaults.baseURL = "http://localhost:3000";
 
@@ -29,6 +30,7 @@ function App() {
       children: [
         { index: true, element: <Homepage /> },
         { path: 'verify-email/:token', element: <VerifyEmail /> },
+        { path: 'instructor/earnings', element: <Earnings /> },
       ],
 
     },
