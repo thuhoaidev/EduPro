@@ -163,11 +163,6 @@ const TransactionHistory = () => {
 
   return (
     <div className="tw-p-6 tw-bg-white tw-rounded-xl tw-shadow-sm tw-min-h-screen">
-      {/* Breadcrumb */}
-      <div className="tw-mb-6 tw-text-gray-500 tw-text-sm">
-        Home / Admin / Transaction / <span className="tw-font-medium tw-text-gray-700">History</span>
-      </div>
-
       <h2 className="tw-text-2xl tw-font-bold tw-text-gray-800 tw-mb-4">Đây là trang lịch sử giao dịch</h2>
 
       {/* Filter and Sort Section */}
