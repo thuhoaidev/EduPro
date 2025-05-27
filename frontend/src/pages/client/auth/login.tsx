@@ -1,6 +1,6 @@
 import { Button, Checkbox, Form, Input, message, Modal } from "antd";
 import { Link, useNavigate } from "react-router-dom";
-import useLogin from"../../../hooks/Auths/useLogin";
+import useLogin from "../../../hooks/useLogin";
 import bgrImage from "../../../assets/images/bgr-login-register.jpg"
 import { useState } from "react";
 import { config } from "../../../api/axios";
@@ -185,7 +185,11 @@ export function LoginPage() {
 
                               {contextHolder}
                         </div>
-                      
+                        <div className="text-center text-base mt-2">
+                              <Link to="/register" className="text-blue-500 hover:underline">
+                                    Bạn chưa có tài khoản?
+                              </Link>
+                        </div>
                         {contextHolder}
                         <Modal
                               title="Xác thực email"
@@ -211,7 +215,7 @@ export function LoginPage() {
                               <p>Bạn có thể nhấn nút bên dưới để gửi lại email xác thực.</p>
                         </Modal>
                   </div>
-             </div>
+            // </div>
 
       );
 }

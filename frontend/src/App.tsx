@@ -19,11 +19,6 @@ import ReportsPage from "./pages/admin/reports/Reports";
 import VouchersPage from "./pages/admin/Vouchers/VouchersPage";
 import Notifications from "./pages/admin/Notifications/Notifications";
 import AdminStatistics from "./pages/admin/Statistics/AdminStatistics";
-import LoginPage from "./pages/client/auth/login";
-import RegisterPage from "./pages/client/auth/register";
-import ForgotPassword from "./pages/client/auth/forgotPassword";
-import ResetPassword from "./pages/client/auth/resetPassword";
-import VerifyEmail from "./pages/verifyEmail";
 
 axios.defaults.baseURL = "http://localhost:3000";
 
