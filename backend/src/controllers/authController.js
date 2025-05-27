@@ -86,6 +86,7 @@ exports.register = async (req, res) => {
       name: fullName,
       role_id: role._id,
       approval_status: requestedRole === 'instructor' ? 'pending' : 'approved',
+      status: 'inactive', // Mặc định là inactive khi chưa xác thực email
     });
 
     // Tạo mã xác thực email
@@ -145,6 +146,18 @@ exports.login = async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Email hoặc mật khẩu không đúng',
+      });
+    }
+
+    // Kiểm tra xác thực email
+    if (!user.email_verified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Vui lòng xác thực email trước khi đăng nhập',
+        data: {
+          email: user.email,
+          canResendVerification: true,
+        },
       });
     }
 
@@ -208,9 +221,10 @@ exports.verifyEmail = async (req, res) => {
       });
     }
 
-    // Cập nhật trạng thái xác thực
+    // Cập nhật trạng thái xác thực và status
     user.email_verified = true;
     user.email_verification_token = undefined;
+    user.status = 'active'; // Chuyển sang active khi xác thực thành công
     await user.save();
 
     res.json({
