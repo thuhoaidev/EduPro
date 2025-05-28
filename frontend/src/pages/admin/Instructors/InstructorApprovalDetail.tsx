@@ -27,6 +27,117 @@ const mockTeachers: TeacherProfile[] = [
             degree: 'Tiến sĩ Toán',
             status: 'Pending',
       },
+      {
+            id: '3',
+            name: 'Lê Văn C',
+            email: 'c@example.com',
+            degree: 'Cử nhân Kinh tế',
+            status: 'Pending',
+      },
+      {
+            id: '4',
+            name: 'Phạm Thị D',
+            email: 'd@example.com',
+            degree: 'Thạc sĩ Quản trị kinh doanh',
+            status: 'Pending',
+      },
+      {
+            id: '5',
+            name: 'Hoàng Văn E',
+            email: 'e@example.com',
+            degree: 'Tiến sĩ Vật lý',
+            status: 'Pending',
+      },
+      {
+            id: '6',
+            name: 'Ngô Thị F',
+            email: 'f@example.com',
+            degree: 'Cử nhân Luật',
+            status: 'Pending',
+      },
+      {
+            id: '7',
+            name: 'Đặng Văn G',
+            email: 'g@example.com',
+            degree: 'Thạc sĩ Xây dựng',
+            status: 'Pending',
+      },
+      {
+            id: '8',
+            name: 'Trịnh Thị H',
+            email: 'h@example.com',
+            degree: 'Tiến sĩ Sinh học',
+            status: 'Pending',
+      }, {
+            id: '9',
+            name: 'Phan Thị I',
+            email: 'i@example.com',
+            degree: 'Thạc sĩ Marketing',
+            status: 'Pending',
+      },
+      {
+            id: '10',
+            name: 'Bùi Văn K',
+            email: 'k@example.com',
+            degree: 'Tiến sĩ Lịch sử',
+            status: 'Pending',
+      },
+      {
+            id: '11',
+            name: 'Đỗ Thị L',
+            email: 'l@example.com',
+            degree: 'Cử nhân Ngoại ngữ',
+            status: 'Pending',
+      },
+      {
+            id: '12',
+            name: 'Lý Văn M',
+            email: 'm@example.com',
+            degree: 'Thạc sĩ Tài chính',
+            status: 'Pending',
+      },
+      {
+            id: '13',
+            name: 'Trương Thị N',
+            email: 'n@example.com',
+            degree: 'Tiến sĩ Sinh học',
+            status: 'Pending',
+      },
+      {
+            id: '14',
+            name: 'Vũ Văn O',
+            email: 'o@example.com',
+            degree: 'Cử nhân Khoa học Máy tính',
+            status: 'Pending',
+      },
+      {
+            id: '15',
+            name: 'Phạm Thị P',
+            email: 'p@example.com',
+            degree: 'Thạc sĩ Ngôn ngữ học',
+            status: 'Pending',
+      },
+      {
+            id: '16',
+            name: 'Hoàng Văn Q',
+            email: 'q@example.com',
+            degree: 'Tiến sĩ Khoa học Tự nhiên',
+            status: 'Pending',
+      },
+      {
+            id: '17',
+            name: 'Nguyễn Thị R',
+            email: 'r@example.com',
+            degree: 'Cử nhân Kinh tế',
+            status: 'Pending',
+      },
+      {
+            id: '18',
+            name: 'Đinh Văn S',
+            email: 's@example.com',
+            degree: 'Thạc sĩ Luật',
+            status: 'Pending',
+      },
 ];
 
 export default function TeacherDetailPage() {
@@ -40,7 +151,7 @@ export default function TeacherDetailPage() {
             const found = mockTeachers.find(t => t.id === id);
             if (!found) {
                   message.error('Không tìm thấy giảng viên');
-                  navigate('/admin/teachers-review');
+                  navigate('/admin/instructors-approval');
                   return;
             }
             setTeacher(found);
