@@ -12,6 +12,7 @@ const {
   updateMe,
   changePassword,
 } = require('../controllers/authController');
+const { getInstructorProfile } = require('../controllers/instructorprofile');
 
 // Routes công khai
 router.post('/register', register);
@@ -28,5 +29,6 @@ router.use(auth); // Middleware xác thực cho tất cả routes bên dưới
 router.get('/me', requireAuth, getMe);
 router.patch('/me', requireAuth, updateMe);
 router.patch('/change-password', requireAuth, changePassword);
+router.get('/instructor-profile/:id', requireAuth, getInstructorProfile);
 
 module.exports = router; 

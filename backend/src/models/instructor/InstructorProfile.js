@@ -68,9 +68,7 @@ instructorProfileSchema.methods.calculateAverageRating = async function () {
     const Review = mongoose.model('Review');
     const Course = mongoose.model('Course');
 
-    try {(node:14504) [MONGOOSE] Warning: Duplicate schema index on {"name":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
-    (Use `node --trace-warnings ...` to show where the warning was created)
-    (node:14504) [MONGOOSE] Warning: Duplicate schema index on {"email":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+    try {
         // Lấy tất cả khóa học của giảng viên
         const courses = await Course.find({ instructor: this.userId });
         const courseIds = courses.map(course => course._id);
