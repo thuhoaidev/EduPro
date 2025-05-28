@@ -9,7 +9,8 @@ const xss = require('xss-clean');
 const cookieParser = require('cookie-parser');
 const compression = require('compression');
 const path = require('path');
-const Role = require('./models/Role');
+const { Role } = require('./models/Role');
+
 require('dotenv').config();
 
 // Import routes

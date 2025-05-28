@@ -1,13 +1,13 @@
-import { Table, Tag, Avatar, Space, Input, Button } from "antd";
+import { Table, Tag, Space, Input, Button, Select } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
-import { UserOutlined, SearchOutlined } from "@ant-design/icons";
+import { SearchOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import type { InstructorProfile } from "../../../interfaces/Admin.interface";
+import type { InstructorProfile, UserStatus } from "../../../interfaces/Admin.interface";
+import { UserStatus as UserStatusEnum } from "../../../interfaces/Admin.interface"; // ✅ enum trạng thái hoạt động
 
-
-// Fake data demo, giả lập data
-const fakeInstructors: InstructorProfile[] = [
+// Demo data
+const fakeInstructors: (InstructorProfile & { userStatus: UserStatus })[] = [
   {
     id: 1,
     user_id: 101,
@@ -16,6 +16,7 @@ const fakeInstructors: InstructorProfile[] = [
     rating: 4.8,
     status: "approved",
     created_at: "2024-01-01T10:00:00Z",
+    userStatus: "active",
   },
   {
     id: 2,
@@ -23,8 +24,9 @@ const fakeInstructors: InstructorProfile[] = [
     bio: "Giảng viên về thiết kế đồ họa",
     expertise: "Graphic Design",
     rating: 4.5,
-    status: "pending",
+    status: "approved",
     created_at: "2024-03-15T12:30:00Z",
+    userStatus: "inactive",
   },
   {
     id: 3,
@@ -32,23 +34,31 @@ const fakeInstructors: InstructorProfile[] = [
     bio: "Chuyên gia an ninh mạng",
     expertise: "Cybersecurity",
     rating: 4.2,
-    status: "rejected",
+    status: "approved",
     created_at: "2024-04-20T15:45:00Z",
+    userStatus: "banned",
   },
 ];
 
 const InstructorList = () => {
   const [searchText, setSearchText] = useState("");
+  const [instructors, setInstructors] = useState(fakeInstructors);
   const navigate = useNavigate();
 
-  // Lọc theo expertise hoặc bio (ví dụ)
-  const filteredData = fakeInstructors.filter(
+  const filteredData = instructors.filter(
     (ins) =>
       ins.expertise.toLowerCase().includes(searchText.toLowerCase()) ||
       ins.bio.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  const columns: ColumnsType<InstructorProfile> = [
+  const updateStatus = (id: number, newStatus: UserStatus) => {
+    const updated = instructors.map((u) =>
+      u.id === id ? { ...u, userStatus: newStatus } : u
+    );
+    setInstructors(updated);
+  };
+
+  const columns: ColumnsType<typeof fakeInstructors[0]> = [
     {
       title: "#",
       dataIndex: "id",
@@ -76,15 +86,30 @@ const InstructorList = () => {
     },
     {
       title: "Trạng thái",
-      dataIndex: "status",
-      render: (status) => {
-        let color = "default";
-        if (status === "approved") color = "green";
-        else if (status === "pending") color = "orange";
-        else if (status === "rejected") color = "red";
-
-        return <Tag color={color}>{status.toUpperCase()}</Tag>;
-      },
+      dataIndex: "userStatus",
+      render: (status, user) => (
+        <Select
+          value={status}
+          onChange={(val) => updateStatus(user.id, val as UserStatus)}
+          style={{ width: 120 }}
+        >
+          {Object.values(UserStatusEnum).map((s) => (
+            <Select.Option key={s} value={s}>
+              <Tag
+                color={
+                  s === UserStatusEnum.ACTIVE
+                    ? "green"
+                    : s === UserStatusEnum.BANNED
+                      ? "red"
+                      : "default"
+                }
+              >
+                {s.toUpperCase()}
+              </Tag>
+            </Select.Option>
+          ))}
+        </Select>
+      ),
     },
     {
       title: "Thao tác",

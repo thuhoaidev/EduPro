@@ -4,7 +4,7 @@ const roleSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    unique: true,
+    // unique: true,
     trim: true,
   },
   description: {
@@ -24,4 +24,12 @@ roleSchema.index({ name: 1 });
 
 const Role = mongoose.model('Role', roleSchema);
 
-module.exports = Role; 
+const ROLES = {
+  ADMIN: 'admin',
+  MODERATOR: 'moderator',
+  INSTRUCTOR: 'instructor',
+  STUDENT: 'student',
+};
+
+// Export cùng lúc
+module.exports = { Role, ROLES };

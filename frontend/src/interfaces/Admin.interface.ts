@@ -1,5 +1,6 @@
-// ✅ user.interface.ts
-
+// ------------------------------
+// User Roles & Status
+// ------------------------------
 export const UserRole = {
   ADMIN: "admin",
   INSTRUCTOR: "instructor",
@@ -48,80 +49,43 @@ export interface UpdateUserStatusPayload {
   status: UserStatus;
 }
 
-
-
-// Content approval status enum
+// ------------------------------
+// Approval Status (dùng chung cho duyệt giảng viên, nội dung...)
 export const ApprovalStatus = {
   PENDING: "pending",
   APPROVED: "approved",
   REJECTED: "rejected",
 } as const;
+
 export type ApprovalStatus = (typeof ApprovalStatus)[keyof typeof ApprovalStatus];
 
-// Content item interface
-export type ContentStatus = "pending" | "approved" | "rejected";
-
-export interface ContentItem {
-  id: number;
-  title: string;
-  authorName: string;
-  status: ContentStatus;
-  createdAt: string;
-}
-
-
-// Repor
-export type ReportStatus = "pending" | "resolved";
-
-export interface ReportItem {
-  description: string;
-  id: number;
-  title: string;
-  reporterName: string;
-  status: ReportStatus;
-  createdAt: string;
-}
-
-
-// Voucher
-export interface Coupon {
-  key: string;
-  code: string;
-  courseApplied: string; // Tên khóa học áp dụng (hoặc "Tất cả")
-  type: 'amount' | 'percentage'; // Loại giảm giá: số tiền hay phần trăm
-  value: number; // Giá trị giảm giá
-  usedCount: number; // Số lượng đã sử dụng
-  quantity: number; // Tổng số lượng
-  createdAt: string; // Ngày tạo, định dạng YYYY-MM-DD
-  expiresAt: string; // Ngày hết hạn, định dạng YYYY-MM-DD
-}
-
-
-//instructor :  Giáo viênviên
+// ------------------------------
+// Instructor Profile
+// ------------------------------
 export interface InstructorProfile {
   id: number;
-  user_id: number;           // id người dùng liên kết
+  user_id: number;
   bio: string;
   expertise: string;
-  rating: number;            
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;        // ISO date string hoặc Date tùy project
+  rating: number;
+  status: ApprovalStatus; // Sử dụng ApprovalStatus thay vì chuỗi trực tiếp
+  created_at: string;
 }
 
 export interface InstructorEarnings {
   id: number;
-  instructor_id: number;     // liên kết tới InstructorProfile.id
-  total_earnings: number;    // decimal có thể dùng number
-  last_payout_date: string;  // ISO date string hoặc Date
+  instructor_id: number;
+  total_earnings: number;
+  last_payout_date: string;
 }
 
 export interface EarningTransaction {
   id: number;
   instructor_id: number;
-  amount: number;            // decimal, số tiền giao dịch
-  type: 'income' | 'withdrawal' | 'adjustment'; // enum giao dịch
+  amount: number;
+  type: 'income' | 'withdrawal' | 'adjustment';
   description: string;
-  created_at: string;        // ISO date string hoặc Date
+  created_at: string;
 }
 
 export interface InstructorDetail {
@@ -129,15 +93,56 @@ export interface InstructorDetail {
   fullName: string;
   email: string;
   avatar: string;
-  status: "active" | "inactive" | "banned";
+  status: UserStatus; // dùng lại UserStatus
   createdAt: string;
   bio: string;
   phone: string;
   gender: "Nam" | "Nữ" | "Khác";
 }
 
+// ------------------------------
+// Content Item
+// ------------------------------
+export interface ContentItem {
+  id: number;
+  title: string;
+  authorName: string;
+  status: ApprovalStatus;
+  createdAt: string;
+}
 
-//Notification
+// ------------------------------
+// Report
+// ------------------------------
+export type ReportStatus = "pending" | "resolved";
+
+export interface ReportItem {
+  id: number;
+  title: string;
+  description: string;
+  reporterName: string;
+  status: ReportStatus;
+  createdAt: string;
+}
+
+// ------------------------------
+// Coupon / Voucher
+// ------------------------------
+export interface Coupon {
+  key: string;
+  code: string;
+  courseApplied: string; // Tên khóa học áp dụng (hoặc "Tất cả")
+  type: "amount" | "percentage";
+  value: number;
+  usedCount: number;
+  quantity: number;
+  createdAt: string;
+  expiresAt: string;
+}
+
+// ------------------------------
+// Notification
+// ------------------------------
 export type NotificationStatus = "unread" | "read";
 
 export interface Notification {
@@ -145,7 +150,7 @@ export interface Notification {
   title: string;
   content: string;
   status: NotificationStatus;
-  createdAt: string; // ISO date string
-  userId?: number; // Nếu notification liên quan user cụ thể
+  createdAt: string;
+  userId?: number;
   notifyTime?: string;
 }

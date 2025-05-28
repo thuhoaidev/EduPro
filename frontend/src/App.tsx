@@ -25,10 +25,11 @@ import ForgotPassword from "./pages/client/auth/forgotPassword";
 import ResetPassword from "./pages/client/auth/resetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
+import InstructorApproval from "./pages/admin/Instructors/InstructorApproval"
+import InstructorApprovalDetail from "./pages/admin/Instructors/InstructorApprovalDetail"
 
-axios.defaults.baseURL = "http://localhost:3000";
 
-
+// axios.defaults.baseURL = "http://localhost:3000";
 const queryClient = new QueryClient();
 
 function App() {
@@ -42,24 +43,26 @@ function App() {
 
         { path: 'instructor/earnings', element: <Earnings /> },
 
-
+      ]
     },
 
     {
       path: "/admin",
       element: <AdminLayout />,
       children: [
-        { path: "users", element: < UserPage/> },
-        { path: "users/:id", element: < UserDetail/> },
-        { path: "instructors", element: < InstructorList/> },
-        { path: "users/instructor/:id", element: < InstructorDetail/> },
-        { path: "content-approval", element: < ContentApprovalPage/> },
-        { path: "reports", element: < ReportsPage/> },
-        { path: "system/vouchers", element: < VouchersPage/> },
-        { path: "system/notifications", element: < Notifications/> },
-        { path: "statistics", element: < AdminStatistics/> },
-        { path: "coupons", element: < CouponManagement/> },
-        { path: "history", element: < TransactionHistory/> },
+        { path: "users", element: < UserPage /> },
+        { path: "users/:id", element: < UserDetail /> },
+        { path: "instructors", element: < InstructorList /> },
+        { path: "users/instructor/:id", element: < InstructorDetail /> },
+        { path: "content-approval", element: < ContentApprovalPage /> },
+        { path: "reports", element: < ReportsPage /> },
+        { path: "system/vouchers", element: < VouchersPage /> },
+        { path: "system/notifications", element: < Notifications /> },
+        { path: "statistics", element: < AdminStatistics /> },
+        { path: "coupons", element: < CouponManagement /> },
+        { path: "history", element: < TransactionHistory /> },
+        { path: "instructors-approval", element: < InstructorApproval /> },
+        { path: "users/instructor-approval/:id", element: < InstructorApprovalDetail /> },
       ],
     },
     {
