@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { register } from "../provider/authProvider";
+import { register } from "../../provider/authProvider";
 
 type useRegisterParams = {
   resource: string;

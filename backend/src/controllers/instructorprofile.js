@@ -1,5 +1,5 @@
-const User = require('../models/user/User');
-const { ROLES } = require('../constants/roles');
+const User = require('../models/User');
+const { ROLES } = require('../models/Role');
 
 const updateOrCreateInstructorProfile = async (req, res) => {
   try {

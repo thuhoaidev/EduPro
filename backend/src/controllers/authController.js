@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Role = require('../models/Role');
 const jwt = require('jsonwebtoken');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../config/email');
+const crypto = require('crypto');
 
 // Tạo JWT token
 const createToken = (userId) => {
@@ -13,7 +14,7 @@ const createToken = (userId) => {
 // Đăng ký tài khoản
 exports.register = async (req, res) => {
   try {
-    const { email, password, repassword, fullName } = req.body;
+    const { email, password, repassword, fullName, role: requestedRole } = req.body;
 
     // Validate dữ liệu đầu vào
     if (!email || !password || !repassword || !fullName) {
@@ -48,32 +49,53 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Tìm role student
-    const studentRole = await Role.findOne({ name: 'student' });
-    if (!studentRole) {
-      return res.status(500).json({
-        success: false,
-        message: 'Không tìm thấy role student',
-      });
+    // Xác định role cho user mới
+    let role;
+    if (requestedRole) {
+      role = await Role.findOne({ name: requestedRole });
+      if (!role) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vai trò không hợp lệ',
+        });
+      }
+      // Chỉ cho phép tạo tài khoản admin đầu tiên
+      if (requestedRole === 'admin') {
+        const adminCount = await User.countDocuments({ role_id: role._id });
+        if (adminCount > 0) {
+          return res.status(403).json({
+            success: false,
+            message: 'Không thể tạo thêm tài khoản admin',
+          });
+        }
+      }
+    } else {
+      role = await Role.findOne({ name: 'student' });
+      if (!role) {
+        return res.status(500).json({
+          success: false,
+          message: 'Không tìm thấy role student',
+        });
+      }
     }
 
-    // Tạo user mới với role student
+    // Tạo user mới
     const user = new User({
       email,
       password,
-      fullName,
-      role: studentRole._id, // Luôn gán role student cho user mới
+      name: fullName,
+      role_id: role._id,
+      approval_status: requestedRole === 'instructor' ? 'pending' : 'approved',
+      status: 'inactive', // Mặc định là inactive khi chưa xác thực email
     });
 
     // Tạo mã xác thực email
-    await user.createEmailVerificationToken();
-
-    // Lưu user
+    const verificationToken = user.createEmailVerificationToken();
     await user.save();
 
     // Gửi email xác thực
     try {
-      await sendVerificationEmail(user.email, user.email_verification_token);
+      await sendVerificationEmail(user.email, verificationToken);
     } catch (emailError) {
       console.error('Lỗi gửi email xác thực:', emailError);
       // Không trả về lỗi nếu gửi email thất bại
@@ -87,9 +109,10 @@ exports.register = async (req, res) => {
         user: {
           _id: user._id,
           email: user.email,
-          fullName: user.fullName,
-          role: user.role,
+          fullName: user.name,
+          role: role.name,
           isVerified: user.email_verified,
+          approval_status: user.approval_status,
           createdAt: user.created_at,
         },
       },
@@ -126,6 +149,18 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Kiểm tra xác thực email
+    if (!user.email_verified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Vui lòng xác thực email trước khi đăng nhập',
+        data: {
+          email: user.email,
+          canResendVerification: true,
+        },
+      });
+    }
+
     // Kiểm tra trạng thái tài khoản
     if (user.status === 'banned') {
       return res.status(403).json({
@@ -134,12 +169,11 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Cập nhật last_login
-    user.last_login = Date.now();
-    await user.save();
-
     // Tạo JWT token
     const token = createToken(user._id);
+
+    // Populate role để lấy thông tin vai trò
+    await user.populate('role_id');
 
     res.json({
       success: true,
@@ -149,10 +183,11 @@ exports.login = async (req, res) => {
         user: {
           _id: user._id,
           email: user.email,
-          fullName: user.fullName,
-          role: user.role,
-          isVerified: user.email_verified,
+          fullName: user.name,
+          role: user.role_id.name,
           avatar: user.avatar,
+          isVerified: user.email_verified,
+          approval_status: user.approval_status,
           createdAt: user.created_at,
         },
       },
@@ -172,26 +207,24 @@ exports.verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
 
-    // Tìm user với token hợp lệ
     const user = await User.findOne({
       email_verification_token: crypto
         .createHash('sha256')
         .update(token)
         .digest('hex'),
-      email_verification_expires: { $gt: Date.now() },
     });
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: 'Token không hợp lệ hoặc đã hết hạn',
+        message: 'Token không hợp lệ',
       });
     }
 
-    // Cập nhật trạng thái xác thực
+    // Cập nhật trạng thái xác thực và status
     user.email_verified = true;
     user.email_verification_token = undefined;
-    user.email_verification_expires = undefined;
+    user.status = 'active'; // Chuyển sang active khi xác thực thành công
     await user.save();
 
     res.json({
@@ -346,7 +379,7 @@ exports.resetPassword = async (req, res) => {
 // Lấy thông tin user hiện tại
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).populate('role');
+    const user = await User.findById(req.user.id).populate('role_id');
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -371,7 +404,7 @@ exports.getMe = async (req, res) => {
 // Cập nhật thông tin user
 exports.updateMe = async (req, res) => {
   try {
-    const allowedUpdates = ['name', 'avatar'];
+    const allowedUpdates = ['name', 'nickname', 'avatar', 'bio', 'social_links'];
 
     // Lọc các trường được phép cập nhật
     const updates = Object.keys(req.body)
@@ -385,7 +418,7 @@ exports.updateMe = async (req, res) => {
       req.user.id,
       { $set: updates },
       { new: true, runValidators: true },
-    ).populate('role');
+    ).populate('role_id');
 
     if (!user) {
       return res.status(404).json({
@@ -447,4 +480,4 @@ exports.changePassword = async (req, res) => {
       error: error.message,
     });
   }
-}; 
+};

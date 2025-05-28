@@ -3,14 +3,18 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
-  role: {
+  role_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Role',
     required: [true, 'Vai trò là bắt buộc'],
   },
-  fullName: {
+  name: {
     type: String,
-    required: [true, 'Họ tên là bắt buộc'],
+    required: [true, 'Tên đầy đủ là bắt buộc'],
+    trim: true,
+  },
+  nickname: {
+    type: String,
     trim: true,
   },
   email: {
@@ -25,11 +29,28 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Mật khẩu là bắt buộc'],
     minlength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
-    select: false, // Không trả về password khi query
+    select: false,
   },
   avatar: {
     type: String,
     default: 'default-avatar.png',
+  },
+  bio: {
+    type: String,
+    default: '',
+  },
+  social_links: {
+    type: Map,
+    of: String,
+    default: {},
+  },
+  followers_count: {
+    type: Number,
+    default: 0,
+  },
+  following_count: {
+    type: Number,
+    default: 0,
   },
   status: {
     type: String,
@@ -57,11 +78,11 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-// Tạo index cho email
+
 userSchema.index({ email: 1 }, { unique: true });
 
-// Mã hóa mật khẩu trước khi lưu
-userSchema.pre('save', async function(next) {
+
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   try {
     const salt = await bcrypt.genSalt(10);
@@ -72,41 +93,40 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// Phương thức kiểm tra mật khẩu
-userSchema.methods.comparePassword = async function(candidatePassword) {
+
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Phương thức tạo token xác thực email
-userSchema.methods.createEmailVerificationToken = function() {
+userSchema.methods.createEmailVerificationToken = function () {
   const token = crypto.randomBytes(32).toString('hex');
   this.email_verification_token = crypto
     .createHash('sha256')
     .update(token)
     .digest('hex');
-  this.email_verification_expires = Date.now() + 24 * 60 * 60 * 1000; // 24 giờ
+  this.email_verification_expires = Date.now() + 24 * 60 * 60 * 1000;
   return token;
 };
 
-// Phương thức tạo token reset mật khẩu
-userSchema.methods.createPasswordResetToken = function() {
+
+userSchema.methods.createPasswordResetToken = function () {
   const token = crypto.randomBytes(32).toString('hex');
   this.reset_password_token = crypto
     .createHash('sha256')
     .update(token)
     .digest('hex');
-  this.reset_password_expires = Date.now() + 1 * 60 * 60 * 1000; // 1 giờ
+  this.reset_password_expires = Date.now() + 1 * 60 * 60 * 1000;
   return token;
 };
 
-// Phương thức kiểm tra quyền
-userSchema.methods.hasPermission = async function(permission) {
-  await this.populate('role');
-  return this.role.permissions.get(permission) || false;
+
+userSchema.methods.hasPermission = async function (permission) {
+  await this.populate('role_id');
+  return this.role_id.permissions.includes(permission) || false;
 };
 
-// Phương thức lấy thông tin user (không bao gồm các trường nhạy cảm)
-userSchema.methods.toJSON = function() {
+
+userSchema.methods.toJSON = function () {
   const user = this.toObject();
   delete user.password;
   delete user.email_verification_token;
@@ -117,5 +137,4 @@ userSchema.methods.toJSON = function() {
 };
 
 const User = mongoose.model('User', userSchema);
-
-module.exports = User; 
+module.exports = User;

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { login } from "../provider/authProvider";
+import { login } from "../../provider/authProvider";
 
 
 type useLoginParams = {
