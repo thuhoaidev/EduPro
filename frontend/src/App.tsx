@@ -42,7 +42,7 @@ function App() {
 
         { path: 'instructor/earnings', element: <Earnings /> },
 
-
+      ]
     },
 
     {
