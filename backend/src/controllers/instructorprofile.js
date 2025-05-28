@@ -4,10 +4,14 @@ const Role = require('../models/Role');
 
 const updateOrCreateInstructorProfile = async (req, res) => {
   try {
-    const userId = req.user.id;
+    // Lấy userId từ params hoặc từ user đang đăng nhập
+    const userId = req.params.id || req.user.id;
+    console.log('Updating profile for user:', userId);
 
     // Tìm user và populate role
     const user = await User.findById(userId).populate('role_id');
+    console.log('Found user:', user);
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -24,6 +28,7 @@ const updateOrCreateInstructorProfile = async (req, res) => {
     }
 
     const { bio, expertise, education, experience } = req.body;
+    console.log('Update data:', { bio, expertise, education, experience });
 
     // Tìm hoặc tạo mới hồ sơ giảng viên
     let instructorProfile = await InstructorProfile.findOne({ userId });
@@ -32,13 +37,14 @@ const updateOrCreateInstructorProfile = async (req, res) => {
     }
 
     // Cập nhật thông tin
-    instructorProfile.bio = bio || instructorProfile.bio;
-    instructorProfile.expertise = expertise || instructorProfile.expertise;
-    instructorProfile.education = education || instructorProfile.education;
-    instructorProfile.experience = experience || instructorProfile.experience;
+    if (bio !== undefined) instructorProfile.bio = bio;
+    if (expertise !== undefined) instructorProfile.expertise = expertise;
+    if (education !== undefined) instructorProfile.education = education;
+    if (experience !== undefined) instructorProfile.experience = experience;
     instructorProfile.status = 'pending'; // Đặt lại trạng thái chờ duyệt
 
     await instructorProfile.save();
+    console.log('Profile saved:', instructorProfile);
 
     return res.json({
       success: true,
@@ -57,6 +63,7 @@ const updateOrCreateInstructorProfile = async (req, res) => {
 // Lấy thông tin hồ sơ giảng viên
 const getInstructorProfile = async (req, res) => {
   try {
+    // Lấy userId từ params hoặc từ user đang đăng nhập
     const userId = req.params.id || req.user.id;
     console.log('Requested userId:', userId);
 
