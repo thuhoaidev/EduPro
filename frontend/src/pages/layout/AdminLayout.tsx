@@ -43,16 +43,12 @@ const AdminLayout = () => {
     .filter((i) => i)
     .map((path, index, array) => {
       const url = `/${array.slice(0, index + 1).join("/")}`;
-      const name = path
-        .split("-")
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
+      const name = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, " ");
       return {
         key: url,
         title: <a href={url}>{name}</a>,
       };
     });
-
 
   const finalBreadcrumbItems = [
     {
@@ -100,12 +96,6 @@ const AdminLayout = () => {
           icon: <TeamOutlined />,
           label: renderLabel("Quản lý giảng viên"),
         },
-        {
-          key: "/admin/instructors-approval",
-          icon: <FileSearchOutlined />,
-          label: renderLabel("Duyệt giảng viên"),
-        },
-
       ],
     },
     {
@@ -243,7 +233,7 @@ const AdminLayout = () => {
         >
           <Space size="middle">
             <Avatar size={40} src="https://i.imgur.com/xsKJ4Eh.png" />
-            {!collapsed && <span style={{ fontSize: 20, fontWeight: 600 }}>EduPro Admin</span>}
+            {!collapsed && <span style={{ fontSize: 20, fontWeight: 600 }}>FTECH Admin</span>}
             <Button
               type="text"
               icon={<MenuOutlined style={{ fontSize: 20, color: "#444" }} />}
