@@ -46,7 +46,7 @@ const AppHeader = () => {
           {/* Brand Name with Dropdown */}
           <Dropdown overlay={menu} placement="bottomLeft">
             <Button type="link" style={{ color: '#000', fontSize: '1.2em', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
-              Lập trình Frech <span style={{ marginLeft: 4, transform: 'rotate(90deg)', display: 'inline-block', lineHeight: 1, transition: 'transform 0.2s' }}>&#9660;</span> {/* Small arrow, consider dynamic rotation */}
+              EduPro <span style={{ marginLeft: 4, transform: 'rotate(90deg)', display: 'inline-block', lineHeight: 1, transition: 'transform 0.2s' }}>&#9660;</span> {/* Small arrow, consider dynamic rotation */}
             </Button>
           </Dropdown>
         </div>
@@ -60,9 +60,9 @@ const AppHeader = () => {
               borderRadius: 25, // More rounded corners for input
               padding: '8px 12px',
               border: '1px solid #d9d9d9', // Default border
-              boxShadow: '0 2px 5px rgba(0,0,0,0.05)' 
+              boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
             }}
-            
+
             onFocus={(e) => {
               e.target.style.borderColor = '#1890ff';
               e.target.style.boxShadow = '0 0 0 2px rgba(24,144,255,0.2)';
@@ -95,7 +95,7 @@ const AppHeader = () => {
               color: '#888',
               cursor: 'pointer',
               height: 40, width: 40,
-              borderRadius: '50%', 
+              borderRadius: '50%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               border: '1px solid #d9d9d9',
               boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
