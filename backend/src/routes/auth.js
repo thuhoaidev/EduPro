@@ -9,8 +9,8 @@ const {
   verifyEmail,
 } = require('../controllers/auth');
 const {updateOrCreateInstructorProfile} = require('../controllers/instructorprofile')
-const {getPendingInstructors, approveInstructorProfile} = require('../controllers/instructorapproval')
-const { auth, checkRole, checkPermission, requireAuth } = require('../middlewares/auth');
+const {getPendingInstructors, approveInstructorProfile, getInstructorProfileById} = require('../controllers/instructorapproval')
+const { auth, checkRole, isAdmin, isInstructor, requireAuth } = require('../middlewares/auth');
 const { ROLES } = require('../constants/roles');
 // const userController = require('../controllers/user');
 // const courseController = require('../controllers/course');
@@ -26,9 +26,15 @@ router.post('/send-verification', auth, sendVerification);
 router.post('/verify-email', verifyEmail);
 
 // Routes hồ sơ giảng viên
-router.put('/instructor-profile', auth, requireAuth, updateOrCreateInstructorProfile);
-router.get('/instructors-profile', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), getPendingInstructors);
-router.post('/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), approveInstructorProfile);
+// Chỉ Admin được duyệt và xem danh sách
+router.get('/pending', auth, isAdmin, getPendingInstructors);
+router.get('/:id', auth, isAdmin, getInstructorProfileById);
+router.post('/approve', auth, isAdmin, approveInstructorProfile);
+
+
+// Instructor cập nhật hồ sơ
+router.put('/up-profile', auth, isInstructor, updateOrCreateInstructorProfile);
+
 
 // Route chỉ cho admin
 // router.get('/admin/users', auth, checkRole(ROLES.ADMIN), userController.getAllUsers);

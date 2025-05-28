@@ -9,16 +9,26 @@ const getPendingInstructors = async (req, res) => {
       status: 'inactive',
     }).select('-password');
 
-    res.status(200).json({
-      success: true,
-      data: pendingInstructors,
-    });
+    res.status(200).json({ success: true, data: pendingInstructors });
   } catch (error) {
-    console.error('[InstructorController] Error fetching pending instructors:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Đã xảy ra lỗi máy chủ',
-    });
+    console.error('[InstructorController] Error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ' });
+  }
+};
+
+// [GET] /api/instructors/:id
+const getInstructorProfileById = async (req, res) => {
+  try {
+    const instructor = await User.findById(req.params.id).select('-password');
+
+    if (!instructor || instructor.role !== ROLES.INSTRUCTOR) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy giảng viên' });
+    }
+
+    res.json({ success: true, data: instructor });
+  } catch (err) {
+    console.error('[InstructorController] Lỗi:', err);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
 
@@ -28,12 +38,8 @@ const approveInstructorProfile = async (req, res) => {
     const { userId, approve } = req.body;
 
     const user = await User.findById(userId);
-
     if (!user || user.role !== ROLES.INSTRUCTOR) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy giảng viên',
-      });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy giảng viên' });
     }
 
     user.instructorInfo = {
@@ -42,10 +48,9 @@ const approveInstructorProfile = async (req, res) => {
     };
 
     user.status = approve ? 'active' : 'inactive';
-
     await user.save();
 
-    return res.json({
+    res.json({
       success: true,
       message: `Giảng viên đã được ${approve ? 'duyệt' : 'từ chối'}`,
       data: {
@@ -55,13 +60,9 @@ const approveInstructorProfile = async (req, res) => {
         status: user.status,
       },
     });
-
   } catch (error) {
-    console.error('[InstructorController] Lỗi duyệt giảng viên:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi server',
-    });
+    console.error('[InstructorController] Lỗi duyệt:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
 
@@ -71,20 +72,13 @@ const updateOrCreateInstructorProfile = async (req, res) => {
     const userId = req.user.id;
 
     if (req.user.role !== ROLES.INSTRUCTOR) {
-      return res.status(403).json({
-        success: false,
-        message: 'Chỉ giảng viên mới được phép tạo hoặc cập nhật hồ sơ',
-      });
+      return res.status(403).json({ success: false, message: 'Chỉ giảng viên mới được cập nhật hồ sơ' });
     }
 
     const { bio, expertise, education, experience } = req.body;
-
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy người dùng',
-      });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
     }
 
     user.instructorInfo = {
@@ -93,31 +87,26 @@ const updateOrCreateInstructorProfile = async (req, res) => {
       ...(expertise !== undefined && { expertise }),
       ...(education !== undefined && { education }),
       ...(experience !== undefined && { experience }),
-      is_approved: false, // reset duyệt
+      is_approved: false,
     };
 
     user.status = 'inactive';
-
     await user.save();
 
-    return res.json({
+    res.json({
       success: true,
       message: 'Hồ sơ giảng viên đã được cập nhật. Vui lòng chờ duyệt.',
-      data: {
-        instructorInfo: user.instructorInfo,
-      },
+      data: { instructorInfo: user.instructorInfo },
     });
   } catch (err) {
-    console.error('[InstructorController] Lỗi xử lý hồ sơ giảng viên:', err);
-    return res.status(500).json({
-      success: false,
-      message: 'Lỗi server',
-    });
+    console.error('[InstructorController] Lỗi cập nhật hồ sơ:', err);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
 
 module.exports = {
   getPendingInstructors,
+  getInstructorProfileById,
   approveInstructorProfile,
   updateOrCreateInstructorProfile,
 };
