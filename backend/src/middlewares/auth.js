@@ -17,13 +17,15 @@ exports.auth = async (req, res, next) => {
           message: 'Không tìm thấy role guest',
         });
       }
-      req.user = { role: guestRole };
+      // Gán guest role cho user và lưu trữ ID của role
+      req.user = { role_id: guestRole._id, role: guestRole };
       return next();
     }
 
     // Xác thực token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).populate('role');
+    // Populate role_id để lấy thông tin vai trò đầy đủ
+    const user = await User.findById(decoded.id).populate('role_id');
 
     if (!user) {
       return res.status(401).json({
@@ -55,10 +57,11 @@ exports.auth = async (req, res, next) => {
 exports.checkPermission = (requiredPermission) => {
   return async (req, res, next) => {
     try {
-      const userRole = req.user.role;
+      // Lấy thông tin role từ user (đã được populate trong auth middleware)
+      const userRole = req.user.role_id;
 
       // Nếu là guest, chỉ cho phép các quyền cơ bản
-      if (userRole.name === 'guest') {
+      if (userRole && userRole.name === 'guest') {
         const guestPermissions = [
           'view_courses',
           'view_course_details',
@@ -77,7 +80,7 @@ exports.checkPermission = (requiredPermission) => {
       }
 
       // Kiểm tra quyền của role
-      if (!userRole.permissions.includes(requiredPermission)) {
+      if (!userRole || !userRole.permissions || !userRole.permissions.includes(requiredPermission)) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền thực hiện chức năng này',
@@ -99,17 +102,18 @@ exports.checkPermission = (requiredPermission) => {
 exports.checkRole = (roles) => {
   return async (req, res, next) => {
     try {
-      const userRole = req.user.role;
+      // Lấy thông tin role từ user (đã được populate trong auth middleware)
+      const userRole = req.user.role_id;
 
       // Nếu là guest, chỉ cho phép truy cập các route công khai
-      if (userRole.name === 'guest' && !roles.includes('guest')) {
+      if (userRole && userRole.name === 'guest' && !roles.includes('guest')) {
         return res.status(403).json({
           success: false,
           message: 'Vui lòng đăng nhập để thực hiện chức năng này',
         });
       }
 
-      if (!roles.includes(userRole.name)) {
+      if (!userRole || !roles.includes(userRole.name)) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền truy cập',
@@ -130,7 +134,8 @@ exports.checkRole = (roles) => {
 // Middleware yêu cầu đăng nhập
 exports.requireAuth = async (req, res, next) => {
   try {
-    if (!req.user || req.user.role.name === 'guest') {
+    // Kiểm tra nếu user tồn tại và không phải guest
+    if (!req.user || (req.user.role_id && req.user.role_id.name === 'guest')) {
       return res.status(401).json({
         success: false,
         message: 'Vui lòng đăng nhập để thực hiện chức năng này',
