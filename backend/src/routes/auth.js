@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { auth, checkRole, checkPermission, requireAuth, requireVerifiedEmail } = require('../middlewares/auth');
+const { auth, requireAuth } = require('../middlewares/auth');
 const {
   register,
   login,
+  getProfile,
+  updateProfile,
+  sendVerification,
   verifyEmail,
   resendVerificationEmail,
   forgotPassword,
@@ -12,6 +15,7 @@ const {
   updateMe,
   changePassword,
 } = require('../controllers/authController');
+const { getInstructorProfile, updateOrCreateInstructorProfile } = require('../controllers/instructorprofile');
 
 // Routes công khai
 router.post('/register', register);
@@ -28,5 +32,15 @@ router.use(auth); // Middleware xác thực cho tất cả routes bên dưới
 router.get('/me', requireAuth, getMe);
 router.patch('/me', requireAuth, updateMe);
 router.patch('/change-password', requireAuth, changePassword);
+router.get('/profile', requireAuth, getProfile);
+router.put('/profile', requireAuth, updateProfile);
+
+// Routes xác thực email
+router.post('/send-verification', requireAuth, sendVerification);
+router.post('/verify-email', requireAuth, verifyEmail);
+
+// Routes hồ sơ giảng viên
+router.get('/instructor-profile/:id?', requireAuth, getInstructorProfile);
+router.put('/instructor-profile', requireAuth, updateOrCreateInstructorProfile);
 
 module.exports = router; 

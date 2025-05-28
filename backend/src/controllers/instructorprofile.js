@@ -1,12 +1,22 @@
 const User = require('../models/User');
-const { ROLES } = require('../models/Role');
+const InstructorProfile = require('../models/instructor/InstructorProfile');
+const Role = require('../models/Role');
 
 const updateOrCreateInstructorProfile = async (req, res) => {
   try {
     const userId = req.user.id;
 
+    // Tìm user và populate role
+    const user = await User.findById(userId).populate('role_id');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+      });
+    }
+
     // Chỉ giảng viên được quyền
-    if (req.user.role !== ROLES.INSTRUCTOR) {
+    if (!user.role_id || user.role_id.name !== 'instructor') {
       return res.status(403).json({
         success: false,
         message: 'Chỉ giảng viên mới được phép tạo hoặc cập nhật hồ sơ giảng viên',
@@ -15,34 +25,25 @@ const updateOrCreateInstructorProfile = async (req, res) => {
 
     const { bio, expertise, education, experience } = req.body;
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy người dùng',
-      });
+    // Tìm hoặc tạo mới hồ sơ giảng viên
+    let instructorProfile = await InstructorProfile.findOne({ userId });
+    if (!instructorProfile) {
+      instructorProfile = new InstructorProfile({ userId });
     }
 
-    // Gán thông tin mới (nếu chưa có thì sẽ tạo mới)
-    user.instructorInfo = {
-      ...user.instructorInfo?.toObject(), // nếu đã có thì giữ lại dữ liệu cũ
-      ...(bio !== undefined && { bio }),
-      ...(expertise !== undefined && { expertise }),
-      ...(education !== undefined && { education }),
-      ...(experience !== undefined && { experience }),
-    };
+    // Cập nhật thông tin
+    instructorProfile.bio = bio || instructorProfile.bio;
+    instructorProfile.expertise = expertise || instructorProfile.expertise;
+    instructorProfile.education = education || instructorProfile.education;
+    instructorProfile.experience = experience || instructorProfile.experience;
+    instructorProfile.status = 'pending'; // Đặt lại trạng thái chờ duyệt
 
-    // Tự động chuyển trạng thái thành 'inactive' để chờ duyệt
-    user.status = 'inactive';
-
-    await user.save();
+    await instructorProfile.save();
 
     return res.json({
       success: true,
       message: 'Hồ sơ giảng viên đã được cập nhật và đang chờ duyệt',
-      data: {
-        instructorInfo: user.instructorInfo,
-      },
+      data: instructorProfile
     });
   } catch (err) {
     console.error('Lỗi xử lý hồ sơ giảng viên:', err);
@@ -57,9 +58,11 @@ const updateOrCreateInstructorProfile = async (req, res) => {
 const getInstructorProfile = async (req, res) => {
   try {
     const userId = req.params.id || req.user.id;
+    console.log('Requested userId:', userId);
 
-    // Tìm user
-    const user = await User.findById(userId);
+    // Tìm user và populate role
+    const user = await User.findById(userId).populate('role_id');
+    console.log('Found user:', user);
 
     if (!user) {
       return res.status(404).json({
@@ -69,12 +72,18 @@ const getInstructorProfile = async (req, res) => {
     }
 
     // Kiểm tra xem user có phải là giảng viên không
-    if (user.role !== ROLES.INSTRUCTOR) {
+    console.log('User role:', user.role_id?.name);
+
+    if (!user.role_id || user.role_id.name !== 'instructor') {
       return res.status(403).json({
         success: false,
         message: 'Người dùng này không phải là giảng viên',
       });
     }
+
+    // Tìm hồ sơ giảng viên
+    const instructorProfile = await InstructorProfile.findOne({ userId });
+    console.log('Found instructor profile:', instructorProfile);
 
     // Tạo response data
     const instructorData = {
@@ -93,7 +102,7 @@ const getInstructorProfile = async (req, res) => {
         email_verified: user.email_verified,
         created_at: user.created_at
       },
-      instructorInfo: user.instructorInfo || null
+      instructorProfile: instructorProfile || null
     };
 
     return res.json({
