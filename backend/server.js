@@ -1,39 +1,8 @@
-const express = require('express');
-const cors = require('cors');
 const mongoose = require('mongoose');
 require('dotenv').config();
 const app = require('./src/app');
 
-// Import routes
-const authRoutes = require('./src/routes/auth');
-
 const PORT = process.env.PORT || 5000;
-
-// Các middleware cơ bản
-const appMiddleware = express();
-appMiddleware.use(cors());
-appMiddleware.use(express.json());
-appMiddleware.use(express.urlencoded({ extended: true }));
-
-// Routes
-appMiddleware.use('/api/auth', authRoutes);
-
-// Middleware xử lý lỗi
-appMiddleware.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Có lỗi xảy ra!',
-  });
-});
-
-// Middleware xử lý 404
-appMiddleware.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Không tìm thấy trang',
-  });
-});
 
 // Kết nối đến MongoDB
 mongoose
@@ -41,7 +10,7 @@ mongoose
   .then(() => {
     console.log('Đã kết nối đến MongoDB');
     // Khởi động server
-    appMiddleware.listen(PORT, () => {
+    app.listen(PORT, () => {
       console.log(`Server đang chạy trên port ${PORT}`);
     });
   })
