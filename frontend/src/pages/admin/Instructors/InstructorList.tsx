@@ -5,12 +5,13 @@ import { UserOutlined, SearchOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { InstructorProfile } from "../../../interfaces/Admin.interface";
 
-
-// Fake data demo, giả lập data
-const fakeInstructors: InstructorProfile[] = [
+// Giả lập data có thêm fullName
+const fakeInstructors: (InstructorProfile & { fullName: string; avatar?: string })[] = [
   {
     id: 1,
     user_id: 101,
+    fullName: "Nguyễn Văn A",
+    avatar: "https://i.pravatar.cc/150?img=11",
     bio: "Giảng viên chuyên về lập trình web",
     expertise: "Web Development",
     rating: 4.8,
@@ -20,6 +21,8 @@ const fakeInstructors: InstructorProfile[] = [
   {
     id: 2,
     user_id: 102,
+    fullName: "Trần Thị B",
+    avatar: "https://i.pravatar.cc/150?img=12",
     bio: "Giảng viên về thiết kế đồ họa",
     expertise: "Graphic Design",
     rating: 4.5,
@@ -29,6 +32,8 @@ const fakeInstructors: InstructorProfile[] = [
   {
     id: 3,
     user_id: 103,
+    fullName: "Lê Văn C",
+    avatar: "https://i.pravatar.cc/150?img=13",
     bio: "Chuyên gia an ninh mạng",
     expertise: "Cybersecurity",
     rating: 4.2,
@@ -41,33 +46,48 @@ const InstructorList = () => {
   const [searchText, setSearchText] = useState("");
   const navigate = useNavigate();
 
-  // Lọc theo expertise hoặc bio (ví dụ)
   const filteredData = fakeInstructors.filter(
     (ins) =>
       ins.expertise.toLowerCase().includes(searchText.toLowerCase()) ||
-      ins.bio.toLowerCase().includes(searchText.toLowerCase())
+      ins.bio.toLowerCase().includes(searchText.toLowerCase()) ||
+      ins.fullName.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  const columns: ColumnsType<InstructorProfile> = [
+  const getStatusTag = (status: string) => {
+    const statusMap: Record<string, { color: string; label: string }> = {
+      approved: { color: "green", label: "Đã duyệt" },
+      pending: { color: "orange", label: "Chờ duyệt" },
+      rejected: { color: "red", label: "Từ chối" },
+    };
+
+    const tag = statusMap[status] || { color: "default", label: status };
+    return <Tag color={tag.color}>{tag.label}</Tag>;
+  };
+
+  const columns: ColumnsType<typeof fakeInstructors[0]> = [
     {
       title: "#",
       dataIndex: "id",
       width: 60,
     },
     {
-      title: "Lĩnh vực chuyên môn",
-      dataIndex: "expertise",
-      render: (expertise, record) => (
-        <Space direction="vertical">
-          <div className="font-semibold">{expertise}</div>
-          <div className="text-xs text-gray-500">{record.bio}</div>
+      title: "Giảng viên",
+      dataIndex: "fullName",
+      render: (_, record) => (
+        <Space direction="horizontal" size="middle">
+          <Avatar src={record.avatar} icon={<UserOutlined />} />
+          <div>
+            <div className="font-semibold">{record.fullName}</div>
+            <div className="text-sm text-gray-500">{record.expertise}</div>
+            <div className="text-xs text-gray-400">{record.bio}</div>
+          </div>
         </Space>
       ),
     },
     {
       title: "Đánh giá",
       dataIndex: "rating",
-      render: (rating) => <span>{rating.toFixed(1)} ⭐</span>,
+      render: (rating) => <span className="font-medium">{rating.toFixed(1)} ⭐</span>,
     },
     {
       title: "Ngày tạo",
@@ -77,14 +97,7 @@ const InstructorList = () => {
     {
       title: "Trạng thái",
       dataIndex: "status",
-      render: (status) => {
-        let color = "default";
-        if (status === "approved") color = "green";
-        else if (status === "pending") color = "orange";
-        else if (status === "rejected") color = "red";
-
-        return <Tag color={color}>{status.toUpperCase()}</Tag>;
-      },
+      render: getStatusTag,
     },
     {
       title: "Thao tác",
@@ -102,15 +115,17 @@ const InstructorList = () => {
   ];
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-4">Danh sách giảng viên</h2>
+    <div className="p-4">
+      <h2 className="text-2xl font-bold mb-6">Danh sách giảng viên</h2>
+
       <div className="mb-4 flex items-center gap-2">
         <Input
           prefix={<SearchOutlined />}
-          placeholder="Tìm theo lĩnh vực hoặc tiểu sử..."
-          style={{ maxWidth: 300 }}
+          placeholder="Tìm theo tên, lĩnh vực hoặc tiểu sử..."
+          style={{ maxWidth: 320 }}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
+          allowClear
         />
       </div>
 
@@ -119,6 +134,7 @@ const InstructorList = () => {
         columns={columns}
         dataSource={filteredData}
         pagination={{ pageSize: 4 }}
+        className="shadow-md rounded-lg"
       />
     </div>
   );
