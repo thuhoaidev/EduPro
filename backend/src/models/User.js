@@ -31,6 +31,20 @@ const userSchema = new mongoose.Schema({
     minlength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
     select: false,
   },
+   instructorInfo: {
+    bio: {
+      type: String,
+      default: '',
+    },
+    experience: {
+      type: String,
+      default: '',
+    },
+    is_approved: {
+      type: Boolean,
+      default: false,
+    }
+  },
   avatar: {
     type: String,
     default: 'default-avatar.png',

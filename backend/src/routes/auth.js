@@ -13,6 +13,7 @@ const {
   changePassword,
 } = require('../controllers/authController');
 const { getInstructorProfile, updateOrCreateInstructorProfile } = require('../controllers/instructorprofile');
+const { getPendingInstructors, approveInstructorProfile, getApprovedInstructors } = require('../controllers/instructorapproval');
 
 // Routes công khai
 router.post('/register', register);
@@ -33,5 +34,9 @@ router.patch('/change-password', requireAuth, changePassword);
 // Routes hồ sơ giảng viên
 router.get('/instructor-profile/:id?', requireAuth, getInstructorProfile);
 router.put('/instructor-profile/:id?', requireAuth, updateOrCreateInstructorProfile);
+router.get('/instructors-unapproved',  requireAuth, getApprovedInstructors);
+router.get('/instructors-pending', requireAuth, getPendingInstructors);
+router.post('/instructors-approve', requireAuth, approveInstructorProfile);
+
 
 module.exports = router; 
