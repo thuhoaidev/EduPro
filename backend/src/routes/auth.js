@@ -22,6 +22,14 @@ router.post('/resend-verification', resendVerificationEmail);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 
+// Routes hồ sơ giảng viên
+// router.put('/instructor-profile', auth, requireAuth, updateOrCreateInstructorProfile);
+router.get('/admin/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), getPendingInstructors);
+router.post('/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), approveInstructorProfile);
+
+// Route chỉ cho admin
+// router.get('/admin/users', auth, checkRole(ROLES.ADMIN), userController.getAllUsers);
+
 // Routes yêu cầu xác thực
 router.use(auth); // Middleware xác thực cho tất cả routes bên dưới
 

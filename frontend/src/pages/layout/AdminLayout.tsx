@@ -96,6 +96,12 @@ const AdminLayout = () => {
           icon: <TeamOutlined />,
           label: renderLabel("Quản lý giảng viên"),
         },
+        {
+          key: "/admin/instructor-approval",
+          icon: <FileSearchOutlined />,
+          label: renderLabel("Duyệt giảng viên"),
+        },
+
       ],
     },
     {

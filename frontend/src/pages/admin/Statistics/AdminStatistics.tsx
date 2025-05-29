@@ -33,7 +33,7 @@ const fetchRevenueChartData = async (type: string, range: [string, string]) => {
     data.push({
       date: type === "day" ? startDate.clone().add(i, "days").format("YYYY-MM-DD")
         : type === "month" ? startDate.clone().add(i, "months").format("YYYY-MM")
-        : startDate.clone().add(i, "years").format("YYYY"),
+          : startDate.clone().add(i, "years").format("YYYY"),
       revenue: Math.floor(Math.random() * 1000000) + 100000, // doanh thu giả
     });
   }
@@ -92,33 +92,33 @@ const AdminStatistics = () => {
     loadChartData();
   }, [type, range]);
 
-const columnConfig = {
-  data: chartData,
-  xField: "date",
-  yField: "revenue",
-  color: "#1890ff",
-  label: {
-    position: "middle",
-    style: {
-      fill: "#FFFFFF",
-      opacity: 0.6,
-    },
-  },
-  xAxis: {
-    title: { text: type === "day" ? "Ngày" : type === "month" ? "Tháng" : "Năm" },
-    label: { autoRotate: false },
-  },
-  yAxis: {
-    title: { text: "Doanh thu (VND)" },
+  const columnConfig = {
+    data: chartData,
+    xField: "date",
+    yField: "revenue",
+    color: "#1890ff",
     label: {
-      formatter: (v: number) => v.toLocaleString(),
+      position: "middle",
+      style: {
+        fill: "#FFFFFF",
+        opacity: 0.6,
+      },
     },
-  },
-  meta: {
-    revenue: { alias: "Doanh thu" },
-    date: { alias: "Thời gian" },
-  },
-};
+    xAxis: {
+      title: { text: type === "day" ? "Ngày" : type === "month" ? "Tháng" : "Năm" },
+      label: { autoRotate: false },
+    },
+    yAxis: {
+      title: { text: "Doanh thu (VND)" },
+      label: {
+        formatter: (v: number) => v.toLocaleString(),
+      },
+    },
+    meta: {
+      revenue: { alias: "Doanh thu" },
+      date: { alias: "Thời gian" },
+    },
+  };
 
   const lineConfig = {
     data: chartData,

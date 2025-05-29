@@ -1,5 +1,12 @@
 const mongoose = require('mongoose');
 
+const ROLES = {
+  ADMIN: 'admin',
+  MODERATOR: 'moderator',
+  INSTRUCTOR: 'instructor',
+  STUDENT: 'student',
+};
+
 const roleSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -65,4 +72,4 @@ roleSchema.methods.removePermission = async function(permission) {
 
 const Role = mongoose.model('Role', roleSchema);
 
-module.exports = Role; 
+module.exports = { Role, ROLES };
