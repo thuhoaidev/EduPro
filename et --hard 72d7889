@@ -1,0 +1,42 @@
+[33m980c881[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/instructor-approval[m[33m)[m HEAD@{0}: pull origin feature/instructor-approval --rebase (finish): returning to refs/heads/feature/instructor-approval
+[33m980c881[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/instructor-approval[m[33m)[m HEAD@{1}: pull origin feature/instructor-approval --rebase (pick): instructor-approval
+[33m837a40c[m[33m ([m[1;31morigin/feature/instructor-approval[m[33m)[m HEAD@{2}: pull origin feature/instructor-approval --rebase (start): checkout 837a40c3d23d3156a19a72929f77408c5339061d
+[33m72d7889[m HEAD@{3}: commit: instructor-approval
+[33m9e53c65[m HEAD@{4}: commit: update
+[33m8430fe6[m HEAD@{5}: commit: instructor-approval
+[33mcf04ca6[m[33m ([m[1;32mmain[m[33m, [m[1;32mfeature/intructor-profile[m[33m)[m HEAD@{6}: merge main: Fast-forward
+[33m253d21c[m HEAD@{7}: checkout: moving from feature/instructor-profile to feature/instructor-approval
+[33ma305a88[m[33m ([m[1;31morigin/feature/instructor-profile[m[33m, [m[1;32mfeature/instructor-profile[m[33m)[m HEAD@{8}: reset: moving to origin/feature/instructor-profile
+[33ma305a88[m[33m ([m[1;31morigin/feature/instructor-profile[m[33m, [m[1;32mfeature/instructor-profile[m[33m)[m HEAD@{9}: reset: moving to HEAD
+[33ma305a88[m[33m ([m[1;31morigin/feature/instructor-profile[m[33m, [m[1;32mfeature/instructor-profile[m[33m)[m HEAD@{10}: reset: moving to HEAD
+[33ma305a88[m[33m ([m[1;31morigin/feature/instructor-profile[m[33m, [m[1;32mfeature/instructor-profile[m[33m)[m HEAD@{11}: checkout: moving from feature/instructor-approval to feature/instructor-profile
+[33m253d21c[m HEAD@{12}: reset: moving to HEAD
+[33m253d21c[m HEAD@{13}: checkout: moving from feature/intructor-profile to feature/instructor-approval
+[33mcf04ca6[m[33m ([m[1;32mmain[m[33m, [m[1;32mfeature/intructor-profile[m[33m)[m HEAD@{14}: reset: moving to HEAD
+[33mcf04ca6[m[33m ([m[1;32mmain[m[33m, [m[1;32mfeature/intructor-profile[m[33m)[m HEAD@{15}: checkout: moving from main to feature/intructor-profile
+[33mcf04ca6[m[33m ([m[1;32mmain[m[33m, [m[1;32mfeature/intructor-profile[m[33m)[m HEAD@{16}: pull origin main: Fast-forward
+[33m812cf9a[m HEAD@{17}: checkout: moving from feature/authentication to main
+[33m5c31ef3[m[33m ([m[1;32mfeature/authentication[m[33m)[m HEAD@{18}: commit: Lưu thay đổi ở login.tsx và AuthLayout.tsx
+[33medce743[m[33m ([m[1;31morigin/feature/authentication[m[33m)[m HEAD@{19}: commit (merge): Merge branch 'feature/authentication' of https://github.com/thuhoaidev/EduPro into feature/authentication
+[33m1349ce2[m HEAD@{20}: commit: update authlayout
+[33m2bc3fb5[m HEAD@{21}: commit: fix authentication
+[33m7d6d40f[m HEAD@{22}: rebase (finish): returning to refs/heads/feature/authentication
+[33m7d6d40f[m HEAD@{23}: rebase (continue): [FE]forgotPassword and resetPassword
+[33m3696397[m HEAD@{24}: rebase (continue): giao diện quản trị (quản trị viên, người kiểm duyệt, giảng viên)
+[33ma74a4eb[m HEAD@{25}: rebase (continue): danh sách và phê duyệt giảng viên
+[33m322ba54[m HEAD@{26}: rebase (continue): cập nhật hồ sơ giảng viên
+[33ma6972aa[m HEAD@{27}: pull --rebase origin feature/authentication (start): checkout a6972aaab9a5d13231bd07d0ab985d431e0a9037
+[33mff0a329[m HEAD@{28}: rebase (abort): returning to refs/heads/feature/authentication
+[33ma6972aa[m HEAD@{29}: pull origin feature/authentication --rebase (start): checkout a6972aaab9a5d13231bd07d0ab985d431e0a9037
+[33mff0a329[m HEAD@{30}: commit: [FE]forgotPassword and resetPassword
+[33m812cf9a[m HEAD@{31}: merge main: Fast-forward
+[33m0bec4aa[m[33m ([m[1;32mfeature/fe-authentication[m[33m)[m HEAD@{32}: checkout: moving from main to feature/authentication
+[33m812cf9a[m HEAD@{33}: pull origin main: Fast-forward
+[33m2ffa022[m[33m ([m[1;31morigin/feature/course-management[m[33m)[m HEAD@{34}: checkout: moving from feature/authentication to main
+[33m0bec4aa[m[33m ([m[1;32mfeature/fe-authentication[m[33m)[m HEAD@{35}: merge feature/fe-authentication: Fast-forward
+[33m198833b[m HEAD@{36}: checkout: moving from feature/fe-authentication to feature/authentication
+[33m0bec4aa[m[33m ([m[1;32mfeature/fe-authentication[m[33m)[m HEAD@{37}: checkout: moving from feature/authentication to feature/fe-authentication
+[33m198833b[m HEAD@{38}: checkout: moving from feature/fe-authentication to feature/authentication
+[33m0bec4aa[m[33m ([m[1;32mfeature/fe-authentication[m[33m)[m HEAD@{39}: commit: fe-auhthentication
+[33m2ffa022[m[33m ([m[1;31morigin/feature/course-management[m[33m)[m HEAD@{40}: checkout: moving from main to feature/fe-authentication
+[33m2ffa022[m[33m ([m[1;31morigin/feature/course-management[m[33m)[m HEAD@{41}: clone: from https://github.com/thuhoaidev/EduPro.git
