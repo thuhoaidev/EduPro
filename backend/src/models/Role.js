@@ -70,6 +70,6 @@ roleSchema.methods.removePermission = async function(permission) {
   return this;
 };
 
-const Role = mongoose.model('Role', roleSchema);
+const Role = mongoose.models.Role || mongoose.model('Role', roleSchema);
 
 module.exports = { Role, ROLES };

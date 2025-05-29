@@ -17,21 +17,32 @@ import ForgotPassword from "./pages/client/auth/forgotPassword";
 import ResetPassword from "./pages/client/auth/resetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
-
-// Admin Pages
+import InstructorLayout from "./pages/layout/InstructorLayout";
+import CourseList from "./pages/instructor/course/CourseList";
+import CourseDetail from "./pages/instructor/course/CourseDetail";
+import EditCourse from "./pages/instructor/course/CourseEdit";
+import CreateCourse from "./pages/instructor/course/CourseAdd";
+import ManageLesson from "./pages/instructor/lessons/Lesson";
+import StudentListPage from "./pages/instructor/students/Students";
+import StudentDetail from "./pages/instructor/students/StudentDetail";
+import EarningsPage from "./pages/instructor/earnings/EarningsPage";
+import CourseDiscussion from "./pages/instructor/community/Community";
+import ModeratorLayout from "./pages/layout/ModeratorLayout";
+import ProfilePage from "./pages/layout/ProfileForm";
+import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
+import ReportStatistics from "./pages/Moderator/Statistics/ReportStatistics";
+import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
 import UserPage from "./pages/admin/Users/UserPage";
 import UserDetail from "./pages/admin/Users/UserDetail";
 import InstructorList from "./pages/admin/Instructors/InstructorList";
-import InstructorDetail from "./pages/admin/Instructors/InstructorDetail";
-import ApproveInstructors from "./pages/admin/Instructors/InstructorApproval";
+import InstructorPendingList from "./pages/admin/Instructors/InstructorPendingList";
+import InstructorDetailPage from "./pages/admin/Instructors/InstructorDetail";
+import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfileDetail";
 import ContentApprovalPage from "./pages/admin/content-approval/ContentApproval";
 import ReportsPage from "./pages/admin/reports/Reports";
 import VouchersPage from "./pages/admin/Vouchers/VouchersPage";
-import CouponManagement from "./pages/admin/Vouchers/VouchersPage";
 import Notifications from "./pages/admin/Notifications/Notifications";
-import TransactionHistory from "./pages/admin/Transaction/TransactionHistory";
 import AdminStatistics from "./pages/admin/Statistics/AdminStatistics";
-import InstructorApprovalDetail from "./pages/admin/Instructors/InstructorApprovalDetail";
 
 axios.defaults.baseURL = "http://localhost:3000";
 
@@ -54,31 +65,57 @@ function App() {
       path: "/admin",
       element: <AdminLayout />,
       children: [
-        { path: "users", element: <UserPage /> },
-        { path: "users/:id", element: <UserDetail /> },
-        { path: "instructors", element: <InstructorList /> },
-        { path: "users/instructor/:id", element: <InstructorDetail /> },
-        { path: "instructor-approval", element: <ApproveInstructors /> },
-        { path: "content-approval", element: <ContentApprovalPage /> },
-        { path: "reports", element: <ReportsPage /> },
-        { path: "system/vouchers", element: <VouchersPage /> },
-        { path: "system/notifications", element: <Notifications /> },
-        { path: "statistics", element: <AdminStatistics /> },
-        { path: "coupons", element: <CouponManagement /> },
-        { path: "history", element: <TransactionHistory /> },
-        { path: "users/instructor-approval/:id", element: <InstructorApprovalDetail /> },
-
+        { path: "users", element: < UserPage /> },
+        { path: "users/:id", element: < UserDetail /> },
+        { path: "instructors", element: < InstructorList /> },
+        { path: "instructor-approval", element: <InstructorPendingList /> },
+        { path: "users/instructor/:id", element: < InstructorDetailPage /> },
+        { path: "users/instructor-approval/:id", element: <InstructorProfileDetail /> },
+        { path: "content-approval", element: < ContentApprovalPage /> },
+        { path: "reports", element: < ReportsPage /> },
+        { path: "system/vouchers", element: < VouchersPage /> },
+        { path: "system/notifications", element: < Notifications /> },
+        { path: "statistics", element: < AdminStatistics /> },
+        // { path: "coupons", element: < CouponManagement /> },
+        // { path: "history", element: < TransactionHistory /> },
       ],
     },
     {
       element: <AuthLayout />,
       children: [
-        { path: "/login", element: <LoginPage /> },
-        { path: "/register", element: <RegisterPage /> },
-        { path: "/forgot-password", element: <ForgotPassword /> },
-        { path: "/reset-password/:token", element: <ResetPassword /> },
+        { path: '/login', element: <LoginPage /> },
+        { path: '/register', element: <RegisterPage /> },
+        { path: '/forgot-password', element: <ForgotPassword /> },
+        { path: '/reset-password/:token', element: < ResetPassword /> }
+      ]
+    },
+    {
+      path: "/instructor",
+      element: <InstructorLayout />,
+      children: [
+        { path: "courses", element: <CourseList /> },
+        { path: "courses/:id", element: <CourseDetail /> },
+        { path: "courses/:id/edit", element: <EditCourse /> },
+        { path: "courses/new", element: <CreateCourse /> },
+        { path: "lessons", element: <ManageLesson /> },
+        { path: "students", element: <StudentListPage /> },
+        { path: "students/:id", element: <StudentDetail /> },
+        { path: "income", element: <EarningsPage /> },
+        { path: "community", element: <CourseDiscussion /> },
       ],
     },
+    {
+      path: "/moderator",
+      element: <ModeratorLayout />,
+      children: [
+        { path: "blogs", element: < BlogModeration /> },
+        { path: "profile", element: < ProfilePage /> },
+        { path: "comments", element: < CommentsModerationPage /> },
+        { path: "reports", element: < ReportsPage /> },
+        { path: "statistics", element: < ReportStatistics /> },
+      ],
+    },
+
   ];
 
   const element = useRoutes(routes);

@@ -1,21 +1,15 @@
 import {
-  UserOutlined,
   HomeOutlined,
-  TeamOutlined,
   FileSearchOutlined,
-  ShopOutlined,
-  TagsOutlined,
-  HistoryOutlined,
   CommentOutlined,
-  PictureOutlined,
+  WarningOutlined,
+  BarChartOutlined,
   MenuOutlined,
   SearchOutlined,
   FilterOutlined,
   SettingOutlined,
   LogoutOutlined,
-  BarChartOutlined,
-  WarningOutlined,
-  AppstoreOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -33,7 +27,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 
 const { Header, Sider, Content } = Layout;
 
-const AdminLayout = () => {
+const ModeratorLayout = () => {
   const nav = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
@@ -52,7 +46,7 @@ const AdminLayout = () => {
 
   const finalBreadcrumbItems = [
     {
-      key: "/admin",
+      key: "/moderator",
       title: <HomeOutlined />,
     },
     ...breadcrumbItems,
@@ -73,80 +67,22 @@ const AdminLayout = () => {
   const menuItems: MenuProps["items"] = [
     {
       type: "group",
-      label: collapsed ? null : "Bảng Điều Khiển",
+      label: collapsed ? null : "Kiểm duyệt nội dung",
       children: [
         {
-          key: "/admin",
-          icon: <HomeOutlined />,
-          label: renderLabel("Trang tổng quan"),
-        },
-      ],
-    },
-    {
-
-      type: "group",
-      label: collapsed ? null : "Người dùng",
-      children: [
-        {
-          key: "/admin/users",
-          icon: <UserOutlined />,
-          label: renderLabel("Quản lý người dùng"),
-        },
-        {
-          key: "/admin/instructors",
-          icon: <TeamOutlined />,
-          label: renderLabel("Quản lý giảng viên"),
-        },
-        {
-          key: "/admin/instructor-approval",
+          key: "/moderator/blogs",
           icon: <FileSearchOutlined />,
-          label: renderLabel("Duyệt giảng viên"),
+          label: renderLabel("Duyệt bài viết blog"),
         },
-
-      ],
-
-    },
-
-    {
-      type: "group",
-      label: collapsed ? null : "Nội dung",
-      children: [
         {
-          key: "/admin/content-approval",
-          icon: <FileSearchOutlined />,
-          label: renderLabel("Duyệt khóa học & blog"),
+          key: "/moderator/comments",
+          icon: <CommentOutlined />,
+          label: renderLabel("Duyệt bình luận & đánh giá"),
         },
-      ],
-    },
-    {
-      type: "group",
-      label: collapsed ? null : "Báo cáo",
-      children: [
         {
-          key: "/admin/reports",
+          key: "/moderator/reports",
           icon: <WarningOutlined />,
-          label: renderLabel("Quản lý báo cáo"),
-        },
-      ],
-    },
-    {
-      type: "group",
-      label: collapsed ? null : "Hệ thống",
-      children: [
-        {
-          key: "/admin/system/vouchers",
-          icon: <TagsOutlined />,
-          label: renderLabel("Mã giảm giá"),
-        },
-        {
-          key: "/admin/system/payments",
-          icon: <HistoryOutlined />,
-          label: renderLabel("Thanh toán"),
-        },
-        {
-          key: "/admin/system/notifications",
-          icon: <AppstoreOutlined />,
-          label: renderLabel("Thông báo hệ thống"),
+          label: renderLabel("Xử lý báo cáo"),
         },
       ],
     },
@@ -155,9 +91,9 @@ const AdminLayout = () => {
       label: collapsed ? null : "Thống kê",
       children: [
         {
-          key: "/admin/statistics",
+          key: "/moderator/statistics",
           icon: <BarChartOutlined />,
-          label: renderLabel("Thống kê & báo cáo"),
+          label: renderLabel("Thống kê vi phạm"),
         },
       ],
     },
@@ -168,9 +104,9 @@ const AdminLayout = () => {
       <Menu.ItemGroup
         title={
           <div style={{ padding: "8px 12px" }}>
-            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, Dương Đức Phương</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: Admin</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>admin@gmail.com</p>
+            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, Người kiểm duyệt</p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: Moderator</p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>moderator@ftech.edu.vn</p>
           </div>
         }
       >
@@ -178,12 +114,6 @@ const AdminLayout = () => {
       <Menu.Divider />
       <Menu.Item key="profile" icon={<UserOutlined />}>
         Trang cá nhân
-      </Menu.Item>
-      <Menu.Item key="settings" icon={<SettingOutlined />}>
-        Cài đặt
-      </Menu.Item>
-      <Menu.Item key="user-page" icon={<UserOutlined />}>
-        Trang người dùng
       </Menu.Item>
       <Menu.Item key="logout" icon={<LogoutOutlined />}>
         Đăng xuất
@@ -197,7 +127,7 @@ const AdminLayout = () => {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        width={260}
+        width={240}
         collapsedWidth={80}
         style={{
           background: "#fff",
@@ -221,7 +151,7 @@ const AdminLayout = () => {
         />
       </Sider>
 
-      <Layout style={{ marginLeft: collapsed ? 80 : 260, transition: "margin-left 0.2s" }}>
+      <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: "margin-left 0.2s" }}>
         <Header
           style={{
             background: "#fff",
@@ -235,7 +165,9 @@ const AdminLayout = () => {
         >
           <Space size="middle">
             <Avatar size={40} src="https://i.imgur.com/xsKJ4Eh.png" />
-            {!collapsed && <span style={{ fontSize: 20, fontWeight: 600 }}>FTECH Admin</span>}
+            {!collapsed && (
+              <span style={{ fontSize: 20, fontWeight: 600 }}>FTECH Moderator</span>
+            )}
             <Button
               type="text"
               icon={<MenuOutlined style={{ fontSize: 20, color: "#444" }} />}
@@ -278,4 +210,4 @@ const AdminLayout = () => {
   );
 };
 
-export default AdminLayout;
+export default ModeratorLayout;

@@ -2,71 +2,69 @@ import React, { useEffect, useState } from "react";
 import { Card, Row, Col, DatePicker, Select, Space, message } from "antd";
 import { Column, Line } from "@ant-design/charts";
 import dayjs from "dayjs";
-import type { Dayjs } from "dayjs";
 
 const { RangePicker } = DatePicker;
 
 type TimeType = "day" | "month" | "year";
 
-interface OverviewStats {
-  totalUsers: number;
-  totalOrders: number;
-  totalRevenue: number;
-  newUsersToday: number;
+interface ViolationStats {
+  totalReports: number;
+  handledReports: number;
+  pendingReports: number;
+  newReportsToday: number;
 }
 
-interface RevenueChartItem {
+interface ViolationChartItem {
   date: string;
-  revenue: number;
+  count: number;
 }
 
-const fetchOverviewStats = async (): Promise<OverviewStats> => {
+// Fake API: Lấy tổng quan
+const fetchViolationStats = async (): Promise<ViolationStats> => {
   return new Promise(resolve =>
     setTimeout(() => {
       resolve({
-        totalUsers: 1234,
-        totalOrders: 567,
-        totalRevenue: 8901234,
-        newUsersToday: 12,
+        totalReports: 134,
+        handledReports: 85,
+        pendingReports: 49,
+        newReportsToday: 7,
       });
     }, 300)
   );
 };
 
-const fetchRevenueChartData = async (type: TimeType, range: [string, string]): Promise<RevenueChartItem[]> => {
-  const data: RevenueChartItem[] = [];
+// Fake API: Lấy dữ liệu biểu đồ
+const fetchViolationChartData = async (type: TimeType, range: [string, string]): Promise<ViolationChartItem[]> => {
+  const data: ViolationChartItem[] = [];
   const startDate = dayjs(range[0]);
   const endDate = dayjs(range[1]);
   const unit = type;
   const diff = endDate.diff(startDate, unit);
 
   for (let i = 0; i <= diff; i++) {
-    const date =
-      type === "day"
-        ? startDate.clone().add(i, "day").format("YYYY-MM-DD")
-        : type === "month"
-          ? startDate.clone().add(i, "month").format("YYYY-MM")
-          : startDate.clone().add(i, "year").format("YYYY");
-
     data.push({
-      date,
-      revenue: Math.floor(Math.random() * 1000000) + 100000,
+      date:
+        type === "day"
+          ? startDate.add(i, "day").format("YYYY-MM-DD")
+          : type === "month"
+          ? startDate.add(i, "month").format("YYYY-MM")
+          : startDate.add(i, "year").format("YYYY"),
+      count: Math.floor(Math.random() * 10) + 1,
     });
   }
-
 
   return new Promise(resolve => setTimeout(() => resolve(data), 300));
 };
 
-const AdminStatistics = () => {
-  const [overview, setOverview] = useState<OverviewStats>({
-    totalUsers: 0,
-    totalOrders: 0,
-    totalRevenue: 0,
-    newUsersToday: 0,
+const ReportStatistics = () => {
+  const [overview, setOverview] = useState<ViolationStats>({
+    totalReports: 0,
+    handledReports: 0,
+    pendingReports: 0,
+    newReportsToday: 0,
   });
 
-  const [chartData, setChartData] = useState<RevenueChartItem[]>([]);
+  const [chartData, setChartData] = useState<ViolationChartItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [range, setRange] = useState<[string, string]>([
@@ -78,10 +76,10 @@ const AdminStatistics = () => {
   const loadOverview = async () => {
     setLoading(true);
     try {
-      const data = await fetchOverviewStats();
+      const data = await fetchViolationStats();
       setOverview(data);
     } catch {
-      message.error("Lấy dữ liệu tổng quan thất bại");
+      message.error("Lấy dữ liệu báo cáo thất bại");
     } finally {
       setLoading(false);
     }
@@ -90,7 +88,7 @@ const AdminStatistics = () => {
   const loadChartData = async () => {
     setLoading(true);
     try {
-      const data = await fetchRevenueChartData(type, range);
+      const data = await fetchViolationChartData(type, range);
       setChartData(data);
     } catch {
       message.error("Lấy dữ liệu biểu đồ thất bại");
@@ -111,8 +109,8 @@ const AdminStatistics = () => {
   const columnConfig = {
     data: chartData,
     xField: "date",
-    yField: "revenue",
-    color: "#1890ff",
+    yField: "count",
+    color: "#ff4d4f",
     label: {
       position: "middle",
       style: {
@@ -125,37 +123,18 @@ const AdminStatistics = () => {
       label: { autoRotate: false },
     },
     yAxis: {
-      title: { text: "Doanh thu (VND)" },
-      label: {
-        formatter: (v: number) => v.toLocaleString(),
-      },
+      title: { text: "Số lượt báo cáo" },
     },
     meta: {
-      revenue: { alias: "Doanh thu" },
+      count: { alias: "Lượt báo cáo" },
       date: { alias: "Thời gian" },
     },
   };
 
   const lineConfig = {
-    data: chartData,
-    xField: "date",
-    yField: "revenue",
+    ...columnConfig,
     smooth: true,
-    color: "#52c41a",
-    xAxis: {
-      title: { text: type === "day" ? "Ngày" : type === "month" ? "Tháng" : "Năm" },
-      label: { autoRotate: false },
-    },
-    yAxis: {
-      title: { text: "Doanh thu (VND)" },
-      label: {
-        formatter: (v: number) => v.toLocaleString(),
-      },
-    },
-    meta: {
-      revenue: { alias: "Doanh thu" },
-      date: { alias: "Thời gian" },
-    },
+    color: "#faad14",
   };
 
   const getPickerMode = (type: TimeType): "date" | "month" | "year" => {
@@ -164,31 +143,31 @@ const AdminStatistics = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <h2 style={{ marginBottom: 24 }}>Dashboard Thống kê tổng quan</h2>
+      <h2 style={{ marginBottom: 24 }}>Thống kê báo cáo vi phạm</h2>
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
           <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
-            <h3>Tổng số người dùng</h3>
-            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.totalUsers.toLocaleString()}</p>
+            <h3>Tổng lượt báo cáo</h3>
+            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.totalReports}</p>
           </Card>
         </Col>
         <Col span={6}>
           <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
-            <h3>Tổng đơn hàng</h3>
-            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.totalOrders.toLocaleString()}</p>
+            <h3>Đã xử lý</h3>
+            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.handledReports}</p>
           </Card>
         </Col>
         <Col span={6}>
           <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
-            <h3>Tổng doanh thu (VND)</h3>
-            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.totalRevenue.toLocaleString()}</p>
+            <h3>Chưa xử lý</h3>
+            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.pendingReports}</p>
           </Card>
         </Col>
         <Col span={6}>
           <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
-            <h3>Người dùng mới hôm nay</h3>
-            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.newUsersToday.toLocaleString()}</p>
+            <h3>Báo cáo mới hôm nay</h3>
+            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.newReportsToday}</p>
           </Card>
         </Col>
       </Row>
@@ -207,24 +186,21 @@ const AdminStatistics = () => {
           value={[dayjs(range[0]), dayjs(range[1])]}
           onChange={(dates) => {
             if (dates && dates[0] && dates[1]) {
-              setRange([
-                dates[0].format("YYYY-MM-DD"),
-                dates[1].format("YYYY-MM-DD"),
-              ]);
+              setRange([dates[0].format("YYYY-MM-DD"), dates[1].format("YYYY-MM-DD")]);
             }
           }}
         />
       </Space>
 
-      <Card title="Biểu đồ doanh thu" bordered={false}>
+      <Card title="Biểu đồ lượt báo cáo vi phạm" bordered={false}>
         <Column {...columnConfig} />
       </Card>
 
-      <Card title="Biểu đồ đường doanh thu" bordered={false} style={{ marginTop: 24 }}>
+      <Card title="Biểu đồ đường lượt báo cáo vi phạm" bordered={false} style={{ marginTop: 24 }}>
         <Line {...lineConfig} />
       </Card>
     </div>
   );
 };
 
-export default AdminStatistics;
+export default ReportStatistics;

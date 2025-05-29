@@ -1,39 +1,33 @@
+// src/layouts/InstructorLayout.tsx
 import {
-  UserOutlined,
   HomeOutlined,
-  TeamOutlined,
-  FileSearchOutlined,
-  ShopOutlined,
-  TagsOutlined,
-  HistoryOutlined,
+  BookOutlined,
+  PlusCircleOutlined,
+  VideoCameraOutlined,
+  BarChartOutlined,
+  DollarOutlined,
   CommentOutlined,
-  PictureOutlined,
   MenuOutlined,
-  SearchOutlined,
-  FilterOutlined,
+  UserOutlined,
   SettingOutlined,
   LogoutOutlined,
-  BarChartOutlined,
-  WarningOutlined,
-  AppstoreOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
   Menu,
-  Input,
   Avatar,
-  Space,
-  Dropdown,
   Breadcrumb,
+  Dropdown,
   Button,
+  Space,
 } from "antd";
 import type { MenuProps } from "antd";
 import React, { useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const { Header, Sider, Content } = Layout;
 
-const AdminLayout = () => {
+const InstructorLayout = () => {
   const nav = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
@@ -52,7 +46,7 @@ const AdminLayout = () => {
 
   const finalBreadcrumbItems = [
     {
-      key: "/admin",
+      key: "/instructor",
       title: <HomeOutlined />,
     },
     ...breadcrumbItems,
@@ -73,91 +67,42 @@ const AdminLayout = () => {
   const menuItems: MenuProps["items"] = [
     {
       type: "group",
-      label: collapsed ? null : "Bảng Điều Khiển",
+      label: collapsed ? null : "Giảng viên",
       children: [
         {
-          key: "/admin",
+          key: "/instructor",
           icon: <HomeOutlined />,
-          label: renderLabel("Trang tổng quan"),
+          label: renderLabel("Dashboard cá nhân"),
         },
-      ],
-    },
-    {
-
-      type: "group",
-      label: collapsed ? null : "Người dùng",
-      children: [
         {
-          key: "/admin/users",
+          key: "/instructor/courses",
+          icon: <BookOutlined />,
+          label: renderLabel("Khóa học của tôi"),
+        },
+        {
+          key: "/instructor/courses/new",
+          icon: <PlusCircleOutlined />,
+          label: renderLabel("Tạo khóa học mới"),
+        },
+        {
+          key: "/instructor/lessons",
+          icon: <VideoCameraOutlined />,
+          label: renderLabel("Quản lý bài học & video"),
+        },
+        {
+          key: "/instructor/students",
           icon: <UserOutlined />,
-          label: renderLabel("Quản lý người dùng"),
+          label: renderLabel("Thống kê học viên"),
         },
         {
-          key: "/admin/instructors",
-          icon: <TeamOutlined />,
-          label: renderLabel("Quản lý giảng viên"),
+          key: "/instructor/income",
+          icon: <DollarOutlined />,
+          label: renderLabel("Thu nhập & giao dịch"),
         },
         {
-          key: "/admin/instructor-approval",
-          icon: <FileSearchOutlined />,
-          label: renderLabel("Duyệt giảng viên"),
-        },
-
-      ],
-
-    },
-
-    {
-      type: "group",
-      label: collapsed ? null : "Nội dung",
-      children: [
-        {
-          key: "/admin/content-approval",
-          icon: <FileSearchOutlined />,
-          label: renderLabel("Duyệt khóa học & blog"),
-        },
-      ],
-    },
-    {
-      type: "group",
-      label: collapsed ? null : "Báo cáo",
-      children: [
-        {
-          key: "/admin/reports",
-          icon: <WarningOutlined />,
-          label: renderLabel("Quản lý báo cáo"),
-        },
-      ],
-    },
-    {
-      type: "group",
-      label: collapsed ? null : "Hệ thống",
-      children: [
-        {
-          key: "/admin/system/vouchers",
-          icon: <TagsOutlined />,
-          label: renderLabel("Mã giảm giá"),
-        },
-        {
-          key: "/admin/system/payments",
-          icon: <HistoryOutlined />,
-          label: renderLabel("Thanh toán"),
-        },
-        {
-          key: "/admin/system/notifications",
-          icon: <AppstoreOutlined />,
-          label: renderLabel("Thông báo hệ thống"),
-        },
-      ],
-    },
-    {
-      type: "group",
-      label: collapsed ? null : "Thống kê",
-      children: [
-        {
-          key: "/admin/statistics",
-          icon: <BarChartOutlined />,
-          label: renderLabel("Thống kê & báo cáo"),
+          key: "/instructor/community",
+          icon: <CommentOutlined />,
+          label: renderLabel("Giao tiếp học viên"),
         },
       ],
     },
@@ -168,22 +113,18 @@ const AdminLayout = () => {
       <Menu.ItemGroup
         title={
           <div style={{ padding: "8px 12px" }}>
-            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, Dương Đức Phương</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: Admin</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>admin@gmail.com</p>
+            <p style={{ margin: 0, fontWeight: "bold" }}>Chào, Nguyễn Tien Nam</p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: Giảng viên</p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>instructor@gmail.com</p>
           </div>
         }
-      >
-      </Menu.ItemGroup>
+      />
       <Menu.Divider />
       <Menu.Item key="profile" icon={<UserOutlined />}>
         Trang cá nhân
       </Menu.Item>
       <Menu.Item key="settings" icon={<SettingOutlined />}>
         Cài đặt
-      </Menu.Item>
-      <Menu.Item key="user-page" icon={<UserOutlined />}>
-        Trang người dùng
       </Menu.Item>
       <Menu.Item key="logout" icon={<LogoutOutlined />}>
         Đăng xuất
@@ -235,7 +176,7 @@ const AdminLayout = () => {
         >
           <Space size="middle">
             <Avatar size={40} src="https://i.imgur.com/xsKJ4Eh.png" />
-            {!collapsed && <span style={{ fontSize: 20, fontWeight: 600 }}>FTECH Admin</span>}
+            {!collapsed && <span style={{ fontSize: 20, fontWeight: 600 }}>FTECH Instructor</span>}
             <Button
               type="text"
               icon={<MenuOutlined style={{ fontSize: 20, color: "#444" }} />}
@@ -278,4 +219,4 @@ const AdminLayout = () => {
   );
 };
 
-export default AdminLayout;
+export default InstructorLayout;
