@@ -34,9 +34,6 @@ const roleSchema = new mongoose.Schema({
   },
 });
 
-// Tạo index cho trường name để tìm kiếm nhanh hơn
-roleSchema.index({ name: 1 }, { unique: true });
-
 // Virtual populate cho users có role này
 roleSchema.virtual('users', {
   ref: 'User',

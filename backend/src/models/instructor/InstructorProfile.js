@@ -53,7 +53,6 @@ const instructorProfileSchema = new mongoose.Schema({
 });
 
 // Tạo index cho các trường thường xuyên tìm kiếm
-instructorProfileSchema.index({ userId: 1 });
 instructorProfileSchema.index({ status: 1 });
 instructorProfileSchema.index({ rating: -1 });
 

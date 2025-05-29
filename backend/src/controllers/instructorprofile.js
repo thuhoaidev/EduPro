@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const InstructorProfile = require('../models/instructor/InstructorProfile');
-const Role = require('../models/Role');
+const { Role } = require('../models/Role');
 
 const updateOrCreateInstructorProfile = async (req, res) => {
   try {

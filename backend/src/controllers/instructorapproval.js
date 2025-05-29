@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const Role = require('../models/Role');
+const { Role } = require('../models/Role');
 const { sendApprovalEmail, sendRejectionEmail } = require('../utils/sendEmail');
 
 // [GET] /api/instructors/approved
@@ -33,8 +33,6 @@ const getApprovedInstructors = async (req, res) => {
   }
 };
 
-
-
 // [GET] /api/instructors/pending
 const getPendingInstructors = async (req, res) => {
   try {
@@ -65,9 +63,6 @@ const getPendingInstructors = async (req, res) => {
     });
   }
 };
-
-module.exports = { getPendingInstructors };
-
 
 // Duyệt hoặc từ chối giảng viên
 const approveInstructorProfile = async (req, res) => {
