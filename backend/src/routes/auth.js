@@ -11,11 +11,13 @@ const {
   getMe,
   updateMe,
   changePassword,
+  registerInstructor,
 } = require('../controllers/authController');
 const { getInstructorProfile, updateOrCreateInstructorProfile } = require('../controllers/instructorprofile');
 
 // Routes công khai
 router.post('/register', register);
+router.post('/register/instructor', registerInstructor);
 router.post('/login', login);
 router.get('/verify-email/:token', verifyEmail);
 router.post('/resend-verification', resendVerificationEmail);

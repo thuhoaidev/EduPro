@@ -3,6 +3,7 @@ const Role = require('../models/Role');
 const jwt = require('jsonwebtoken');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../config/email');
 const crypto = require('crypto');
+const InstructorProfile = require('../models/instructor/InstructorProfile');
 
 // Tạo JWT token
 const createToken = (userId) => {
@@ -127,6 +128,128 @@ exports.register = async (req, res) => {
   }
 };
 
+// Đăng ký tài khoản giảng viên
+exports.registerInstructor = async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+      repassword,
+      fullName,
+      bio,
+      expertise,
+      education,
+      experience
+    } = req.body;
+
+    // Validate dữ liệu đầu vào
+    if (!email || !password || !repassword || !fullName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng điền đầy đủ thông tin',
+      });
+    }
+
+    // Kiểm tra password và repassword
+    if (password !== repassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu xác nhận không khớp',
+      });
+    }
+
+    // Kiểm tra độ dài password
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu phải có ít nhất 6 ký tự',
+      });
+    }
+
+    // Kiểm tra email đã tồn tại
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email đã được sử dụng',
+      });
+    }
+
+    // Lấy role instructor
+    const instructorRole = await Role.findOne({ name: 'instructor' });
+    if (!instructorRole) {
+      return res.status(500).json({
+        success: false,
+        message: 'Không tìm thấy role instructor',
+      });
+    }
+
+    // Tạo user mới với role instructor
+    const user = new User({
+      email,
+      password,
+      name: fullName,
+      role_id: instructorRole._id,
+      approval_status: 'pending',
+      status: 'inactive', // Mặc định là inactive khi chưa xác thực email
+    });
+
+    // Tạo mã xác thực email
+    const verificationToken = user.createEmailVerificationToken();
+    await user.save();
+
+    // Tạo hồ sơ giảng viên
+    const instructorProfile = new InstructorProfile({
+      userId: user._id,
+      bio: bio || '',
+      expertise: expertise || '',
+      education: education || [],
+      experience: experience || [],
+      status: 'pending'
+    });
+    await instructorProfile.save();
+
+    // Gửi email xác thực
+    try {
+      await sendVerificationEmail(user.email, verificationToken);
+    } catch (emailError) {
+      console.error('Lỗi gửi email xác thực:', emailError);
+      // Không trả về lỗi nếu gửi email thất bại
+    }
+
+    // Trả về thông tin user và hồ sơ giảng viên
+    res.status(201).json({
+      success: true,
+      message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          fullName: user.name,
+          role: instructorRole.name,
+          isVerified: user.email_verified,
+          approval_status: user.approval_status,
+          createdAt: user.created_at,
+        },
+        instructorProfile: {
+          bio: instructorProfile.bio,
+          expertise: instructorProfile.expertise,
+          education: instructorProfile.education,
+          experience: instructorProfile.experience,
+          status: instructorProfile.status
+        }
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi đăng ký giảng viên:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
 // Đăng nhập
 exports.login = async (req, res) => {
   try {
@@ -166,6 +289,29 @@ exports.login = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Tài khoản đã bị khóa',
+      });
+    }
+
+    // Kiểm tra trạng thái phê duyệt
+    if (user.approval_status === 'pending') {
+      return res.status(403).json({
+        success: false,
+        message: 'Tài khoản chưa được xác minh',
+      });
+    }
+
+    if (user.approval_status === 'rejected') {
+      return res.status(403).json({
+        success: false,
+        message: 'Tài khoản xác minh thất bại, vui lòng tạo tài khoản mới',
+      });
+    }
+
+    // Chỉ cho phép đăng nhập khi approval_status là 'approved'
+    if (user.approval_status !== 'approved') {
+      return res.status(403).json({
+        success: false,
+        message: 'Tài khoản không có quyền đăng nhập',
       });
     }
 
