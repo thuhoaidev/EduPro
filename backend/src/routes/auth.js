@@ -34,6 +34,6 @@ router.patch('/change-password', requireAuth, changePassword);
 
 // Routes hồ sơ giảng viên
 router.get('/instructor-profile/:id?', requireAuth, getInstructorProfile);
-router.put('/instructor-profile/:id?', requireAuth, updateOrCreateInstructorProfile);
+router.put('/instructor-profile', requireAuth, updateOrCreateInstructorProfile);
 
 module.exports = router; 
