@@ -14,7 +14,7 @@ const {
   registerInstructor,
 } = require('../controllers/authController');
 const { getInstructorProfile, updateOrCreateInstructorProfile } = require('../controllers/instructorprofile');
-
+const { getApprovedInstructors, approveInstructorProfile, getPendingInstructors  } = require('../controllers/instructorapproval');
 // Routes công khai
 router.post('/register', register);
 router.post('/register/instructor', registerInstructor);
@@ -35,5 +35,9 @@ router.patch('/change-password', requireAuth, changePassword);
 // Routes hồ sơ giảng viên
 router.get('/instructor-profile/:id?', requireAuth, getInstructorProfile);
 router.put('/instructor-profile', requireAuth, updateOrCreateInstructorProfile);
+router.get('/instructors-unapproved', requireAuth, getApprovedInstructors);
+router.get('/instructors-pending', requireAuth, getPendingInstructors);
+router.post('/instructors-approve', requireAuth, approveInstructorProfile);
+
 
 module.exports = router; 
