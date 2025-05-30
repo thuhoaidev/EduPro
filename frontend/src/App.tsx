@@ -43,6 +43,7 @@ import ReportsPage from "./pages/admin/reports/Reports";
 import VouchersPage from "./pages/admin/Vouchers/VouchersPage";
 import Notifications from "./pages/admin/Notifications/Notifications";
 import AdminStatistics from "./pages/admin/Statistics/AdminStatistics";
+import InstructorProfile from "./pages/client/InstructorProfile/InstructorProfile";
 
 axios.defaults.baseURL = "http://localhost:3000";
 
@@ -59,6 +60,7 @@ function App() {
         { path: 'instructor/earnings', element: <Earnings /> },
         { path: "verify-email/:token", element: <VerifyEmail /> },
         { path: "instructor/earnings", element: <Earnings /> },
+        { path: "instructor/profile", element: <InstructorProfile /> },
       ],
     },
     {
@@ -89,6 +91,7 @@ function App() {
         { path: '/reset-password/:token', element: < ResetPassword /> }
       ]
     },
+    // trang quản trị của giảng viên
     {
       path: "/instructor",
       element: <InstructorLayout />,
@@ -104,6 +107,7 @@ function App() {
         { path: "community", element: <CourseDiscussion /> },
       ],
     },
+    // trang quản trị cỉa người kiểm duyệt
     {
       path: "/moderator",
       element: <ModeratorLayout />,
