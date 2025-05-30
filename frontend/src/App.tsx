@@ -25,7 +25,7 @@ import ForgotPassword from "./pages/client/auth/forgotPassword";
 import ResetPassword from "./pages/client/auth/resetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
-
+import InstructorProfile from "./pages/client/InstructorProfile/InstructorProfile";
 axios.defaults.baseURL = "http://localhost:3000";
 
 
@@ -41,6 +41,7 @@ function App() {
         { path: 'verify-email/:token', element: <VerifyEmail /> },
 
         { path: 'instructor/earnings', element: <Earnings /> },
+         { path: 'instructor/profile', element: <InstructorProfile /> },
 
       ]
     },
@@ -49,17 +50,17 @@ function App() {
       path: "/admin",
       element: <AdminLayout />,
       children: [
-        { path: "users", element: < UserPage/> },
-        { path: "users/:id", element: < UserDetail/> },
-        { path: "instructors", element: < InstructorList/> },
-        { path: "users/instructor/:id", element: < InstructorDetail/> },
-        { path: "content-approval", element: < ContentApprovalPage/> },
-        { path: "reports", element: < ReportsPage/> },
-        { path: "system/vouchers", element: < VouchersPage/> },
-        { path: "system/notifications", element: < Notifications/> },
-        { path: "statistics", element: < AdminStatistics/> },
-        { path: "coupons", element: < CouponManagement/> },
-        { path: "history", element: < TransactionHistory/> },
+        { path: "users", element: < UserPage /> },
+        { path: "users/:id", element: < UserDetail /> },
+        { path: "instructors", element: < InstructorList /> },
+        { path: "users/instructor/:id", element: < InstructorDetail /> },
+        { path: "content-approval", element: < ContentApprovalPage /> },
+        { path: "reports", element: < ReportsPage /> },
+        { path: "system/vouchers", element: < VouchersPage /> },
+        { path: "system/notifications", element: < Notifications /> },
+        { path: "statistics", element: < AdminStatistics /> },
+        { path: "coupons", element: < CouponManagement /> },
+        { path: "history", element: < TransactionHistory /> },
       ],
     },
     {
