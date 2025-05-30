@@ -27,6 +27,7 @@ import {
 } from "@ant-design/icons";
 import type { ContentItem, ContentStatus } from "../../../interfaces/Admin.interface";
 import { useNavigate } from "react-router-dom";
+import type { ChangeEvent } from "react";
 
 
 const mockContents: ContentItem[] = [
@@ -280,20 +281,19 @@ const ContentApprovalPage: React.FC = () => {
             placeholder="Tìm kiếm tiêu đề hoặc tác giả..."
             className="max-w-sm"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             allowClear
           />
-           <Select
+          <Select
             defaultValue="pending"
-            style={{ width: 180 }}
-            onChange={setFilterStatus}
+            style={{ width: 150 }}
+            onChange={(value: ContentStatus | "all") => setFilterStatus(value)}
             options={[
-              { value: "all", label: "Tất cả trạng thái" },
+              { value: "all", label: "Tất cả" },
               { value: "pending", label: "Chờ duyệt" },
               { value: "approved", label: "Đã duyệt" },
-              { value: "rejected", label: "Đã từ chối" },
+              { value: "rejected", label: "Từ chối" },
             ]}
-            suffixIcon={<FilterOutlined />}
           />
         </div>
       </Card>
@@ -312,9 +312,9 @@ const ContentApprovalPage: React.FC = () => {
               current={page}
               pageSize={pageSize}
               total={filteredContents.length}
-              onChange={setPage}
+              onChange={(newPage) => setPage(newPage)}
               showSizeChanger={false}
-              showTotal={(total) => `Tổng số ${total} mục`}
+              showTotal={(total) => `Tổng số ${total} nội dung`}
             />
           </div>
       </Card>

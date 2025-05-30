@@ -83,30 +83,7 @@ const AdminLayout = () => {
         },
       ],
     },
-{
-  type: "group",
-  label: collapsed ? null : "Người dùng",
-  children: [
     {
-<<<<<<< Updated upstream
-      key: "/admin/users",
-      icon: <UserOutlined />,
-      label: renderLabel("Quản lý người dùng"),
-    },
-    {
-      key: "/admin/instructors",
-      icon: <TeamOutlined />,
-      label: renderLabel("Danh sách giảng viên"),
-    },
-    {
-      key: "/admin/instructors/pending",
-      icon: <FileSearchOutlined />,
-      label: renderLabel("Giảng viên chờ duyệt"),
-    },
-  ],
-},
-
-=======
       type: "group",
       label: collapsed ? null : (
         <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -131,7 +108,6 @@ const AdminLayout = () => {
         },
       ],
     },
->>>>>>> Stashed changes
     {
       type: "group",
       label: collapsed ? null : (

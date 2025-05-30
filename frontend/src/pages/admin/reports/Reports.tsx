@@ -24,6 +24,7 @@ import {
   CheckCircleOutlined,
 } from "@ant-design/icons";
 import type { ReportItem, ReportStatus } from "../../../interfaces/Admin.interface";
+import { ChangeEvent } from "react";
 
 const mockReports: ReportItem[] = [
   {
@@ -245,7 +246,7 @@ const ReportsPage: React.FC = () => {
             placeholder="Tìm kiếm tiêu đề hoặc người báo cáo..."
             className="max-w-sm"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             allowClear
           />
         </div>
@@ -265,7 +266,7 @@ const ReportsPage: React.FC = () => {
               current={page}
               pageSize={pageSize}
               total={filteredReports.length}
-              onChange={setPage}
+              onChange={(newPage) => setPage(newPage)}
               showSizeChanger={false}
               showTotal={(total) => `Tổng số ${total} báo cáo`}
             />
