@@ -1,200 +1,174 @@
-import React, { useEffect, useState } from "react";
-import { Table, Input, Button, Tag, Space, message, Popconfirm } from "antd";
+<<<<<<< Updated upstream
+import React from "react";
+import { Table, Input, Button, Tag, Space } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { SearchOutlined } from "@ant-design/icons";
+=======
+import React, { useEffect, useState } from "react";
+import { 
+  Table, 
+  Input, 
+  Button, 
+  Tag, 
+  Space, 
+  message, 
+  Popconfirm, 
+  Card, 
+  Row, 
+  Col, 
+  Statistic,
+  Select,
+  Avatar,
+  Tooltip
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import { 
+  SearchOutlined, 
+  UserOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
+  FilterOutlined,
+  EyeOutlined,
+  MailOutlined,
+  PhoneOutlined
+} from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { config } from '../../../api/axios';
+>>>>>>> Stashed changes
 
-interface TeacherProfile {
-  id: string;
+interface Instructor {
+  key: number;
   name: string;
   email: string;
   degree: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "Pending";
 }
 
-const mockTeachers: TeacherProfile[] = [
+const mockData: Instructor[] = [
   {
-    id: '1',
-    name: 'Nguyễn Văn A',
-    email: 'a@example.com',
-    degree: 'Thạc sĩ CNTT',
-    status: 'pending',
+    key: 1,
+    name: "Nguyễn Văn A",
+    email: "a@example.com",
+    degree: "Thạc sĩ CNTT",
+    status: "Pending",
   },
   {
-    id: '2',
-    name: 'Trần Thị B',
-    email: 'b@example.com',
-    degree: 'Tiến sĩ Toán',
-    status: 'pending',
+    key: 2,
+    name: "Trần Thị B",
+    email: "b@example.com",
+    degree: "Tiến sĩ Toán",
+    status: "Pending",
   },
   {
-    id: '3',
-    name: 'Lê Văn C',
-    email: 'c@example.com',
-    degree: 'Thạc sĩ Vật lý',
-    status: 'approved',
+    key: 3,
+    name: "Lê Văn C",
+    email: "c@example.com",
+    degree: "Cử nhân Kinh tế",
+    status: "Pending",
   },
   {
-    id: '4',
-    name: 'Phạm Thị D',
-    email: 'd@example.com',
-    degree: 'Tiến sĩ Hóa học',
-    status: 'rejected',
+    key: 4,
+    name: "Phạm Thị D",
+    email: "d@example.com",
+    degree: "Thạc sĩ Quản trị kinh doanh",
+    status: "Pending",
   },
   {
-    id: '5',
-    name: 'Hoàng Văn E',
-    email: 'e@example.com',
-    degree: 'Thạc sĩ Khoa học máy tính',
-    status: 'pending',
+    key: 5,
+    name: "Hoàng Văn E",
+    email: "e@example.com",
+    degree: "Tiến sĩ Vật lý",
+    status: "Pending",
   },
   {
-    id: '6',
-    name: 'Đặng Thị F',
-    email: 'f@example.com',
-    degree: 'Tiến sĩ Sinh học',
-    status: 'approved',
+    key: 6,
+    name: "Ngô Thị F",
+    email: "f@example.com",
+    degree: "Cử nhân Luật",
+    status: "Pending",
   },
   {
-    id: '7',
-    name: 'Ngô Văn G',
-    email: 'g@example.com',
-    degree: 'Thạc sĩ Kinh tế',
-    status: 'pending',
+    key: 7,
+    name: "Đặng Văn G",
+    email: "g@example.com",
+    degree: "Thạc sĩ Xây dựng",
+    status: "Pending",
   },
-  {
-    id: '8',
-    name: 'Bùi Thị H',
-    email: 'h@example.com',
-    degree: 'Tiến sĩ Tài chính',
-    status: 'pending',
-  },
-  {
-    id: '9',
-    name: 'Trịnh Văn I',
-    email: 'i@example.com',
-    degree: 'Thạc sĩ Kế toán',
-    status: 'rejected',
-  },
-  {
-    id: '10',
-    name: 'Dương Thị K',
-    email: 'k@example.com',
-    degree: 'Tiến sĩ Marketing',
-    status: 'approved',
-  },
-  {
-    id: '11',
-    name: 'Mai Văn L',
-    email: 'l@example.com',
-    degree: 'Thạc sĩ Toán học',
-    status: 'pending',
-  },
-  {
-    id: '12',
-    name: 'Vũ Thị M',
-    email: 'm@example.com',
-    degree: 'Tiến sĩ CNTT',
-    status: 'pending',
-  },
-  {
-    id: '13',
-    name: 'Phan Văn N',
-    email: 'n@example.com',
-    degree: 'Thạc sĩ Công nghệ phần mềm',
-    status: 'pending',
-  },
-  {
-    id: '14',
-    name: 'Trần Thị O',
-    email: 'o@example.com',
-    degree: 'Tiến sĩ Giáo dục',
-    status: 'rejected',
-  },
-  {
-    id: '15',
-    name: 'Lý Văn P',
-    email: 'p@example.com',
-    degree: 'Thạc sĩ An ninh mạng',
-    status: 'approved',
-  },
-  {
-    id: '16',
-    name: 'Đỗ Thị Q',
-    email: 'q@example.com',
-    degree: 'Tiến sĩ Vật lý',
-    status: 'pending',
-  },
-  {
-    id: '17',
-    name: 'Trịnh Văn R',
-    email: 'r@example.com',
-    degree: 'Thạc sĩ Hệ thống thông tin',
-    status: 'pending',
-  },
-  {
-    id: '18',
-    name: 'Nguyễn Thị S',
-    email: 's@example.com',
-    degree: 'Tiến sĩ Khoa học dữ liệu',
-    status: 'pending',
-  },
-  {
-    id: '19',
-    name: 'Lê Văn T',
-    email: 't@example.com',
-    degree: 'Thạc sĩ Công nghệ thông tin',
-    status: 'approved',
-  },
-  {
-    id: '20',
-    name: 'Hoàng Thị U',
-    email: 'u@example.com',
-    degree: 'Tiến sĩ Trí tuệ nhân tạo',
-    status: 'pending',
-  },
-  {
-    id: '21',
-    name: 'Phạm Văn V',
-    email: 'v@example.com',
-    degree: 'Thạc sĩ Mạng máy tính',
-    status: 'rejected',
-  },
-  {
-    id: '22',
-    name: 'Bùi Thị X',
-    email: 'x@example.com',
-    degree: 'Tiến sĩ Phát triển phần mềm',
-    status: 'pending',
-  }
 ];
 
-
-
+<<<<<<< Updated upstream
+const InstructorPendingList = () => {
+  const columns: ColumnsType<Instructor> = [
+    {
+      title: "STT",
+      dataIndex: "key",
+      key: "stt",
+      width: 60,
+    },
+    {
+      title: "Họ tên",
+      dataIndex: "name",
+      key: "name",
+    },
+    {
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
+    },
+    {
+      title: "Trình độ",
+      dataIndex: "degree",
+      key: "degree",
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      render: () => <Tag color="orange">Pending</Tag>,
+    },
+    {
+      title: "Hành động",
+      key: "action",
+      render: (_, record) => (
+        <Space>
+          <Button type="primary">Duyệt</Button>
+          <Button danger> Từ chối </Button>
+          <Button>Xem chi tiết</Button>
+=======
 export default function TeachersReviewPage() {
   const [data, setData] = useState<TeacherProfile[]>(mockTeachers);
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState("");
+  const [degreeFilter, setDegreeFilter] = useState<string>("all");
+
+  // Calculate statistics
+  const stats = {
+    total: mockTeachers.filter(t => t.status === 'pending').length,
+    approved: mockTeachers.filter(t => t.status === 'approved').length,
+    rejected: mockTeachers.filter(t => t.status === 'rejected').length,
+  };
+
   useEffect(() => {
-    if (!searchText) {
-      // Nếu search trống thì hiện tất cả pending
-      setData(mockTeachers.filter(t => t.status === 'pending'));
-    } else {
-      const filtered = mockTeachers.filter(t =>
-        (t.name.toLowerCase().includes(searchText.toLowerCase()) ||
-          t.email.toLowerCase().includes(searchText.toLowerCase()) ||
-          t.degree.toLowerCase().includes(searchText.toLowerCase())) &&
-        t.status === 'pending'
+    let filtered = mockTeachers.filter(t => t.status === 'pending');
+    
+    if (searchText) {
+      filtered = filtered.filter(t =>
+        t.name.toLowerCase().includes(searchText.toLowerCase()) ||
+        t.email.toLowerCase().includes(searchText.toLowerCase()) ||
+        t.degree.toLowerCase().includes(searchText.toLowerCase())
       );
-      setData(filtered);
     }
-  }, [searchText]);
+
+    if (degreeFilter !== 'all') {
+      filtered = filtered.filter(t => t.degree === degreeFilter);
+    }
+
+    setData(filtered);
+  }, [searchText, degreeFilter]);
 
   const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected') => {
     try {
       // await config.patch(`/api/instructors/${id}/status`, { status });
-
       setData(prev => {
         const updated = prev.map(t =>
           t.id === id ? { ...t, status } : t
@@ -210,92 +184,250 @@ export default function TeachersReviewPage() {
     }
   };
 
+  const getStatusTag = (status: string) => {
+    const statusMap: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
+      approved: { color: "success", label: "Đã duyệt", icon: <CheckCircleOutlined /> },
+      pending: { color: "warning", label: "Chờ duyệt", icon: <ClockCircleOutlined /> },
+      rejected: { color: "error", label: "Từ chối", icon: <CloseCircleOutlined /> },
+    };
 
+    const tag = statusMap[status] || { color: "default", label: status, icon: null };
+    return (
+      <Tag 
+        color={tag.color} 
+        icon={tag.icon}
+        className="px-2 py-1 rounded-full text-sm font-medium"
+      >
+        {tag.label}
+      </Tag>
+    );
+  };
 
   const columns: ColumnsType<TeacherProfile> = [
     {
-      title: 'Họ tên',
+      title: 'Giảng viên',
       dataIndex: 'name',
-      className: 'text-center',
-      align: 'center',
+      render: (_, record) => (
+        <Space direction="horizontal" size="middle" className="py-2">
+          <Avatar 
+            icon={<UserOutlined />} 
+            size={48}
+            className="bg-blue-100 text-blue-600 border-2 border-gray-100 shadow-sm"
+          />
+          <div>
+            <div className="font-semibold text-base hover:text-blue-600 cursor-pointer">
+              {record.name}
+            </div>
+            <div className="text-sm text-gray-600">{record.degree}</div>
+            <Space className="mt-2" size="small">
+              <Tooltip title="Gửi email">
+                <Button type="text" size="small" icon={<MailOutlined />} />
+              </Tooltip>
+              <Tooltip title="Gọi điện thoại">
+                <Button type="text" size="small" icon={<PhoneOutlined />} />
+              </Tooltip>
+            </Space>
+          </div>
+        </Space>
+      ),
     },
     {
       title: 'Email',
       dataIndex: 'email',
-      className: 'text-center',
-      align: 'center',
+      render: (email) => (
+        <a href={`mailto:${email}`} className="text-blue-600 hover:text-blue-800">
+          {email}
+        </a>
+      ),
     },
     {
       title: 'Trình độ',
       dataIndex: 'degree',
-      className: 'text-center',
-      align: 'center',
+      render: (degree) => (
+        <Tag color="blue" className="px-2 py-1 rounded-full">
+          {degree}
+        </Tag>
+      ),
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
-      className: 'text-center',
-      align: 'center',
-      render: (status: string) => {
-        const color =
-          status === 'approved' ? 'green' : status === 'rejected' ? 'red' : 'orange';
-        return <Tag color={color}>{status.toUpperCase()}</Tag>;
-      },
+      render: getStatusTag,
     },
     {
       title: 'Hành động',
-      className: 'text-center',
-      align: 'center',
       render: (_, record: TeacherProfile) => (
-        <Space>
+        <Space size="small">
           <Popconfirm
-            title="Bạn có chắc muốn duyệt?"
+            title="Duyệt hồ sơ"
+            description="Bạn có chắc chắn muốn duyệt hồ sơ này?"
             onConfirm={() => handleUpdateStatus(record.id, 'approved')}
             okText="Duyệt"
             cancelText="Hủy"
+            okButtonProps={{ type: 'primary' }}
           >
-            <Button type="primary" disabled={record.status !== 'pending'}>
+            <Button 
+              type="primary" 
+              icon={<CheckCircleOutlined />}
+              disabled={record.status !== 'pending'}
+              className="flex items-center"
+            >
               Duyệt
             </Button>
           </Popconfirm>
           <Popconfirm
-            title="Bạn có chắc muốn từ chối?"
+            title="Từ chối hồ sơ"
+            description="Bạn có chắc chắn muốn từ chối hồ sơ này?"
             onConfirm={() => handleUpdateStatus(record.id, 'rejected')}
             okText="Từ chối"
             cancelText="Hủy"
+            okButtonProps={{ danger: true }}
           >
-            <Button danger disabled={record.status !== 'pending'}>
+            <Button 
+              danger
+              icon={<CloseCircleOutlined />}
+              disabled={record.status !== 'pending'}
+              className="flex items-center"
+            >
               Từ chối
             </Button>
           </Popconfirm>
-          <Button onClick={() => navigate(`/admin/users/instructor-approval/${record.id}`)}>
-            Xem chi tiết
+          <Button 
+            type="default"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/admin/users/instructor-approval/${record.id}`)}
+            className="flex items-center"
+          >
+            Chi tiết
           </Button>
+>>>>>>> Stashed changes
         </Space>
       ),
     },
   ];
 
+  // Get unique degrees for filter
+  const uniqueDegrees = Array.from(new Set(mockTeachers.map(t => t.degree)));
+
   return (
-    <div style={{ padding: 24 }}>
-      <h2 className="text-2xl font-bold mb-6">Duyệt hồ sơ giảng viên</h2>
-      <div className="mb-4 flex items-center gap-2">
-        <Input
-          prefix={<SearchOutlined />}
-          placeholder="Tìm theo tên, email,..."
-          style={{ maxWidth: 320 }}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          allowClear
-        />
-      </div>
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={data}
-        bordered
-        pagination={{ pageSize: 8 }}
+<<<<<<< Updated upstream
+    <div className="p-4 bg-white rounded-lg shadow-sm">
+      <h1 className="text-xl font-semibold mb-4">Danh sách giảng viên chờ duyệt</h1>
+      <Input
+        placeholder="Tìm theo lĩnh vực hoặc tiêu sử..."
+        prefix={<SearchOutlined />}
+        className="max-w-md mb-4"
       />
+      <Table columns={columns} dataSource={mockData} rowKey="key" pagination={{ pageSize: 5 }} />
+=======
+    <div className="p-6">
+      {/* Header Section */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Duyệt hồ sơ giảng viên</h2>
+          <p className="text-gray-500 mt-1">Xem xét và phê duyệt hồ sơ giảng viên mới</p>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <Row gutter={[16, 16]} className="mb-6">
+        <Col xs={24} sm={12} lg={8}>
+          <Card className="shadow-sm hover:shadow-md transition-shadow">
+            <Statistic
+              title="Hồ sơ chờ duyệt"
+              value={stats.total}
+              prefix={<ClockCircleOutlined />}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={8}>
+          <Card className="shadow-sm hover:shadow-md transition-shadow">
+            <Statistic
+              title="Đã duyệt"
+              value={stats.approved}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={8}>
+          <Card className="shadow-sm hover:shadow-md transition-shadow">
+            <Statistic
+              title="Đã từ chối"
+              value={stats.rejected}
+              prefix={<CloseCircleOutlined />}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Filters and Search */}
+      <Card className="mb-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <Input
+            prefix={<SearchOutlined className="text-gray-400" />}
+            placeholder="Tìm theo tên, email hoặc trình độ..."
+            className="max-w-md"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            allowClear
+          />
+          <Select
+            defaultValue="all"
+            style={{ width: 200 }}
+            onChange={setDegreeFilter}
+            options={[
+              { value: "all", label: "Tất cả trình độ" },
+              ...uniqueDegrees.map(degree => ({
+                value: degree,
+                label: degree
+              }))
+            ]}
+            suffixIcon={<FilterOutlined />}
+          />
+        </div>
+      </Card>
+
+      {/* Table */}
+      <Card className="shadow-sm">
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={data}
+          pagination={{ 
+            pageSize: 8,
+            showSizeChanger: true,
+            showTotal: (total) => `Tổng số ${total} hồ sơ chờ duyệt`,
+            className: "px-4"
+          }}
+          className="instructor-table"
+        />
+      </Card>
+
+      {/* Custom styles */}
+      <style>
+        {`
+          .instructor-table .ant-table-thead > tr > th {
+            background: #fafafa;
+            font-weight: 600;
+            color: #1f2937;
+          }
+          .instructor-table .ant-table-tbody > tr:hover > td {
+            background: #f5f7fa;
+          }
+          .instructor-table .ant-table-tbody > tr > td {
+            padding: 16px 8px;
+          }
+          .ant-tag {
+            margin: 0;
+          }
+        `}
+      </style>
+>>>>>>> Stashed changes
     </div>
   );
-}
+};
+
+export default InstructorPendingList;

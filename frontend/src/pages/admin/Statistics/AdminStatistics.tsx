@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Card, Row, Col, DatePicker, Select, Space, message } from "antd";
+import { Card, Row, Col, DatePicker, Select, Space, message, Statistic } from "antd";
 import { Column, Line } from "@ant-design/charts";
 import dayjs from "dayjs";
-import type { Dayjs } from "dayjs";
 
 const { RangePicker } = DatePicker;
 
@@ -163,66 +162,109 @@ const AdminStatistics = () => {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <h2 style={{ marginBottom: 24 }}>Dashboard Thống kê tổng quan</h2>
+    <div className="p-6">
+      {/* Header */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Dashboard Thống kê tổng quan</h2>
+        <p className="text-gray-500 mt-1">Tổng quan về hoạt động và doanh thu của hệ thống</p>
+      </div>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
-          <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
-            <h3>Tổng số người dùng</h3>
-            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.totalUsers.toLocaleString()}</p>
+      {/* Overview Stats */}
+      <Row gutter={[16, 16]} className="mb-6">
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading} className="shadow-sm hover:shadow-md transition-shadow">
+             <Statistic
+              title="Tổng số người dùng"
+              value={overview.totalUsers.toLocaleString()}
+              // prefix={<UserOutlined />} // Add relevant icon if available
+              valueStyle={{ color: '#1890ff' }}
+            />
           </Card>
         </Col>
-        <Col span={6}>
-          <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
-            <h3>Tổng đơn hàng</h3>
-            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.totalOrders.toLocaleString()}</p>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading} className="shadow-sm hover:shadow-md transition-shadow">
+             <Statistic
+              title="Tổng đơn hàng"
+              value={overview.totalOrders.toLocaleString()}
+              // prefix={<ShoppingCartOutlined />} // Add relevant icon if available
+              valueStyle={{ color: '#52c41a' }}
+            />
           </Card>
         </Col>
-        <Col span={6}>
-          <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
-            <h3>Tổng doanh thu (VND)</h3>
-            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.totalRevenue.toLocaleString()}</p>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading} className="shadow-sm hover:shadow-md transition-shadow">
+            <Statistic
+              title="Tổng doanh thu (VND)"
+              value={overview.totalRevenue.toLocaleString()}
+              // prefix={<DollarCircleOutlined />} // Add relevant icon if available
+              valueStyle={{ color: '#faad14' }}
+            />
           </Card>
         </Col>
-        <Col span={6}>
-          <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
-            <h3>Người dùng mới hôm nay</h3>
-            <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.newUsersToday.toLocaleString()}</p>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading} className="shadow-sm hover:shadow-md transition-shadow">
+             <Statistic
+              title="Người dùng mới hôm nay"
+              value={overview.newUsersToday.toLocaleString()}
+              // prefix={<UserAddOutlined />} // Add relevant icon if available
+              valueStyle={{ color: '#eb2f96' }}
+            />
           </Card>
         </Col>
       </Row>
 
-      <Space style={{ marginBottom: 16 }}>
-        <Select value={type} onChange={setType} style={{ width: 120 }}>
-          <Select.Option value="day">Ngày</Select.Option>
-          <Select.Option value="month">Tháng</Select.Option>
-          <Select.Option value="year">Năm</Select.Option>
-        </Select>
+      {/* Filter and Charts */}
+      <Card className="shadow-sm">
+         <Space className="mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <span className="text-gray-700 text-base font-medium">Chọn thời gian:</span>
+          <Select 
+            value={type} 
+            onChange={setType} 
+            style={{ width: 160, height: 40 }}
+            className="text-base"
+          >
+            <Select.Option value="day">Ngày</Select.Option>
+            <Select.Option value="month">Tháng</Select.Option>
+            <Select.Option value="year">Năm</Select.Option>
+          </Select>
 
-        <RangePicker
-          allowClear={false}
-          format={type === "day" ? "YYYY-MM-DD" : type === "month" ? "YYYY-MM" : "YYYY"}
-          picker={getPickerMode(type)}
-          value={[dayjs(range[0]), dayjs(range[1])]}
-          onChange={(dates) => {
-            if (dates && dates[0] && dates[1]) {
-              setRange([
-                dates[0].format("YYYY-MM-DD"),
-                dates[1].format("YYYY-MM-DD"),
-              ]);
-            }
-          }}
-        />
-      </Space>
+          <RangePicker
+            allowClear={false}
+            format={type === "day" ? "YYYY-MM-DD" : type === "month" ? "YYYY-MM" : "YYYY"}
+            picker={getPickerMode(type)}
+            value={[dayjs(range[0]), dayjs(range[1])]}
+            onChange={(dates) => {
+              if (dates && dates[0] && dates[1]) {
+                setRange([
+                  dates[0].format("YYYY-MM-DD"),
+                  dates[1].format("YYYY-MM-DD"),
+                ]);
+              }
+            }}
+            style={{ 
+              width: type === 'day' ? 320 : type === 'month' ? 240 : 160,
+              height: 40
+            }}
+            className="text-base"
+          />
+        </Space>
 
-      <Card title="Biểu đồ doanh thu" bordered={false}>
-        <Column {...columnConfig} />
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={12}>
+             <Card title="Biểu đồ cột doanh thu" bordered={false} className="h-full">
+                <Column {...columnConfig} />
+              </Card>
+          </Col>
+           <Col xs={24} lg={12}>
+              <Card title="Biểu đồ đường doanh thu" bordered={false} className="h-full">
+                <Line {...lineConfig} />
+              </Card>
+           </Col>
+        </Row>
+
       </Card>
 
-      <Card title="Biểu đồ đường doanh thu" bordered={false} style={{ marginTop: 24 }}>
-        <Line {...lineConfig} />
-      </Card>
+
     </div>
   );
 };

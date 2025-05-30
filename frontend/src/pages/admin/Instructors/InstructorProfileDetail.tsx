@@ -1,7 +1,34 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Button, Tag, message, Avatar, Badge, Descriptions, Space, Popconfirm } from 'antd';
-import { ArrowLeftOutlined, UserOutlined } from '@ant-design/icons';
+import { 
+  Card, 
+  Button, 
+  message, 
+  Avatar, 
+  Badge, 
+  Descriptions, 
+  Space, 
+  Popconfirm,
+  Row,
+  Col,
+  Divider,
+  Tag,
+  Tooltip
+} from 'antd';
+import { 
+  ArrowLeftOutlined, 
+  UserOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ClockCircleOutlined,
+  EnvironmentOutlined,
+  LinkedinOutlined,
+  GithubOutlined,
+  BookOutlined
+} from '@ant-design/icons';
 
 interface TeacherProfile {
       id: string;
@@ -265,30 +292,28 @@ const mockTeachers: TeacherProfile[] = [
 
 
 const TeacherProfileDetail = () => {
-      const { id } = useParams<{ id: string }>(); // lấy id từ URL
+      const { id } = useParams<{ id: string }>();
       const navigate = useNavigate();
-
       const teacher = mockTeachers.find(t => t.id === id);
 
       if (!teacher) {
             return (
-                  <div className="text-center text-red-500 mt-10">
-                        Không tìm thấy hồ sơ giảng viên.
+                  <div className="flex flex-col items-center justify-center min-h-[60vh]">
+                        <div className="text-2xl font-semibold text-red-500 mb-4">
+                              Không tìm thấy hồ sơ giảng viên
+                        </div>
+                        <Button type="primary" onClick={() => navigate(-1)}>
+                              Quay lại danh sách
+                        </Button>
                   </div>
             );
       }
 
-      // Hàm xử lý cập nhật trạng thái (duyệt / từ chối)
       const handleUpdateStatus = async (status: 'approved' | 'rejected') => {
             try {
-                  // Giả lập cập nhật trạng thái API
                   // await config.patch(`/api/teachers/${id}/status`, { status });
-
                   message.success(`Đã ${status === 'approved' ? 'duyệt' : 'từ chối'} hồ sơ`);
-                  // Cập nhật trạng thái trong mock (chỉ giả lập)
                   teacher.status = status;
-
-                  // Quay về trang danh sách duyệt giảng viên
                   navigate('/admin/instructor-approval');
             } catch (error) {
                   console.error(error);
@@ -296,79 +321,197 @@ const TeacherProfileDetail = () => {
             }
       };
 
-      const statusColor = teacher.status === 'approved' ? 'green' : teacher.status === 'rejected' ? 'red' : 'orange';
+      const getStatusConfig = (status: string) => {
+            const config = {
+                  approved: { color: 'success' as const, icon: <CheckCircleOutlined />, text: 'Đã duyệt' },
+                  rejected: { color: 'error' as const, icon: <CloseCircleOutlined />, text: 'Đã từ chối' },
+                  pending: { color: 'warning' as const, icon: <ClockCircleOutlined />, text: 'Chờ duyệt' }
+            };
+            return config[status as keyof typeof config] || config.pending;
+      };
+
+      const statusConfig = getStatusConfig(teacher.status);
 
       return (
             <div className="p-6">
-                  <Button
-                        type="default"
-                        icon={<ArrowLeftOutlined />}
-                        onClick={() => navigate(-1)}
-                        className="mb-6"
-                  >
-                        Quay lại danh sách
-                  </Button>
+                  {/* Header with Back Button */}
+                  <div className="flex items-center justify-between mb-6">
+                        <Button
+                              type="default"
+                              icon={<ArrowLeftOutlined />}
+                              onClick={() => navigate(-1)}
+                              className="flex items-center"
+                        >
+                              Quay lại danh sách
+                        </Button>
+                        <Badge 
+                              status={statusConfig.color}
+                              text={
+                                    <span className="text-base font-medium flex items-center gap-2">
+                                          {statusConfig.icon}
+                                          {statusConfig.text}
+                                    </span>
+                              }
+                        />
+                  </div>
 
-                  <Card
-                        className="max-w-4xl mx-auto shadow-md hover:shadow-lg transition-all duration-300"
-                        bodyStyle={{ padding: "32px" }}
-                  >
-                        <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
-                              <Avatar
-                                    size={100}
-                                    src={teacher.avatar}
-                                    icon={<UserOutlined />}
-                                    className="shadow-md"
-                              />
-                              <div className="flex-1 space-y-2">
-                                    <h2 className="text-2xl font-semibold">{teacher.fullName}</h2>
-                                    <Badge color={statusColor} text={<span className="uppercase font-medium">{teacher.status}</span>} />
-                                    <p className="text-gray-600">{teacher.bio}</p>
-                              </div>
-                        </div>
+                  <Row gutter={[24, 24]}>
+                        {/* Main Profile Card */}
+                        <Col xs={24}>
+                              <Card className="shadow-sm">
+                                    <div className="flex flex-col md:flex-row gap-6">
+                                          <div className="flex flex-col items-center">
+                                                <Avatar
+                                                      size={120}
+                                                      src={teacher.avatar}
+                                                      icon={<UserOutlined />}
+                                                      className="border-4 border-gray-100 shadow-lg"
+                                                />
+                                                <div className="mt-4 flex gap-2">
+                                                      <Tooltip title="Gửi email">
+                                                            <Button type="text" icon={<MailOutlined />} />
+                                                      </Tooltip>
+                                                      <Tooltip title="Gọi điện thoại">
+                                                            <Button type="text" icon={<PhoneOutlined />} />
+                                                      </Tooltip>
+                                                      <Tooltip title="LinkedIn">
+                                                            <Button type="text" icon={<LinkedinOutlined />} />
+                                                      </Tooltip>
+                                                      <Tooltip title="GitHub">
+                                                            <Button type="text" icon={<GithubOutlined />} />
+                                                      </Tooltip>
+                                                </div>
+                                          </div>
 
-                        <div className="mt-8">
-                              <Descriptions
-                                    bordered
-                                    column={1}
-                                    labelStyle={{ width: 200, fontWeight: 600 }}
-                                    contentStyle={{ background: "#f9fafb" }}
-                              >
-                                    <Descriptions.Item label="Email">{teacher.email}</Descriptions.Item>
-                                    <Descriptions.Item label="Số điện thoại">{teacher.phone}</Descriptions.Item>
-                                    <Descriptions.Item label="Giới tính">{teacher.gender}</Descriptions.Item>
-                                    <Descriptions.Item label="Ngày tạo">{teacher.createdAt}</Descriptions.Item>
-                              </Descriptions>
+                                          <div className="flex-1">
+                                                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                                                      {teacher.fullName}
+                                                </h1>
+                                                <div className="flex items-center gap-2 text-gray-600 mb-4">
+                                                      <EnvironmentOutlined />
+                                                      <span>Hà Nội, Việt Nam</span>
+                                                </div>
+                                                <p className="text-gray-600 text-base leading-relaxed">
+                                                      {teacher.bio}
+                                                </p>
+                                                <div className="mt-4 flex flex-wrap gap-2">
+                                                      <Tag color="blue" icon={<BookOutlined />}>Lập trình Web</Tag>
+                                                      <Tag color="green" icon={<BookOutlined />}>ReactJS</Tag>
+                                                      <Tag color="purple" icon={<BookOutlined />}>Node.js</Tag>
+                                                      <Tag color="orange" icon={<BookOutlined />}>JavaScript</Tag>
+                                                </div>
+                                          </div>
+                                    </div>
 
-                              <div className="mt-6 flex justify-end gap-4">
-                                    <Space>
-                                          <Popconfirm
-                                                title="Bạn có chắc muốn duyệt?"
-                                                onConfirm={() => handleUpdateStatus('approved')}
-                                                okText="Duyệt"
-                                                cancelText="Hủy"
-                                                disabled={teacher.status !== 'pending'}
+                                    <Divider />
+
+                                    <Descriptions
+                                          column={{ xs: 1, sm: 2 }}
+                                          bordered
+                                          size="small"
+                                          className="bg-white"
+                                    >
+                                          <Descriptions.Item 
+                                                label={
+                                                      <span className="flex items-center gap-2">
+                                                            <MailOutlined /> Email
+                                                      </span>
+                                                }
                                           >
-                                                <Button type="primary" disabled={teacher.status !== 'pending'}>
-                                                      Duyệt
-                                                </Button>
-                                          </Popconfirm>
-
-                                          <Popconfirm
-                                                title="Bạn có chắc muốn từ chối?"
-                                                onConfirm={() => handleUpdateStatus('rejected')}
-                                                okText="Từ chối"
-                                                cancelText="Hủy"
-                                                disabled={teacher.status !== 'pending'}
+                                                <a href={`mailto:${teacher.email}`} className="text-blue-600 hover:text-blue-800">
+                                                      {teacher.email}
+                                                </a>
+                                          </Descriptions.Item>
+                                          <Descriptions.Item 
+                                                label={
+                                                      <span className="flex items-center gap-2">
+                                                            <PhoneOutlined /> Số điện thoại
+                                                      </span>
+                                                }
                                           >
-                                                <Button danger disabled={teacher.status !== 'pending'}>
-                                                      Từ chối
-                                                </Button>
-                                          </Popconfirm>
-                                    </Space>
-                              </div>
-                        </div>
-                  </Card>
+                                                <a href={`tel:${teacher.phone}`} className="text-blue-600 hover:text-blue-800">
+                                                      {teacher.phone}
+                                                </a>
+                                          </Descriptions.Item>
+                                          <Descriptions.Item 
+                                                label={
+                                                      <span className="flex items-center gap-2">
+                                                            <UserOutlined /> Giới tính
+                                                      </span>
+                                                }
+                                          >
+                                                {teacher.gender}
+                                          </Descriptions.Item>
+                                          <Descriptions.Item 
+                                                label={
+                                                      <span className="flex items-center gap-2">
+                                                            <CalendarOutlined /> Ngày tạo
+                                                      </span>
+                                                }
+                                          >
+                                                {new Date(teacher.createdAt).toLocaleDateString('vi-VN', {
+                                                      year: 'numeric',
+                                                      month: 'long',
+                                                      day: 'numeric'
+                                                })}
+                                          </Descriptions.Item>
+                                    </Descriptions>
+
+                                    {teacher.status === 'pending' && (
+                                          <div className="mt-6 flex justify-end gap-4">
+                                                <Space>
+                                                      <Popconfirm
+                                                            title="Duyệt hồ sơ"
+                                                            description="Bạn có chắc chắn muốn duyệt hồ sơ này?"
+                                                            onConfirm={() => handleUpdateStatus('approved')}
+                                                            okText="Duyệt"
+                                                            cancelText="Hủy"
+                                                            okButtonProps={{ type: 'primary' }}
+                                                      >
+                                                            <Button 
+                                                                  type="primary"
+                                                                  icon={<CheckCircleOutlined />}
+                                                                  className="flex items-center"
+                                                            >
+                                                                  Duyệt hồ sơ
+                                                            </Button>
+                                                      </Popconfirm>
+
+                                                      <Popconfirm
+                                                            title="Từ chối hồ sơ"
+                                                            description="Bạn có chắc chắn muốn từ chối hồ sơ này?"
+                                                            onConfirm={() => handleUpdateStatus('rejected')}
+                                                            okText="Từ chối"
+                                                            cancelText="Hủy"
+                                                            okButtonProps={{ danger: true }}
+                                                      >
+                                                            <Button 
+                                                                  danger
+                                                                  icon={<CloseCircleOutlined />}
+                                                                  className="flex items-center"
+                                                            >
+                                                                  Từ chối
+                                                            </Button>
+                                                      </Popconfirm>
+                                                </Space>
+                                          </div>
+                                    )}
+                              </Card>
+                        </Col>
+                  </Row>
+
+                  {/* Custom styles */}
+                  <style>
+                        {`
+                              .ant-descriptions-item-label {
+                                    background: #fafafa !important;
+                                    font-weight: 500;
+                              }
+                              .ant-timeline-item-content {
+                                    color: #666;
+                              }
+                        `}
+                  </style>
             </div>
       );
 };
