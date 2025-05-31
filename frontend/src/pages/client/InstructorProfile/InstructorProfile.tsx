@@ -11,6 +11,8 @@ import {
   BookOpen,
   Users,
   Heart,
+  Check,
+  X,
 } from 'lucide-react';
 
 const InstructorProfile = () => {
@@ -102,6 +104,15 @@ const InstructorProfile = () => {
     }
   };
 
+  // CSS class for editable fields
+  const getEditableFieldClass = (hasError = false) => {
+    return `w-full transition-all duration-200 ${
+      isEditing 
+        ? `border-2 ${hasError ? 'border-red-500' : 'border-gray-900'} rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 bg-white shadow-sm`
+        : 'border-transparent'
+    }`;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header Background */}
@@ -111,7 +122,8 @@ const InstructorProfile = () => {
 
       {/* Toast notification */}
       {toastVisible && (
-        <div className="fixed top-5 right-5 bg-green-500 text-white px-4 py-2 rounded shadow-lg animate-fadeInOut z-50">
+        <div className="fixed top-5 right-5 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-fadeInOut z-50 flex items-center gap-2">
+          <Check className="w-4 h-4" />
           Cập nhật hồ sơ thành công!
         </div>
       )}
@@ -125,16 +137,18 @@ const InstructorProfile = () => {
               {/* Avatar and Basic Info */}
               <div className="text-center mb-6">
                 <div className="relative inline-block">
-                  <img
-                    src={avatarPreview}
-                    alt={profileData.name}
-                    className="w-32 h-32 rounded-full mx-auto border-4 border-white shadow-lg object-cover"
-                  />
+                  <div className={`${isEditing ? 'ring-4 ring-gray-900 ring-opacity-20' : ''} rounded-full transition-all duration-200`}>
+                    <img
+                      src={avatarPreview}
+                      alt={profileData.name}
+                      className="w-32 h-32 rounded-full mx-auto border-4 border-white shadow-lg object-cover"
+                    />
+                  </div>
                   {isEditing && (
                     <>
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="absolute bottom-0 right-0 bg-orange-500 text-white p-2 rounded-full shadow-lg hover:bg-orange-600 transition-colors"
+                        className="absolute bottom-0 right-0 bg-orange-500 text-white p-2 rounded-full shadow-lg hover:bg-orange-600 transition-all duration-200 transform hover:scale-110"
                         aria-label="Thay đổi ảnh đại diện"
                       >
                         <Camera className="w-4 h-4" />
@@ -156,9 +170,7 @@ const InstructorProfile = () => {
                       type="text"
                       value={editForm.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
-                      className={`w-full text-center text-xl font-bold border-2 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 ${
-                        errors.name ? 'border-red-500' : 'border-gray-200'
-                      }`}
+                      className={`${getEditableFieldClass(errors.name)} text-center text-xl font-bold`}
                       placeholder="Tên"
                     />
                     {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
@@ -167,9 +179,7 @@ const InstructorProfile = () => {
                       type="text"
                       value={editForm.title}
                       onChange={(e) => handleInputChange('title', e.target.value)}
-                      className={`w-full text-center text-gray-600 border-2 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 ${
-                        errors.title ? 'border-red-500' : 'border-gray-200'
-                      }`}
+                      className={`${getEditableFieldClass(errors.title)} text-center text-gray-600`}
                       placeholder="Chuyên môn"
                     />
                     {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
@@ -215,60 +225,54 @@ const InstructorProfile = () => {
               </div>
 
               {/* Contact Info */}
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex items-center space-x-3">
-                  <Mail className="w-5 h-5 text-orange-500" />
+                  <Mail className="w-5 h-5 text-orange-500 flex-shrink-0" />
                   {isEditing ? (
                     <input
                       type="email"
                       value={editForm.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
-                      className={`w-full border-2 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 ${
-                        errors.email ? 'border-red-500' : 'border-gray-200'
-                      }`}
+                      className={getEditableFieldClass(errors.email)}
                       placeholder="Email"
                     />
                   ) : (
-                    <span>{profileData.email}</span>
+                    <span className="text-gray-700">{profileData.email}</span>
                   )}
                 </div>
-                {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                {errors.email && <p className="text-red-500 text-sm ml-8">{errors.email}</p>}
 
                 <div className="flex items-center space-x-3">
-                  <Phone className="w-5 h-5 text-orange-500" />
+                  <Phone className="w-5 h-5 text-orange-500 flex-shrink-0" />
                   {isEditing ? (
                     <input
                       type="text"
                       value={editForm.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className={`w-full border-2 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 ${
-                        errors.phone ? 'border-red-500' : 'border-gray-200'
-                      }`}
+                      className={getEditableFieldClass(errors.phone)}
                       placeholder="Số điện thoại"
                     />
                   ) : (
-                    <span>{profileData.phone}</span>
+                    <span className="text-gray-700">{profileData.phone}</span>
                   )}
                 </div>
-                {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+                {errors.phone && <p className="text-red-500 text-sm ml-8">{errors.phone}</p>}
 
                 <div className="flex items-center space-x-3">
-                  <MapPin className="w-5 h-5 text-orange-500" />
+                  <MapPin className="w-5 h-5 text-orange-500 flex-shrink-0" />
                   {isEditing ? (
                     <input
                       type="text"
                       value={editForm.location}
                       onChange={(e) => handleInputChange('location', e.target.value)}
-                      className={`w-full border-2 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 ${
-                        errors.location ? 'border-red-500' : 'border-gray-200'
-                      }`}
+                      className={getEditableFieldClass(errors.location)}
                       placeholder="Địa chỉ"
                     />
                   ) : (
-                    <span>{profileData.location}</span>
+                    <span className="text-gray-700">{profileData.location}</span>
                   )}
                 </div>
-                {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location}</p>}
+                {errors.location && <p className="text-red-500 text-sm ml-8">{errors.location}</p>}
               </div>
             </div>
           </div>
@@ -282,24 +286,29 @@ const InstructorProfile = () => {
                 {!isEditing && (
                   <button
                     onClick={handleEdit}
-                    className="flex items-center gap-1 text-orange-500 hover:text-orange-600 transition"
-                    aria-label="Chỉnh sửa tiểu sử"
+                    className="flex items-center gap-2 px-4 py-2 text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg"
+                    aria-label="Chỉnh sửa hồ sơ"
                   >
                     <Edit className="w-4 h-4" />
-                    Sửa
+                    <span className="font-medium">Chỉnh sửa</span>
                   </button>
                 )}
               </div>
               {isEditing ? (
-                <textarea
-                  rows={5}
-                  value={editForm.bio}
-                  onChange={(e) => handleInputChange('bio', e.target.value)}
-                  className="w-full border-2 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500 resize-none"
-                  placeholder="Nhập tiểu sử"
-                />
+                <div className="relative">
+                  <textarea
+                    rows={5}
+                    value={editForm.bio}
+                    onChange={(e) => handleInputChange('bio', e.target.value)}
+                    className="w-full border-2 border-gray-900 rounded-lg px-4 py-3 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 resize-none transition-all duration-200 bg-white shadow-sm"
+                    placeholder="Nhập tiểu sử"
+                  />
+                  <div className="absolute top-2 right-2 text-xs text-gray-400 bg-white px-2 rounded">
+                    Có thể chỉnh sửa
+                  </div>
+                </div>
               ) : (
-                <p className="text-gray-700 whitespace-pre-line">{profileData.bio}</p>
+                <p className="text-gray-700 whitespace-pre-line leading-relaxed">{profileData.bio}</p>
               )}
             </section>
 
@@ -309,18 +318,62 @@ const InstructorProfile = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-orange-500" /> Kinh nghiệm
                 </h3>
-                <p>{profileData.experience}</p>
-                <p className="mt-1 text-sm text-gray-500">{profileData.joinDate}</p>
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={editForm.experience}
+                        onChange={(e) => handleInputChange('experience', e.target.value)}
+                        className="w-full border-2 border-gray-900 rounded-lg px-4 py-3 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200 bg-white shadow-sm font-medium"
+                        placeholder="Số năm kinh nghiệm"
+                      />
+                      <div className="absolute top-2 right-2 text-xs text-gray-400 bg-white px-2 rounded">
+                        Có thể chỉnh sửa
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      value={editForm.joinDate}
+                      onChange={(e) => handleInputChange('joinDate', e.target.value)}
+                      className="w-full border-2 border-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200 bg-white shadow-sm text-sm"
+                      placeholder="Ngày tham gia"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-gray-700 font-medium">{profileData.experience}</p>
+                    <p className="mt-1 text-sm text-gray-500">{profileData.joinDate}</p>
+                  </div>
+                )}
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Award className="w-5 h-5 text-orange-500" /> Thành tích
                 </h3>
-                <ul className="list-disc list-inside space-y-1 text-gray-700">
-                  {profileData.achievements.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
+                {isEditing ? (
+                  <div className="relative">
+                    <textarea
+                      rows={4}
+                      value={editForm.achievements.join('\n')}
+                      onChange={(e) => handleInputChange('achievements', e.target.value.split('\n').filter(item => item.trim()))}
+                      className="w-full border-2 border-gray-900 rounded-lg px-4 py-3 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 resize-none transition-all duration-200 bg-white shadow-sm"
+                      placeholder="Nhập thành tích, mỗi dòng một thành tích"
+                    />
+                    <div className="absolute top-2 right-2 text-xs text-gray-400 bg-white px-2 rounded">
+                      Có thể chỉnh sửa
+                    </div>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {profileData.achievements.map((item, idx) => (
+                      <li key={idx} className="flex items-center gap-2 text-gray-700">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0"></div>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </section>
 
@@ -330,19 +383,24 @@ const InstructorProfile = () => {
                 <BookOpen className="w-5 h-5 text-orange-500" /> Kỹ năng
               </h3>
               {isEditing ? (
-                <input
-                  type="text"
-                  value={editForm.skills.join(', ')}
-                  onChange={(e) => handleInputChange('skills', e.target.value.split(',').map(s => s.trim()))}
-                  className="w-full border-2 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-500"
-                  placeholder="Nhập kỹ năng, cách nhau bởi dấu phẩy"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={editForm.skills.join(', ')}
+                    onChange={(e) => handleInputChange('skills', e.target.value.split(',').map(s => s.trim()))}
+                    className="w-full border-2 border-gray-900 rounded-lg px-4 py-3 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200 bg-white shadow-sm"
+                    placeholder="Nhập kỹ năng, cách nhau bởi dấu phẩy"
+                  />
+                  <div className="absolute top-2 right-2 text-xs text-gray-400 bg-white px-2 rounded">
+                    Có thể chỉnh sửa
+                  </div>
+                </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {profileData.skills.map((skill, idx) => (
                     <span
                       key={idx}
-                      className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-medium"
+                      className="bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 px-4 py-2 rounded-full text-sm font-medium border border-orange-200 hover:shadow-md transition-shadow duration-200"
                     >
                       {skill}
                     </span>
@@ -353,18 +411,20 @@ const InstructorProfile = () => {
 
             {/* Action Buttons */}
             {isEditing && (
-              <div className="flex gap-4 justify-end">
+              <div className="flex gap-4 justify-end bg-white rounded-2xl shadow-lg p-6">
                 <button
                   onClick={handleCancel}
-                  className="px-5 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
+                  className="flex items-center gap-2 px-6 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all duration-200 font-medium border border-gray-300"
                 >
+                  <X className="w-4 h-4" />
                   Hủy
                 </button>
                 <button
                   onClick={handleSave}
-                  className="px-5 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition"
+                  className="flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg font-medium"
                 >
-                  Lưu
+                  <Check className="w-4 h-4" />
+                  Lưu thay đổi
                 </button>
               </div>
             )}
@@ -372,10 +432,11 @@ const InstructorProfile = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes fadeInOut {
-          0%, 100% { opacity: 0; transform: translateY(-10px); }
-          10%, 90% { opacity: 1; transform: translateY(0); }
+          0% { opacity: 0; transform: translateY(-10px) scale(0.95); }
+          10%, 90% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-10px) scale(0.95); }
         }
         .animate-fadeInOut {
           animation: fadeInOut 3s ease forwards;
