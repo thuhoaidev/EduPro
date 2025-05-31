@@ -25,6 +25,8 @@ import ForgotPassword from "./pages/client/auth/forgotPassword";
 import ResetPassword from "./pages/client/auth/resetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
+import UserProfile from "./pages/client/UserProfile/UserProfile";
+
 
 axios.defaults.baseURL = "http://localhost:3000";
 
@@ -39,8 +41,8 @@ function App() {
       children: [
         { index: true, element: <Homepage /> },
         { path: 'verify-email/:token', element: <VerifyEmail /> },
-
         { path: 'instructor/earnings', element: <Earnings /> },
+        { path: 'UserProfile/profile', element: <UserProfile /> },
 
       ]
     },
