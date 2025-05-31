@@ -42,8 +42,7 @@ function App() {
         { index: true, element: <Homepage /> },
         { path: 'verify-email/:token', element: <VerifyEmail /> },
         { path: 'instructor/earnings', element: <Earnings /> },
-        { path: 'UserProfile/profile', element: <UserProfile /> },
-
+        { path: 'user/profile', element: <UserProfile /> },
       ]
     },
 
