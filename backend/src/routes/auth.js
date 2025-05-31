@@ -17,7 +17,9 @@ const {
 } = require('../controllers/authController');
 const { getInstructorProfile, updateOrCreateInstructorProfile } = require('../controllers/instructorprofile');
 const { getApprovedInstructors, approveInstructorProfile, getPendingInstructors  } = require('../controllers/instructorapproval');
-const { getCurrentUser, updateCurrentUser } = require('../controllers/userController');
+const { getCurrentUser, updateCurrentUser, uploadAvatar } = require('../controllers/userController');
+const upload = require('../middlewares/upload');
+
 // Routes công khai
 router.post('/register', register);
 router.post('/register/instructor', registerInstructor);
@@ -54,5 +56,6 @@ router.post('/instructors-approve', requireAuth, approveInstructorProfile);
 
 router.get('/use-me', auth, requireAuth, getCurrentUser);
 router.put('/update-me', auth, requireAuth, updateCurrentUser);
+router.post('/upload-avatar',auth,requireAuth,upload.single('avatar'),uploadAvatar);
 
 module.exports = router; 
