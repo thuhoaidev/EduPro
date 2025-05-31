@@ -1,5 +1,5 @@
 const User = require('../models/User');
-
+const path = require('path');
 // controllers/userController.js
 exports.getCurrentUser = async (req, res) => {
   try {
@@ -48,5 +48,36 @@ exports.updateCurrentUser = async (req, res) => {
   } catch (error) {
     console.error('Lỗi cập nhật người dùng:', error);
     res.status(500).json({ success: false, message: 'Lỗi cập nhật thông tin người dùng' });
+  }
+};
+
+exports.uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có file nào được tải lên',
+      });
+    }
+
+    const avatarPath = `/uploads/avatars/${req.file.filename}`;
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { avatar: avatarPath },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Cập nhật ảnh đại diện thành công',
+      data: { avatar: user.avatar },
+    });
+  } catch (error) {
+    console.error('Lỗi upload avatar:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi tải ảnh',
+    });
   }
 };
