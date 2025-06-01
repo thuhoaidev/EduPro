@@ -45,6 +45,7 @@ import Notifications from "./pages/admin/Notifications/Notifications";
 import AdminStatistics from "./pages/admin/Statistics/AdminStatistics";
 import InstructorProfile from "./pages/client/InstructorProfile/InstructorProfile";
 import InstructorRegistrationPage from "./pages/client/auth/instructorRegistrationPage"
+import CourseManagement from "./pages/admin/section-lesson/CourseManagement";
 
 axios.defaults.baseURL = "http://localhost:3000";
 
@@ -81,6 +82,7 @@ function App() {
         { path: "statistics", element: < AdminStatistics /> },
         // { path: "coupons", element: < CouponManagement /> },
         // { path: "history", element: < TransactionHistory /> },
+        { path: "/admin/sectionLesson/CourseManagement", element: < CourseManagement /> },
       ],
     },
     {

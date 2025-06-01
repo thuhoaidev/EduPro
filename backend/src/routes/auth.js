@@ -47,7 +47,7 @@ router.patch('/change-password', requireAuth, changePassword);
 
 // Routes hồ sơ giảng viên
 router.get('/instructor-profile/:id?', requireAuth, getInstructorProfile);
-router.put('/instructor-profile', requireAuth, updateOrCreateInstructorProfile);
+router.put('/instructor-profile/:id?', requireAuth, updateOrCreateInstructorProfile);
 router.get('/instructors-unapproved', requireAuth, getApprovedInstructors);
 router.get('/instructors-pending', requireAuth, getPendingInstructors);
 router.post('/instructors-approve', requireAuth, approveInstructorProfile);
