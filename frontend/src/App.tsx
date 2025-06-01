@@ -44,6 +44,7 @@ import VouchersPage from "./pages/admin/Vouchers/VouchersPage";
 import Notifications from "./pages/admin/Notifications/Notifications";
 import AdminStatistics from "./pages/admin/Statistics/AdminStatistics";
 import InstructorProfile from "./pages/client/InstructorProfile/InstructorProfile";
+import InstructorRegistrationPage from "./pages/client/auth/instructorRegistrationPage"
 
 axios.defaults.baseURL = "http://localhost:3000";
 
@@ -88,7 +89,8 @@ function App() {
         { path: '/login', element: <LoginPage /> },
         { path: '/register', element: <RegisterPage /> },
         { path: '/forgot-password', element: <ForgotPassword /> },
-        { path: '/reset-password/:token', element: < ResetPassword /> }
+        { path: '/reset-password/:token', element: < ResetPassword /> },
+        { path: '/register/instructor', element: < InstructorRegistrationPage /> }
       ]
     },
     // trang quản trị của giảng viên

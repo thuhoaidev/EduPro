@@ -166,6 +166,11 @@ export function RegisterPage() {
                                                 Bạn đã có tài khoản?
                                           </Link>
                                     </div>
+                                    {/* <div className="text-center text-base mt-2">
+                                          <Link to="/register/instructor" className="text-blue-500 hover:underline">
+                                                Đăng ký làm giảng viên
+                                          </Link>
+                                    </div> */}
                               </Form>
 
                               {contextHolder}
