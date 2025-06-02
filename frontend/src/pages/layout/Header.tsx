@@ -1,109 +1,153 @@
 import React from 'react';
-import { Layout, Input, Space, Button, Avatar, Dropdown, Menu } from 'antd';
-import { SearchOutlined, BellOutlined, UserOutlined } from '@ant-design/icons';
-
-import ftechcLogo from '../../assets/ftech-c.png'; // Đường dẫn đã được xác nhận
+import { Layout, Input, Space, Button, Avatar, Badge, Dropdown } from 'antd';
+import { SearchOutlined, BellOutlined, UserOutlined, ShoppingCartOutlined, SettingOutlined, EditOutlined } from '@ant-design/icons';
 
 const { Header } = Layout;
 
 const AppHeader = () => {
-  const menu = (
-    <Menu>
-      <Menu.Item key="1">Đăng nhập</Menu.Item>
-      <Menu.Item key="2">Đăng ký</Menu.Item>
-    </Menu>
-  );
+  // Menu items cho dropdown khi click vào avatar
+  const avatarMenuItems = [
+    {
+      key: 'profile',
+      label: (
+        <div className="flex items-center py-2 cursor-pointer">
+          <UserOutlined className="mr-2" />
+          Trang cá nhân
+        </div>
+      ),
+    },
+    {
+      key: 'blog',
+      label: (
+        <div className="flex items-center py-2 cursor-pointer">
+          <EditOutlined className="mr-2" />
+          Viết blog
+        </div>
+      ),
+    },
+    {
+      key: 'my-posts',
+      label: (
+        <div className="flex items-center py-2 cursor-pointer">
+          <EditOutlined className="mr-2" />
+          Bài viết của tôi
+        </div>
+      ),
+    },
+    {
+      key: 'saved-posts',
+      label: (
+        <div className="flex items-center py-2 cursor-pointer">
+          <EditOutlined className="mr-2" />
+          Bài viết đã lưu
+        </div>
+      ),
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'settings',
+      label: (
+        <a href="http://localhost:5173/client/PersonalInfoPage" className="flex items-center py-2">
+          <SettingOutlined className="mr-2" />
+          Cài đặt
+        </a>
+      ),
+    },
+    {
+      key: 'logout',
+      label: (
+        <div className="flex items-center py-2 cursor-pointer">
+          <EditOutlined className="mr-2" />
+          Đăng xuất
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <>
-      {/* Top Bar - Consistent across all images */}
-      <div style={{ background: '#f8f8f8', padding: '8px 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderBottom: '1px solid #eee' }}>
-        <span style={{ color: '#595959', marginRight: '16px', fontSize: '0.9em' }}>Xin chào admin Dương Đức Phương!</span>
-        <Button style={{ background: '#e0e0e0', borderColor: '#d9d9d9', color: '#595959', borderRadius: 20, padding: '4px 12px', height: 'auto', fontSize: '0.9em' }}>
-          Đăng nhập vào quản trị nội dung
-        </Button>
+    <Header style={{
+      background: '#fff',
+      padding: '0 24px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderBottom: '1px solid #f0f0f0',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+      height: 70,
+    }} className="sticky top-0 z-50 w-full">
+      <div className="flex items-center h-full">
+        {/* Logo */}
+        <img src="https://www.udemy.com/staticx/udemy/images/v7/logo-udemy.svg" alt="Udemy Logo" style={{
+          height: 34,
+          marginRight: 8,
+        }} />
+        {/* Explore Text */}
+        <span className="font-semibold text-gray-700 cursor-pointer hidden md:block">Explore</span>
       </div>
 
-      {/* Main Header */}
-      <Header style={{
-        background: '#fff',
-        padding: '0 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderBottom: '1px solid #f0f0f0',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)' // Add subtle shadow like in images
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          {/* Logo */}
-          <img src={ftechcLogo} alt="Logo" style={{
-            height: 38,
-            width: 38,
-            marginRight: 8,
-            borderRadius: 8, // Square with rounded corners
-            objectFit: 'cover'
-          }} />
-          {/* Brand Name with Dropdown */}
-          <Dropdown overlay={menu} placement="bottomLeft">
-            <Button type="link" style={{ color: '#000', fontSize: '1.2em', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
-              Lập trình Frech <span style={{ marginLeft: 4, transform: 'rotate(90deg)', display: 'inline-block', lineHeight: 1, transition: 'transform 0.2s' }}>&#9660;</span> {/* Small arrow, consider dynamic rotation */}
-            </Button>
-          </Dropdown>
-        </div>
-        {/* Search Input */}
-        <div style={{ flex: 1, marginLeft: 24, marginRight: 24 }}>
-          <Input
-            placeholder="Tìm kiếm khóa học"
-            prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,.45)' }} />}
-            style={{
-              width: '100%',
-              borderRadius: 25, // More rounded corners for input
-              padding: '8px 12px',
-              border: '1px solid #d9d9d9', // Default border
-              boxShadow: '0 2px 5px rgba(0,0,0,0.05)' 
-            }}
-            
-            onFocus={(e) => {
-              e.target.style.borderColor = '#1890ff';
-              e.target.style.boxShadow = '0 0 0 2px rgba(24,144,255,0.2)';
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = '#d9d9d9';
-              e.target.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
-            }}
-          />
-        </div>
-        {/* Right Section: Icons and Avatar */}
-        <Space size="middle" style={{ alignItems: 'center' }}>
-          {/* Bell Icon */}
-          <Button
-            type="text"
-            icon={<BellOutlined style={{ fontSize: '1.4em', color: '#888' }} />}
-            style={{
-              width: 40, height: 40, borderRadius: '50%',
-              backgroundColor: '#f0f2f5',
-              border: '1px solid #d9d9d9',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
-            }}
-          />
-          {/* User Avatar */}
-          <Avatar
-            icon={<UserOutlined />}
-            style={{
-              backgroundColor: '#e0e0e0',
-              color: '#888',
+      {/* Search Input */}
+      <div className="flex-1 mx-4 max-w-md">
+        <Input
+          placeholder="Find your next course by skill, topic, or instructor"
+          prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,.45)' }} />}
+          style={{
+            width: '100%',
+            borderRadius: 9999,
+            padding: '10px 20px',
+            border: '1px solid #d1d7dc',
+            backgroundColor: '#f7f9fa',
+          }}
+          className="hover:border-[#a435f0] focus:border-[#a435f0]"
+          onFocus={(e) => {
+            e.target.style.borderColor = '#a435f0';
+            e.target.style.boxShadow = '0 0 0 1px rgba(164, 53, 240, 0.2)';
+            e.target.style.backgroundColor = '#fff';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = '#d1d7dc';
+            e.target.style.boxShadow = 'none';
+            e.target.style.backgroundColor = '#f7f9fa';
+          }}
+        />
+      </div>
+
+      {/* Right Section: Links and Icons */}
+      <Space size="middle" className="h-full flex items-center">
+        {/* Links */}
+        <Button type="link" className="text-gray-700 font-semibold hidden lg:block">Udemy Business</Button>
+        <Button type="link" className="text-gray-700 font-semibold hidden lg:block">Teach on Udemy</Button>
+        <Button type="link" className="text-gray-700 font-semibold hidden md:block">My learning</Button>
+
+        {/* Cart Icon */}
+        <Button type="text" icon={<ShoppingCartOutlined style={{ fontSize: '1.4em', color: '#5624d0' }} />} className="text-gray-700" />
+
+        {/* Bell Icon */}
+        <Button type="text" icon={<BellOutlined style={{ fontSize: '1.4em', color: '#5624d0' }} />} className="text-gray-700" />
+
+        {/* User Avatar with Dropdown */}
+        <Dropdown 
+          menu={{ items: avatarMenuItems }}
+          trigger={['click']}
+          placement="bottomRight"
+          overlayStyle={{ minWidth: 200 }}
+        >
+          <Badge dot offset={[-2, 2]} size="small">
+            <Avatar icon={<UserOutlined />} style={{
+              backgroundColor: '#000',
+              color: '#fff',
               cursor: 'pointer',
-              height: 40, width: 40,
-              borderRadius: '50%', 
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '1px solid #d9d9d9',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
-            }}
-          />
-        </Space>
-      </Header>
-    </>
+              height: 40, 
+              width: 40,
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+            }} />
+          </Badge>
+        </Dropdown>
+      </Space>
+    </Header>
   );
 };
 
