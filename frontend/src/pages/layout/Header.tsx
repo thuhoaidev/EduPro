@@ -10,10 +10,10 @@ const AppHeader = () => {
     {
       key: 'profile',
       label: (
-        <div className="flex items-center py-2 cursor-pointer">
+        <a href="http://localhost:5173/instructor/profile" className="flex items-center py-2">
           <UserOutlined className="mr-2" />
           Trang cá nhân
-        </div>
+        </a>
       ),
     },
     {

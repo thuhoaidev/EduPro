@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Lock, ChevronRight, Edit3, Camera, Globe, Github, Linkedin, Facebook, Youtube, Eye, EyeOff, Shield, Mail, Key } from 'lucide-react';
+import { X, User, Lock, ChevronRight, Camera, Globe, Github, Linkedin, Facebook, Youtube, Eye, EyeOff, Shield, Mail, Key } from 'lucide-react';
 
 const PersonalInfoPage = () => {
   const [activeTab, setActiveTab] = useState('personal-info');
@@ -17,7 +17,8 @@ const PersonalInfoPage = () => {
     facebook: 'Chưa cập nhật',
     youtube: 'Chưa cập nhật',
     tiktok: 'Chưa cập nhật',
-    email: 'doanhdph48812@gmail.com'
+    email: 'doanhdph48812@gmail.com',
+    avatar: 'Chưa cập nhật'
   });
 
   const [editData, setEditData] = useState('');
@@ -28,6 +29,33 @@ const PersonalInfoPage = () => {
   ];
 
   const openModal = (field) => {
+    if (field === 'avatar') {
+      // Mở file picker để chọn ảnh
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          // Xử lý file ảnh ở đây
+          console.log('Selected file:', file);
+          // Có thể preview ảnh hoặc upload
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            console.log('Image data:', event.target.result);
+            // Cập nhật avatar
+            setFormData({
+              ...formData,
+              avatar: file.name
+            });
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+      return;
+    }
+    
     setActiveModal(field);
     if (field === 'email') {
       setEditData(formData[field]);
@@ -178,15 +206,7 @@ const PersonalInfoPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-        <div className="flex items-center">
-          <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg">
-            F8
-          </div>
-        </div>
-        <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-          <X className="w-6 h-6 text-gray-600" />
-        </button>
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
       </div>
 
       <div className="flex">
@@ -306,14 +326,6 @@ const PersonalInfoPage = () => {
                       field="tiktok"
                     />
                   </div>
-                </div>
-
-                {/* Save Button */}
-                <div className="flex justify-end">
-                  <button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center space-x-2">
-                    <Edit3 className="w-4 h-4" />
-                    <span>Chỉnh sửa thông tin</span>
-                  </button>
                 </div>
               </>
             ) : (
