@@ -31,6 +31,20 @@ const userSchema = new mongoose.Schema({
     minlength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
     select: false,
   },
+   instructorInfo: {
+    bio: {
+      type: String,
+      default: '',
+    },
+    experience: {
+      type: String,
+      default: '',
+    },
+    is_approved: {
+      type: Boolean,
+      default: false,
+    }
+  },
   avatar: {
     type: String,
     default: 'default-avatar.png',
@@ -78,10 +92,6 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-
-userSchema.index({ email: 1 }, { unique: true });
-
-
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   try {
@@ -92,7 +102,6 @@ userSchema.pre('save', async function (next) {
     next(error);
   }
 });
-
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
@@ -108,7 +117,6 @@ userSchema.methods.createEmailVerificationToken = function () {
   return token;
 };
 
-
 userSchema.methods.createPasswordResetToken = function () {
   const token = crypto.randomBytes(32).toString('hex');
   this.reset_password_token = crypto
@@ -119,12 +127,10 @@ userSchema.methods.createPasswordResetToken = function () {
   return token;
 };
 
-
 userSchema.methods.hasPermission = async function (permission) {
   await this.populate('role_id');
   return this.role_id.permissions.includes(permission) || false;
 };
-
 
 userSchema.methods.toJSON = function () {
   const user = this.toObject();

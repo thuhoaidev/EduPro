@@ -1,4 +1,4 @@
-const Role = require('../models/Role');
+const { Role } = require('../models/Role');
 const User = require('../models/User');
 
 // Lấy danh sách vai trò

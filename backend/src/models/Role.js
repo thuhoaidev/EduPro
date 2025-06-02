@@ -1,5 +1,12 @@
 const mongoose = require('mongoose');
 
+const ROLES = {
+  ADMIN: 'admin',
+  MODERATOR: 'moderator',
+  INSTRUCTOR: 'instructor',
+  STUDENT: 'student',
+};
+
 const roleSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -26,9 +33,6 @@ const roleSchema = new mongoose.Schema({
     updatedAt: 'updated_at',
   },
 });
-
-// Tạo index cho trường name để tìm kiếm nhanh hơn
-roleSchema.index({ name: 1 }, { unique: true });
 
 // Virtual populate cho users có role này
 roleSchema.virtual('users', {
@@ -63,6 +67,6 @@ roleSchema.methods.removePermission = async function(permission) {
   return this;
 };
 
-const Role = mongoose.model('Role', roleSchema);
+const Role = mongoose.models.Role || mongoose.model('Role', roleSchema);
 
-module.exports = Role; 
+module.exports = { Role, ROLES };

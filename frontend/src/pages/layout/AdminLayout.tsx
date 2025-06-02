@@ -3,29 +3,25 @@ import {
   HomeOutlined,
   TeamOutlined,
   FileSearchOutlined,
-  ShopOutlined,
   TagsOutlined,
   HistoryOutlined,
-  CommentOutlined,
-  PictureOutlined,
-  MenuOutlined,
-  SearchOutlined,
-  FilterOutlined,
   SettingOutlined,
   LogoutOutlined,
   BarChartOutlined,
   WarningOutlined,
   AppstoreOutlined,
+  MenuOutlined,
+  DashboardOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
   Menu,
-  Input,
   Avatar,
   Space,
   Dropdown,
   Breadcrumb,
   Button,
+  theme,
 } from "antd";
 import type { MenuProps } from "antd";
 import React, { useState } from "react";
@@ -37,6 +33,7 @@ const AdminLayout = () => {
   const nav = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const { token } = theme.useToken();
 
   const breadcrumbItems = location.pathname
     .split("/")
@@ -59,12 +56,12 @@ const AdminLayout = () => {
   ];
 
   const renderLabel = (title: string, caption?: string) => {
-    if (collapsed) return title;
+    if (collapsed) return null;
     return (
-      <div style={{ fontSize: "15px", display: "flex", flexDirection: "column" }}>
-        <span>{title}</span>
+      <div className="flex flex-col">
+        <span className="text-[15px] font-medium">{title}</span>
         {caption && (
-          <span style={{ fontSize: "11px", color: "#888", marginTop: 2 }}>{caption}</span>
+          <span className="text-[11px] text-gray-500 mt-0.5">{caption}</span>
         )}
       </div>
     );
@@ -73,81 +70,110 @@ const AdminLayout = () => {
   const menuItems: MenuProps["items"] = [
     {
       type: "group",
-      label: collapsed ? null : "Bảng Điều Khiển",
+      label: collapsed ? null : (
+        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Bảng Điều Khiển
+        </div>
+      ),
       children: [
         {
           key: "/admin",
-          icon: <HomeOutlined />,
+          icon: <DashboardOutlined className="text-lg" />,
           label: renderLabel("Trang tổng quan"),
         },
       ],
     },
     {
       type: "group",
-      label: collapsed ? null : "Người dùng",
+      label: collapsed ? null : (
+        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Người dùng
+        </div>
+      ),
       children: [
         {
           key: "/admin/users",
-          icon: <UserOutlined />,
+          icon: <UserOutlined className="text-lg" />,
           label: renderLabel("Quản lý người dùng"),
         },
         {
           key: "/admin/instructors",
-          icon: <TeamOutlined />,
+          icon: <TeamOutlined className="text-lg" />,
           label: renderLabel("Quản lý giảng viên"),
+        },
+        {
+          key: "/admin/instructor-approval",
+          icon: <FileSearchOutlined className="text-lg" />,
+          label: renderLabel("Duyệt giảng viên"),
         },
       ],
     },
     {
       type: "group",
-      label: collapsed ? null : "Nội dung",
+      label: collapsed ? null : (
+        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Nội dung
+        </div>
+      ),
       children: [
         {
           key: "/admin/content-approval",
-          icon: <FileSearchOutlined />,
+          icon: <FileSearchOutlined className="text-lg" />,
           label: renderLabel("Duyệt khóa học & blog"),
         },
       ],
     },
     {
       type: "group",
-      label: collapsed ? null : "Báo cáo",
+      label: collapsed ? null : (
+        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Báo cáo
+        </div>
+      ),
       children: [
         {
           key: "/admin/reports",
-          icon: <WarningOutlined />,
+          icon: <WarningOutlined className="text-lg" />,
           label: renderLabel("Quản lý báo cáo"),
         },
       ],
     },
     {
       type: "group",
-      label: collapsed ? null : "Hệ thống",
+      label: collapsed ? null : (
+        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Hệ thống
+        </div>
+      ),
       children: [
         {
           key: "/admin/system/vouchers",
-          icon: <TagsOutlined />,
+          icon: <TagsOutlined className="text-lg" />,
           label: renderLabel("Mã giảm giá"),
         },
         {
           key: "/admin/system/payments",
-          icon: <HistoryOutlined />,
+          icon: <HistoryOutlined className="text-lg" />,
           label: renderLabel("Thanh toán"),
         },
         {
           key: "/admin/system/notifications",
-          icon: <AppstoreOutlined />,
+          icon: <AppstoreOutlined className="text-lg" />,
           label: renderLabel("Thông báo hệ thống"),
         },
       ],
     },
     {
       type: "group",
-      label: collapsed ? null : "Thống kê",
+      label: collapsed ? null : (
+        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Thống kê
+        </div>
+      ),
       children: [
         {
           key: "/admin/statistics",
-          icon: <BarChartOutlined />,
+          icon: <BarChartOutlined className="text-lg" />,
           label: renderLabel("Thống kê & báo cáo"),
         },
       ],
@@ -165,13 +191,6 @@ const AdminLayout = () => {
           </div>
         }
       >
-        <Menu.Item key="search-profile">
-          <Input
-            placeholder="Tìm kiếm"
-            prefix={<SearchOutlined style={{ color: "#999" }} />}
-            bordered={false}
-          />
-        </Menu.Item>
       </Menu.ItemGroup>
       <Menu.Divider />
       <Menu.Item key="profile" icon={<UserOutlined />}>
@@ -195,31 +214,75 @@ const AdminLayout = () => {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        width={260}
+        width={280}
         collapsedWidth={80}
+        className="shadow-lg"
         style={{
-          background: "#fff",
+          background: token.colorBgContainer,
           height: "100vh",
           position: "fixed",
           left: 0,
-          borderRight: "1px solid #eee",
+          zIndex: 1000,
         }}
       >
+        <div className={`flex items-center h-16 px-4 ${collapsed ? 'justify-center' : 'justify-start'} border-b border-gray-100`}>
+          <img 
+            src="https://i.imgur.com/xsKJ4Eh.png" 
+            alt="Logo" 
+            className={`h-8 w-8 rounded-lg ${collapsed ? 'mx-auto' : 'mr-3'}`}
+          />
+          {!collapsed && (
+            <div className="flex flex-col">
+              <span className="text-lg font-semibold text-gray-900">Admin</span>
+              <span className="text-xs text-gray-500">Quản trị hệ thống</span>
+            </div>
+          )}
+        </div>
+
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
           onClick={({ key }) => nav(key)}
           items={menuItems}
+          className="border-0"
           style={{
-            height: "100%",
-            borderRight: 0,
+            height: "calc(100vh - 64px)",
             overflowY: "auto",
-            paddingTop: 16,
+            overflowX: "hidden",
           }}
+          theme="light"
+          rootClassName="custom-admin-menu"
         />
       </Sider>
 
-      <Layout style={{ marginLeft: collapsed ? 80 : 260, transition: "margin-left 0.2s" }}>
+      <style>
+        {`
+          .custom-admin-menu .ant-menu-item {
+            margin: 4px 8px !important;
+            border-radius: 6px !important;
+            height: 44px !important;
+            line-height: 44px !important;
+          }
+          .custom-admin-menu .ant-menu-item:hover {
+            background-color: ${token.colorPrimaryBgHover} !important;
+          }
+          .custom-admin-menu .ant-menu-item-selected {
+            background-color: ${token.colorPrimaryBg} !important;
+            color: ${token.colorPrimary} !important;
+          }
+          .custom-admin-menu .ant-menu-item-selected .anticon {
+            color: ${token.colorPrimary} !important;
+          }
+          .custom-admin-menu .ant-menu-item-group-title {
+            padding: 0 !important;
+          }
+          .custom-admin-menu .ant-menu-item-group {
+            margin-bottom: 8px !important;
+          }
+        `}
+      </style>
+
+      <Layout style={{ marginLeft: collapsed ? 80 : 280, transition: "margin-left 0.2s" }}>
         <Header
           style={{
             background: "#fff",
@@ -240,29 +303,6 @@ const AdminLayout = () => {
               onClick={() => setCollapsed(!collapsed)}
             />
           </Space>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              background: "#f5f7fa",
-              border: "1px solid #ddd",
-              borderRadius: "10px",
-              padding: "0 12px",
-              maxWidth: 600,
-              flex: 1,
-              margin: "0 40px",
-              height: 40,
-            }}
-          >
-            <SearchOutlined style={{ color: "#999", marginRight: 8 }} />
-            <Input
-              placeholder="Tìm kiếm..."
-              bordered={false}
-              style={{ background: "transparent" }}
-            />
-            <FilterOutlined style={{ color: "#999", marginLeft: 8 }} />
-          </div>
 
           <Dropdown overlay={profileMenu} trigger={["click"]} placement="bottomRight">
             <div

@@ -27,6 +27,7 @@ import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
 import UserProfile from "./pages/client/UserProfile/UserProfile";
 import PersonalInfoPage from "./pages/layout/personalInformation";
+import InstructorProfile from "./pages/client/InstructorProfile/InstructorProfile";
 
 
 axios.defaults.baseURL = "http://localhost:3000";
@@ -44,6 +45,7 @@ function App() {
         { path: 'verify-email/:token', element: <VerifyEmail /> },
         { path: 'instructor/earnings', element: <Earnings /> },
         { path: 'user/profile', element: <UserProfile /> },
+        { path: 'intructor/profile', element: <InstructorProfile /> },
         { path: 'client/PersonalInfoPage', element: <PersonalInfoPage /> },
       ]
     },
