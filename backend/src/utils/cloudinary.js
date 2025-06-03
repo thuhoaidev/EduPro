@@ -9,6 +9,11 @@ const path = require('path');
 //     api_secret: process.env.CLOUDINARY_API_SECRET
 // });
 
+// Temporary logging to debug environment variables
+console.log('Cloudinary Config Check:');
+console.log('CLOUDINARY_URL:', process.env.CLOUDINARY_URL);
+console.log('--- End Cloudinary Config Check ---');
+
 /**
  * Upload file lên Cloudinary
  * @param {string} filePath - Đường dẫn file cần upload
