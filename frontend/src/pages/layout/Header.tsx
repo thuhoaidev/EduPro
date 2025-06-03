@@ -19,20 +19,30 @@ const AppHeader = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setUser(false);
-          setLoading(false);
-          return;
-        }
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      console.log(storedUser)
 
-        const response = await config.get('/api/me', {
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+        setLoading(false);
+        return; // Dùng dữ liệu cached, không gọi API
+      }
+
+      if (!token) {
+        setUser(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await config.get('/auth/me', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
         setUser(response.data);
+        localStorage.setItem('user', JSON.stringify(response.data)); // Lưu lại user
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
         setUser(false);
@@ -45,27 +55,49 @@ const AppHeader = () => {
   }, []);
 
 
-
   // Menu khi đã đăng nhập
   const userDropdown = user && (
-    <div style={{ width: 220, padding: '12px' }}>
-      <div className="flex items-center mb-3">
-        <Avatar src={user.avatar} size={48} />
-        <div className="ml-3">
-          <div className="font-semibold text-black">{user.name}</div>
-          <div className="text-gray-500 text-sm">@{user.username}</div>
+    <div style={{
+      width: 220,
+      padding: '12px',
+      backgroundColor: '#fff',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+      borderRadius: 8,
+      color: '#000',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+        <Avatar src={user.avatar} size={48} style={{ flexShrink: 0 }} />
+        <div style={{ marginLeft: 12, flex: 1, minWidth: 0 }}>
+          {/* Đặt chiều rộng cố định, overflow hidden và dấu ... */}
+          <div style={{
+            fontWeight: 600,
+            color: '#000',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {user.fullName}
+          </div>
+          <div style={{
+            fontSize: 12,
+            color: '#888',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            @{user.email}
+          </div>
         </div>
       </div>
-      <div className="flex flex-col gap-2">
-        <a href="/profile">Trang cá nhân</a>
-        <a href="/blog/create">Viết blog</a>
-        <a href="/my-posts">Bài viết của tôi</a>
-        <a href="/saved-posts">Bài viết đã lưu</a>
-        <a href="/settings">Cài đặt</a>
-        <a href="/logout" className="text-red-500 font-medium">Đăng xuất</a>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <a href="/profile" style={{ color: '#000' }}>Trang cá nhân</a>
+        <a href="/register/instructor" style={{ color: '#000' }}>Đăng ký làm giảng viên</a>
+        <a href="/settings" style={{ color: '#000' }}>Cài đặt</a>
+        <a href="/logout" style={{ color: 'red', fontWeight: '500' }}>Đăng xuất</a>
       </div>
     </div>
   );
+
 
   return (
     <Header style={{
@@ -131,14 +163,38 @@ const AppHeader = () => {
         ) : (
           <Dropdown
             overlay={
-              <div className="p-3 flex flex-col gap-2">
-                <a href="/login">Đăng nhập</a>
-                <a href="/register">Đăng ký</a>
+              <div style={{
+                width: 200,
+                background: '#fff',
+                borderRadius: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                padding: '12px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}>
+                <Button
+                  type="primary"
+                  block
+                  href="/login"
+                  className="!bg-[#a435f0] !text-white !font-semibold hover:opacity-90"
+                >
+                  Đăng nhập
+                </Button>
+                <Button
+                  type="default"
+                  block
+                  href="/register"
+                  className="!font-semibold"
+                >
+                  Đăng ký
+                </Button>
               </div>
             }
             trigger={['click']}
             placement="bottomRight"
           >
+
             <Avatar icon={<UserOutlined />} style={{
               backgroundColor: '#000', color: '#fff', cursor: 'pointer',
               height: 40, width: 40

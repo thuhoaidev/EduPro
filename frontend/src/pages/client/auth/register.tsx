@@ -15,9 +15,10 @@ export function RegisterPage() {
       const navigate = useNavigate();
       const { mutate } = useRegister({ resource: "register" });
       const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-      const [loading, setLoading] = useState(false); // ✅ Đưa vào trong component
+      const [loading, setLoading] = useState(false);
 
       const onFinish = (formData: any) => {
+            console.log('Form submit data:', formData);
             if (!captchaToken) {
                   messageApi.error("Vui lòng xác nhận bạn không phải robot!");
                   return;
@@ -34,7 +35,9 @@ export function RegisterPage() {
             setLoading(true);
 
             mutate(newObject, {
-                  onSuccess: () => {
+                  onSuccess: (data: any) => {
+                        localStorage.setItem("token", data.token);
+                        localStorage.setItem("user", JSON.stringify(data.user));
                         Modal.success({
                               title: "Tạo tài khoản thành công!",
                               content: (

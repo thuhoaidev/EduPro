@@ -135,38 +135,64 @@ export interface InstructorDetail {
   phone: string;
   gender: "Nam" | "Nữ" | "Khác";
 }
-export interface InstructorApprovalProfile {
-  id: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  bio: string;
-  avatarUrl?: string;
-  gender: "Nam" | "Nữ" | "Khác";
-  status: 'pending' | 'approved' | 'rejected';
-
-  education: {
-    degree: string;
-    field: string;
-    institution: string;
-    year: number;
-    description: string;
-    _id: string;
-  }[];
-
-  experience: {
-    position: string;
-    company: string;
-    startDate: string; // ISO format string
-    endDate: string;   // ISO format string
-    description: string;
-    _id: string;
-  }[];
-}
+// export interface InstructorApprovalProfile {
+//   id: string;
+//   name: string;
+//   email: string;
+//   phone: string;
+//   bio: string;
+//   avatarUrl?: string;
+//   gender: "Nam" | "Nữ" | "Khác";
+//   status: 'pending' | 'approved' | 'rejected';
+//   education: {
+//     degree: string;
+//     field: string;
+//     institution: string;
+//     year: number;
+//     description: string;
+//     _id: string;
+//   }[];
+//   experience: {
+//     position: string;
+//     company: string;
+//     startDate: string; // ISO format string
+//     endDate: string;   // ISO format string
+//     description: string;
+//     _id: string;
+//   }[];
+// }
 
 
 
 //Notification
+
+export interface InstructorApprovalProfile {
+  _id: string;
+  name: string;
+  email: string;
+  approval_status: string;
+  instructorInfo?: {
+    bio?: string;
+    gender?: string;
+    phone?: string;
+    education?: {
+      degree?: string;
+      field?: string;
+      institution?: string;
+      year?: number;
+      description?: string;
+    }[];
+    experience?: {
+      position?: string;
+      company?: string;
+      startDate?: string;
+      endDate?: string;
+      description?: string;
+    }[];
+  };
+}
+
+
 export type NotificationStatus = "unread" | "read";
 
 export interface Notification {

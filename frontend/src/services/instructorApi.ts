@@ -20,11 +20,11 @@ apiClient.interceptors.request.use((config) => {
 
 //Lấy danh sách giảng viên chờ duyệt (dành cho admin)
 export const getPendingInstructors = () =>
-  apiClient.get('/api/instructors/pending');
+  apiClient.get('/api/auth/instructors-pending');
 
 //Duyệt hoặc từ chối giảng viên
 export const approveInstructor = (userId: string, approve: boolean) =>
-  apiClient.post('/api/instructors/approve', { userId, approve });
+  apiClient.post('/api/auth/instructors-approve', { userId, approve });
 
 //Lấy hồ sơ giảng viên hiện tại (dành cho chính giảng viên)
 export const getInstructorProfile = () =>

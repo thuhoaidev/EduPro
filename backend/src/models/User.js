@@ -13,6 +13,12 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Tên đầy đủ là bắt buộc'],
     trim: true,
   },
+    gender: {
+    type: String,
+    require:true,
+    enum: ['Nam', 'Nữ', 'Khác'],
+    default: 'Khác',
+  },
   nickname: {
     type: String,
     trim: true,
@@ -30,21 +36,47 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Mật khẩu là bắt buộc'],
     minlength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
     select: false,
+  },  isInstructor: {
+    type: Boolean,
+    default: false
+  },has_registered_instructor: {
+  type: Boolean,
+  default: false,
+},
+instructorInfo: {
+  bio: {
+    type: String,
+    default: '',
   },
-   instructorInfo: {
-    bio: {
-      type: String,
-      default: '',
-    },
-    experience: {
-      type: String,
-      default: '',
-    },
-    is_approved: {
-      type: Boolean,
-      default: false,
+  phone: {
+    type: String,
+    default: '',
+     match: [/^(0|\+84)[0-9]{9,10}$/, 'Số điện thoại không hợp lệ'],
+  },
+  education: [
+    {
+      degree: { type: String, required: true },
+      field: { type: String, default: '' },
+      institution: { type: String, required: true },
+      year: { type: Number, required: true },
+      description: { type: String, default: '' },
     }
+  ],
+  experience: [
+    {
+      position: { type: String, required: true },
+      company: { type: String, required: true },
+      startDate: { type: Date, required: true },
+      endDate: { type: Date, required: false },
+      description: { type: String, default: '' },
+    }
+  ],
+  is_approved: {
+    type: Boolean,
+    default: false,
   },
+},
+
   avatar: {
     type: String,
     default: 'default-avatar.png',

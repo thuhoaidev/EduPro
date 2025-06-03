@@ -30,6 +30,7 @@ export function LoginPage() {
             mutate(formData, {
                   onSuccess: (data: any) => {
                         console.log("Login thành công, response:", data);
+                        localStorage.setItem("user", JSON.stringify(data.user));
                         if (data?.token) {
                               localStorage.setItem("token", data.token);
                               messageApi.success("Đăng nhập thành công");

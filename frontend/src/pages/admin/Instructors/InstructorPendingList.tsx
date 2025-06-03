@@ -11,9 +11,8 @@ import {
   Row,
   Col,
   Statistic,
-  Select,
-  Avatar,
   Tooltip,
+  Avatar,
   Spin,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -23,7 +22,6 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
-  FilterOutlined,
   EyeOutlined,
   MailOutlined,
   PhoneOutlined,
@@ -66,13 +64,18 @@ export default function InstructorPendingListPage() {
     try {
       setLoading(true);
       const res = await getPendingInstructors();
-      const instructors: InstructorApprovalProfile[] = res.data;
+      const instructors: InstructorApprovalProfile[] = res.data.data || [];
 
       setData(instructors);
+
+      // Tính số lượng trạng thái
+      const approvedCount = instructors.filter(i => i.approval_status === "approved").length;
+      const rejectedCount = instructors.filter(i => i.approval_status === "rejected").length;
+
       setStats({
         total: instructors.length,
-        approved: 0,
-        rejected: 0,
+        approved: approvedCount,
+        rejected: rejectedCount,
       });
     } catch (err) {
       message.error("Lỗi khi tải danh sách giảng viên");
@@ -80,6 +83,7 @@ export default function InstructorPendingListPage() {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchData();
@@ -96,11 +100,13 @@ export default function InstructorPendingListPage() {
   };
 
   const filteredData = data.filter((instructor) => {
-    const degree = instructor.education?.[0]?.degree || "";
+    const degree = instructor.instructorInfo?.education?.[0]?.degree || "";
+    const name = instructor.name || "";
+    const email = instructor.email || "";
 
     const matchSearch =
-      instructor.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
-      instructor.email.toLowerCase().includes(searchText.toLowerCase()) ||
+      name.toLowerCase().includes(searchText.toLowerCase()) ||
+      email.toLowerCase().includes(searchText.toLowerCase()) ||
       degree.toLowerCase().includes(searchText.toLowerCase());
 
     const matchDegree = degreeFilter === "all" || degree === degreeFilter;
@@ -108,10 +114,17 @@ export default function InstructorPendingListPage() {
     return matchSearch && matchDegree;
   });
 
+  // const degreeList = Array.from(
+  //   new Set(
+  //     data
+  //       .map((item) => item.instructorInfo?.education?.[0]?.degree)
+  //       .filter((degree): degree is string => Boolean(degree))
+  //   )
+  // );
 
   const columns: ColumnsType<InstructorApprovalProfile> = [
     {
-      title: "Giảng viên",
+      title: <div className="text-center">Giảng viên</div>,
       dataIndex: "name",
       render: (_, record) => (
         <Space direction="horizontal" size="middle" className="py-2">
@@ -121,8 +134,12 @@ export default function InstructorPendingListPage() {
             className="bg-blue-100 text-blue-600 border-2 border-gray-100 shadow-sm"
           />
           <div>
-            <div className="font-semibold text-base hover:text-blue-600 cursor-pointer">{record.fullName}</div>
-            <div className="text-sm text-gray-600">{record.education?.[0]?.degree || "Không rõ"}</div>
+            <div className="text-lg font-semibold text-gray-600 hover:text-blue-600 cursor-pointer">
+              {record.name}
+            </div>
+            {/* <div className="text-sm text-gray-500">
+              {record.instructorInfo?.education?.[0]?.degree || "Không rõ"}
+            </div> */}
             <Space className="mt-2" size="small">
               <Tooltip title="Gửi email">
                 <Button type="text" size="small" icon={<MailOutlined />} />
@@ -138,6 +155,7 @@ export default function InstructorPendingListPage() {
     {
       title: "Email",
       dataIndex: "email",
+      align: "center",
       render: (email: string) => (
         <a href={`mailto:${email}`} className="text-blue-600 hover:text-blue-800">
           {email}
@@ -147,60 +165,78 @@ export default function InstructorPendingListPage() {
     {
       title: "Trình độ",
       key: "degree",
+      align: "center",
       render: (_, record) => {
-        const degree = record.education?.[0]?.degree || "Không rõ";
-        return <Tag color="blue">{degree}</Tag>;
-      },
+        const educations = record.instructorInfo?.education || [];
+        return educations.length > 0 ? (
+          <Space wrap>
+            {educations.map((edu, index) => (
+              <Tag key={index} color="blue">
+                {edu.degree || "Không rõ"}
+              </Tag>
+            ))}
+          </Space>
+        ) : (
+          <Tag color="default">Không rõ</Tag>
+        );
+      }
     },
-
     {
       title: "Trạng thái",
-      dataIndex: "status",
-      render: (status: string) => getStatusTag(status),
+      dataIndex: "approval_status",
+      align: "center",
+      render: (approval_status: string) => getStatusTag(approval_status),
     },
     {
       title: "Thao tác",
       key: "actions",
-      render: (_, record) => (
-        <Space size="small">
-          <Popconfirm
-            title="Duyệt giảng viên"
-            description="Bạn có chắc chắn muốn duyệt giảng viên này?"
-            onConfirm={() => handleApproveOrReject(record.id, true)}
-            okText="Duyệt"
-            cancelText="Hủy"
-            okButtonProps={{ type: "primary" }}
-          >
-            <Button type="primary" icon={<CheckOutlined />} size="small">
-              Duyệt
+      align: "center",
+      render: (_, record) => {
+        console.log("🔍 Log record trong cột Thao tác:", record); // 👈 LOG ở đây
+
+        return (
+          <Space size="small">
+            <Popconfirm
+              title="Duyệt giảng viên"
+              description="Bạn có chắc chắn muốn duyệt giảng viên này?"
+              onConfirm={() => handleApproveOrReject(record._id, true)}
+              okText="Duyệt"
+              cancelText="Hủy"
+              okButtonProps={{ type: "primary" }}
+            >
+              <Button type="primary" icon={<CheckOutlined />} size="small">
+                Duyệt
+              </Button>
+            </Popconfirm>
+            <Popconfirm
+              title="Từ chối giảng viên"
+              description="Bạn có chắc chắn muốn từ chối giảng viên này?"
+              onConfirm={() => handleApproveOrReject(record._id, false)}
+              okText="Từ chối"
+              cancelText="Hủy"
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger icon={<CloseOutlined />} size="small">
+                Từ chối
+              </Button>
+            </Popconfirm>
+            <Button
+              type="default"
+              icon={<EyeOutlined />}
+              size="small"
+              onClick={() => navigate(`/admin/instructor-profile/${record._id}`)}
+            >
+              Chi tiết
             </Button>
-          </Popconfirm>
-          <Popconfirm
-            title="Từ chối giảng viên"
-            description="Bạn có chắc chắn muốn từ chối giảng viên này?"
-            onConfirm={() => handleApproveOrReject(record.id, false)}
-            okText="Từ chối"
-            cancelText="Hủy"
-            okButtonProps={{ danger: true }}
-          >
-            <Button danger icon={<CloseOutlined />} size="small">
-              Từ chối
-            </Button>
-          </Popconfirm>
-          <Button
-            type="default"
-            icon={<EyeOutlined />}
-            size="small"
-            onClick={() => navigate(`/admin/instructors/${record.id}`)}
-          >
-            Chi tiết
-          </Button>
-        </Space>
-      ),
-    },
+          </Space>
+        );
+      },
+    }
+
   ];
 
   return (
+
     <div className="p-6">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Duyệt giảng viên</h2>
@@ -241,9 +277,9 @@ export default function InstructorPendingListPage() {
         </Col>
       </Row>
 
-      {/* Filters */}
+      {/* Filters & Degree Tags */}
       <Card className="mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-4">
           <Input
             prefix={<SearchOutlined />}
             placeholder="Tìm theo tên, email hoặc trình độ..."
@@ -253,13 +289,21 @@ export default function InstructorPendingListPage() {
             className="max-w-sm"
           />
         </div>
+        {/* <div className="mb-2 font-medium text-gray-700">Tất cả trình độ:</div>
+        <Space wrap>
+          {degreeList.map((degree) => (
+            <Tag key={degree} color="blue">
+              {degree}
+            </Tag>
+          ))}
+        </Space> */}
       </Card>
 
       {/* Table */}
       <Card>
         <Spin spinning={loading}>
           <Table
-            rowKey="id"
+            rowKey="_id"
             columns={columns}
             dataSource={filteredData}
             pagination={{ pageSize: 8 }}

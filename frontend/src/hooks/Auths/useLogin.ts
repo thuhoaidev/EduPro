@@ -14,13 +14,10 @@ const useLogin = ({ resource }: useLoginParams) => {
             return login({ resource, variables });
         },
         onSuccess: (data: any) => {
-            // ✅ Cho phép LoginPage sử dụng token từ response
+
             queryClient.invalidateQueries({
                 queryKey: [resource],
             });
-
-            // Optional: bạn có thể lưu token ở đây, hoặc để LoginPage xử lý
-            // localStorage.setItem("token", data.token);
         },
         onError: (error: any) => {
             // Optional: xử lý lỗi nếu cần

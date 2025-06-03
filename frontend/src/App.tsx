@@ -1,6 +1,6 @@
 import React from "react";
 import { useRoutes } from "react-router-dom";
-import axios from "axios";
+import { config } from "./api/axios";
 import "antd/dist/reset.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -47,7 +47,7 @@ import InstructorProfile from "./pages/client/InstructorProfile/InstructorProfil
 import InstructorRegistrationPage from "./pages/client/auth/instructorRegistrationPage"
 import CourseManagement from "./pages/admin/section-lesson/CourseManagement";
 
-axios.defaults.baseURL = "http://localhost:3000";
+// axios.defaults.baseURL = "http://localhost:3000";
 
 const queryClient = new QueryClient();
 
@@ -60,8 +60,6 @@ function App() {
         { index: true, element: <Homepage /> },
         { path: 'verify-email/:token', element: <VerifyEmail /> },
         { path: 'instructor/earnings', element: <Earnings /> },
-        { path: "verify-email/:token", element: <VerifyEmail /> },
-        { path: "instructor/earnings", element: <Earnings /> },
         { path: "instructor/profile", element: <InstructorProfile /> },
       ],
     },
@@ -74,7 +72,7 @@ function App() {
         { path: "instructors", element: < InstructorList /> },
         { path: "instructor-approval", element: <InstructorPendingList /> },
         { path: "users/instructor/:id", element: < InstructorDetailPage /> },
-        { path: "users/instructor-approval/:id", element: <InstructorProfileDetail /> },
+        { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },
         { path: "content-approval", element: < ContentApprovalPage /> },
         { path: "reports", element: < ReportsPage /> },
         { path: "system/vouchers", element: < VouchersPage /> },

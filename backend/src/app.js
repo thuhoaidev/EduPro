@@ -59,6 +59,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
+// app.use('/api/admin', authRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
