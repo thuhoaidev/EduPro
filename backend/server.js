@@ -42,8 +42,8 @@ mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Đã kết nối đến MongoDB');
-    // Khởi động server
-    appMiddleware.listen(PORT, () => {
+    // Khởi động server sử dụng app từ src/app.js
+    app.listen(PORT, () => {
       console.log(`Server đang chạy trên port ${PORT}`);
     });
   })
