@@ -28,6 +28,7 @@ import Earnings from "./pages/client/earnings/Earnings";
 import UserProfile from "./pages/client/UserProfile/UserProfile";
 import PersonalInfoPage from "./pages/layout/personalInformation";
 import InstructorProfile from "./pages/client/InstructorProfile/InstructorProfile";
+import InstructorProfileView from "./pages/client/InstructorProfile/InstructorProfileView";
 
 
 axios.defaults.baseURL = "http://localhost:3000";
@@ -45,7 +46,8 @@ function App() {
         { path: 'verify-email/:token', element: <VerifyEmail /> },
         { path: 'instructor/earnings', element: <Earnings /> },
         { path: 'user/profile', element: <UserProfile /> },
-        { path: 'intructor/profile', element: <InstructorProfile /> },
+        { path: 'instructor/profile', element: <InstructorProfile /> },
+        { path: 'instructor/profile/view', element: <InstructorProfileView /> },
         { path: 'client/PersonalInfoPage', element: <PersonalInfoPage /> },
       ]
     },
