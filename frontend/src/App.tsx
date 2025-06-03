@@ -46,6 +46,7 @@ import AdminStatistics from "./pages/admin/Statistics/AdminStatistics";
 import InstructorProfile from "./pages/client/InstructorProfile/InstructorProfile";
 import CourseManagement from "./pages/admin/section-lesson/CourseManagement";
 
+
 axios.defaults.baseURL = "http://localhost:3000";
 
 const queryClient = new QueryClient();
@@ -81,7 +82,7 @@ function App() {
         { path: "statistics", element: < AdminStatistics /> },
         // { path: "coupons", element: < CouponManagement /> },
         // { path: "history", element: < TransactionHistory /> },
-        { path: "/admin/sectionLesson/CourseManagement", element: < CourseManagement /> },
+        
       ],
     },
     {
@@ -107,6 +108,7 @@ function App() {
         { path: "students/:id", element: <StudentDetail /> },
         { path: "income", element: <EarningsPage /> },
         { path: "community", element: <CourseDiscussion /> },
+        { path: "course-management", element: <CourseManagement /> },
       ],
     },
     // trang quản trị cỉa người kiểm duyệt
