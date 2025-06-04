@@ -1,16 +1,28 @@
 const mongoose = require('mongoose');
 const slugify = require('slugify');
 
+// Xóa collection cũ để tạo lại index
+mongoose.connection.once('open', async () => {
+    try {
+        await mongoose.connection.collection('courses').dropIndexes();
+        console.log('Đã xóa tất cả index của collection courses');
+    } catch (error) {
+        console.log('Không thể xóa index:', error.message);
+    }
+});
+
 const courseSchema = new mongoose.Schema({
     instructor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'InstructorProfile',
-        required: [true, 'Giảng viên là bắt buộc']
+        required: [true, 'Giảng viên là bắt buộc'],
+        index: true
     },
     category: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
-        required: [true, 'Danh mục là bắt buộc']
+        required: [true, 'Danh mục là bắt buộc'],
+        index: true
     },
     title: {
         type: String,
@@ -21,7 +33,8 @@ const courseSchema = new mongoose.Schema({
     slug: {
         type: String,
         unique: true,
-        lowercase: true
+        lowercase: true,
+        index: true
     },
     description: {
         type: String,
@@ -40,7 +53,24 @@ const courseSchema = new mongoose.Schema({
     language: {
         type: String,
         required: [true, 'Ngôn ngữ là bắt buộc'],
-        default: 'Vietnamese'
+        enum: ['vi', 'en'],
+        default: 'vi',
+        get: function(value) {
+            const languageMap = {
+                'vi': 'Vietnamese',
+                'en': 'English'
+            };
+            return languageMap[value] || value;
+        },
+        set: function(value) {
+            const languageMap = {
+                'Vietnamese': 'vi',
+                'English': 'en',
+                'vi': 'vi',
+                'en': 'en'
+            };
+            return languageMap[value] || 'vi';
+        }
     },
     price: {
         type: Number,
@@ -56,7 +86,8 @@ const courseSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ['draft', 'published', 'archived'],
-        default: 'draft'
+        default: 'draft',
+        index: true
     },
     requirements: [{
         type: String,
@@ -79,10 +110,15 @@ const courseSchema = new mongoose.Schema({
 // Tạo slug từ title trước khi lưu
 courseSchema.pre('save', function(next) {
     if (this.isModified('title')) {
-        this.slug = slugify(this.title, {
+        // Chuyển đổi tiếng Việt sang ASCII trước khi tạo slug
+        const asciiTitle = this.title.normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Loại bỏ dấu
+            .replace(/[đĐ]/g, 'd'); // Chuyển đổi đ/Đ thành d
+        
+        this.slug = slugify(asciiTitle, {
             lower: true,
             strict: true,
-            locale: 'vi'
+            locale: 'en'
         });
     }
     next();
@@ -93,13 +129,21 @@ courseSchema.virtual('finalPrice').get(function() {
     return this.price * (1 - this.discount / 100);
 });
 
-// Index cho các trường thường xuyên tìm kiếm
-courseSchema.index({ title: 'text', description: 'text' });
-courseSchema.index({ status: 1 });
-courseSchema.index({ category: 1 });
-courseSchema.index({ instructor: 1 });
-courseSchema.index({ slug: 1 });
-
+// Tạo model
 const Course = mongoose.model('Course', courseSchema);
+
+// Tạo text index sau khi model được định nghĩa
+Course.createIndexes({
+    title: 'text',
+    description: 'text'
+}, {
+    weights: {
+        title: 10,
+        description: 5
+    },
+    name: 'course_text_search'
+}).catch(err => {
+    console.log('Lỗi khi tạo text index:', err.message);
+});
 
 module.exports = Course; 

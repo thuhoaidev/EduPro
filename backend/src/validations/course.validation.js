@@ -36,8 +36,10 @@ const createCourseSchema = Joi.object({
         }),
     language: Joi.string()
         .required()
+        .valid('vi', 'en', 'Vietnamese', 'English')
         .messages({
             'string.empty': 'Ngôn ngữ không được để trống',
+            'any.only': 'Ngôn ngữ phải là Vietnamese hoặc English',
             'any.required': 'Ngôn ngữ là bắt buộc'
         }),
     price: Joi.number()
@@ -63,6 +65,22 @@ const createCourseSchema = Joi.object({
         .messages({
             'array.min': 'Phải có ít nhất 1 yêu cầu',
             'array.base': 'Yêu cầu phải là một mảng'
+        }),
+    thumbnail: Joi.string()
+        .required()
+        .uri()
+        .messages({
+            'string.empty': 'Ảnh đại diện không được để trống',
+            'string.uri': 'URL ảnh đại diện không hợp lệ',
+            'any.required': 'Ảnh đại diện là bắt buộc'
+        }),
+    instructor: Joi.string()
+        .required()
+        .regex(/^[0-9a-fA-F]{24}$/)
+        .messages({
+            'string.empty': 'Giảng viên không được để trống',
+            'string.pattern.base': 'ID giảng viên không hợp lệ',
+            'any.required': 'Giảng viên là bắt buộc'
         })
 });
 
