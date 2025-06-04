@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../api/axios';
+import { useNavigate } from 'react-router-dom';
 import {
   Layout, Input, Space, Button, Avatar, Badge, Dropdown, Spin
 } from 'antd';
@@ -15,9 +16,26 @@ import {
 
 const { Header } = Layout;
 
+interface User {
+  avatar?: string;
+  fullName: string;
+  email: string;
+}
+
 const AppHeader = () => {
-  const [user, setUser] = useState(null); // null: chưa load, object: đã đăng nhập, false: chưa đăng nhập
+  const [user, setUser] = useState<User | null | false>(null); // null: chưa load, User: đã đăng nhập, false: chưa đăng nhập
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Clear user data from localStorage
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Reset user state
+    setUser(false);
+    // Redirect to home page
+    navigate('/');
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -95,7 +113,7 @@ const AppHeader = () => {
         <a href="/register/instructor" style={{ color: '#000' }}>Đăng ký tài khoản giảng viên</a>
         <a href="/profile" style={{ color: '#000' }}>Trang cá nhân</a>
         <a href="/settings" style={{ color: '#000' }}>Cài đặt</a>
-        <a href="/logout" style={{ color: 'red', fontWeight: '500' }}>Đăng xuất</a>
+        <a onClick={handleLogout} style={{ color: 'red', fontWeight: '500', cursor: 'pointer' }}>Đăng xuất</a>
       </div>
     </div>
   );
@@ -157,7 +175,12 @@ const AppHeader = () => {
         {loading ? (
           <Spin size="small" />
         ) : user ? (
-          <Dropdown overlay={userDropdown} trigger={['click']} placement="bottomRight" arrow>
+          <Dropdown 
+            overlay={userDropdown as React.ReactElement} 
+            trigger={['click']} 
+            placement="bottomRight" 
+            arrow
+          >
             <Badge dot offset={[-2, 2]} size="small">
               <Avatar src={user.avatar} style={{ cursor: 'pointer' }} />
             </Badge>
