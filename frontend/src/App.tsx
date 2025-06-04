@@ -1,11 +1,9 @@
 import { useRoutes } from "react-router-dom";
-import axios from "axios";
 import "antd/dist/reset.css";
 import Homepage from "./pages/Homepage";
 import AdminLayout from "./pages/layout/AdminLayout";
 import ClientLayout from "./pages/layout/ClientLayout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import React from "react";
 import CouponManagement from "./pages/admin/Vouchers/VouchersPage";
 import TransactionHistory from "./pages/admin/Transaction/TransactionHistory";
 import UserPage from "./pages/admin/Users/UserPage";
@@ -17,24 +15,24 @@ import ReportsPage from "./pages/admin/reports/Reports";
 import VouchersPage from "./pages/admin/Vouchers/VouchersPage";
 import Notifications from "./pages/admin/Notifications/Notifications";
 import AdminStatistics from "./pages/admin/Statistics/AdminStatistics";
+
 import ModeratorLayout from "./pages/layout/ModeratorLayout";
-import ReportStatistics from "./pages/Moderator/Statistics/ReportStatistics";
-import InstructorPendingList from "./pages/admin/Instructors/InstructorPendingList";
+import InstructorLayout from "./pages/layout/InstructorLayout";
 import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
 import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
-import InstructorLayout from "./pages/layout/InstructorLayout";
+import ReportStatistics from "./pages/Moderator/Statistics/ReportStatistics";
 import CourseList from "./pages/instructor/course/CourseList";
 import CourseDetail from "./pages/instructor/course/CourseDetail";
-import CreateCourse from "./pages/instructor/course/CourseAdd";
 import EditCourse from "./pages/instructor/course/CourseEdit";
+import CreateCourse from "./pages/instructor/course/CourseAdd";
 import ManageLesson from "./pages/instructor/lessons/Lesson";
 import StudentListPage from "./pages/instructor/students/Students";
 import StudentDetail from "./pages/instructor/students/StudentDetail";
 import EarningsPage from "./pages/instructor/earnings/EarningsPage";
 import CourseDiscussion from "./pages/instructor/community/Community";
 import ProfilePage from "./pages/layout/ProfileForm";
+import InstructorPendingList from "./pages/admin/Instructors/InstructorPendingList";
 
-axios.defaults.baseURL = "http://localhost:3000";
 
 const queryClient = new QueryClient();
 
@@ -55,7 +53,7 @@ function App() {
         { path: "users/:id", element: < UserDetail/> },
         { path: "instructors", element: < InstructorList/> },
         { path: "users/instructor/:id", element: < InstructorDetail/> },
-        { path: "instructors/pending", element: < InstructorPendingList/> },
+        // { path: "instructors/pending", element: < InstructorPendingList/> },
         { path: "content-approval", element: < ContentApprovalPage/> },
         { path: "reports", element: < ReportsPage/> },
         { path: "system/vouchers", element: < VouchersPage/> },
@@ -69,6 +67,7 @@ function App() {
       path: "/moderator",
       element: <ModeratorLayout />,
       children: [
+        { path: "profile", element: < ProfilePage/> },
         { path: "blogs", element: < BlogModeration/> },
         { path: "comments", element: < CommentsModerationPage/> },
         { path: "reports", element: < ReportsPage/> },
@@ -89,17 +88,7 @@ function App() {
        { path: "income", element: <EarningsPage /> },
        { path: "community", element: <CourseDiscussion /> },
       ],
-    },
-  {
-      path: "/moderator",
-      element: <ModeratorLayout />,
-      children: [
-        { path: "profile", element: < ProfilePage/> },
-        { path: "comments", element: < CommentsModerationPage/> },
-        { path: "reports", element: < ReportsPage/> },
-        { path: "statistics", element: < ReportStatistics/> },
-      ],
-    },
+    }
   ];
   const element = useRoutes(routes);
 
