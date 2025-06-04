@@ -376,7 +376,7 @@ console.log('has_registered_instructor before save:', user.has_registered_instru
 
     return res.status(201).json({
       success: true,
-      message: 'Đăng ký làm giảng viên thành công. Vui lòng chờ duyệt.',
+      message: 'Đăng ký tài khoản giảng viên thành công. Vui lòng chờ xác minh tài khoản!',
       data: {
         user: {
           _id: user._id,

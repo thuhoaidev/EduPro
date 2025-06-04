@@ -92,8 +92,8 @@ const AppHeader = () => {
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <a href="/register/instructor" style={{ color: '#000' }}>Đăng ký tài khoản giảng viên</a>
         <a href="/profile" style={{ color: '#000' }}>Trang cá nhân</a>
-        <a href="/register/instructor" style={{ color: '#000' }}>Đăng ký làm giảng viên</a>
         <a href="/settings" style={{ color: '#000' }}>Cài đặt</a>
         <a href="/logout" style={{ color: 'red', fontWeight: '500' }}>Đăng xuất</a>
       </div>
