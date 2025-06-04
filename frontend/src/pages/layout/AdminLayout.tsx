@@ -10,22 +10,17 @@ import {
   BarChartOutlined,
   WarningOutlined,
   AppstoreOutlined,
-  MenuOutlined,
-  DashboardOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
   Menu,
-  Avatar,
-  Space,
   Dropdown,
   Breadcrumb,
-  Button,
-  theme,
 } from "antd";
 import type { MenuProps } from "antd";
 import React, { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import styles from "./AdminLayout.module.css";
 
 const { Header, Sider, Content } = Layout;
 
@@ -33,7 +28,6 @@ const AdminLayout = () => {
   const nav = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const { token } = theme.useToken();
 
   const breadcrumbItems = location.pathname
     .split("/")
@@ -58,10 +52,10 @@ const AdminLayout = () => {
   const renderLabel = (title: string, caption?: string) => {
     if (collapsed) return null;
     return (
-      <div className="flex flex-col">
-        <span className="text-[15px] font-medium">{title}</span>
+      <div className={styles.menuItemLabel}>
+        <span>{title}</span>
         {caption && (
-          <span className="text-[11px] text-gray-500 mt-0.5">{caption}</span>
+          <span>{caption}</span>
         )}
       </div>
     );
@@ -71,22 +65,7 @@ const AdminLayout = () => {
     {
       type: "group",
       label: collapsed ? null : (
-        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-          Bảng Điều Khiển
-        </div>
-      ),
-      children: [
-        {
-          key: "/admin",
-          icon: <DashboardOutlined className="text-lg" />,
-          label: renderLabel("Trang tổng quan"),
-        },
-      ],
-    },
-    {
-      type: "group",
-      label: collapsed ? null : (
-        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        <div>
           Người dùng
         </div>
       ),
@@ -111,7 +90,7 @@ const AdminLayout = () => {
     {
       type: "group",
       label: collapsed ? null : (
-        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        <div>
           Nội dung
         </div>
       ),
@@ -126,7 +105,7 @@ const AdminLayout = () => {
     {
       type: "group",
       label: collapsed ? null : (
-        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        <div>
           Báo cáo
         </div>
       ),
@@ -141,7 +120,7 @@ const AdminLayout = () => {
     {
       type: "group",
       label: collapsed ? null : (
-        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        <div>
           Hệ thống
         </div>
       ),
@@ -166,7 +145,7 @@ const AdminLayout = () => {
     {
       type: "group",
       label: collapsed ? null : (
-        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        <div>
           Thống kê
         </div>
       ),
@@ -193,14 +172,8 @@ const AdminLayout = () => {
       >
       </Menu.ItemGroup>
       <Menu.Divider />
-      <Menu.Item key="profile" icon={<UserOutlined />}>
-        Trang cá nhân
-      </Menu.Item>
       <Menu.Item key="settings" icon={<SettingOutlined />}>
         Cài đặt
-      </Menu.Item>
-      <Menu.Item key="user-page" icon={<UserOutlined />}>
-        Trang người dùng
       </Menu.Item>
       <Menu.Item key="logout" icon={<LogoutOutlined />}>
         Đăng xuất
@@ -216,27 +189,10 @@ const AdminLayout = () => {
         onCollapse={setCollapsed}
         width={280}
         collapsedWidth={80}
-        className="shadow-lg"
-        style={{
-          background: token.colorBgContainer,
-          height: "100vh",
-          position: "fixed",
-          left: 0,
-          zIndex: 1000,
-        }}
+        className={`${styles.sider}`}
       >
-        <div className={`flex items-center h-16 px-4 ${collapsed ? 'justify-center' : 'justify-start'} border-b border-gray-100`}>
-          <img 
-            src="https://i.imgur.com/xsKJ4Eh.png" 
-            alt="Logo" 
-            className={`h-8 w-8 rounded-lg ${collapsed ? 'mx-auto' : 'mr-3'}`}
-          />
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-lg font-semibold text-gray-900">Admin</span>
-              <span className="text-xs text-gray-500">Quản trị hệ thống</span>
-            </div>
-          )}
+        <div className={styles.logo}>
+          {collapsed ? "AD" : "Admin Panel"}
         </div>
 
         <Menu
@@ -244,94 +200,35 @@ const AdminLayout = () => {
           selectedKeys={[location.pathname]}
           onClick={({ key }) => nav(key)}
           items={menuItems}
-          className="border-0"
+          className={styles.customAdminMenu}
           style={{
             height: "calc(100vh - 64px)",
             overflowY: "auto",
             overflowX: "hidden",
           }}
           theme="light"
-          rootClassName="custom-admin-menu"
         />
       </Sider>
 
-      <style>
-        {`
-          .custom-admin-menu .ant-menu-item {
-            margin: 4px 8px !important;
-            border-radius: 6px !important;
-            height: 44px !important;
-            line-height: 44px !important;
-          }
-          .custom-admin-menu .ant-menu-item:hover {
-            background-color: ${token.colorPrimaryBgHover} !important;
-          }
-          .custom-admin-menu .ant-menu-item-selected {
-            background-color: ${token.colorPrimaryBg} !important;
-            color: ${token.colorPrimary} !important;
-          }
-          .custom-admin-menu .ant-menu-item-selected .anticon {
-            color: ${token.colorPrimary} !important;
-          }
-          .custom-admin-menu .ant-menu-item-group-title {
-            padding: 0 !important;
-          }
-          .custom-admin-menu .ant-menu-item-group {
-            margin-bottom: 8px !important;
-          }
-        `}
-      </style>
-
       <Layout style={{ marginLeft: collapsed ? 80 : 280, transition: "margin-left 0.2s" }}>
         <Header
-          style={{
-            background: "#fff",
-            padding: "0 24px",
-            borderBottom: "1px solid #eee",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            height: 64,
-          }}
+          className={styles.header}
         >
-          <Space size="middle">
-            <Avatar size={40} src="https://i.imgur.com/xsKJ4Eh.png" />
-            {!collapsed && <span style={{ fontSize: 20, fontWeight: 600 }}>FTECH Admin</span>}
-            <Button
-              type="text"
-              icon={<MenuOutlined style={{ fontSize: 20, color: "#444" }} />}
-              onClick={() => setCollapsed(!collapsed)}
-            />
-          </Space>
+        
 
           <Dropdown overlay={profileMenu} trigger={["click"]} placement="bottomRight">
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                background: "#f5f7fa",
-                padding: "4px 12px",
-                borderRadius: "999px",
-                gap: 10,
-                cursor: "pointer",
-              }}
+              className={styles.profileDropdown}
             >
-              <Avatar size={36} src="https://i.imgur.com/xsKJ4Eh.png" />
               <SettingOutlined style={{ fontSize: 20, color: "#1890ff" }} />
             </div>
           </Dropdown>
         </Header>
 
         <Content
-          style={{
-            margin: 20,
-            padding: 20,
-            background: "#fff",
-            borderRadius: 8,
-            minHeight: "calc(100vh - 64px - 40px)",
-          }}
+          className={styles.contentArea}
         >
-          <Breadcrumb items={finalBreadcrumbItems} style={{ marginBottom: 20 }} />
+          <Breadcrumb items={finalBreadcrumbItems} className={styles.breadcrumb} />
           <Outlet />
         </Content>
       </Layout>

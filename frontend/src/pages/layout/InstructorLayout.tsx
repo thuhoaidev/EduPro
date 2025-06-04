@@ -4,10 +4,8 @@ import {
   BookOutlined,
   PlusCircleOutlined,
   VideoCameraOutlined,
-  BarChartOutlined,
   DollarOutlined,
   CommentOutlined,
-  MenuOutlined,
   UserOutlined,
   SettingOutlined,
   LogoutOutlined,
@@ -15,15 +13,13 @@ import {
 import {
   Layout,
   Menu,
-  Avatar,
-  Breadcrumb,
   Dropdown,
-  Button,
-  Space,
+  Breadcrumb,
 } from "antd";
 import type { MenuProps } from "antd";
 import React, { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import styles from "./InstructorLayout.module.css";
 
 const { Header, Sider, Content } = Layout;
 
@@ -55,10 +51,10 @@ const InstructorLayout = () => {
   const renderLabel = (title: string, caption?: string) => {
     if (collapsed) return title;
     return (
-      <div style={{ fontSize: "15px", display: "flex", flexDirection: "column" }}>
+      <div className={styles.menuItemLabel}>
         <span>{title}</span>
         {caption && (
-          <span style={{ fontSize: "11px", color: "#888", marginTop: 2 }}>{caption}</span>
+          <span>{caption}</span>
         )}
       </div>
     );
@@ -67,7 +63,11 @@ const InstructorLayout = () => {
   const menuItems: MenuProps["items"] = [
     {
       type: "group",
-      label: collapsed ? null : "Giảng viên",
+      label: collapsed ? null : (
+        <div className={styles.menuItemGroupTitle}>
+          Giảng viên
+        </div>
+      ),
       children: [
         {
           key: "/instructor",
@@ -120,14 +120,8 @@ const InstructorLayout = () => {
         }
       />
       <Menu.Divider />
-      <Menu.Item key="profile" icon={<UserOutlined />}>
-        Trang cá nhân
-      </Menu.Item>
-      <Menu.Item key="settings" icon={<SettingOutlined />}>
-        Cài đặt
-      </Menu.Item>
       <Menu.Item key="logout" icon={<LogoutOutlined />}>
-        Đăng xuất
+        Trang người dùng
       </Menu.Item>
     </Menu>
   );
@@ -138,80 +132,46 @@ const InstructorLayout = () => {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        width={260}
+        width={280}
         collapsedWidth={80}
-        style={{
-          background: "#fff",
-          height: "100vh",
-          position: "fixed",
-          left: 0,
-          borderRight: "1px solid #eee",
-        }}
+        className={styles.sider}
       >
+        <div className={styles.logo}>
+          {collapsed ? "IR" : "Instructor Panel"}
+        </div>
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
           onClick={({ key }) => nav(key)}
           items={menuItems}
+          className={styles.customInstructorMenu}
           style={{
-            height: "100%",
+            height: "calc(100vh - 64px)",
             borderRight: 0,
             overflowY: "auto",
             paddingTop: 16,
           }}
+          theme="light"
         />
       </Sider>
 
-      <Layout style={{ marginLeft: collapsed ? 80 : 260, transition: "margin-left 0.2s" }}>
+      <Layout style={{ marginLeft: collapsed ? 80 : 280, transition: "margin-left 0.2s" }}>
         <Header
-          style={{
-            background: "#fff",
-            padding: "0 24px",
-            borderBottom: "1px solid #eee",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            height: 64,
-          }}
+          className={styles.header}
         >
-          <Space size="middle">
-            <Avatar size={40} src="https://i.imgur.com/xsKJ4Eh.png" />
-            {!collapsed && <span style={{ fontSize: 20, fontWeight: 600 }}>FTECH Instructor</span>}
-            <Button
-              type="text"
-              icon={<MenuOutlined style={{ fontSize: 20, color: "#444" }} />}
-              onClick={() => setCollapsed(!collapsed)}
-            />
-          </Space>
-
           <Dropdown overlay={profileMenu} trigger={["click"]} placement="bottomRight">
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                background: "#f5f7fa",
-                padding: "4px 12px",
-                borderRadius: "999px",
-                gap: 10,
-                cursor: "pointer",
-              }}
+              className={styles.profileDropdown}
             >
-              <Avatar size={36} src="https://i.imgur.com/xsKJ4Eh.png" />
-              <SettingOutlined style={{ fontSize: 20, color: "#1890ff" }} />
+              <SettingOutlined className={styles.profileSettingIcon} />
             </div>
           </Dropdown>
         </Header>
 
         <Content
-          style={{
-            margin: 20,
-            padding: 20,
-            background: "#fff",
-            borderRadius: 8,
-            minHeight: "calc(100vh - 64px - 40px)",
-          }}
+          className={styles.contentArea}
         >
-          <Breadcrumb items={finalBreadcrumbItems} style={{ marginBottom: 20 }} />
+          <Breadcrumb items={finalBreadcrumbItems} className={styles.breadcrumb} />
           <Outlet />
         </Content>
       </Layout>
