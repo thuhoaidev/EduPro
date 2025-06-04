@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// import axios from 'axios';
 import { config } from '../../api/axios';
 import {
   Layout, Input, Space, Button, Avatar, Badge, Dropdown, Spin
@@ -8,8 +7,11 @@ import {
   SearchOutlined,
   BellOutlined,
   UserOutlined,
-  ShoppingCartOutlined
+  ShoppingCartOutlined,
+  SettingOutlined,
+  EditOutlined
 } from '@ant-design/icons';
+
 
 const { Header } = Layout;
 
