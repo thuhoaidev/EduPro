@@ -627,22 +627,3 @@ exports.changePassword = async (req, res) => {
     });
   }
 };
-
-// Logout
-exports.logout = async (req, res) => {
-  try {
-    // Trong trường hợp sử dụng JWT, chúng ta chỉ cần trả về response thành công
-    // Client sẽ tự xóa token ở phía họ
-    res.json({
-      success: true,
-      message: 'Đăng xuất thành công'
-    });
-  } catch (error) {
-    console.error('Lỗi đăng xuất:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi đăng xuất',
-      error: error.message
-    });
-  }
-};
