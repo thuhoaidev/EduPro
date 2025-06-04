@@ -1,15 +1,15 @@
 const mongoose = require('mongoose');
 const slugify = require('slugify');
 
-// Xóa collection cũ để tạo lại index
-mongoose.connection.once('open', async () => {
-    try {
-        await mongoose.connection.collection('courses').dropIndexes();
-        console.log('Đã xóa tất cả index của collection courses');
-    } catch (error) {
-        console.log('Không thể xóa index:', error.message);
-    }
-});
+// Xóa collection cũ để tạo lại index - Tạm thời comment lại đoạn này
+// mongoose.connection.once('open', async () => {
+//     try {
+//         await mongoose.connection.collection('courses').dropIndexes();
+//         console.log('Đã xóa tất cả index của collection courses'); // Comment dòng này
+//     } catch (error) {
+//         console.log('Không thể xóa index:', error.message);
+//     }
+// });
 
 const courseSchema = new mongoose.Schema({
     instructor: {

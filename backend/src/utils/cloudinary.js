@@ -9,11 +9,11 @@ cloudinary.config({
 });
 
 // Log để debug
-console.log('Cloudinary Config Check:');
-console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
-console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? '***' : 'undefined');
-console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? '***' : 'undefined');
-console.log('--- End Cloudinary Config Check ---');
+// console.log('Cloudinary Config Check:');
+// console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
+// console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? '***' : 'undefined');
+// console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? '***' : 'undefined');
+// console.log('--- End Cloudinary Config Check ---');
 
 /**
  * Upload file từ buffer trực tiếp lên Cloudinary

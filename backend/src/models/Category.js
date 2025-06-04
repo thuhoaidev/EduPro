@@ -35,7 +35,6 @@ categorySchema.virtual('children', {
 });
 
 // Index cho các trường thường xuyên tìm kiếm
-categorySchema.index({ name: 1 });
 categorySchema.index({ parent: 1 });
 
 const Category = mongoose.model('Category', categorySchema);
