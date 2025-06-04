@@ -31,6 +31,12 @@ import CourseManagement from "./pages/admin/section-lesson/CourseManagement";
 import InstructorPendingListPage from "./pages/admin/Instructors/InstructorPendingList";
 import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfileDetail";
 import PersonalInfoPage from "./pages/layout/PersonalInformation";
+import ModeratorLayout from "./pages/layout/ModeratorLayout";
+import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
+import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
+import ReportStatistics from "./pages/Moderator/Statistics/ReportStatistics";
+import CourseList from "./pages/instructor/course/CourseList";
+import InstructorLayout from "./pages/layout/InstructorLayout";
 
 
 const queryClient = new QueryClient();
@@ -68,6 +74,20 @@ function App() {
         { path: "statistics", element: < AdminStatistics /> },
         { path: "coupons", element: < CouponManagement /> },
         { path: "history", element: < TransactionHistory /> },
+      ],
+    },
+    {
+      path: "/moderator",
+      element: <ModeratorLayout />,
+      children: [
+        
+      ],
+    },
+    {
+      path: "/instructor",
+      element: <InstructorLayout />,
+      children: [
+        
       ],
     },
     {
