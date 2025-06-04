@@ -14,6 +14,7 @@ const {
   updateMe,
   changePassword,
   registerInstructor,
+  logout,
 } = require('../controllers/authController');
 const { getInstructorProfile, updateOrCreateInstructorProfile } = require('../controllers/instructorprofile');
 const { getApprovedInstructors, approveInstructorProfile, getPendingInstructors  } = require('../controllers/instructorapproval');
@@ -39,6 +40,11 @@ router.post('/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR
 
 // Routes yêu cầu xác thực
 router.use(auth); // Middleware xác thực cho tất cả routes bên dưới
+<<<<<<< Updated upstream
+=======
+router.post('/register/instructor', registerInstructor);
+router.post('/logout', requireAuth, logout);
+>>>>>>> Stashed changes
 
 // Routes cho tất cả user đã đăng nhập
 router.get('/me', requireAuth, getMe);
