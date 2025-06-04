@@ -1,12 +1,10 @@
 import { useRoutes } from "react-router-dom";
-import axios from "axios";
 import "antd/dist/reset.css";
 import Homepage from "./pages/Homepage";
 import AdminLayout from "./pages/layout/AdminLayout";
 import ClientLayout from "./pages/layout/ClientLayout";
 import AuthLayout from "./pages/layout/AuthLayout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import React from "react";
 import CouponManagement from "./pages/admin/Vouchers/VouchersPage";
 import TransactionHistory from "./pages/admin/Transaction/TransactionHistory";
 
@@ -26,12 +24,13 @@ import ResetPassword from "./pages/client/auth/resetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
 import UserProfile from "./pages/client/UserProfile/UserProfile";
-import PersonalInfoPage from "./pages/layout/personalInformation";
 import InstructorProfile from "./pages/client/InstructorProfile/InstructorProfile";
-import InstructorProfileView from "./pages/client/InstructorProfile/InstructorProfileView";
 
-
-axios.defaults.baseURL = "http://localhost:3000";
+import InstructorRegistrationPage from "./pages/client/auth/instructorRegistrationPage";
+import CourseManagement from "./pages/admin/section-lesson/CourseManagement";
+import InstructorPendingListPage from "./pages/admin/Instructors/InstructorPendingList";
+import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfileDetail";
+import PersonalInfoPage from "./pages/layout/PersonalInformation";
 
 
 const queryClient = new QueryClient();
@@ -47,7 +46,6 @@ function App() {
         { path: 'instructor/earnings', element: <Earnings /> },
         { path: 'user/profile', element: <UserProfile /> },
         { path: 'instructor/profile', element: <InstructorProfile /> },
-        { path: 'instructor/profile/view', element: <InstructorProfileView /> },
         { path: 'client/PersonalInfoPage', element: <PersonalInfoPage /> },
       ]
     },
@@ -56,17 +54,20 @@ function App() {
       path: "/admin",
       element: <AdminLayout />,
       children: [
-        { path: "users", element: < UserPage/> },
-        { path: "users/:id", element: < UserDetail/> },
-        { path: "instructors", element: < InstructorList/> },
-        { path: "users/instructor/:id", element: < InstructorDetail/> },
-        { path: "content-approval", element: < ContentApprovalPage/> },
-        { path: "reports", element: < ReportsPage/> },
-        { path: "system/vouchers", element: < VouchersPage/> },
-        { path: "system/notifications", element: < Notifications/> },
-        { path: "statistics", element: < AdminStatistics/> },
-        { path: "coupons", element: < CouponManagement/> },
-        { path: "history", element: < TransactionHistory/> },
+        { path: "instructor-approval", element: <InstructorPendingListPage /> },
+        { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },
+        { path: "sectionLesson/CourseManagement", element: < CourseManagement /> },
+        { path: "users", element: < UserPage /> },
+        { path: "users/:id", element: < UserDetail /> },
+        { path: "instructors", element: < InstructorList /> },
+        { path: "users/instructor/:id", element: < InstructorDetail /> },
+        { path: "content-approval", element: < ContentApprovalPage /> },
+        { path: "reports", element: < ReportsPage /> },
+        { path: "system/vouchers", element: < VouchersPage /> },
+        { path: "system/notifications", element: < Notifications /> },
+        { path: "statistics", element: < AdminStatistics /> },
+        { path: "coupons", element: < CouponManagement /> },
+        { path: "history", element: < TransactionHistory /> },
       ],
     },
     {
@@ -75,7 +76,8 @@ function App() {
         { path: '/login', element: <LoginPage /> },
         { path: '/register', element: <RegisterPage /> },
         { path: '/forgot-password', element: <ForgotPassword /> },
-        { path: '/reset-password/:token', element: < ResetPassword /> }
+        { path: '/reset-password/:token', element: < ResetPassword /> },
+        { path: '/register/instructor', element: < InstructorRegistrationPage /> }
       ]
     }
 

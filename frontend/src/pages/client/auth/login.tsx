@@ -28,12 +28,20 @@ export function LoginPage() {
 
       const onFinish = (formData: any) =>
             mutate(formData, {
-                  onSuccess: () => {
-                        messageApi.success("Đăng nhập thành công");
-                        setTimeout(() => {
-                              navigate("/");
-                        }, 1000);
+                  onSuccess: (data: any) => {
+                        console.log("Login thành công, response:", data);
+                        localStorage.setItem("user", JSON.stringify(data.user));
+                        if (data?.token) {
+                              localStorage.setItem("token", data.token);
+                              messageApi.success("Đăng nhập thành công");
+                              setTimeout(() => {
+                                    navigate("/");
+                              }, 1000);
+                        } else {
+                              messageApi.error("Không nhận được token. Vui lòng thử lại.");
+                        }
                   },
+
                   onError: (error: any) => {
                         const errorData = error?.response?.data;
                         if (errorData?.data?.canResendVerification) {

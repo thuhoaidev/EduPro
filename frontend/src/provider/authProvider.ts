@@ -11,15 +11,11 @@ const authProvider = {
 
     register: async ({ resource, variables }: registerType) => {
         const response = await config.post(`/auth/${resource}`, variables);
-        return {
-            data: response.data
-        }
+        return response.data.data; 
     },
     login: async ({ resource, variables }: loginType) => {
         const response = await config.post(`/auth/${resource}`, variables);
-        return {
-            data: response.data
-        }
+        return response.data.data; 
     }
 };
 

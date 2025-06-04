@@ -3,10 +3,10 @@ import React from 'react';
 const PromoBanner = () => {
   return (
     <div className="w-full rounded-lg overflow-hidden relative mb-8"
-         style={{
-           background: 'linear-gradient(to right, #a000f0, #7000f0)', // Adjust gradient colors to match image
-           minHeight: '200px', // Adjust height as needed
-         }}
+      style={{
+        background: 'linear-gradient(to right, #a000f0, #7000f0)', // Adjust gradient colors to match image
+        minHeight: '200px', // Adjust height as needed
+      }}
     >
       <div className="container mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between">
         {/* Left Section: Text Content */}
@@ -26,13 +26,13 @@ const PromoBanner = () => {
         <div className="md:w-1/3 lg:w-1/2 flex flex-col items-center md:items-end text-white">
           {/* Placeholder for illustration/image */}
           {/* You will need to replace this with your actual image */}
-           <img src="https://via.placeholder.com/150x200?text=JS+Pro" alt="JavaScript Pro Course" className="max-h-40 mb-4" />
+          {/* <img src="https://dummyimage.com/150x200/cccccc/000000&text=JS+Pro" alt="JavaScript Pro Course" className="max-h-40 mb-4" /> */}
 
           {/* Price Info */}
           <div className="text-right">
             <p className="text-lg line-through">3.299K</p>
             <p className="text-4xl font-bold">1.199K</p>
-             <p className="text-xs">*Dành cho tài khoản đã pre-order khóa HTML, CSS Pro</p>
+            <p className="text-xs">*Dành cho tài khoản đã pre-order khóa HTML, CSS Pro</p>
           </div>
         </div>
       </div>
