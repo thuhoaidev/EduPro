@@ -40,16 +40,19 @@ const fetchRevenueChartData = async (type: TimeType, range: [string, string]): P
   const diff = endDate.diff(startDate, unit);
 
   for (let i = 0; i <= diff; i++) {
+    const date =
+      type === "day"
+        ? startDate.clone().add(i, "day").format("YYYY-MM-DD")
+        : type === "month"
+          ? startDate.clone().add(i, "month").format("YYYY-MM")
+          : startDate.clone().add(i, "year").format("YYYY");
+
     data.push({
-      date:
-        type === "day"
-          ? startDate.add(i, "day").format("YYYY-MM-DD")
-          : type === "month"
-          ? startDate.add(i, "month").format("YYYY-MM")
-          : startDate.add(i, "year").format("YYYY"),
+      date,
       revenue: Math.floor(Math.random() * 1000000) + 100000,
     });
   }
+
 
   return new Promise(resolve => setTimeout(() => resolve(data), 300));
 };

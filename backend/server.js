@@ -6,6 +6,7 @@ const app = require('./src/app');
 
 // Import routes
 const authRoutes = require('./src/routes/auth');
+const roleRoutes = require('./src/routes/roleRoutes');
 
 const PORT = process.env.PORT || 5000;
 
@@ -17,6 +18,7 @@ appMiddleware.use(express.urlencoded({ extended: true }));
 
 // Routes
 appMiddleware.use('/api/auth', authRoutes);
+appMiddleware.use('/api/roles', roleRoutes);
 
 // Middleware xử lý lỗi
 appMiddleware.use((err, req, res, next) => {
@@ -40,8 +42,8 @@ mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Đã kết nối đến MongoDB');
-    // Khởi động server
-    appMiddleware.listen(PORT, () => {
+    // Khởi động server sử dụng app từ src/app.js
+    app.listen(PORT, () => {
       console.log(`Server đang chạy trên port ${PORT}`);
     });
   })

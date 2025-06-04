@@ -15,7 +15,7 @@ type RegisterPayload = {
 const useRegister = ({ resource }: useRegisterParams) => {
   const queryClient = useQueryClient();
 
-  return useMutation<unknown, unknown, RegisterPayload>({
+  return useMutation<{ user: any; token: string }, unknown, RegisterPayload>({
     mutationFn: (variables) => {
       return register({ resource, variables });
     },

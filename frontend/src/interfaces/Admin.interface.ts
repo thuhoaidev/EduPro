@@ -98,15 +98,15 @@ export interface Coupon {
 
 
 //instructor :  Giáo viênviên
-export interface InstructorProfile {
-  id: number;
-  user_id: number;           // id người dùng liên kết
-  bio: string;
-  expertise: string;
-  rating: number;            
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;        // ISO date string hoặc Date tùy project
-}
+// export interface InstructorProfile {
+//   id: number;
+//   user_id: number;           // id người dùng liên kết
+//   bio: string;
+//   expertise: string;
+//   rating: number;            
+//   status: 'pending' | 'approved' | 'rejected';
+//   created_at: string;        // ISO date string hoặc Date tùy project
+// }
 
 export interface InstructorEarnings {
   id: number;
@@ -135,9 +135,64 @@ export interface InstructorDetail {
   phone: string;
   gender: "Nam" | "Nữ" | "Khác";
 }
+// export interface InstructorApprovalProfile {
+//   id: string;
+//   name: string;
+//   email: string;
+//   phone: string;
+//   bio: string;
+//   avatarUrl?: string;
+//   gender: "Nam" | "Nữ" | "Khác";
+//   status: 'pending' | 'approved' | 'rejected';
+//   education: {
+//     degree: string;
+//     field: string;
+//     institution: string;
+//     year: number;
+//     description: string;
+//     _id: string;
+//   }[];
+//   experience: {
+//     position: string;
+//     company: string;
+//     startDate: string; // ISO format string
+//     endDate: string;   // ISO format string
+//     description: string;
+//     _id: string;
+//   }[];
+// }
+
 
 
 //Notification
+
+export interface InstructorApprovalProfile {
+  _id: string;
+  name: string;
+  email: string;
+  approval_status: string;
+  instructorInfo?: {
+    bio?: string;
+    gender?: string;
+    phone?: string;
+    education?: {
+      degree?: string;
+      field?: string;
+      institution?: string;
+      year?: number;
+      description?: string;
+    }[];
+    experience?: {
+      position?: string;
+      company?: string;
+      startDate?: string;
+      endDate?: string;
+      description?: string;
+    }[];
+  };
+}
+
+
 export type NotificationStatus = "unread" | "read";
 
 export interface Notification {

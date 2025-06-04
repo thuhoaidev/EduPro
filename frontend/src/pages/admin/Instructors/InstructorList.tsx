@@ -188,15 +188,6 @@ const InstructorList = () => {
         </Button>
       </div>
 
-<<<<<<< Updated upstream
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={filteredData}
-        pagination={{ pageSize: 4 }}
-        className="shadow-md rounded-lg"
-      />
-=======
       {/* Stats Cards */}
       <Row gutter={[16, 16]} className="mb-6">
         <Col xs={24} sm={12} lg={6}>
@@ -254,10 +245,10 @@ const InstructorList = () => {
           />
           <Select
             defaultValue="all"
-            style={{ width: 200 }}
-            onChange={setStatusFilter}
+            style={{ width: 150 }}
+            onChange={(value) => setStatusFilter(value)}
             options={[
-              { value: "all", label: "Tất cả trạng thái" },
+              { value: "all", label: "Tất cả" },
               { value: "approved", label: "Đã duyệt" },
               { value: "pending", label: "Chờ duyệt" },
               { value: "rejected", label: "Từ chối" },
@@ -273,36 +264,30 @@ const InstructorList = () => {
           rowKey="id"
           columns={columns}
           dataSource={filteredData}
-          pagination={{ 
-            pageSize: 8,
-            showSizeChanger: true,
-            showTotal: (total) => `Tổng số ${total} giảng viên`,
-            className: "px-4"
-          }}
-          className="instructor-table"
+          pagination={{ pageSize: 8 }}
+          className="instructors-table"
         />
       </Card>
 
       {/* Custom styles */}
       <style>
         {`
-          .instructor-table .ant-table-thead > tr > th {
+          .instructors-table .ant-table-thead > tr > th {
             background: #fafafa;
             font-weight: 600;
             color: #1f2937;
           }
-          .instructor-table .ant-table-tbody > tr:hover > td {
+          .instructors-table .ant-table-tbody > tr:hover > td {
             background: #f5f7fa;
           }
-          .instructor-table .ant-table-tbody > tr > td {
-            padding: 16px 8px;
+           .instructors-table .ant-table-tbody > tr > td {
+            padding: 12px 8px;
           }
           .ant-tag {
             margin: 0;
           }
         `}
       </style>
->>>>>>> Stashed changes
     </div>
   );
 };

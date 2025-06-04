@@ -13,6 +13,10 @@ require('dotenv').config();
 
 // Import routes
 const authRoutes = require('./routes/auth');
+const roleRoutes = require('./routes/roleRoutes');
+const userManagementRoutes = require('./routes/userManagementRoutes');
+const courseRoutes = require('./routes/course.routes');
+const categoryRoutes = require('./routes/category.routes');
 
 // Khởi tạo app
 const app = express();
@@ -59,11 +63,17 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
+// app.use('/api/admin', authRoutes);
+app.use('/api/roles', roleRoutes);
+app.use('/api/admin/users', userManagementRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(err.status || 500).json({
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
     success: false,
     message: err.message || 'Lỗi server',
     error: process.env.NODE_ENV === 'development' ? err : {},
