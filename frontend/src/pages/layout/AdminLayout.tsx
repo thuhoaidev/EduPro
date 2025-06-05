@@ -6,7 +6,6 @@ import {
   TagsOutlined,
   HistoryOutlined,
   SettingOutlined,
-  LogoutOutlined,
   BarChartOutlined,
   WarningOutlined,
   AppstoreOutlined,
@@ -16,18 +15,73 @@ import {
   Menu,
   Dropdown,
   Breadcrumb,
+  message,
 } from "antd";
 import type { MenuProps } from "antd";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import styles from "./AdminLayout.module.css";
+import { config } from "../../api/axios";
 
 const { Header, Sider, Content } = Layout;
+
+interface User {
+  avatar?: string;
+  fullName: string;
+  email: string;
+  role: string;
+}
 
 const AdminLayout = () => {
   const nav = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        if (userData.role !== 'admin') {
+          message.error('Bạn không có quyền truy cập trang này!');
+          nav('/');
+          return;
+        }
+        setUser(userData);
+        return;
+      }
+
+      if (!token) {
+        message.error('Bạn không có quyền truy cập trang này!');
+        nav('/');
+        return;
+      }
+
+      try {
+        const response = await config.get('/auth/me', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.data.role !== 'admin') {
+          message.error('Bạn không có quyền truy cập trang này!');
+          nav('/');
+          return;
+        }
+        setUser(response.data);
+        localStorage.setItem('user', JSON.stringify(response.data));
+      } catch (error) {
+        console.error('Lỗi lấy thông tin user:', error);
+        message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        nav('/login');
+      }
+    };
+
+    fetchUser();
+  }, [nav]);
 
   const breadcrumbItems = location.pathname
     .split("/")
@@ -164,19 +218,16 @@ const AdminLayout = () => {
       <Menu.ItemGroup
         title={
           <div style={{ padding: "8px 12px" }}>
-            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, Dương Đức Phương</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: Admin</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>admin@gmail.com</p>
+            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullName}</p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: {user?.role === 'admin' ? 'Admin' : user?.role === 'instructor' ? 'Giảng viên' : user?.role === 'moderator' ? 'Quản trị viên' : 'Người dùng'}</p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>{user?.email}</p>
           </div>
         }
       >
       </Menu.ItemGroup>
       <Menu.Divider />
-      <Menu.Item key="settings" icon={<SettingOutlined />}>
-        Cài đặt
-      </Menu.Item>
-      <Menu.Item key="logout" icon={<LogoutOutlined />}>
-        Đăng xuất
+      <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => nav('/')}>
+        Trang người dùng
       </Menu.Item>
     </Menu>
   );
