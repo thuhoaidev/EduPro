@@ -1,4 +1,4 @@
-import axios from '../utils/axios';
+import { config } from '../api/axios';
 import type { UserRole, UserStatus, ApiResponse, PaginatedResponse, ApiUser } from '../interfaces/Admin.interface';
 
 // Get all users with pagination and filters
@@ -9,13 +9,13 @@ export const getAllUsers = async (params: {
   role?: UserRole;
   status?: UserStatus;
 }): Promise<ApiResponse<PaginatedResponse>> => {
-  const response = await axios.get('/admin/users', { params });
+  const response = await config.get('/admin/users', { params });
   return response.data;
 };
 
 // Get user by ID
 export const getUserById = async (id: string): Promise<ApiResponse<ApiUser>> => {
-  const response = await axios.get(`/admin/users/${id}`);
+  const response = await config.get(`/admin/users/${id}`);
   return response.data;
 };
 
@@ -27,7 +27,7 @@ export const createUser = async (userData: {
   role_id: string;
   status?: UserStatus;
 }): Promise<ApiResponse<ApiUser>> => {
-  const response = await axios.post('/admin/users', userData);
+  const response = await config.post('/admin/users', userData);
   return response.data;
 };
 
@@ -38,12 +38,12 @@ export const updateUser = async (id: string, userData: {
   status?: UserStatus;
   email_verified?: boolean;
 }): Promise<ApiResponse<ApiUser>> => {
-  const response = await axios.put(`/admin/users/${id}`, userData);
+  const response = await config.put(`/admin/users/${id}`, userData);
   return response.data;
 };
 
 // Delete user
 export const deleteUser = async (id: string): Promise<ApiResponse<void>> => {
-  const response = await axios.delete(`/admin/users/${id}`);
+  const response = await config.delete(`/admin/users/${id}`);
   return response.data;
 }; 

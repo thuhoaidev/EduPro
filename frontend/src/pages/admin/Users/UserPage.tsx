@@ -59,6 +59,14 @@ const UserPage = () => {
   const fetchUsers = async (page = 1, limit = 10) => {
     try {
       setLoading(true);
+      console.log('Calling getAllUsers with params:', {
+        page,
+        limit,
+        search,
+        role: selectedRole,
+        status: selectedStatus
+      });
+      
       const response = await getAllUsers({
         page,
         limit,
@@ -67,9 +75,17 @@ const UserPage = () => {
         status: selectedStatus,
       });
       
+      console.log('API Response:', response);
+      
       if (response.success) {
-        // Map the API response to our frontend User interface
-        const mappedUsers = response.data.users.map((user) => ({
+        console.log('Successfully fetched users:', response.data.users);
+        // Sắp xếp người dùng theo thứ tự mới nhất
+        const sortedUsers = [...response.data.users].sort((a, b) => {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+
+        // Map và thêm số thứ tự
+        const mappedUsers = sortedUsers.map((user, index) => ({
           id: user._id,
           fullName: user.name,
           email: user.email,
@@ -78,6 +94,8 @@ const UserPage = () => {
           status: user.status,
           createdAt: user.created_at,
           updatedAt: user.updated_at,
+          // Số thứ tự = (trang hiện tại - 1) * số lượng trên mỗi trang + index + 1
+          number: (page - 1) * pagination.pageSize + index + 1
         }));
 
         setUsers(mappedUsers);
@@ -87,12 +105,15 @@ const UserPage = () => {
           total: response.data.pagination.total,
         });
       } else {
+        console.error('API Error:', response.message);
         message.error(response.message || "Lỗi khi tải danh sách người dùng");
       }
     } catch (error) {
+      console.error('Network Error:', error);
       if (error instanceof Error) {
-        console.error("Error fetching users:", error.message);
-        message.error("Lỗi khi tải danh sách người dùng");
+        message.error(error.message || "Lỗi khi tải danh sách người dùng");
+      } else {
+        message.error("Lỗi không xác định khi tải danh sách người dùng");
       }
     } finally {
       setLoading(false);
@@ -222,9 +243,12 @@ const UserPage = () => {
   const columns: ColumnsType<User> = [
     {
       title: "#",
-      dataIndex: "id",
+      dataIndex: "number",
       width: 60,
       align: "center",
+      render: (number: number) => (
+        <div className="font-medium text-center">{number}</div>
+      ),
     },
     {
       title: "Người dùng",
