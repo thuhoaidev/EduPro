@@ -154,7 +154,7 @@ const AppHeader = () => {
         ) : (
           <>
             {user.role === 'admin' && (
-              <a onClick={() => handleMenuClick('/admin')} className="menu-item" style={{ 
+              <a onClick={() => handleMenuClick('/admin/users')} className="menu-item" style={{ 
                 color: '#000',
                 display: 'flex',
                 alignItems: 'center',
