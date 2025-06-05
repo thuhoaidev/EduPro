@@ -51,9 +51,10 @@ const AppHeader = () => {
       console.log(storedUser)
 
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
         setLoading(false);
-        return; // Dùng dữ liệu cached, không gọi API
+        return;
       }
 
       if (!token) {
@@ -69,7 +70,7 @@ const AppHeader = () => {
           },
         });
         setUser(response.data);
-        localStorage.setItem('user', JSON.stringify(response.data)); // Lưu lại user
+        localStorage.setItem('user', JSON.stringify(response.data));
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
         setUser(false);
@@ -79,8 +80,11 @@ const AppHeader = () => {
     };
 
     fetchUser();
-  }, []);
+  }, [navigate]);
 
+  const handleMenuClick = (path: string) => {
+    navigate(path);
+  };
 
   // Menu khi đã đăng nhập
   const userDropdown = user && (
@@ -122,7 +126,7 @@ const AppHeader = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {user.role === 'user' ? (
           <>
-            <a href="/settings" className="menu-item" style={{ 
+            <a onClick={() => handleMenuClick('/settings')} className="menu-item" style={{ 
               color: '#000',
               display: 'flex',
               alignItems: 'center',
@@ -149,18 +153,46 @@ const AppHeader = () => {
           </>
         ) : (
           <>
-            <a href="/admin" className="menu-item" style={{ 
-              color: '#000',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '8px 12px',
-              borderRadius: 6,
-              transition: 'all 0.3s'
-            }}>
-              <DashboardOutlined style={{ marginRight: 8 }} />
-              Trang quản trị
-            </a>
-            <a href="/settings" className="menu-item" style={{ 
+            {user.role === 'admin' && (
+              <a onClick={() => handleMenuClick('/admin')} className="menu-item" style={{ 
+                color: '#000',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                borderRadius: 6,
+                transition: 'all 0.3s'
+              }}>
+                <DashboardOutlined style={{ marginRight: 8 }} />
+                Trang quản trị
+              </a>
+            )}
+            {user.role === 'instructor' && (
+              <a onClick={() => handleMenuClick('/instructor')} className="menu-item" style={{ 
+                color: '#000',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                borderRadius: 6,
+                transition: 'all 0.3s'
+              }}>
+                <DashboardOutlined style={{ marginRight: 8 }} />
+                Trang giảng viên
+              </a>
+            )}
+            {user.role === 'moderator' && (
+              <a onClick={() => handleMenuClick('/moderator')} className="menu-item" style={{ 
+                color: '#000',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                borderRadius: 6,
+                transition: 'all 0.3s'
+              }}>
+                <DashboardOutlined style={{ marginRight: 8 }} />
+                Trang quản trị viên
+              </a>
+            )}
+            <a onClick={() => handleMenuClick('/settings')} className="menu-item" style={{ 
               color: '#000',
               display: 'flex',
               alignItems: 'center',
