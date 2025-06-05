@@ -232,6 +232,14 @@ const AppHeader = () => {
           .menu-item-danger:hover {
             background-color: #fff1f0;
           }
+          .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #1a73e8, #34a853);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+          }
         `}
       </style>
       <Header style={{
@@ -247,12 +255,13 @@ const AppHeader = () => {
 
         {/* Logo + Explore */}
         <div className="flex items-center h-full">
-          <img src="https://www.udemy.com/staticx/udemy/images/v7/logo-udemy.svg"
-            alt="Udemy Logo" style={{ height: 34, marginRight: 8 }} />
+          <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
+            <span className="logo-text mr-2">EduPro</span>
+          </div>
           {window.location.pathname === '/profile' && (
             <div
               onClick={() => navigate('/')}
-              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginRight: 8 }}
+              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginLeft: 16 }}
             >
               <span style={{ fontSize: 20, marginRight: 4, color: '#8a94a5', display: 'flex', alignItems: 'center', lineHeight: 1 }}>&lt;</span>
               <span style={{ fontWeight: 400, fontSize: 13, color: '#8a94a5', letterSpacing: 1 }}>QUAY LẠI</span>
@@ -263,7 +272,7 @@ const AppHeader = () => {
         {/* Search */}
         <div className="flex-1 mx-4 max-w-md">
           <Input
-            placeholder="Find your next course by skill, topic, or instructor"
+            placeholder="Tìm kiếm khóa học, giảng viên..."
             prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,.45)' }} />}
             style={{
               width: '100%',
@@ -273,8 +282,8 @@ const AppHeader = () => {
               backgroundColor: '#f7f9fa',
             }}
             onFocus={(e) => {
-              e.target.style.borderColor = '#a435f0';
-              e.target.style.boxShadow = '0 0 0 1px rgba(164, 53, 240, 0.2)';
+              e.target.style.borderColor = '#1a73e8';
+              e.target.style.boxShadow = '0 0 0 1px rgba(26, 115, 232, 0.2)';
               e.target.style.backgroundColor = '#fff';
             }}
             onBlur={(e) => {
@@ -287,11 +296,11 @@ const AppHeader = () => {
 
         {/* Right */}
         <Space size="middle" className="h-full flex items-center">
-          <Button type="link" className="text-gray-700 font-semibold hidden lg:block">Udemy Business</Button>
-          <Button type="link" className="text-gray-700 font-semibold hidden lg:block">Teach on Udemy</Button>
-          <Button type="link" className="text-gray-700 font-semibold hidden md:block">My learning</Button>
-          <Button type="text" icon={<ShoppingCartOutlined style={{ fontSize: '1.4em', color: '#5624d0' }} />} />
-          <Button type="text" icon={<BellOutlined style={{ fontSize: '1.4em', color: '#5624d0' }} />} />
+          <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]">EduPro Business</Button>
+          <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]">Giảng dạy</Button>
+          <Button type="link" className="text-gray-700 font-semibold hidden md:block hover:text-[#1a73e8]">Khóa học của tôi</Button>
+          <Button type="text" icon={<ShoppingCartOutlined style={{ fontSize: '1.4em', color: '#1a73e8' }} />} />
+          <Button type="text" icon={<BellOutlined style={{ fontSize: '1.4em', color: '#1a73e8' }} />} />
 
           {/* Avatar or Login */}
           {loading ? (
@@ -328,7 +337,7 @@ const AppHeader = () => {
                     type="primary"
                     block
                     href="/login"
-                    className="!bg-[#a435f0] !text-white !font-semibold hover:opacity-90 h-10"
+                    className="!bg-[#1a73e8] !text-white !font-semibold hover:opacity-90 h-10"
                     icon={<LoginOutlined />}
                   >
                     Đăng nhập
@@ -349,7 +358,7 @@ const AppHeader = () => {
               arrow
             >
               <Avatar icon={<UserOutlined />} style={{
-                backgroundColor: '#000', color: '#fff', cursor: 'pointer',
+                backgroundColor: '#1a73e8', color: '#fff', cursor: 'pointer',
                 height: 40, width: 40
               }} />
             </Dropdown>
