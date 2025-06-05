@@ -26,6 +26,11 @@ export const createUser = async (userData: {
   name: string;
   role_id: string;
   status?: UserStatus;
+  phone?: string;
+  address?: string;
+  dob?: string | null;
+  gender?: string;
+  approval_status?: string;
 }): Promise<ApiResponse<ApiUser>> => {
   const response = await config.post('/admin/users', userData);
   return response.data;

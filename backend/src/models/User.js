@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const slugify = require('slugify');
 
 const userSchema = new mongoose.Schema({
   role_id: {
@@ -13,9 +14,15 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Tên đầy đủ là bắt buộc'],
     trim: true,
   },
-    gender: {
+  slug: {
     type: String,
-    require:true,
+    unique: true,
+    lowercase: true,
+    index: true
+  },
+  gender: {
+    type: String,
+    required: true,
     enum: ['Nam', 'Nữ', 'Khác'],
     default: 'Khác',
   },
@@ -133,6 +140,21 @@ userSchema.pre('save', async function (next) {
   } catch (error) {
     next(error);
   }
+});
+
+userSchema.pre('save', async function(next) {
+  if (this.isModified('name')) {
+    const asciiName = this.name.normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[đĐ]/g, 'd');
+    
+    this.slug = slugify(asciiName, {
+      lower: true,
+      strict: true,
+      locale: 'en'
+    });
+  }
+  next();
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {

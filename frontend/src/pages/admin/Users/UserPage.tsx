@@ -17,6 +17,7 @@ import {
   Form,
   Popconfirm,
   Spin,
+  DatePicker,
 } from "antd";
 import {
   SearchOutlined,
@@ -36,6 +37,16 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { getAllUsers, createUser, updateUser, deleteUser } from "../../../services/userService";
 import type { TablePaginationConfig } from 'antd/es/table';
+import axios from 'axios';
+import dayjs from 'dayjs'; // Import dayjs
+import 'dayjs/locale/vi'; // Import Vietnamese locale for dayjs if needed
+
+dayjs.locale('vi'); // Set default locale to Vietnamese if needed
+
+interface Role {
+  _id: string;
+  name: UserRole;
+}
 
 const UserPage = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -54,6 +65,22 @@ const UserPage = () => {
 
   const [selectedRole, setSelectedRole] = useState<UserRole | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<UserStatus | undefined>(undefined);
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  // Get roles from backend
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/roles');
+        if (response.data.success) {
+          setRoles(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching roles:', error);
+      }
+    };
+    fetchRoles();
+  }, []);
 
   // Fetch users
   const fetchUsers = async (page = 1, limit = 10) => {
@@ -78,25 +105,37 @@ const UserPage = () => {
       console.log('API Response:', response);
       
       if (response.success) {
-        console.log('Successfully fetched users:', response.data.users);
+        console.log('Raw user data from API:', response.data.users);
         // Sắp xếp người dùng theo thứ tự mới nhất
         const sortedUsers = [...response.data.users].sort((a, b) => {
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
 
         // Map và thêm số thứ tự
-        const mappedUsers = sortedUsers.map((user, index) => ({
-          id: user._id,
-          fullName: user.name,
-          email: user.email,
-          avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
-          role: user.role_id.name,
-          status: user.status,
-          createdAt: user.created_at,
-          updatedAt: user.updated_at,
-          // Số thứ tự = (trang hiện tại - 1) * số lượng trên mỗi trang + index + 1
-          number: (page - 1) * pagination.pageSize + index + 1
-        }));
+        const mappedUsers = sortedUsers.map((user, index) => {
+          console.log('Processing user:', user);
+          const mappedUser = {
+            id: user._id,
+            fullName: user.name,
+            email: user.email,
+            avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
+            role: user.role_id.name,
+            status: user.status,
+            createdAt: user.created_at,
+            updatedAt: user.updated_at,
+            phone: user.phone,
+            address: user.address,
+            dob: user.dob,
+            gender: user.gender,
+            approval_status: user.approval_status,
+            email_verified: user.email_verified,
+            description: user.description,
+            coursesCount: user.coursesCount,
+            number: (page - 1) * pagination.pageSize + index + 1
+          };
+          console.log('Mapped user data:', mappedUser);
+          return mappedUser;
+        });
 
         setUsers(mappedUsers);
         setPagination({
@@ -180,6 +219,11 @@ const UserPage = () => {
       email: user.email,
       role: user.role,
       status: user.status,
+      phone: user.phone,
+      address: user.address,
+      dob: user.dob ? dayjs(user.dob) : null,
+      gender: user.gender,
+      approval_status: user.approval_status,
     });
     setIsModalVisible(true);
   };
@@ -204,30 +248,73 @@ const UserPage = () => {
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
+      console.log('Form values:', values);
+      
       if (editingUser) {
         // Update existing user
-        await updateUser(editingUser.id.toString(), {
+        console.log('Updating user with ID:', editingUser.id);
+        
+        // Tìm role_id dựa trên role name
+        const selectedRole = roles.find(r => r.name === values.role);
+        if (!selectedRole) {
+          message.error('Vai trò không hợp lệ');
+          return;
+        }
+
+        const updateData = {
           name: values.fullName,
-          role_id: values.role,
+          role_id: selectedRole._id, // Sử dụng ID vai trò tìm được
           status: values.status,
-        });
+          phone: values.phone || '',
+          address: values.address || '',
+          dob: values.dob ? values.dob.toISOString() : null, // Chuyển Dayjs object sang ISO string
+          gender: values.gender || 'Khác',
+          approval_status: values.approval_status || 'approved',
+        };
+        console.log('Update data:', updateData);
+        await updateUser(editingUser.id.toString(), updateData);
         message.success("Cập nhật người dùng thành công");
       } else {
         // Add new user
-        await createUser({
+        console.log('Thêm mới người dùng');
+        console.log('Tên người dùng:', values.fullName);
+        console.log('Email:', values.email);
+        console.log('Mật khẩu:', values.password);
+        console.log('Vai trò:', values.role);
+        console.log('Trạng thái:', values.status);
+
+        // Tìm role_id dựa trên role name
+        const selectedRole = roles.find(r => r.name === values.role);
+        if (!selectedRole) {
+          message.error('Vai trò không hợp lệ');
+          return;
+        }
+
+        const userData = {
           email: values.email,
           password: values.password,
           name: values.fullName,
-          role_id: values.role,
+          role_id: selectedRole._id,
           status: values.status,
-        });
+          phone: values.phone || '',
+          address: values.address || '',
+          dob: values.dob ? values.dob.toISOString() : null,
+          gender: values.gender || 'Khác',
+          approval_status: values.approval_status || 'approved'
+        };
+        console.log('Creating new user with data:', userData);
+        await createUser(userData);
         message.success("Thêm người dùng thành công");
       }
       setIsModalVisible(false);
       fetchUsers(pagination.current);
     } catch (error) {
+      console.error('Error details:', {
+        error: error,
+        formValues: form.getFieldsValue(),
+        editingUser: editingUser
+      });
       message.error(editingUser ? "Lỗi khi cập nhật người dùng" : "Lỗi khi thêm người dùng");
-      console.error("Error saving user:", error);
     }
   };
 
@@ -505,7 +592,44 @@ const UserPage = () => {
             label="Vai trò"
             rules={[{ required: true, message: "Vui lòng chọn vai trò" }]}
           >
-            <Select>
+            <Select
+              onChange={(value) => {
+                // Cập nhật các trường tùy thuộc vào vai trò
+                if (value === UserRole.ADMIN) {
+                  form.setFieldsValue({
+                    approval_status: 'approved',
+                    phone: '',
+                    address: '',
+                    dob: null,
+                    gender: 'Khác'
+                  });
+                } else if (value === UserRole.MODERATOR) {
+                  form.setFieldsValue({
+                    approval_status: 'pending',
+                    phone: '',
+                    address: '',
+                    dob: null,
+                    gender: 'Khác'
+                  });
+                } else if (value === UserRole.INSTRUCTOR) {
+                  form.setFieldsValue({
+                    approval_status: 'pending',
+                    phone: '',
+                    address: '',
+                    dob: null,
+                    gender: 'Khác'
+                  });
+                } else if (value === UserRole.STUDENT) {
+                  form.setFieldsValue({
+                    approval_status: 'approved',
+                    phone: '',
+                    address: '',
+                    dob: null,
+                    gender: 'Khác'
+                  });
+                }
+              }}
+            >
               {Object.values(UserRole).map((role) => (
                 <Select.Option key={role} value={role}>
                   {getRoleTag(role)}
@@ -526,6 +650,46 @@ const UserPage = () => {
               ))}
             </Select>
           </Form.Item>
+          <Form.Item
+            name="approval_status"
+            label="Trạng thái phê duyệt"
+            rules={[{ required: true, message: "Vui lòng chọn trạng thái phê duyệt" }]}
+          >
+            <Select>
+              <Select.Option value="approved">Đã phê duyệt</Select.Option>
+              <Select.Option value="pending">Đang chờ phê duyệt</Select.Option>
+              <Select.Option value="rejected">Bị từ chối</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="phone"
+            label="Số điện thoại"
+            rules={[{ pattern: /^\d{10}$/, message: "Số điện thoại phải có 10 chữ số" }]}
+          >
+            <Input placeholder="Nhập số điện thoại" />
+          </Form.Item>
+          <Form.Item
+            name="address"
+            label="Địa chỉ"
+          >
+            <Input.TextArea placeholder="Nhập địa chỉ" />
+          </Form.Item>
+          <Form.Item
+            name="dob"
+            label="Ngày sinh"
+          >
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item
+            name="gender"
+            label="Giới tính"
+          >
+            <Select>
+              <Select.Option value="Nam">Nam</Select.Option>
+              <Select.Option value="Nữ">Nữ</Select.Option>
+              <Select.Option value="Khác">Khác</Select.Option>
+            </Select>
+          </Form.Item>
         </Form>
       </Modal>
 
@@ -534,33 +698,165 @@ const UserPage = () => {
         open={isDetailsModalVisible}
         onCancel={() => setIsDetailsModalVisible(false)}
         footer={null}
-        width={600}
+        width={800}
       >
         {viewingUser && (
-          <div>
-            <div className="flex items-center mb-6">
-              <Avatar src={viewingUser.avatar} icon={<UserOutlined />} size={64} className="mr-4" />
+          <div className="p-4">
+            {/* Header with avatar and basic info */}
+            <div className="flex items-center mb-8 pb-6 border-b border-gray-100">
+              <Avatar 
+                src={viewingUser.avatar !== 'default-avatar.png' ? viewingUser.avatar : undefined} 
+                icon={<UserOutlined />} 
+                size={80} 
+                className="mr-6 border-2 border-gray-100 shadow-sm"
+              />
               <div>
-                <div className="text-xl font-bold text-gray-800">{viewingUser.fullName}</div>
-                <div className="text-gray-600">{viewingUser.email}</div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">{viewingUser.fullName}</h3>
+                <div className="flex items-center gap-4">
+                  <div className="text-gray-600 flex items-center">
+                    <span className="mr-2">Email:</span>
+                    <span className="font-medium">{viewingUser.email}</span>
+                  </div>
+                  <div className="text-gray-600 flex items-center">
+                    <span className="mr-2">Vai trò:</span>
+                    {getRoleTag(viewingUser.role)}
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-gray-500 text-sm">ID:</div>
-                <div className="font-medium">{viewingUser.id}</div>
+
+            {/* Main content */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* Left column */}
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin cơ bản</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Trạng thái:</span>
+                      <span>{getStatusTag(viewingUser.status)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Ngày tạo:</span>
+                      <span className="font-medium">
+                        {new Date(viewingUser.createdAt).toLocaleDateString("vi-VN", {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                    {viewingUser.updatedAt && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Cập nhật lần cuối:</span>
+                        <span className="font-medium">
+                          {new Date(viewingUser.updatedAt).toLocaleDateString("vi-VN", {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin liên hệ</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Số điện thoại:</span>
+                      <span className="font-medium">{viewingUser.phone || 'Chưa cập nhật'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Địa chỉ:</span>
+                      <span className="font-medium">{viewingUser.address || 'Chưa cập nhật'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Personal Information */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin cá nhân</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Giới tính:</span>
+                      <span className="font-medium">{viewingUser.gender || 'Chưa cập nhật'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Ngày sinh:</span>
+                      <span className="font-medium">
+                        {viewingUser.dob ? new Date(viewingUser.dob).toLocaleDateString("vi-VN", {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        }) : 'Chưa cập nhật'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <div className="text-gray-500 text-sm">Vai trò:</div>
-                <div className="font-medium">{getRoleTag(viewingUser.role)}</div>
-              </div>
-              <div>
-                <div className="text-gray-500 text-sm">Trạng thái:</div>
-                <div className="font-medium">{getStatusTag(viewingUser.status)}</div>
-              </div>
-              <div>
-                <div className="text-gray-500 text-sm">Ngày tạo:</div>
-                <div className="font-medium">{new Date(viewingUser.createdAt).toLocaleDateString("vi-VN")}</div>
+
+              {/* Right column */}
+              <div className="space-y-6">
+                {/* Role and Status Information */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin tài khoản</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Vai trò:</span>
+                      <span>{getRoleTag(viewingUser.role)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Trạng thái:</span>
+                      <span>{getStatusTag(viewingUser.status)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Trạng thái phê duyệt:</span>
+                      <span className="font-medium">
+                        {viewingUser.approval_status === 'approved' ? 'Đã phê duyệt' :
+                         viewingUser.approval_status === 'pending' ? 'Đang chờ phê duyệt' :
+                         viewingUser.approval_status === 'rejected' ? 'Bị từ chối' : 'Chưa cập nhật'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Activity Information */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin hoạt động</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Số khóa học:</span>
+                      <span className="font-medium">{viewingUser.coursesCount !== undefined && viewingUser.coursesCount !== null ? viewingUser.coursesCount : 'Chưa cập nhật'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Mô tả:</span>
+                      <span className="font-medium">{viewingUser.description || 'Chưa cập nhật'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Information */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin bổ sung</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Avatar:</span>
+                      <span className="font-medium">
+                        {viewingUser.avatar && viewingUser.avatar !== 'default-avatar.png' ? 'Đã cập nhật' : 'Chưa cập nhật'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Xác thực email:</span>
+                      <span className="font-medium">
+                        {viewingUser.email_verified !== undefined ? (viewingUser.email_verified ? 'Đã xác thực' : 'Chưa xác thực') : 'Chưa cập nhật'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

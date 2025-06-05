@@ -30,6 +30,14 @@ export interface ApiUser {
   status: UserStatus;
   created_at: string;
   updated_at?: string;
+  phone?: string;
+  address?: string;
+  dob?: string;
+  gender?: string;
+  approval_status?: 'approved' | 'pending' | 'rejected';
+  email_verified?: boolean;
+  description?: string;
+  coursesCount?: number;
 }
 
 // Frontend User interface (used in components)
@@ -44,8 +52,12 @@ export interface User {
   updatedAt?: string;
   phone?: string;
   address?: string;
-  description?: string; // mô tả nếu là giảng viên
+  description?: string;
   coursesCount?: number;
+  gender?: string;
+  dob?: string;
+  approval_status?: 'approved' | 'pending' | 'rejected';
+  email_verified?: boolean;
 }
 
 export interface UserQueryParams {
