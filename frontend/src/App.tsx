@@ -3,7 +3,8 @@ import "antd/dist/reset.css";
 import Homepage from "./pages/Homepage";
 import AdminLayout from "./pages/layout/AdminLayout";
 import ClientLayout from "./pages/layout/ClientLayout";
-import AuthLayout from "./pages/layout/AuthLayout";
+import ProfileLayout from "./pages/layout/ProfileLayout";
+import ProfileEdit from "./pages/layout/ProfileEdit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CouponManagement from "./pages/admin/Vouchers/VouchersPage";
 import TransactionHistory from "./pages/admin/Transaction/TransactionHistory";
@@ -33,6 +34,7 @@ import PersonalInfoPage from "./pages/layout/PersonalInformation";
 import ModeratorLayout from "./pages/layout/ModeratorLayout";
 import InstructorLayout from "./pages/layout/InstructorLayout";
 import Profile from "./pages/client/Profile/Profile";
+import ChangePassword from "./pages/layout/ChangePassword";
 
 
 const queryClient = new QueryClient();
@@ -45,10 +47,18 @@ function App() {
       children: [
         { index: true, element: <Homepage /> },
         { path: 'verify-email/:token', element: <VerifyEmail /> },
-        { path: "profile", element: <Profile /> },
         { path: 'instructor/earnings', element: <Earnings /> },
         { path: 'instructor/profile', element: <InstructorProfile /> },
         { path: 'client/PersonalInfoPage', element: <PersonalInfoPage /> },
+      ]
+    },
+    {
+      path: "/profile",
+      element: <ProfileLayout />,
+      children: [
+        { path: "", element: <Profile /> },
+        { path: 'edit', element: <ProfileEdit /> },
+        { path: 'change-password', element: <ChangePassword /> },
       ]
     },
     {

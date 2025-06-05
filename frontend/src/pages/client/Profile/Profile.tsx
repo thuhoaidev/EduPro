@@ -1,5 +1,6 @@
 import React from "react";
-import { User } from "lucide-react";
+import { User, Edit2, Share2, MessageSquare, Clock, TrendingUp } from "lucide-react";
+import { motion } from "framer-motion";
 
 const userInfo = {
   fullName: "Hoài Thu Mai",

@@ -125,7 +125,7 @@ const AppHeader = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {user.role === 'user' ? (
           <>
-            <a onClick={() => handleMenuClick('/settings')} className="menu-item" style={{ 
+            <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{ 
               color: '#000',
               display: 'flex',
               alignItems: 'center',
@@ -191,7 +191,7 @@ const AppHeader = () => {
                 Trang quản trị viên
               </a>
             )}
-            <a onClick={() => handleMenuClick('/settings')} className="menu-item" style={{ 
+            <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{ 
               color: '#000',
               display: 'flex',
               alignItems: 'center',

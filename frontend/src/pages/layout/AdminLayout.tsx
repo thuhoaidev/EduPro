@@ -20,7 +20,7 @@ import {
 import type { MenuProps } from "antd";
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import styles from "./AdminLayout.module.css";
+import styles from "../../styles/AdminLayout.module.css";
 import { config } from "../../api/axios";
 
 const { Header, Sider, Content } = Layout;

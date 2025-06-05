@@ -20,7 +20,7 @@ import {
 import type { MenuProps } from "antd";
 import React, { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import styles from "./InstructorLayout.module.css";
+import styles from "../../styles/InstructorLayout.module.css";
 import { config } from "../../api/axios";
 
 const { Header, Sider, Content } = Layout;
