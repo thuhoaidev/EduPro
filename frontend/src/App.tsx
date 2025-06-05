@@ -62,10 +62,10 @@ function App() {
       children: [
         { path: "users", element: < UserPage /> }, // Quản lý người dùng
         { path: "users/:id", element: < UserDetail /> }, // Chi tiết người dùng
+        { path: "instructors", element: < InstructorList /> }, //
         { path: "instructor-approval", element: <InstructorPendingListPage /> },
         { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },
         { path: "sectionLesson/CourseManagement", element: < CourseManagement /> },
-        { path: "instructors", element: < InstructorList /> },
         { path: "users/instructor/:id", element: < InstructorDetail /> },
         { path: "content-approval", element: < ContentApprovalPage /> },
         { path: "reports", element: < ReportsPage /> },

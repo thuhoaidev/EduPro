@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { MouseEvent } from "react";
 import {
   Table,
@@ -16,6 +16,7 @@ import {
   Modal,
   Form,
   Popconfirm,
+  Spin,
 } from "antd";
 import {
   SearchOutlined,
@@ -33,72 +34,81 @@ import {
   type User,
 } from "../../../interfaces/Admin.interface";
 import type { ColumnsType } from "antd/es/table";
-
-const mockUsers: User[] = [
-  {
-    id: 1,
-    fullName: "Nguyễn Văn A",
-    email: "a@example.com",
-    avatar: "https://i.pravatar.cc/150?img=1",
-    role: UserRole.ADMIN,
-    status: UserStatus.ACTIVE,
-    createdAt: "2024-01-01",
-  },
-  {
-    id: 2,
-    fullName: "Trần Thị B",
-    email: "b@example.com",
-    avatar: "https://i.pravatar.cc/150?img=2",
-    role: UserRole.INSTRUCTOR,
-    status: UserStatus.INACTIVE,
-    createdAt: "2024-02-15",
-  },
-  {
-    id: 3,
-    fullName: "Lê Văn C",
-    email: "c@example.com",
-    avatar: "https://i.pravatar.cc/150?img=3",
-    role: UserRole.STUDENT,
-    status: UserStatus.BANNED,
-    createdAt: "2024-03-10",
-  },
-  {
-    id: 4,
-    fullName: "Phạm Thị D",
-    email: "d@example.com",
-    avatar: "https://i.pravatar.cc/150?img=4",
-    role: UserRole.MODERATOR,
-    status: UserStatus.ACTIVE,
-    createdAt: "2024-04-05",
-  },
-];
+import { getAllUsers, createUser, updateUser, deleteUser } from "../../../services/userService";
+import type { TablePaginationConfig } from 'antd/es/table';
 
 const UserPage = () => {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [form] = Form.useForm();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isDetailsModalVisible, setIsDetailsModalVisible] = useState(false);
   const [viewingUser, setViewingUser] = useState<User | null>(null);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
 
   const [selectedRole, setSelectedRole] = useState<UserRole | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<UserStatus | undefined>(undefined);
 
+  // Fetch users
+  const fetchUsers = async (page = 1, limit = 10) => {
+    try {
+      setLoading(true);
+      const response = await getAllUsers({
+        page,
+        limit,
+        search,
+        role: selectedRole,
+        status: selectedStatus,
+      });
+      
+      if (response.success) {
+        // Map the API response to our frontend User interface
+        const mappedUsers = response.data.users.map((user) => ({
+          id: user._id,
+          fullName: user.name,
+          email: user.email,
+          avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
+          role: user.role_id.name,
+          status: user.status,
+          createdAt: user.created_at,
+          updatedAt: user.updated_at,
+        }));
+
+        setUsers(mappedUsers);
+        setPagination({
+          ...pagination,
+          current: page,
+          total: response.data.pagination.total,
+        });
+      } else {
+        message.error(response.message || "Lỗi khi tải danh sách người dùng");
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error fetching users:", error.message);
+        message.error("Lỗi khi tải danh sách người dùng");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [search, selectedRole, selectedStatus]);
+
   const userStats = {
-    total: users.length,
+    total: pagination.total,
     active: users.filter(user => user.status === UserStatus.ACTIVE).length,
     inactive: users.filter(user => user.status === UserStatus.INACTIVE).length,
     banned: users.filter(user => user.status === UserStatus.BANNED).length,
   };
-
-  const filteredUsers = users.filter(
-    (u) =>
-      (u.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase())) &&
-      (selectedRole === undefined || u.role === selectedRole) &&
-      (selectedStatus === undefined || u.status === selectedStatus)
-  );
 
   // Helper to get status tag
   const getStatusTag = (status: UserStatus) => {
@@ -120,7 +130,7 @@ const UserPage = () => {
     );
   };
 
-  // Helper to get role tag (simplified)
+  // Helper to get role tag
   const getRoleTag = (role: UserRole) => {
     const roleMap: Record<UserRole, { color: string; label: string }> = {
       [UserRole.ADMIN]: { color: "red", label: 'Admin' },
@@ -153,9 +163,21 @@ const UserPage = () => {
     setIsModalVisible(true);
   };
 
-  const handleDeleteUser = (id: number) => {
-    setUsers(prev => prev.filter(user => user.id !== id));
-    message.success("Xóa người dùng thành công");
+  const handleDeleteUser = async (id: string) => {
+    try {
+      const response = await deleteUser(id);
+      if (response.success) {
+        message.success("Xóa người dùng thành công");
+        fetchUsers(pagination.current);
+      } else {
+        message.error(response.message || "Lỗi khi xóa người dùng");
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error deleting user:", error.message);
+        message.error("Lỗi khi xóa người dùng");
+      }
+    }
   };
 
   const handleModalOk = async () => {
@@ -163,34 +185,38 @@ const UserPage = () => {
       const values = await form.validateFields();
       if (editingUser) {
         // Update existing user
-        setUsers(prev =>
-          prev.map(user =>
-            user.id === editingUser.id
-              ? { ...user, ...values }
-              : user
-          )
-        );
+        await updateUser(editingUser.id.toString(), {
+          name: values.fullName,
+          role_id: values.role,
+          status: values.status,
+        });
         message.success("Cập nhật người dùng thành công");
       } else {
         // Add new user
-        const newUser: User = {
-          id: Math.max(...users.map(u => u.id)) + 1,
-          ...values,
-          avatar: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
-          createdAt: new Date().toISOString().split('T')[0],
-        };
-        setUsers(prev => [...prev, newUser]);
+        await createUser({
+          email: values.email,
+          password: values.password,
+          name: values.fullName,
+          role_id: values.role,
+          status: values.status,
+        });
         message.success("Thêm người dùng thành công");
       }
       setIsModalVisible(false);
+      fetchUsers(pagination.current);
     } catch (error) {
-      console.error('Validation failed:', error);
+      message.error(editingUser ? "Lỗi khi cập nhật người dùng" : "Lỗi khi thêm người dùng");
+      console.error("Error saving user:", error);
     }
   };
 
   const handleViewDetails = (user: User) => {
     setViewingUser(user);
     setIsDetailsModalVisible(true);
+  };
+
+  const handleTableChange = (pagination: TablePaginationConfig) => {
+    fetchUsers(pagination.current || 1, pagination.pageSize || 10);
   };
 
   const columns: ColumnsType<User> = [
@@ -385,24 +411,26 @@ const UserPage = () => {
             ]}
           />
           <Button
-          type="primary"
-          
-          icon={<UserAddOutlined />}
-          onClick={handleAddUser}
-        >
-          Thêm người dùng
-        </Button>
+            type="primary"
+            icon={<UserAddOutlined />}
+            onClick={handleAddUser}
+          >
+            Thêm người dùng
+          </Button>
         </div>
       </Card>
 
       <Card className="shadow-sm">
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={filteredUsers}
-          pagination={{ pageSize: 10 }}
-          className="users-table"
-        />
+        <Spin spinning={loading}>
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={users}
+            pagination={pagination}
+            onChange={handleTableChange}
+            className="users-table"
+          />
+        </Spin>
       </Card>
 
       <Modal
@@ -436,6 +464,18 @@ const UserPage = () => {
           >
             <Input placeholder="Nhập email" />
           </Form.Item>
+          {!editingUser && (
+            <Form.Item
+              name="password"
+              label="Mật khẩu"
+              rules={[
+                { required: true, message: "Vui lòng nhập mật khẩu" },
+                { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },
+              ]}
+            >
+              <Input.Password placeholder="Nhập mật khẩu" />
+            </Form.Item>
+          )}
           <Form.Item
             name="role"
             label="Vai trò"
