@@ -85,17 +85,11 @@ function App() {
 
       ],
     },
-    {
-      element: <AuthLayout />,
-      children: [
-        { path: '/login', element: <LoginPage /> },
-        { path: '/register', element: <RegisterPage /> },
-        { path: '/forgot-password', element: <ForgotPassword /> },
-        { path: '/reset-password/:token', element: < ResetPassword /> },
-        { path: '/register/instructor', element: < InstructorRegistrationPage /> }
-      ]
-    }
-
+    { path: '/login', element: <LoginPage /> },
+    { path: '/register', element: <RegisterPage /> },
+    { path: '/forgot-password', element: <ForgotPassword /> },
+    { path: '/reset-password/:token', element: < ResetPassword /> },
+    { path: '/register/instructor', element: < InstructorRegistrationPage /> }
   ];
 
   const element = useRoutes(routes);
