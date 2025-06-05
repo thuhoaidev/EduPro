@@ -10,11 +10,10 @@ import {
   UserOutlined,
   ShoppingCartOutlined,
   SettingOutlined,
-  EditOutlined,
   LogoutOutlined,
   DashboardOutlined,
   LoginOutlined,
-  UserAddOutlined
+  UserAddOutlined,
 } from '@ant-design/icons';
 
 
@@ -250,7 +249,15 @@ const AppHeader = () => {
         <div className="flex items-center h-full">
           <img src="https://www.udemy.com/staticx/udemy/images/v7/logo-udemy.svg"
             alt="Udemy Logo" style={{ height: 34, marginRight: 8 }} />
-          <span className="font-semibold text-gray-700 cursor-pointer hidden md:block">Explore</span>
+          {window.location.pathname === '/profile' && (
+            <div
+              onClick={() => navigate('/')}
+              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginRight: 8 }}
+            >
+              <span style={{ fontSize: 20, marginRight: 4, color: '#8a94a5', display: 'flex', alignItems: 'center', lineHeight: 1 }}>&lt;</span>
+              <span style={{ fontWeight: 400, fontSize: 13, color: '#8a94a5', letterSpacing: 1 }}>QUAY LẠI</span>
+            </div>
+          )}
         </div>
 
         {/* Search */}

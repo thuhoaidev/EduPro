@@ -23,7 +23,6 @@ import ForgotPassword from "./pages/client/auth/forgotPassword";
 import ResetPassword from "./pages/client/auth/resetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
-import UserProfile from "./pages/client/UserProfile/UserProfile";
 import InstructorProfile from "./pages/client/InstructorProfile/InstructorProfile";
 
 import InstructorRegistrationPage from "./pages/client/auth/instructorRegistrationPage";
@@ -32,11 +31,8 @@ import InstructorPendingListPage from "./pages/admin/Instructors/InstructorPendi
 import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfileDetail";
 import PersonalInfoPage from "./pages/layout/PersonalInformation";
 import ModeratorLayout from "./pages/layout/ModeratorLayout";
-import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
-import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
-import ReportStatistics from "./pages/Moderator/Statistics/ReportStatistics";
-import CourseList from "./pages/instructor/course/CourseList";
 import InstructorLayout from "./pages/layout/InstructorLayout";
+import Profile from "./pages/client/Profile/Profile";
 
 
 const queryClient = new QueryClient();
@@ -49,22 +45,21 @@ function App() {
       children: [
         { index: true, element: <Homepage /> },
         { path: 'verify-email/:token', element: <VerifyEmail /> },
+        { path: "profile", element: <Profile /> },
         { path: 'instructor/earnings', element: <Earnings /> },
-        { path: 'user/profile', element: <UserProfile /> },
         { path: 'instructor/profile', element: <InstructorProfile /> },
         { path: 'client/PersonalInfoPage', element: <PersonalInfoPage /> },
       ]
     },
-
     {
       path: "/admin",
       element: <AdminLayout />,
       children: [
         { path: "users", element: < UserPage /> }, // Quản lý người dùng
         { path: "users/:id", element: < UserDetail /> }, // Chi tiết người dùng
-        { path: "instructors", element: < InstructorList /> }, //
         { path: "instructor-approval", element: <InstructorPendingListPage /> },
         { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },
+        { path: "instructors", element: < InstructorList /> },
         { path: "sectionLesson/CourseManagement", element: < CourseManagement /> },
         { path: "users/instructor/:id", element: < InstructorDetail /> },
         { path: "content-approval", element: < ContentApprovalPage /> },
@@ -80,14 +75,14 @@ function App() {
       path: "/moderator",
       element: <ModeratorLayout />,
       children: [
-        
+
       ],
     },
     {
       path: "/instructor",
       element: <InstructorLayout />,
       children: [
-        
+
       ],
     },
     {
