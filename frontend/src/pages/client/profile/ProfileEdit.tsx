@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import { Form, Input, Button, Upload, message, Card, Row, Col } from 'antd';
 import { UserOutlined, MailOutlined, PhoneOutlined, UploadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
