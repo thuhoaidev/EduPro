@@ -179,8 +179,19 @@ exports.updateUser = async (req, res) => {
       });
     }
 
+    // Kiểm tra email duy nhất (nếu email được cập nhật)
+    if (email !== undefined && email !== user.email) {
+      const existingUserWithEmail = await User.findOne({ email });
+      if (existingUserWithEmail && existingUserWithEmail._id.toString() !== userId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email đã được sử dụng bởi người dùng khác'
+        });
+      }
+    }
+
     // Kiểm tra role_id nếu cập nhật
-    if (role_id) {
+    if (role_id !== undefined && role_id !== user.role_id) {
       const role = await Role.findById(role_id);
       if (!role) {
         return res.status(400).json({
@@ -204,11 +215,19 @@ exports.updateUser = async (req, res) => {
       approval_status: approval_status !== undefined ? approval_status : user.approval_status,
     };
 
+    // Sử dụng findByIdAndUpdate với session nếu cần transaction, ở đây dùng đơn giản
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       updateData,
       { new: true, runValidators: true }
     ).populate('role_id');
+
+    if (!updatedUser) {
+       return res.status(404).json({
+         success: false,
+         message: 'Không tìm thấy người dùng sau khi cập nhật'
+       });
+    }
 
     res.status(200).json({
       success: true,
@@ -216,10 +235,26 @@ exports.updateUser = async (req, res) => {
       data: updatedUser.toJSON()
     });
   } catch (error) {
-    console.error('Lỗi cập nhật người dùng:', error);
+    console.error('Lỗi chi tiết khi cập nhật người dùng:', error);
+    // Kiểm tra nếu là lỗi xác thực Mongoose
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Lỗi xác thực dữ liệu',
+        errors: messages
+      });
+    }
+     if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: `Lỗi chuyển đổi kiểu dữ liệu cho trường ${error.path}: ${error.message}`,
+        error: error.message
+      });
+    }
     res.status(500).json({
       success: false,
-      message: 'Lỗi cập nhật người dùng',
+      message: 'Lỗi máy chủ nội bộ khi cập nhật người dùng',
       error: error.message
     });
   }
