@@ -2,7 +2,7 @@ const Section = require('../models/Section');
 const Course = require('../models/Course');
 const ApiError = require('../utils/ApiError');
 const { validateSchema } = require('../utils/validateSchema');
-const { createSectionSchema, updateSectionSchema } = require('../validations/section.validation');
+const { createSectionSchema, updateSectionSchema, updateSectionsOrderSchema } = require('../validations/section.validation');
 
 // Tạo chương mới
 exports.createSection = async (req, res, next) => {
@@ -109,25 +109,57 @@ exports.getSectionsByCourse = async (req, res, next) => {
     }
 };
 
-// Cập nhật vị trí các chương
+// Cập nhật vị trí các chương học
 exports.updateSectionsOrder = async (req, res, next) => {
     try {
+        const { course_id } = req.params;
         const { sections } = req.body;
 
-        // Cập nhật vị trí cho từng section
-        const updatePromises = sections.map((section, index) => {
-            return Section.findByIdAndUpdate(
-                section.id,
-                { position: index },
-                { new: true }
-            );
-        });
+        // Kiểm tra quyền
+        const userRole = req.user.role_id;
+        if (!userRole || !['admin', 'instructor'].includes(userRole.name)) {
+            throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
+        }
+
+        // Kiểm tra khóa học tồn tại
+        const course = await Course.findById(course_id);
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+
+        // Kiểm tra nếu là instructor thì phải là người tạo khóa học
+        if (userRole.name === 'instructor') {
+            if (!course.instructor_id || course.instructor_id.toString() !== req.user._id.toString()) {
+                throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
+            }
+        }
+
+        // Validate dữ liệu
+        await validateSchema(updateSectionsOrderSchema, { sections });
+
+        // Cập nhật vị trí các chương học
+        const updatePromises = sections.map(({ id, position }) =>
+            Section.findByIdAndUpdate(
+                id,
+                { position },
+                { new: true, runValidators: true },
+            ),
+        );
 
         await Promise.all(updatePromises);
 
+        // Lấy lại danh sách chương học đã cập nhật
+        const updatedSections = await Section.find({ course_id })
+            .sort({ position: 1 })
+            .populate({
+                path: 'lessons',
+                select: 'title position is_preview',
+                options: { sort: { position: 1 } },
+            });
+
         res.json({
             success: true,
-            message: 'Cập nhật vị trí chương thành công'
+            data: updatedSections,
         });
     } catch (error) {
         next(error);

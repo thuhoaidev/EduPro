@@ -34,8 +34,31 @@ const reorderLessonsSchema = Joi.object({
     })
 });
 
+const updateLessonsOrderSchema = Joi.object({
+  lessons: Joi.array()
+    .items(
+      Joi.object({
+        id: Joi.string().required().messages({
+          'string.empty': 'ID bài học không được để trống',
+          'any.required': 'ID bài học là bắt buộc',
+        }),
+        position: Joi.number().required().min(0).messages({
+          'number.base': 'Vị trí phải là số',
+          'number.min': 'Vị trí không được âm',
+          'any.required': 'Vị trí là bắt buộc',
+        }),
+      }),
+    )
+    .required()
+    .messages({
+      'array.base': 'Danh sách bài học phải là mảng',
+      'any.required': 'Danh sách bài học là bắt buộc',
+    }),
+});
+
 module.exports = {
     createLessonSchema,
     updateLessonSchema,
-    reorderLessonsSchema
+    reorderLessonsSchema,
+    updateLessonsOrderSchema
 }; 

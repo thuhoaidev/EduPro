@@ -4,6 +4,7 @@ const { validateSchema } = require('../utils/validateSchema');
 const { createCourseSchema, updateCourseSchema, updateCourseStatusSchema } = require('../validations/course.validation');
 const ApiError = require('../utils/ApiError');
 const InstructorProfile = require('../models/instructor/InstructorProfile');
+const Section = require('../models/Section');
 // const Joi = require('joi'); // Không cần Joi ở đây nữa
 
 // Tạo khóa học mới
@@ -490,4 +491,33 @@ exports.getCourseBySlug = async (req, res, next) => {
         console.error('=== END LỖI ===\n');
         next(error);
     }
+};
+
+// Lấy danh sách chương học và bài học theo khóa học
+exports.getCourseSectionsAndLessons = async (req, res, next) => {
+  try {
+    const { course_id } = req.params;
+
+    // Kiểm tra khóa học tồn tại
+    const course = await Course.findById(course_id);
+    if (!course) {
+      throw new ApiError(404, 'Không tìm thấy khóa học');
+    }
+
+    // Lấy danh sách chương học và bài học
+    const sections = await Section.find({ course_id })
+      .sort({ position: 1 })
+      .populate({
+        path: 'lessons',
+        select: 'title position is_preview',
+        options: { sort: { position: 1 } },
+      });
+
+    res.json({
+      success: true,
+      data: sections,
+    });
+  } catch (error) {
+    next(error);
+  }
 }; 

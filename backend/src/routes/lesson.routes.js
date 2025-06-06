@@ -1,13 +1,41 @@
 const express = require('express');
 const router = express.Router();
-const lessonController = require('../controllers/lesson.controller');
 const { auth, requireAuth } = require('../middlewares/auth');
+const { validateSchema } = require('../utils/validateSchema');
+const { createLessonSchema, updateLessonSchema, updateLessonsOrderSchema } = require('../validations/lesson.validation');
+const {
+  createLesson,
+  updateLesson,
+  deleteLesson,
+  getLessonsBySection,
+  updateLessonsOrder,
+} = require('../controllers/lesson.controller');
 
-// Routes cho Lesson
-router.post('/', auth, requireAuth, lessonController.createLesson);
-router.put('/:id', auth, requireAuth, lessonController.updateLesson);
-router.delete('/:id', auth, requireAuth, lessonController.deleteLesson);
-router.get('/section/:section_id', lessonController.getLessonsBySection);
-router.put('/reorder', auth, requireAuth, lessonController.updateLessonsOrder);
+// Tất cả các routes đều yêu cầu xác thực
+router.use(auth);
+
+// Routes cho giảng viên và admin
+router.post('/', requireAuth(['admin', 'instructor']), (req, res, next) => {
+  validateSchema(createLessonSchema, req.body)
+    .then(() => next())
+    .catch(next);
+}, createLesson);
+
+router.put('/:id', requireAuth(['admin', 'instructor']), (req, res, next) => {
+  validateSchema(updateLessonSchema, req.body)
+    .then(() => next())
+    .catch(next);
+}, updateLesson);
+
+router.delete('/:id', requireAuth(['admin', 'instructor']), deleteLesson);
+
+router.put('/section/:section_id/order', requireAuth(['admin', 'instructor']), (req, res, next) => {
+  validateSchema(updateLessonsOrderSchema, req.body)
+    .then(() => next())
+    .catch(next);
+}, updateLessonsOrder);
+
+// Route cho tất cả người dùng đã xác thực
+router.get('/section/:section_id', getLessonsBySection);
 
 module.exports = router; 

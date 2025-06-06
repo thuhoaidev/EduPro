@@ -14,6 +14,10 @@ const createVideoSchema = Joi.object({
     'number.min': 'Thời lượng không được âm',
     'any.required': 'Thời lượng là bắt buộc',
   }),
+  public_id: Joi.string().required().messages({
+    'string.empty': 'Public ID không được để trống',
+    'any.required': 'Public ID là bắt buộc',
+  }),
 });
 
 const updateVideoSchema = Joi.object({
@@ -23,6 +27,9 @@ const updateVideoSchema = Joi.object({
   duration: Joi.number().min(0).messages({
     'number.base': 'Thời lượng phải là số',
     'number.min': 'Thời lượng không được âm',
+  }),
+  public_id: Joi.string().messages({
+    'string.empty': 'Public ID không được để trống',
   }),
 });
 

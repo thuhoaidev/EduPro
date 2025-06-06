@@ -9,9 +9,9 @@ const userSchema = new mongoose.Schema({
     ref: 'Role',
     required: [true, 'Vai trò là bắt buộc'],
   },
-  name: {
+  full_name: {
     type: String,
-    required: [true, 'Tên đầy đủ là bắt buộc'],
+    required: [true, 'Họ tên là bắt buộc'],
     trim: true,
   },
   slug: {
@@ -43,50 +43,51 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Mật khẩu là bắt buộc'],
     minlength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
     select: false,
-  },  isInstructor: {
+  },
+  isInstructor: {
     type: Boolean,
     default: false
-  },has_registered_instructor: {
-  type: Boolean,
-  default: false,
-},
-instructorInfo: {
-  bio: {
-    type: String,
-    default: '',
   },
-  phone: {
-    type: String,
-    default: '',
-     match: [/^(0|\+84)[0-9]{9,10}$/, 'Số điện thoại không hợp lệ'],
-  },
-  education: [
-    {
-      degree: { type: String, required: true },
-      field: { type: String, default: '' },
-      institution: { type: String, required: true },
-      year: { type: Number, required: true },
-      description: { type: String, default: '' },
-    }
-  ],
-  experience: [
-    {
-      position: { type: String, required: true },
-      company: { type: String, required: true },
-      startDate: { type: Date, required: true },
-      endDate: { type: Date, required: false },
-      description: { type: String, default: '' },
-    }
-  ],
-  is_approved: {
+  has_registered_instructor: {
     type: Boolean,
     default: false,
   },
-},
-
+  instructorInfo: {
+    bio: {
+      type: String,
+      default: '',
+    },
+    phone: {
+      type: String,
+      default: '',
+      match: [/^(0|\+84)[0-9]{9,10}$/, 'Số điện thoại không hợp lệ'],
+    },
+    education: [
+      {
+        degree: { type: String, required: true },
+        field: { type: String, default: '' },
+        institution: { type: String, required: true },
+        year: { type: Number, required: true },
+        description: { type: String, default: '' },
+      }
+    ],
+    experience: [
+      {
+        position: { type: String, required: true },
+        company: { type: String, required: true },
+        startDate: { type: Date, required: true },
+        endDate: { type: Date, required: false },
+        description: { type: String, default: '' },
+      }
+    ],
+    is_approved: {
+      type: Boolean,
+      default: false,
+    },
+  },
   avatar: {
     type: String,
-    default: 'default-avatar.png',
+    default: 'default-avatar.jpg',
   },
   bio: {
     type: String,
@@ -129,6 +130,15 @@ instructorInfo: {
     createdAt: 'created_at',
     updatedAt: 'updated_at',
   },
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+});
+
+// Virtual populate cho các khóa học của giảng viên
+userSchema.virtual('courses', {
+  ref: 'Course',
+  localField: '_id',
+  foreignField: 'instructor_id',
 });
 
 userSchema.pre('save', async function (next) {
@@ -143,8 +153,8 @@ userSchema.pre('save', async function (next) {
 });
 
 userSchema.pre('save', async function(next) {
-  if (this.isModified('name')) {
-    const asciiName = this.name.normalize('NFD')
+  if (this.isModified('full_name')) {
+    const asciiName = this.full_name.normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[đĐ]/g, 'd');
     
@@ -157,8 +167,8 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
 };
 
 userSchema.methods.createEmailVerificationToken = function () {

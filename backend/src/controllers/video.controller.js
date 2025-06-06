@@ -3,11 +3,12 @@ const Lesson = require('../models/Lesson');
 const ApiError = require('../utils/ApiError');
 const { validateSchema } = require('../utils/validateSchema');
 const { createVideoSchema, updateVideoSchema } = require('../validations/video.validation');
+const { uploadBufferToCloudinary, getPublicIdFromUrl, deleteFromCloudinary } = require('../utils/cloudinary');
 
 // Tạo video mới
 exports.createVideo = async (req, res, next) => {
   try {
-    const { lesson_id, url, duration } = req.body;
+    const { lesson_id, duration } = req.body;
 
     // Kiểm tra lesson tồn tại
     const lesson = await Lesson.findById(lesson_id);
@@ -15,8 +16,36 @@ exports.createVideo = async (req, res, next) => {
       throw new ApiError(404, 'Không tìm thấy bài học');
     }
 
+    // Kiểm tra lesson đã có video chưa
+    const existingVideo = await Video.findOne({ lesson_id });
+    if (existingVideo) {
+      throw new ApiError(400, 'Bài học này đã có video');
+    }
+
+    // Kiểm tra file video
+    if (!req.file || !req.file.buffer) {
+      throw new ApiError(400, 'Vui lòng tải lên video');
+    }
+
+    // Upload video lên Cloudinary
+    let videoUrl = '';
+    let publicId = '';
+    try {
+      const uploadResult = await uploadBufferToCloudinary(req.file.buffer, 'videos');
+      videoUrl = uploadResult.secure_url;
+      publicId = uploadResult.public_id;
+    } catch (uploadError) {
+      console.error('Lỗi upload video:', uploadError);
+      throw new ApiError(500, 'Lỗi khi tải lên video: ' + uploadError.message);
+    }
+
     // Validate dữ liệu
-    const validatedData = await validateSchema(createVideoSchema, { lesson_id, url, duration });
+    const validatedData = await validateSchema(createVideoSchema, {
+      lesson_id,
+      url: videoUrl,
+      duration: parseInt(duration) || 0,
+      public_id: publicId,
+    });
 
     // Tạo video mới
     const video = new Video(validatedData);
@@ -35,10 +64,40 @@ exports.createVideo = async (req, res, next) => {
 exports.updateVideo = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { url, duration } = req.body;
+    const { duration } = req.body;
+
+    // Tìm video cũ
+    const oldVideo = await Video.findById(id);
+    if (!oldVideo) {
+      throw new ApiError(404, 'Không tìm thấy video');
+    }
+
+    // Xử lý video mới nếu có
+    let videoUrl = oldVideo.url;
+    let publicId = oldVideo.public_id;
+    if (req.file && req.file.buffer) {
+      try {
+        // Xóa video cũ trên Cloudinary nếu có
+        if (oldVideo.public_id) {
+          await deleteFromCloudinary(oldVideo.public_id);
+        }
+
+        // Upload video mới
+        const uploadResult = await uploadBufferToCloudinary(req.file.buffer, 'videos');
+        videoUrl = uploadResult.secure_url;
+        publicId = uploadResult.public_id;
+      } catch (uploadError) {
+        console.error('Lỗi upload video:', uploadError);
+        throw new ApiError(500, 'Lỗi khi tải lên video: ' + uploadError.message);
+      }
+    }
 
     // Validate dữ liệu
-    const validatedData = await validateSchema(updateVideoSchema, { url, duration });
+    const validatedData = await validateSchema(updateVideoSchema, {
+      url: videoUrl,
+      duration: duration ? parseInt(duration) : oldVideo.duration,
+      public_id: publicId,
+    });
 
     // Cập nhật video
     const video = await Video.findByIdAndUpdate(
@@ -46,10 +105,6 @@ exports.updateVideo = async (req, res, next) => {
       { $set: validatedData },
       { new: true, runValidators: true },
     );
-
-    if (!video) {
-      throw new ApiError(404, 'Không tìm thấy video');
-    }
 
     res.json({
       success: true,
@@ -65,11 +120,19 @@ exports.deleteVideo = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Xóa video
-    const video = await Video.findByIdAndDelete(id);
+    // Tìm video
+    const video = await Video.findById(id);
     if (!video) {
       throw new ApiError(404, 'Không tìm thấy video');
     }
+
+    // Xóa video trên Cloudinary nếu có
+    if (video.public_id) {
+      await deleteFromCloudinary(video.public_id);
+    }
+
+    // Xóa video trong database
+    await video.deleteOne();
 
     res.json({
       success: true,
@@ -93,6 +156,9 @@ exports.getVideoByLesson = async (req, res, next) => {
 
     // Lấy video
     const video = await Video.findOne({ lesson_id });
+    if (!video) {
+      throw new ApiError(404, 'Không tìm thấy video');
+    }
 
     res.json({
       success: true,
