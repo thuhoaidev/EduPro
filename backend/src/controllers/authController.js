@@ -5,6 +5,9 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require('../config/ema
 const crypto = require('crypto');
 const InstructorProfile = require('../models/instructor/InstructorProfile');
 const { log } = require('console');
+const ApiError = require('../utils/ApiError');
+const { validateSchema } = require('../utils/validateSchema');
+const { loginSchema, registerSchema } = require('../validations/auth.validation');
 
 // Tạo JWT token
 const createToken = (userId) => {
@@ -14,41 +17,32 @@ const createToken = (userId) => {
 };
 
 // Đăng ký tài khoản
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
   try {
+    // Validate dữ liệu
+    await validateSchema(registerSchema, req.body);
+
     const { email, password, repassword, fullName, role: requestedRole } = req.body;
 
     // Validate dữ liệu đầu vào
     if (!email || !password || !repassword || !fullName) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng điền đầy đủ thông tin',
-      });
+      throw new ApiError(400, 'Vui lòng điền đầy đủ thông tin');
     }
 
     // Kiểm tra password và repassword
     if (password !== repassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Mật khẩu xác nhận không khớp',
-      });
+      throw new ApiError(400, 'Mật khẩu xác nhận không khớp');
     }
 
     // Kiểm tra độ dài password
     if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Mật khẩu phải có ít nhất 6 ký tự',
-      });
+      throw new ApiError(400, 'Mật khẩu phải có ít nhất 6 ký tự');
     }
 
     // Kiểm tra email đã tồn tại
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email đã được sử dụng',
-      });
+      throw new ApiError(400, 'Email đã được sử dụng');
     }
 
     // Xác định role cho user mới
@@ -56,28 +50,19 @@ exports.register = async (req, res) => {
     if (requestedRole) {
       role = await Role.findOne({ name: requestedRole });
       if (!role) {
-        return res.status(400).json({
-          success: false,
-          message: 'Vai trò không hợp lệ',
-        });
+        throw new ApiError(400, 'Vai trò không hợp lệ');
       }
       // Chỉ cho phép tạo tài khoản admin đầu tiên
       if (requestedRole === 'admin') {
         const adminCount = await User.countDocuments({ role_id: role._id });
         if (adminCount > 0) {
-          return res.status(403).json({
-            success: false,
-            message: 'Không thể tạo thêm tài khoản admin',
-          });
+          throw new ApiError(403, 'Không thể tạo thêm tài khoản admin');
         }
       }
     } else {
       role = await Role.findOne({ name: 'student' });
       if (!role) {
-        return res.status(500).json({
-          success: false,
-          message: 'Không tìm thấy role student',
-        });
+        throw new ApiError(500, 'Không tìm thấy role student');
       }
     }
 
@@ -103,11 +88,21 @@ exports.register = async (req, res) => {
       // Không trả về lỗi nếu gửi email thất bại
     }
 
-    // Trả về thông tin user (không bao gồm token)
+    // Tạo token
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Populate role để lấy thông tin vai trò
+    await user.populate('role_id');
+
     res.status(201).json({
       success: true,
       message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
       data: {
+        token,
         user: {
           _id: user._id,
           email: user.email,
@@ -120,12 +115,7 @@ exports.register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Lỗi đăng ký:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi server',
-      error: error.message,
-    });
+    next(error);
   }
 };
 
@@ -400,31 +390,24 @@ console.log('has_registered_instructor before save:', user.has_registered_instru
   }
 };
 
-
-
-
-
-
 // Đăng nhập
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
   try {
+    // Validate dữ liệu
+    await validateSchema(loginSchema, req.body);
+
     const { email, password } = req.body;
 
-    // Validate dữ liệu đầu vào
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng nhập email và mật khẩu',
-      });
+    // Tìm user theo email
+    const user = await User.findOne({ email }).select('+password').populate('role_id');
+    if (!user) {
+      throw new ApiError(401, 'Email hoặc mật khẩu không đúng');
     }
 
-    // Tìm user và kiểm tra password
-    const user = await User.findOne({ email }).select('+password');
-    if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({
-        success: false,
-        message: 'Email hoặc mật khẩu không đúng',
-      });
+    // Kiểm tra mật khẩu
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      throw new ApiError(401, 'Email hoặc mật khẩu không đúng');
     }
 
     // Kiểm tra xác thực email
@@ -470,11 +453,12 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Tạo JWT token
-    const token = createToken(user._id);
-
-    // Populate role để lấy thông tin vai trò
-    await user.populate('role_id');
+    // Tạo token
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
 
     res.json({
       success: true,
@@ -484,8 +468,8 @@ exports.login = async (req, res) => {
         user: {
           _id: user._id,
           email: user.email,
-          fullName: user.name,
-          role: user.role_id.name,
+          full_name: user.name,
+          role: user.role_id,
           avatar: user.avatar,
           isVerified: user.email_verified,
           approval_status: user.approval_status,
@@ -494,12 +478,7 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Lỗi đăng nhập:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi đăng nhập',
-      error: error.message,
-    });
+    next(error);
   }
 };
 
@@ -678,27 +657,25 @@ exports.resetPassword = async (req, res) => {
 };
 
 // Lấy thông tin user hiện tại
-exports.getMe = async (req, res) => {
+exports.getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id).populate('role_id');
+    const user = await User.findById(req.user._id).populate('role_id');
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy tài khoản',
-      });
+      throw new ApiError(404, 'Không tìm thấy tài khoản');
     }
 
     res.json({
       success: true,
-      user: user.toJSON(),
+      data: {
+        _id: user._id,
+        email: user.email,
+        full_name: user.name,
+        role: user.role_id,
+        avatar: user.avatar,
+      },
     });
   } catch (error) {
-    console.error('Lỗi lấy thông tin user:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi lấy thông tin tài khoản',
-      error: error.message,
-    });
+    next(error);
   }
 };
 
