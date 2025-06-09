@@ -57,7 +57,7 @@ router.post('/instructors-approve', requireAuth, approveInstructorProfile);
 
 // Routes hồ sơ cá nhân
 
-router.get('/use-me', auth, requireAuth, getCurrentUser);
+router.get('/user-me', auth, requireAuth, getCurrentUser);
 router.put('/update-me', auth, requireAuth, updateCurrentUser);
 router.post('/upload-avatar',auth,requireAuth,upload.single('avatar'),uploadAvatar);
 

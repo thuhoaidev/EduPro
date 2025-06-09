@@ -93,7 +93,7 @@ const UserPage = () => {
         role: selectedRole,
         status: selectedStatus
       });
-      
+
       const response = await getAllUsers({
         page,
         limit,
@@ -101,9 +101,9 @@ const UserPage = () => {
         role: selectedRole,
         status: selectedStatus,
       });
-      
+
       console.log('API Response:', response);
-      
+
       if (response.success) {
         console.log('Raw user data from API:', response.data.users);
         // Sắp xếp người dùng theo thứ tự mới nhất
@@ -119,7 +119,7 @@ const UserPage = () => {
             fullName: user.name,
             email: user.email,
             avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
-            role: user.role_id.name,
+            role: user.role_id.name || 'Chưa xác định',
             status: user.status,
             createdAt: user.created_at,
             updatedAt: user.updated_at,
@@ -249,11 +249,11 @@ const UserPage = () => {
     try {
       const values = await form.validateFields();
       console.log('Form values:', values);
-      
+
       if (editingUser) {
         // Update existing user
         console.log('Updating user with ID:', editingUser.id);
-        
+
         // Tìm role_id dựa trên role name
         const selectedRole = roles.find(r => r.name === values.role);
         if (!selectedRole) {
@@ -353,7 +353,7 @@ const UserPage = () => {
             }}
           />
           <div>
-            <div 
+            <div
               className="font-semibold text-base text-blue-600 hover:text-blue-800 cursor-pointer"
               onClick={(e: MouseEvent<HTMLElement>) => {
                 e.stopPropagation();
@@ -704,10 +704,10 @@ const UserPage = () => {
           <div className="p-4">
             {/* Header with avatar and basic info */}
             <div className="flex items-center mb-8 pb-6 border-b border-gray-100">
-              <Avatar 
-                src={viewingUser.avatar !== 'default-avatar.png' ? viewingUser.avatar : undefined} 
-                icon={<UserOutlined />} 
-                size={80} 
+              <Avatar
+                src={viewingUser.avatar !== 'default-avatar.png' ? viewingUser.avatar : undefined}
+                icon={<UserOutlined />}
+                size={80}
                 className="mr-6 border-2 border-gray-100 shadow-sm"
               />
               <div>
@@ -817,8 +817,8 @@ const UserPage = () => {
                       <span className="text-gray-500">Trạng thái phê duyệt:</span>
                       <span className="font-medium">
                         {viewingUser.approval_status === 'approved' ? 'Đã phê duyệt' :
-                         viewingUser.approval_status === 'pending' ? 'Đang chờ phê duyệt' :
-                         viewingUser.approval_status === 'rejected' ? 'Bị từ chối' : 'Chưa cập nhật'}
+                          viewingUser.approval_status === 'pending' ? 'Đang chờ phê duyệt' :
+                            viewingUser.approval_status === 'rejected' ? 'Bị từ chối' : 'Chưa cập nhật'}
                       </span>
                     </div>
                   </div>

@@ -14,6 +14,7 @@ import {
   DashboardOutlined,
   LoginOutlined,
   UserAddOutlined,
+  SolutionOutlined,
 } from '@ant-design/icons';
 
 
@@ -123,9 +124,21 @@ const AppHeader = () => {
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {user.role === 'user' ? (
+        {user.role === 'user' || user.role === 'student' ? (
           <>
-            <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{ 
+            <a onClick={() => handleMenuClick('/register/instructor')} className="menu-item" style={{
+              color: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '8px 12px',
+              borderRadius: 6,
+              transition: 'all 0.3s',
+              cursor: 'pointer'
+            }}>
+              <SolutionOutlined style={{ marginRight: 8 }} />
+              Đăng ký làm giảng viên
+            </a>
+            <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{
               color: '#000',
               display: 'flex',
               alignItems: 'center',
@@ -136,7 +149,7 @@ const AppHeader = () => {
               <SettingOutlined style={{ marginRight: 8 }} />
               Cài đặt
             </a>
-            <a onClick={handleLogout} className="menu-item-danger" style={{ 
+            <a onClick={handleLogout} className="menu-item-danger" style={{
               color: '#ff4d4f',
               fontWeight: '500',
               cursor: 'pointer',
@@ -153,7 +166,7 @@ const AppHeader = () => {
         ) : (
           <>
             {user.role === 'admin' && (
-              <a onClick={() => handleMenuClick('/admin/users')} className="menu-item" style={{ 
+              <a onClick={() => handleMenuClick('/admin/users')} className="menu-item" style={{
                 color: '#000',
                 display: 'flex',
                 alignItems: 'center',
@@ -166,7 +179,7 @@ const AppHeader = () => {
               </a>
             )}
             {user.role === 'instructor' && (
-              <a onClick={() => handleMenuClick('/instructor')} className="menu-item" style={{ 
+              <a onClick={() => handleMenuClick('/instructor')} className="menu-item" style={{
                 color: '#000',
                 display: 'flex',
                 alignItems: 'center',
@@ -179,7 +192,7 @@ const AppHeader = () => {
               </a>
             )}
             {user.role === 'moderator' && (
-              <a onClick={() => handleMenuClick('/moderator')} className="menu-item" style={{ 
+              <a onClick={() => handleMenuClick('/moderator')} className="menu-item" style={{
                 color: '#000',
                 display: 'flex',
                 alignItems: 'center',
@@ -191,7 +204,7 @@ const AppHeader = () => {
                 Trang quản trị viên
               </a>
             )}
-            <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{ 
+            <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{
               color: '#000',
               display: 'flex',
               alignItems: 'center',
@@ -202,7 +215,7 @@ const AppHeader = () => {
               <SettingOutlined style={{ marginRight: 8 }} />
               Cài đặt
             </a>
-            <a onClick={handleLogout} className="menu-item-danger" style={{ 
+            <a onClick={handleLogout} className="menu-item-danger" style={{
               color: '#ff4d4f',
               fontWeight: '500',
               cursor: 'pointer',
@@ -306,10 +319,10 @@ const AppHeader = () => {
           {loading ? (
             <Spin size="small" />
           ) : user ? (
-            <Dropdown 
-              overlay={userDropdown as React.ReactElement} 
-              trigger={['click']} 
-              placement="bottomRight" 
+            <Dropdown
+              overlay={userDropdown as React.ReactElement}
+              trigger={['click']}
+              placement="bottomRight"
               arrow
             >
               <Badge dot offset={[-2, 2]} size="small">

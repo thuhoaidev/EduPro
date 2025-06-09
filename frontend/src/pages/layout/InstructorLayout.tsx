@@ -137,7 +137,7 @@ const InstructorLayout = () => {
           label: renderLabel("Khóa học của tôi"),
         },
         {
-          key: "/instructor/courses/new",
+          key: "/instructor/courses/create",
           icon: <PlusCircleOutlined />,
           label: renderLabel("Tạo khóa học mới"),
         },

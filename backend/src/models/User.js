@@ -50,8 +50,7 @@ const userSchema = new mongoose.Schema({
   type: Boolean,
   default: false,
 },
-instructorInfo: {
-  bio: {
+address: {
     type: String,
     default: '',
   },
@@ -59,6 +58,11 @@ instructorInfo: {
     type: String,
     default: '',
      match: [/^(0|\+84)[0-9]{9,10}$/, 'Số điện thoại không hợp lệ'],
+  },
+instructorInfo: {
+  bio: {
+    type: String,
+    default: '',
   },
   education: [
     {
@@ -86,7 +90,7 @@ instructorInfo: {
 
   avatar: {
     type: String,
-    default: 'default-avatar.png',
+    default: 'avatars/default-avatar.png',
   },
   bio: {
     type: String,

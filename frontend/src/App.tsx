@@ -35,6 +35,9 @@ import Profile from "./pages/client/profile/Profile";
 import ChangePassword from "./pages/layout/ChangePassword";
 
 
+import CreateCourse from "./pages/instructor/course/CourseAdd";
+
+
 const queryClient = new QueryClient();
 
 function App() {
@@ -88,6 +91,7 @@ function App() {
       path: "/instructor",
       element: <InstructorLayout />,
       children: [
+        { path: "courses/create", element: <CreateCourse /> },
 
       ],
     },

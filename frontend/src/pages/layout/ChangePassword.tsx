@@ -1,20 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Form, Input, Button, message, Card } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-
+import { config } from '../../api/axios';
 const ChangePassword: React.FC = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-
+  const [loading, setLoading] = useState(false);
   const onFinish = async (values: any) => {
     try {
-      // TODO: Implement API call to change password
-      console.log('Form values:', values);
+      setLoading(true);
+      await config.patch('/auth/change-password', {
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      });
+
       message.success('Mật khẩu đã được thay đổi thành công!');
-      navigate('/profile');
-    } catch (error) {
-      message.error('Có lỗi xảy ra khi thay đổi mật khẩu');
+      navigate('/');
+    } catch (error: any) {
+      console.error(error);
+      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi thay đổi mật khẩu');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -86,7 +93,7 @@ const ChangePassword: React.FC = () => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>
+            <Button type="primary" htmlType="submit" block loading={loading}>
               Đổi mật khẩu
             </Button>
           </Form.Item>

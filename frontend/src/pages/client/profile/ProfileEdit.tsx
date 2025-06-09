@@ -1,23 +1,77 @@
+import { use, useEffect, useState } from 'react';
 import { Form, Input, Button, Upload, message, Card, Row, Col } from 'antd';
 import { UserOutlined, MailOutlined, PhoneOutlined, UploadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { config } from '../../../api/axios';
 
 const ProfileEdit = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const [avatarUrl, setAvatarUrl] = useState<string>("");
 
-  const onFinish = (values) => {
-    console.log('Received values of form: ', values);
-    message.success('Cập nhật thông tin thành công!');
-    // Sau khi cập nhật thành công, quay lại trang hồ sơ
-    navigate('/profile');
+  useEffect(() => {
+    config.get('/auth/user-me')
+      .then(res => {
+        const user = res.data.data;
+        console.log("User form", user)
+        form.setFieldsValue({
+          fullName: user.name,
+          email: user.email,
+          phone: user.phone || user.instructorInfo?.phone || "",
+          address: user.address || user.instructorInfo?.address || "",
+        });
+
+        if (user.avatar) {
+          const filename = user.avatar.replace(/^uploads\/avatars\//, ''); // bỏ nếu đã bao gồm path
+          const url = `http://localhost:5000/uploads/avatars/${filename}`;
+          setAvatarUrl(url);
+          form.setFieldValue("avatar", filename); // chỉ lưu filename
+        }
+
+      })
+      .catch(err => {
+        message.error("Không thể tải thông tin người dùng");
+      });
+  }, [form]);
+
+  const handleAvatarUpload = async (file: File) => {
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    try {
+      const res = await config.post('/upload-avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const filename = res.data?.data?.avatar;
+      const fullUrl = `http://localhost:5000/uploads/avatars/${filename}`;
+      setAvatarUrl(fullUrl);
+      form.setFieldValue("avatar", filename);
+      message.success("Tải ảnh lên thành công");
+    } catch (error) {
+      message.error("Lỗi tải ảnh lên");
+    }
+
+    return false;
   };
 
-  const normFile = (e) => {
-    if (Array.isArray(e)) {
-      return e;
+
+  const onFinish = async (values: any) => {
+    console.log("Giá trị", values); // <-- để đảm bảo phone và address không bị undefined
+
+    try {
+      await config.put('/auth/update-me', {
+        name: values.fullName,
+        email: values.email,
+        phone: values.phone,
+        address: values.address,
+        avatar: values.avatar,
+      });
+      message.success('Cập nhật thành công!');
+      navigate('/');
+    } catch (err) {
+      message.error("Lỗi cập nhật thông tin");
     }
-    return e?.fileList;
   };
 
   return (
@@ -28,91 +82,77 @@ const ProfileEdit = () => {
           name="profile-edit"
           onFinish={onFinish}
           layout="vertical"
-          className="space-y-6"
         >
           <Row gutter={24}>
             <Col xs={24} md={12}>
-              <Form.Item
-                name="avatar"
-                label="Ảnh đại diện"
-              >
+              <Form.Item name="avatar" label="Ảnh đại diện">
                 <Upload
-                  name="avatar"
                   listType="picture-card"
-                  className="avatar-uploader"
                   showUploadList={false}
-                  beforeUpload={() => false}
-                  onChange={(info) => {
-                    if (info.file.status === 'done') {
-                      message.success(`${info.file.name} đã được tải lên`);
-                    } else if (info.file.status === 'error') {
-                      message.error(`${info.file.name} tải lên thất bại`);
-                    }
-                  }}
+                  beforeUpload={handleAvatarUpload}
                 >
-                  {form.getFieldValue('avatar') ? (
+                  {avatarUrl ? (
                     <img
-                      src={form.getFieldValue('avatar')}
+                      src={avatarUrl}
                       alt="avatar"
-                      style={{ width: '100%' }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'center',
+                        borderRadius: '8px', // hoặc bỏ dòng này nếu muốn vuông hoàn toàn
+                        backgroundColor: '#f5f5f5',
+                      }}
+                      crossOrigin="anonymous"
                     />
                   ) : (
-                    <div>
-                      <UploadOutlined />
-                      <div className="ant-upload-text">
-                        Tải ảnh lên
-                      </div>
+                    <div
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#999',
+                      }}
+                    >
+                      <UploadOutlined style={{ fontSize: 24 }} />
+                      <div className="ant-upload-text">Tải ảnh lên</div>
                     </div>
                   )}
                 </Upload>
               </Form.Item>
+
+
             </Col>
             <Col xs={24} md={12}>
-              <div className="space-y-4">
-                <Form.Item
-                  name="fullName"
-                  label="Họ và tên"
-                  rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
-                >
-                  <Input prefix={<UserOutlined />} placeholder="Nhập họ và tên" />
-                </Form.Item>
-
-                <Form.Item
-                  name="email"
-                  label="Email"
-                  rules={[{ required: true, message: 'Vui lòng nhập email!' }]}
-                >
-                  <Input prefix={<MailOutlined />} placeholder="Nhập email" />
-                </Form.Item>
-
-                <Form.Item
-                  name="phone"
-                  label="Số điện thoại"
-                >
-                  <Input prefix={<PhoneOutlined />} placeholder="Nhập số điện thoại" />
-                </Form.Item>
-
-                <Form.Item
-                  name="address"
-                  label="Địa chỉ"
-                >
-                  <Input.TextArea placeholder="Nhập địa chỉ" />
-                </Form.Item>
-              </div>
+              <Form.Item
+                name="fullName"
+                label="Họ và tên"
+                rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
+              >
+                <Input prefix={<UserOutlined />} placeholder="Nhập họ và tên" />
+              </Form.Item>
+              <Form.Item
+                name="email"
+                label="Email"
+                rules={[{ required: true, message: 'Vui lòng nhập email!' }]}
+              >
+                <Input prefix={<MailOutlined />} placeholder="Nhập email" />
+              </Form.Item>
+              <Form.Item name="phone" label="Số điện thoại">
+                <Input prefix={<PhoneOutlined />} placeholder="Nhập số điện thoại" />
+              </Form.Item>
+              <Form.Item name="address" label="Địa chỉ">
+                <Input.TextArea placeholder="Nhập địa chỉ" />
+              </Form.Item>
             </Col>
           </Row>
-
           <Row>
             <Col span={24} className="text-right">
-              <Button type="primary" htmlType="submit">
-                Lưu thay đổi
-              </Button>
-              <Button
-                className="ml-4"
-                onClick={() => navigate('/profile')}
-              >
-                Hủy bỏ
-              </Button>
+              <Button type="primary" htmlType="submit">Lưu thay đổi</Button>
+              <Button className="ml-4" onClick={() => navigate('/profile')}>Hủy bỏ</Button>
             </Col>
           </Row>
         </Form>
