@@ -37,6 +37,14 @@ import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModeratio
 import ReportStatistics from "./pages/Moderator/Statistics/ReportStatistics";
 import CourseList from "./pages/instructor/course/CourseList";
 import InstructorLayout from "./pages/layout/InstructorLayout";
+<<<<<<< Updated upstream
+=======
+import Profile from "./pages/client/profile/Profile";
+import ChangePassword from "./pages/layout/ChangePassword";
+import MyCourses from "./pages/instructor/MyCourses";
+import CourseDetail from "./pages/instructor/CourseDetail";
+import QuizManager from "./pages/instructor/QuizManager";
+>>>>>>> Stashed changes
 
 
 const queryClient = new QueryClient();
@@ -87,7 +95,22 @@ function App() {
       path: "/instructor",
       element: <InstructorLayout />,
       children: [
+<<<<<<< Updated upstream
         
+=======
+        {
+          path: "courses",
+          element: <MyCourses />,
+        },
+        {
+          path: "courses/:courseId",
+          element: <CourseDetail />,
+        },
+        {
+          path: "courses/:courseId/chapters/:chapterId/lessons/:lessonId/quiz",
+          element: <QuizManager />,
+        },
+>>>>>>> Stashed changes
       ],
     },
     {
