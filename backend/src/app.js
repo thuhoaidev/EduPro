@@ -12,9 +12,9 @@ const path = require('path');
 require('dotenv').config();
 
 // Import routes
-const authRoutes = require('./routes/auth');
-const roleRoutes = require('./routes/roleRoutes');
-const userManagementRoutes = require('./routes/userManagementRoutes');
+const authRoutes = require('./routes/auth.routes');
+const roleRoutes = require('./routes/role.routes');
+const userManagementRoutes = require('./routes/userManagement.routes');
 const courseRoutes = require('./routes/course.routes');
 const categoryRoutes = require('./routes/category.routes');
 const sectionRoutes = require('./routes/section.routes');
@@ -67,7 +67,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
-// app.use('/api/admin', authRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/admin/users', userManagementRoutes);
 app.use('/api/courses', courseRoutes);

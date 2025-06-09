@@ -15,10 +15,10 @@ const {
   updateMe,
   changePassword,
   registerInstructor,
-} = require('../controllers/authController');
-const { getInstructorProfile, updateOrCreateInstructorProfile,getInstructorApplication } = require('../controllers/instructorprofile');
-const { getApprovedInstructors, approveInstructorProfile, getPendingInstructors  } = require('../controllers/instructorapproval');
-const { getCurrentUser, updateCurrentUser, uploadAvatar } = require('../controllers/userController');
+} = require('../controllers/auth.controller');
+const { getInstructorProfile, updateOrCreateInstructorProfile, getInstructorApplication } = require('../controllers/instructorProfile.controller');
+const { getApprovedInstructors, approveInstructorProfile, getPendingInstructors } = require('../controllers/instructorApproval.controller');
+const { getCurrentUser, updateCurrentUser, uploadAvatar } = require('../controllers/user.controller');
 const upload = require('../middlewares/upload');
 
 // Routes công khai
@@ -34,10 +34,6 @@ router.post('/reset-password/:token', resetPassword);
 router.get('/admin/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), getPendingInstructors);
 router.post('/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), approveInstructorProfile);
 router.get('/admin/instructor-profile/:id?', requireAuth, getInstructorApplication);
-
-
-// Route chỉ cho admin
-// router.get('/admin/users', auth, checkRole(ROLES.ADMIN), userController.getAllUsers);
 
 // Routes yêu cầu xác thực
 router.use(auth); // Middleware xác thực cho tất cả routes bên dưới
@@ -56,15 +52,13 @@ router.get('/instructors-pending', requireAuth, getPendingInstructors);
 router.post('/instructors-approve', requireAuth, approveInstructorProfile);
 
 // Routes hồ sơ cá nhân
-
 router.get('/use-me', auth, requireAuth, getCurrentUser);
 router.put('/update-me', auth, requireAuth, updateCurrentUser);
-router.post('/upload-avatar',auth,requireAuth,upload.single('avatar'),uploadAvatar);
+router.post('/upload-avatar', auth, requireAuth, upload.single('avatar'), uploadAvatar);
 
 router.get('/me/instructor', requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-
     // Kiểm tra thông tin giảng viên
     const isInstructor =
       user.instructorInfo &&

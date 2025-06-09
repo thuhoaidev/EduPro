@@ -5,8 +5,8 @@ require('dotenv').config();
 const app = require('./src/app');
 
 // Import routes
-const authRoutes = require('./src/routes/auth');
-const roleRoutes = require('./src/routes/roleRoutes');
+const authRoutes = require('./src/routes/auth.routes');
+const roleRoutes = require('./src/routes/role.routes');
 
 const PORT = process.env.PORT || 5000;
 

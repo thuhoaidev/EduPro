@@ -8,7 +8,7 @@ const {
   createUser,
   updateUser,
   deleteUser,
-} = require('../controllers/userManagementController');
+} = require('../controllers/userManagement.controller');
 
 // Tất cả các routes đều yêu cầu xác thực và quyền admin
 router.use(auth);

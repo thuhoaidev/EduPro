@@ -31,7 +31,6 @@ import InstructorPendingListPage from "./pages/admin/Instructors/InstructorPendi
 import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfileDetail";
 import ModeratorLayout from "./pages/layout/ModeratorLayout";
 import InstructorLayout from "./pages/layout/InstructorLayout";
-import Profile from "./pages/client/profile/Profile";
 import ChangePassword from "./pages/layout/ChangePassword";
 
 

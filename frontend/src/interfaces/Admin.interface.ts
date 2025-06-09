@@ -124,18 +124,6 @@ export interface Coupon {
   expiresAt: string; // Ngày hết hạn, định dạng YYYY-MM-DD
 }
 
-
-//instructor :  Giáo viênviên
-// export interface InstructorProfile {
-//   id: number;
-//   user_id: number;           // id người dùng liên kết
-//   bio: string;
-//   expertise: string;
-//   rating: number;            
-//   status: 'pending' | 'approved' | 'rejected';
-//   created_at: string;        // ISO date string hoặc Date tùy project
-// }
-
 export interface InstructorEarnings {
   id: number;
   instructor_id: number;     // liên kết tới InstructorProfile.id
