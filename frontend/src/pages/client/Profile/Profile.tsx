@@ -6,6 +6,7 @@ type UserType = {
   phone: string;
   address: string;
   avatar: string;
+  isInstructor: boolean;
   created_at: string;
   followers_count: number;
   following_count: number;
@@ -109,7 +110,7 @@ const Profile = () => {
             <p><b>{user.followers_count}</b> người theo dõi · <b>{user.following_count}</b> đang theo dõi</p>
             <p>Tham gia từ {new Date(user.created_at).toLocaleDateString("vi-VN")}</p>
             <p>
-              {user.instructorInfo?.is_approved ? (
+              {user.isInstructor ? (
                 <span className="text-green-600">✔ Giảng viên được phê duyệt</span>
               ) : user.has_registered_instructor ? (
                 <span className="text-yellow-600">⏳ Đang chờ duyệt giảng viên</span>

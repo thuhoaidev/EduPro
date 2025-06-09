@@ -59,7 +59,6 @@ exports.checkPermission = (requiredPermission) => {
     try {
       // Lấy thông tin role từ user (đã được populate trong auth middleware)
       const userRole = req.user.role_id;
-
       // Nếu là guest, chỉ cho phép các quyền cơ bản
       if (userRole && userRole.name === 'guest') {
         const guestPermissions = [
@@ -101,10 +100,12 @@ exports.checkPermission = (requiredPermission) => {
 // Middleware kiểm tra role
 exports.checkRole = (roles) => {
   return async (req, res, next) => {
+    //  console.log('✅ [checkRole] middleware activated');
     try {
       // Lấy thông tin role từ user (đã được populate trong auth middleware)
       const userRole = req.user.role_id;
-
+// console.log('User role:', req.user.role_id?.name);
+// console.log('Required roles:', roles);
       // Nếu là guest, chỉ cho phép truy cập các route công khai
       if (userRole && userRole.name === 'guest' && !roles.includes('guest')) {
         return res.status(403).json({

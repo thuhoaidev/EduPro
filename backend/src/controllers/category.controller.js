@@ -29,7 +29,6 @@ exports.getCategories = async (req, res, next) => {
     try {
         // Lấy tất cả danh mục mà không populate children vì trường parent đã bị xóa
         const categories = await Category.find();
-
         res.json({
             success: true,
             data: categories

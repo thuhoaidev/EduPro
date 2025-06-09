@@ -66,8 +66,8 @@ app.use('/api/auth', authRoutes);
 // app.use('/api/admin', authRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/admin/users', userManagementRoutes);
-app.use('/api/courses', courseRoutes);
-app.use('/api/categories', categoryRoutes);
+app.use('/api/courses', courseRoutes);  
+app.use('/api/admin/categories', categoryRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

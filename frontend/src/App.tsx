@@ -34,6 +34,8 @@ import InstructorLayout from "./pages/layout/InstructorLayout";
 import Profile from "./pages/client/profile/Profile";
 import ChangePassword from "./pages/layout/ChangePassword";
 
+import CategoryManagement from "./pages/admin/Categories/CategoryManagement";
+
 
 import CreateCourse from "./pages/instructor/course/CourseAdd";
 
@@ -78,6 +80,9 @@ function App() {
         { path: "statistics", element: < AdminStatistics /> },
         { path: "coupons", element: < CouponManagement /> },
         { path: "history", element: < TransactionHistory /> },
+        { path: "categories", element: < CategoryManagement /> },
+
+
       ],
     },
     {

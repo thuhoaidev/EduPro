@@ -20,6 +20,7 @@ import {
 
 const { Header } = Layout;
 
+
 interface User {
   avatar?: string;
   fullName: string;
@@ -31,7 +32,7 @@ const AppHeader = () => {
   const [user, setUser] = useState<User | null | false>(null); // null: chưa load, User: đã đăng nhập, false: chưa đăng nhập
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
+  console.log("user hehe", user)
   const handleLogout = () => {
     // Clear user data from localStorage
     localStorage.removeItem('token');
@@ -48,7 +49,7 @@ const AppHeader = () => {
     const fetchUser = async () => {
       const token = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
-      console.log(storedUser)
+      // console.log(storedUser)
 
       if (storedUser) {
         const userData = JSON.parse(storedUser);

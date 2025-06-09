@@ -154,6 +154,11 @@ const AdminLayout = () => {
           icon: <FileSearchOutlined className="text-lg" />,
           label: renderLabel("Duyệt khóa học & blog"),
         },
+        {
+          key: "/admin/categories",
+          icon: <AppstoreOutlined className="text-lg" />,
+          label: renderLabel("Quản lý danh mục"),
+        },
       ],
     },
     {
@@ -265,7 +270,7 @@ const AdminLayout = () => {
         <Header
           className={styles.header}
         >
-        
+
 
           <Dropdown overlay={profileMenu} trigger={["click"]} placement="bottomRight">
             <div
