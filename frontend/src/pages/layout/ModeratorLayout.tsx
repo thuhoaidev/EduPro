@@ -4,9 +4,6 @@ import {
   CommentOutlined,
   WarningOutlined,
   BarChartOutlined,
-  MenuOutlined,
-  SearchOutlined,
-  FilterOutlined,
   SettingOutlined,
   LogoutOutlined,
   UserOutlined,
@@ -14,23 +11,77 @@ import {
 import {
   Layout,
   Menu,
-  Input,
-  Avatar,
-  Space,
   Dropdown,
   Breadcrumb,
-  Button,
+  message,
 } from "antd";
 import type { MenuProps } from "antd";
-import React, { useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import styles from "../../styles/ModeratorLayout.module.css";
+import { config } from "../../api/axios";
 
 const { Header, Sider, Content } = Layout;
+
+interface User {
+  avatar?: string;
+  fullName: string;
+  email: string;
+  role: string;
+}
 
 const ModeratorLayout = () => {
   const nav = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        // Kiểm tra role moderator
+        if (userData.role !== 'moderator') {
+          message.error('Bạn không có quyền truy cập trang này!');
+          nav('/');
+          return;
+        }
+        setUser(userData);
+        return;
+      }
+
+      if (!token) {
+        message.error('Bạn không có quyền truy cập trang này!');
+        nav('/');
+        return;
+      }
+
+      try {
+        const response = await config.get('/auth/me', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        // Kiểm tra role moderator
+        if (response.data.role !== 'moderator') {
+          message.error('Bạn không có quyền truy cập trang này!');
+          nav('/');
+          return;
+        }
+        setUser(response.data);
+        localStorage.setItem('user', JSON.stringify(response.data));
+      } catch (error) {
+        console.error('Lỗi lấy thông tin user:', error);
+        message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        nav('/login');
+      }
+    };
+
+    fetchUser();
+  }, [nav]);
 
   const breadcrumbItems = location.pathname
     .split("/")
@@ -55,10 +106,10 @@ const ModeratorLayout = () => {
   const renderLabel = (title: string, caption?: string) => {
     if (collapsed) return title;
     return (
-      <div style={{ fontSize: "15px", display: "flex", flexDirection: "column" }}>
+      <div className={styles.menuItemLabel}>
         <span>{title}</span>
         {caption && (
-          <span style={{ fontSize: "11px", color: "#888", marginTop: 2 }}>{caption}</span>
+          <span>{caption}</span>
         )}
       </div>
     );
@@ -67,7 +118,11 @@ const ModeratorLayout = () => {
   const menuItems: MenuProps["items"] = [
     {
       type: "group",
-      label: collapsed ? null : "Kiểm duyệt nội dung",
+      label: collapsed ? null : (
+        <div className={styles.menuItemGroupTitle}>
+          Kiểm duyệt nội dung
+        </div>
+      ),
       children: [
         {
           key: "/moderator/blogs",
@@ -88,7 +143,11 @@ const ModeratorLayout = () => {
     },
     {
       type: "group",
-      label: collapsed ? null : "Thống kê",
+      label: collapsed ? null : (
+        <div className={styles.menuItemGroupTitle}>
+          Thống kê
+        </div>
+      ),
       children: [
         {
           key: "/moderator/statistics",
@@ -104,19 +163,16 @@ const ModeratorLayout = () => {
       <Menu.ItemGroup
         title={
           <div style={{ padding: "8px 12px" }}>
-            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, Người kiểm duyệt</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: Moderator</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>moderator@ftech.edu.vn</p>
+            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullName}</p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: Quản trị viên</p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>{user?.email}</p>
           </div>
         }
       >
       </Menu.ItemGroup>
       <Menu.Divider />
-      <Menu.Item key="profile" icon={<UserOutlined />}>
-        Trang cá nhân
-      </Menu.Item>
-      <Menu.Item key="logout" icon={<LogoutOutlined />}>
-        Đăng xuất
+      <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => nav('/')}>
+        Trang người dùng
       </Menu.Item>
     </Menu>
   );
@@ -127,21 +183,19 @@ const ModeratorLayout = () => {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        width={240}
+        width={280}
         collapsedWidth={80}
-        style={{
-          background: "#fff",
-          height: "100vh",
-          position: "fixed",
-          left: 0,
-          borderRight: "1px solid #eee",
-        }}
+        className={styles.sider}
       >
+        <div className={styles.logo}>
+          {collapsed ? "MP" : "Moderator Panel"}
+        </div>
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
           onClick={({ key }) => nav(key)}
           items={menuItems}
+          className={styles.customModeratorMenu}
           style={{
             height: "100%",
             borderRight: 0,
@@ -151,58 +205,24 @@ const ModeratorLayout = () => {
         />
       </Sider>
 
-      <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: "margin-left 0.2s" }}>
+      <Layout style={{ marginLeft: collapsed ? 80 : 280, transition: "margin-left 0.2s" }}>
         <Header
-          style={{
-            background: "#fff",
-            padding: "0 24px",
-            borderBottom: "1px solid #eee",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            height: 64,
-          }}
+          className={styles.header}
         >
-          <Space size="middle">
-            <Avatar size={40} src="https://i.imgur.com/xsKJ4Eh.png" />
-            {!collapsed && (
-              <span style={{ fontSize: 20, fontWeight: 600 }}>FTECH Moderator</span>
-            )}
-            <Button
-              type="text"
-              icon={<MenuOutlined style={{ fontSize: 20, color: "#444" }} />}
-              onClick={() => setCollapsed(!collapsed)}
-            />
-          </Space>
-
           <Dropdown overlay={profileMenu} trigger={["click"]} placement="bottomRight">
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                background: "#f5f7fa",
-                padding: "4px 12px",
-                borderRadius: "999px",
-                gap: 10,
-                cursor: "pointer",
-              }}
+              className={styles.profileDropdown}
             >
-              <Avatar size={36} src="https://i.imgur.com/xsKJ4Eh.png" />
-              <SettingOutlined style={{ fontSize: 20, color: "#1890ff" }} />
+              {/* <Avatar size={36} src="https://i.imgur.com/xsKJ4Eh.png" /> */}
+              <SettingOutlined className={styles.profileSettingIcon} />
             </div>
           </Dropdown>
         </Header>
 
         <Content
-          style={{
-            margin: 20,
-            padding: 20,
-            background: "#fff",
-            borderRadius: 8,
-            minHeight: "calc(100vh - 64px - 40px)",
-          }}
+          className={styles.contentArea}
         >
-          <Breadcrumb items={finalBreadcrumbItems} style={{ marginBottom: 20 }} />
+          <Breadcrumb items={finalBreadcrumbItems} className={styles.breadcrumb} />
           <Outlet />
         </Content>
       </Layout>

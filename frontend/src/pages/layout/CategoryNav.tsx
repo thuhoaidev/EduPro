@@ -1,8 +1,25 @@
 import React from 'react';
 import { Menu, Layout } from 'antd';
-import { HomeOutlined, BookOutlined, FacebookOutlined } from '@ant-design/icons';
+import { 
+  HomeOutlined,
+  LaptopOutlined,
+  PieChartOutlined,
+  BarChartOutlined,
+  BankOutlined,
+  GlobalOutlined,
+  BookOutlined 
+} from '@ant-design/icons';
 
 const { Sider } = Layout;
+
+const categories = [
+  { name: 'Trang chủ', icon: <HomeOutlined /> },
+  { name: 'Công nghệ thông tin', icon: <LaptopOutlined /> },
+  { name: 'Thiết kế đồ họa', icon: <PieChartOutlined /> },
+  { name: 'Marketing', icon: <BarChartOutlined /> },
+  { name: 'Quản trị kinh doanh', icon: <BankOutlined /> },
+  { name: 'Ngoại ngữ', icon: <GlobalOutlined /> }
+];
 
 const AppSidebar = () => {
   return (
@@ -12,15 +29,12 @@ const AppSidebar = () => {
         defaultSelectedKeys={['1']}
         style={{ height: '100%', borderRight: 0 }}
       >
-        <Menu.Item key="1" icon={<HomeOutlined />}>
-          Home
-        </Menu.Item>
-        <Menu.Item key="2" icon={<BookOutlined />}>
-          Courses
-        </Menu.Item>
-        <Menu.Item key="3" icon={<FacebookOutlined />}>
-          Facebook
-        </Menu.Item>
+        {/* Danh mục khóa học */}
+        {categories.map((category, index) => (
+          <Menu.Item key={index + 1}>
+            {category.icon} {category.name}
+          </Menu.Item>
+        ))}
       </Menu>
     </Sider>
   );

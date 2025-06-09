@@ -17,6 +17,10 @@ const roleRoutes = require('./routes/roleRoutes');
 const userManagementRoutes = require('./routes/userManagementRoutes');
 const courseRoutes = require('./routes/course.routes');
 const categoryRoutes = require('./routes/category.routes');
+const sectionRoutes = require('./routes/section.routes');
+const lessonRoutes = require('./routes/lesson.routes');
+const videoRoutes = require('./routes/video.routes');
+const quizRoutes = require('./routes/quiz.routes');
 
 // Khởi tạo app
 const app = express();
@@ -67,7 +71,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/admin/users', userManagementRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/sections', sectionRoutes);
+app.use('/api/lessons', lessonRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/videos', videoRoutes);
+app.use('/api/quizzes', quizRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

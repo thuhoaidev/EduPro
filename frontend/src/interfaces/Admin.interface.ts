@@ -17,8 +17,32 @@ export const UserStatus = {
 
 export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus];
 
+// API User interface (matches backend response)
+export interface ApiUser {
+  _id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role_id: {
+    _id: string;
+    name: UserRole;
+  };
+  status: UserStatus;
+  created_at: string;
+  updated_at?: string;
+  phone?: string;
+  address?: string;
+  dob?: string;
+  gender?: string;
+  approval_status?: 'approved' | 'pending' | 'rejected';
+  email_verified?: boolean;
+  description?: string;
+  coursesCount?: number;
+}
+
+// Frontend User interface (used in components)
 export interface User {
-  id: number;
+  id: string;
   fullName: string;
   email: string;
   avatar: string;
@@ -28,8 +52,12 @@ export interface User {
   updatedAt?: string;
   phone?: string;
   address?: string;
-  description?: string; // mô tả nếu là giảng viên
+  description?: string;
   coursesCount?: number;
+  gender?: string;
+  dob?: string;
+  approval_status?: 'approved' | 'pending' | 'rejected';
+  email_verified?: boolean;
 }
 
 export interface UserQueryParams {
@@ -203,4 +231,21 @@ export interface Notification {
   createdAt: string; // ISO date string
   userId?: number; // Nếu notification liên quan user cụ thể
   notifyTime?: string;
+}
+
+// API Response interfaces
+export interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
+
+export interface PaginatedResponse {
+  users: ApiUser[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }

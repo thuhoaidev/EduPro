@@ -137,67 +137,68 @@ const CourseList: React.FC = () => {
   return (
     <div className="p-6">
       {/* Header Section */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Quản lý Khóa học</h2>
-          <p className="text-gray-500 mt-1">Tạo và quản lý các khóa học của bạn</p>
+          <h2 className="text-3xl font-bold text-gray-800">Quản lý Khóa học</h2>
+          <p className="text-gray-500 mt-2">Tạo và quản lý các khóa học của bạn trên EduPro</p>
         </div>
         <Button 
           type="primary" 
           icon={<PlusOutlined />}
           onClick={() => navigate('/instructor/courses/add')}
           size="large"
+          className="bg-[#1a73e8] hover:bg-[#1557b0]"
         >
           Tạo khóa học mới
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <Row gutter={[16, 16]} className="mb-6">
+      <Row gutter={[24, 24]} className="mb-8">
         <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
+          <Card className="shadow-sm hover:shadow-md transition-all border-none">
             <Statistic
               title="Tổng số khóa học"
               value={stats.totalCourses}
-              prefix={<BookOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              prefix={<BookOutlined className="text-[#1a73e8]" />}
+              valueStyle={{ color: '#1a73e8' }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
+          <Card className="shadow-sm hover:shadow-md transition-all border-none">
             <Statistic
               title="Khóa học miễn phí"
               value={stats.freeCourses}
-              prefix={<BookOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              prefix={<BookOutlined className="text-[#34a853]" />}
+              valueStyle={{ color: '#34a853' }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
+          <Card className="shadow-sm hover:shadow-md transition-all border-none">
             <Statistic
               title="Khóa học tính phí"
               value={stats.paidCourses}
-              prefix={<DollarOutlined />}
-              valueStyle={{ color: '#faad14' }}
+              prefix={<DollarOutlined className="text-[#fbbc05]" />}
+              valueStyle={{ color: '#fbbc05' }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
+          <Card className="shadow-sm hover:shadow-md transition-all border-none">
             <Statistic
               title="Tổng học viên"
               value={stats.totalStudents}
-              prefix={<UserOutlined />}
-              valueStyle={{ color: '#eb2f96' }}
+              prefix={<UserOutlined className="text-[#ea4335]" />}
+              valueStyle={{ color: '#ea4335' }}
             />
           </Card>
         </Col>
       </Row>
 
       {/* Search and Filter Card */}
-      <Card className="shadow-sm mb-6">
+      <Card className="shadow-sm mb-8 border-none">
         <Space className="w-full flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Search
             placeholder="Tìm kiếm khóa học..."
@@ -222,17 +223,17 @@ const CourseList: React.FC = () => {
       </Card>
 
       {/* Course List Card */}
-      <Card className="shadow-sm">
+      <Card className="shadow-sm border-none">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {paginatedCourses.map((course) => (
             <Badge.Ribbon
               key={course.id}
               text={course.isNew ? "Mới" : ""}
-              color="red"
+              color="#1a73e8"
             >
               <Card
                 hoverable
-                className="h-full transition-all duration-300 hover:shadow-lg"
+                className="h-full transition-all duration-300 hover:shadow-lg border-none"
                 cover={
                   <div className="relative">
                     <img
@@ -240,7 +241,7 @@ const CourseList: React.FC = () => {
                       src={course.thumbnail}
                       className="h-[200px] w-full object-cover rounded-t-lg"
                     />
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-center py-1.5">
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-center py-2">
                       <span className="text-sm font-medium">{course.category}</span>
                     </div>
                   </div>
@@ -249,14 +250,14 @@ const CourseList: React.FC = () => {
                   <Tooltip title="Xem chi tiết" key="view">
                     <Button 
                       type="text" 
-                      icon={<EyeOutlined />} 
+                      icon={<EyeOutlined className="text-[#1a73e8]" />} 
                       onClick={() => navigate(`/instructor/courses/${course.id}`)}
                     />
                   </Tooltip>,
                   <Tooltip title="Chỉnh sửa" key="edit">
                     <Button 
                       type="text" 
-                      icon={<EditOutlined />} 
+                      icon={<EditOutlined className="text-[#34a853]" />} 
                       onClick={() => navigate(`/instructor/courses/${course.id}/edit`)}
                     />
                   </Tooltip>,
@@ -297,7 +298,7 @@ const CourseList: React.FC = () => {
         </div>
 
         {/* Pagination */}
-        <div className="mt-6 text-center">
+        <div className="mt-8 text-center">
           <Pagination
             current={currentPage}
             pageSize={PAGE_SIZE}
@@ -305,6 +306,7 @@ const CourseList: React.FC = () => {
             onChange={(page) => setCurrentPage(page)}
             showSizeChanger={false}
             showTotal={(total) => `Tổng số ${total} khóa học`}
+            className="custom-pagination"
           />
         </div>
       </Card>
@@ -329,6 +331,13 @@ const CourseList: React.FC = () => {
           }
           .ant-card-actions .ant-btn:hover {
             background: #f0f0f0;
+          }
+          .custom-pagination .ant-pagination-item-active {
+            background-color: #1a73e8;
+            border-color: #1a73e8;
+          }
+          .custom-pagination .ant-pagination-item-active a {
+            color: white;
           }
         `}
       </style>

@@ -3,7 +3,8 @@ import "antd/dist/reset.css";
 import Homepage from "./pages/Homepage";
 import AdminLayout from "./pages/layout/AdminLayout";
 import ClientLayout from "./pages/layout/ClientLayout";
-import AuthLayout from "./pages/layout/AuthLayout";
+import ProfileLayout from "./pages/layout/ProfileLayout";
+import ProfileEdit from "./pages/client/profile/ProfileEdit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CouponManagement from "./pages/admin/Vouchers/VouchersPage";
 import TransactionHistory from "./pages/admin/Transaction/TransactionHistory";
@@ -23,28 +24,15 @@ import ForgotPassword from "./pages/client/auth/forgotPassword";
 import ResetPassword from "./pages/client/auth/resetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
-import UserProfile from "./pages/client/UserProfile/UserProfile";
-import InstructorProfile from "./pages/client/InstructorProfile/InstructorProfile";
 
 import InstructorRegistrationPage from "./pages/client/auth/instructorRegistrationPage";
 import CourseManagement from "./pages/admin/section-lesson/CourseManagement";
 import InstructorPendingListPage from "./pages/admin/Instructors/InstructorPendingList";
 import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfileDetail";
-import PersonalInfoPage from "./pages/layout/PersonalInformation";
 import ModeratorLayout from "./pages/layout/ModeratorLayout";
-import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
-import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
-import ReportStatistics from "./pages/Moderator/Statistics/ReportStatistics";
-import CourseList from "./pages/instructor/course/CourseList";
 import InstructorLayout from "./pages/layout/InstructorLayout";
-<<<<<<< Updated upstream
-=======
 import Profile from "./pages/client/profile/Profile";
 import ChangePassword from "./pages/layout/ChangePassword";
-import MyCourses from "./pages/instructor/MyCourses";
-import CourseDetail from "./pages/instructor/CourseDetail";
-import QuizManager from "./pages/instructor/QuizManager";
->>>>>>> Stashed changes
 
 
 const queryClient = new QueryClient();
@@ -58,22 +46,27 @@ function App() {
         { index: true, element: <Homepage /> },
         { path: 'verify-email/:token', element: <VerifyEmail /> },
         { path: 'instructor/earnings', element: <Earnings /> },
-        { path: 'user/profile', element: <UserProfile /> },
-        { path: 'instructor/profile', element: <InstructorProfile /> },
-        { path: 'client/PersonalInfoPage', element: <PersonalInfoPage /> },
       ]
     },
-
+    {
+      path: "/profile",
+      element: <ProfileLayout />,
+      children: [
+        { path: "", element: <Profile /> },
+        { path: 'edit', element: <ProfileEdit /> },
+        { path: 'change-password', element: <ChangePassword /> },
+      ]
+    },
     {
       path: "/admin",
       element: <AdminLayout />,
       children: [
+        { path: "users", element: < UserPage /> }, // Quản lý người dùng
+        { path: "users/:id", element: < UserDetail /> }, // Chi tiết người dùng
         { path: "instructor-approval", element: <InstructorPendingListPage /> },
         { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },
-        { path: "sectionLesson/CourseManagement", element: < CourseManagement /> },
-        { path: "users", element: < UserPage /> },
-        { path: "users/:id", element: < UserDetail /> },
         { path: "instructors", element: < InstructorList /> },
+        { path: "sectionLesson/CourseManagement", element: < CourseManagement /> },
         { path: "users/instructor/:id", element: < InstructorDetail /> },
         { path: "content-approval", element: < ContentApprovalPage /> },
         { path: "reports", element: < ReportsPage /> },
@@ -88,42 +81,21 @@ function App() {
       path: "/moderator",
       element: <ModeratorLayout />,
       children: [
-        
+
       ],
     },
     {
       path: "/instructor",
       element: <InstructorLayout />,
       children: [
-<<<<<<< Updated upstream
-        
-=======
-        {
-          path: "courses",
-          element: <MyCourses />,
-        },
-        {
-          path: "courses/:courseId",
-          element: <CourseDetail />,
-        },
-        {
-          path: "courses/:courseId/chapters/:chapterId/lessons/:lessonId/quiz",
-          element: <QuizManager />,
-        },
->>>>>>> Stashed changes
+
       ],
     },
-    {
-      element: <AuthLayout />,
-      children: [
-        { path: '/login', element: <LoginPage /> },
-        { path: '/register', element: <RegisterPage /> },
-        { path: '/forgot-password', element: <ForgotPassword /> },
-        { path: '/reset-password/:token', element: < ResetPassword /> },
-        { path: '/register/instructor', element: < InstructorRegistrationPage /> }
-      ]
-    }
-
+    { path: '/login', element: <LoginPage /> },
+    { path: '/register', element: <RegisterPage /> },
+    { path: '/forgot-password', element: <ForgotPassword /> },
+    { path: '/reset-password/:token', element: < ResetPassword /> },
+    { path: '/register/instructor', element: < InstructorRegistrationPage /> }
   ];
 
   const element = useRoutes(routes);

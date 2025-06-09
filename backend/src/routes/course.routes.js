@@ -13,4 +13,7 @@ router.get('/', courseController.getCourses);
 router.get('/:id', courseController.getCourseById);
 router.get('/slug/:slug', courseController.getCourseBySlug);
 
+// Lấy danh sách chương học và bài học theo khóa học
+router.get('/:course_id/sections', courseController.getCourseSectionsAndLessons);
+
 module.exports = router; 

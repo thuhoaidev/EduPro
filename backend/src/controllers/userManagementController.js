@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const Role = require('../models/Role');
+const { Role } = require('../models/Role');
 
 // Lấy danh sách người dùng (có phân trang và tìm kiếm)
 exports.getAllUsers = async (req, res) => {
@@ -89,7 +89,18 @@ exports.getUserById = async (req, res) => {
 // Tạo người dùng mới
 exports.createUser = async (req, res) => {
   try {
-    const { email, password, name, role_id, status = 'active' } = req.body;
+    const { 
+      email, 
+      password, 
+      name, 
+      role_id, 
+      status = 'active',
+      phone,
+      address,
+      dob,
+      gender,
+      approval_status = 'approved'
+    } = req.body;
 
     // Kiểm tra email đã tồn tại
     const existingUser = await User.findOne({ email });
@@ -101,7 +112,7 @@ exports.createUser = async (req, res) => {
     }
 
     // Kiểm tra role_id hợp lệ
-    const role = await Role.findById(role_id);
+    const role = await Role.findOne({ _id: role_id });
     if (!role) {
       return res.status(400).json({
         success: false,
@@ -116,6 +127,11 @@ exports.createUser = async (req, res) => {
       name,
       role_id,
       status,
+      phone,
+      address,
+      dob,
+      gender,
+      approval_status,
       email_verified: true // Admin tạo user nên mặc định đã xác thực email
     });
 
@@ -140,7 +156,18 @@ exports.createUser = async (req, res) => {
 // Cập nhật thông tin người dùng
 exports.updateUser = async (req, res) => {
   try {
-    const { name, role_id, status, email_verified } = req.body;
+    const { 
+      name, 
+      role_id, 
+      status,
+      email_verified,
+      phone,
+      address,
+      dob,
+      gender,
+      email,
+      approval_status
+    } = req.body;
     const userId = req.params.id;
 
     // Kiểm tra user tồn tại
@@ -152,8 +179,19 @@ exports.updateUser = async (req, res) => {
       });
     }
 
+    // Kiểm tra email duy nhất (nếu email được cập nhật)
+    if (email !== undefined && email !== user.email) {
+      const existingUserWithEmail = await User.findOne({ email });
+      if (existingUserWithEmail && existingUserWithEmail._id.toString() !== userId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email đã được sử dụng bởi người dùng khác'
+        });
+      }
+    }
+
     // Kiểm tra role_id nếu cập nhật
-    if (role_id) {
+    if (role_id !== undefined && role_id !== user.role_id) {
       const role = await Role.findById(role_id);
       if (!role) {
         return res.status(400).json({
@@ -165,17 +203,31 @@ exports.updateUser = async (req, res) => {
 
     // Cập nhật thông tin
     const updateData = {
-      name: name || user.name,
-      role_id: role_id || user.role_id,
-      status: status || user.status,
-      email_verified: email_verified !== undefined ? email_verified : user.email_verified
+      name: name !== undefined ? name : user.name,
+      role_id: role_id !== undefined ? role_id : user.role_id,
+      status: status !== undefined ? status : user.status,
+      email_verified: email_verified !== undefined ? email_verified : user.email_verified,
+      phone: phone !== undefined ? phone : user.phone,
+      address: address !== undefined ? address : user.address,
+      dob: dob !== undefined ? dob : user.dob,
+      gender: gender !== undefined ? gender : user.gender,
+      email: email !== undefined ? email : user.email,
+      approval_status: approval_status !== undefined ? approval_status : user.approval_status,
     };
 
+    // Sử dụng findByIdAndUpdate với session nếu cần transaction, ở đây dùng đơn giản
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       updateData,
       { new: true, runValidators: true }
     ).populate('role_id');
+
+    if (!updatedUser) {
+       return res.status(404).json({
+         success: false,
+         message: 'Không tìm thấy người dùng sau khi cập nhật'
+       });
+    }
 
     res.status(200).json({
       success: true,
@@ -183,10 +235,26 @@ exports.updateUser = async (req, res) => {
       data: updatedUser.toJSON()
     });
   } catch (error) {
-    console.error('Lỗi cập nhật người dùng:', error);
+    console.error('Lỗi chi tiết khi cập nhật người dùng:', error);
+    // Kiểm tra nếu là lỗi xác thực Mongoose
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Lỗi xác thực dữ liệu',
+        errors: messages
+      });
+    }
+     if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: `Lỗi chuyển đổi kiểu dữ liệu cho trường ${error.path}: ${error.message}`,
+        error: error.message
+      });
+    }
     res.status(500).json({
       success: false,
-      message: 'Lỗi cập nhật người dùng',
+      message: 'Lỗi máy chủ nội bộ khi cập nhật người dùng',
       error: error.message
     });
   }
