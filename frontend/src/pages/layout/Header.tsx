@@ -19,14 +19,25 @@ import {
 
 const { Header } = Layout;
 
+interface Role {
+  name: string;
+  description: string;
+  permissions: string[];
+}
+
 interface User {
   avatar?: string;
-  fullName: string;
+  fullname: string;
   email: string;
-  role: string;
+  role: Role;
+  nickname?: string;
 }
 
 const AppHeader = () => {
+  const getRoleName = (role: Role): string => {
+    return role.name;
+  };
+
   const [user, setUser] = useState<User | null | false>(null); // null: chưa load, User: đã đăng nhập, false: chưa đăng nhập
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -41,6 +52,14 @@ const AppHeader = () => {
     message.success('Đăng xuất thành công!');
     // Redirect to home page
     navigate('/');
+  };
+
+  const handleMenuClick = (path: string) => {
+    if (path === '/admin/users') {
+      navigate('/admin');
+    } else {
+      navigate(path);
+    }
   };
 
   useEffect(() => {
@@ -81,10 +100,6 @@ const AppHeader = () => {
     fetchUser();
   }, [navigate]);
 
-  const handleMenuClick = (path: string) => {
-    navigate(path);
-  };
-
   // Menu khi đã đăng nhập
   const userDropdown = user && (
     <div style={{
@@ -96,7 +111,12 @@ const AppHeader = () => {
       color: '#000',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #f0f0f0' }}>
-        <Avatar src={user.avatar} size={48} style={{ flexShrink: 0 }} />
+        <Avatar 
+          src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : undefined} 
+          size={48} 
+          style={{ flexShrink: 0 }} 
+          icon={<UserOutlined />} 
+        />
         <div style={{ marginLeft: 12, flex: 1, minWidth: 0 }}>
           <div style={{
             fontWeight: 600,
@@ -104,26 +124,23 @@ const AppHeader = () => {
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            cursor: 'pointer',
             fontSize: '16px',
             marginBottom: 4
           }} onClick={() => navigate('/profile')}>
-            {user.fullName}
+            {user.fullname}
           </div>
           <div style={{
             fontSize: 13,
             color: '#666',
             whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
             cursor: 'pointer'
           }} onClick={() => navigate('/profile')}>
-            @{user.email}
+            {getRoleName(user.role) === 'user' ? user.email : user.nickname || user.email}
           </div>
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {user.role === 'user' ? (
+        {getRoleName(user.role) === 'user' ? (
           <>
             <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{ 
               color: '#000',
@@ -152,7 +169,7 @@ const AppHeader = () => {
           </>
         ) : (
           <>
-            {user.role === 'admin' && (
+            {getRoleName(user.role) === 'admin' && (
               <a onClick={() => handleMenuClick('/admin/users')} className="menu-item" style={{ 
                 color: '#000',
                 display: 'flex',
@@ -165,7 +182,7 @@ const AppHeader = () => {
                 Trang quản trị
               </a>
             )}
-            {user.role === 'instructor' && (
+            {getRoleName(user.role) === 'instructor' && (
               <a onClick={() => handleMenuClick('/instructor')} className="menu-item" style={{ 
                 color: '#000',
                 display: 'flex',
@@ -178,7 +195,7 @@ const AppHeader = () => {
                 Trang giảng viên
               </a>
             )}
-            {user.role === 'moderator' && (
+            {getRoleName(user.role) === 'moderator' && (
               <a onClick={() => handleMenuClick('/moderator')} className="menu-item" style={{ 
                 color: '#000',
                 display: 'flex',
@@ -313,7 +330,12 @@ const AppHeader = () => {
               arrow
             >
               <Badge dot offset={[-2, 2]} size="small">
-                <Avatar src={user.avatar} style={{ cursor: 'pointer' }} />
+                <Avatar 
+                  src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : undefined} 
+                  size={32} 
+                  style={{ backgroundColor: '#f5f5f5' }} 
+                  icon={<UserOutlined />} 
+                />
               </Badge>
             </Dropdown>
           ) : (

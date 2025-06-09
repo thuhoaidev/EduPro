@@ -70,7 +70,7 @@ const ProfileEdit = () => {
             <Col xs={24} md={12}>
               <div className="space-y-4">
                 <Form.Item
-                  name="fullName"
+                  name="fullname"
                   label="Họ và tên"
                   rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
                 >

@@ -1,210 +1,92 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const UserSchema = require('./UserSchema');
 const slugify = require('slugify');
 
-const userSchema = new mongoose.Schema({
-  role_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Role',
-    required: [true, 'Vai trò là bắt buộc'],
-  },
-  full_name: {
-    type: String,
-    required: [true, 'Họ tên là bắt buộc'],
-    trim: true,
-  },
-  slug: {
-    type: String,
-    unique: true,
-    lowercase: true,
-    index: true
-  },
-  gender: {
-    type: String,
-    required: true,
-    enum: ['Nam', 'Nữ', 'Khác'],
-    default: 'Khác',
-  },
-  nickname: {
-    type: String,
-    trim: true,
-  },
-  email: {
-    type: String,
-    required: [true, 'Email là bắt buộc'],
-    unique: true,
-    lowercase: true,
-    trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Email không hợp lệ'],
-  },
-  password: {
-    type: String,
-    required: [true, 'Mật khẩu là bắt buộc'],
-    minlength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
-    select: false,
-  },
-  isInstructor: {
-    type: Boolean,
-    default: false
-  },
-  has_registered_instructor: {
-    type: Boolean,
-    default: false,
-  },
-  instructorInfo: {
-    bio: {
-      type: String,
-      default: '',
-    },
-    phone: {
-      type: String,
-      default: '',
-      match: [/^(0|\+84)[0-9]{9,10}$/, 'Số điện thoại không hợp lệ'],
-    },
-    education: [
-      {
-        degree: { type: String, required: true },
-        field: { type: String, default: '' },
-        institution: { type: String, required: true },
-        year: { type: Number, required: true },
-        description: { type: String, default: '' },
-      }
-    ],
-    experience: [
-      {
-        position: { type: String, required: true },
-        company: { type: String, required: true },
-        startDate: { type: Date, required: true },
-        endDate: { type: Date, required: false },
-        description: { type: String, default: '' },
-      }
-    ],
-    is_approved: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  avatar: {
-    type: String,
-    default: 'default-avatar.jpg',
-  },
-  bio: {
-    type: String,
-    default: '',
-  },
-  social_links: {
-    type: Map,
-    of: String,
-    default: {},
-  },
-  followers_count: {
-    type: Number,
-    default: 0,
-  },
-  following_count: {
-    type: Number,
-    default: 0,
-  },
-  status: {
-    type: String,
-    enum: ['active', 'inactive', 'banned'],
-    default: 'active',
-  },
-  approval_status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending',
-  },
-  email_verified: {
-    type: Boolean,
-    default: false,
-  },
-  email_verification_token: String,
-  email_verification_expires: Date,
-  reset_password_token: String,
-  reset_password_expires: Date,
-  last_login: Date,
-}, {
-  timestamps: {
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
-  },
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true },
-});
-
 // Virtual populate cho các khóa học của giảng viên
-userSchema.virtual('courses', {
+UserSchema.virtual('courses', {
   ref: 'Course',
   localField: '_id',
   foreignField: 'instructor_id',
 });
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+// Pre-save hook để xử lý password và slug
+UserSchema.pre('save', async function(next) {
   try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    // Xử lý password
+    if (this.isModified('password')) {
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(this.password, salt);
+    }
+
+    // Xử lý slug từ nickname
+    if (this.isModified('nickname')) {
+      // Chuẩn hóa nickname để tạo slug
+      const normalizedNickname = this.nickname.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      this.slug = normalizedNickname;
+
+      // Kiểm tra xem slug đã tồn tại chưa
+      const existingUser = await mongoose.model('User').findOne({ slug: this.slug });
+      if (existingUser && existingUser._id.toString() !== this._id.toString()) {
+        // Nếu slug đã tồn tại, thêm số vào cuối
+        let counter = 1;
+        let newSlug = `${this.slug}-${counter}`;
+        while (await mongoose.model('User').findOne({ slug: newSlug })) {
+          counter++;
+          newSlug = `${this.slug}-${counter}`;
+        }
+        this.slug = newSlug;
+      }
+    }
     next();
   } catch (error) {
     next(error);
   }
 });
 
-userSchema.pre('save', async function(next) {
-  if (this.isModified('full_name')) {
-    const asciiName = this.full_name.normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[đĐ]/g, 'd');
-    
-    this.slug = slugify(asciiName, {
-      lower: true,
-      strict: true,
-      locale: 'en'
-    });
-  }
-  next();
-});
-
-userSchema.methods.matchPassword = async function (enteredPassword) {
+// Method để match password
+UserSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-userSchema.methods.createEmailVerificationToken = function () {
-  const token = crypto.randomBytes(32).toString('hex');
-  this.email_verification_token = crypto
+// Method để tạo token xác thực email
+UserSchema.methods.createEmailVerificationToken = function() {
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  this.emailVerificationToken = crypto
     .createHash('sha256')
-    .update(token)
+    .update(verificationToken)
     .digest('hex');
-  this.email_verification_expires = Date.now() + 24 * 60 * 60 * 1000;
-  return token;
+  this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  return verificationToken;
 };
 
-userSchema.methods.createPasswordResetToken = function () {
-  const token = crypto.randomBytes(32).toString('hex');
-  this.reset_password_token = crypto
+// Method để tạo token reset mật khẩu
+UserSchema.methods.createPasswordResetToken = function() {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  this.resetPasswordToken = crypto
     .createHash('sha256')
-    .update(token)
+    .update(resetToken)
     .digest('hex');
-  this.reset_password_expires = Date.now() + 1 * 60 * 60 * 1000;
-  return token;
+  this.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  return resetToken;
 };
 
-userSchema.methods.hasPermission = async function (permission) {
-  await this.populate('role_id');
-  return this.role_id.permissions.includes(permission) || false;
+// Method để kiểm tra quyền
+UserSchema.methods.hasPermission = function(permission) {
+  return this.role.permissions.includes(permission);
 };
 
-userSchema.methods.toJSON = function () {
-  const user = this.toObject();
-  delete user.password;
-  delete user.email_verification_token;
-  delete user.email_verification_expires;
-  delete user.reset_password_token;
-  delete user.reset_password_expires;
-  return user;
+// Method để format dữ liệu khi trả về client
+UserSchema.methods.toJSON = function() {
+  const userObject = this.toObject();
+  // Xóa các trường nhạy cảm
+  delete userObject.password;
+  delete userObject.emailVerificationToken;
+  delete userObject.emailVerificationExpires;
+  delete userObject.resetPasswordToken;
+  delete userObject.resetPasswordExpires;
+  return userObject;
 };
 
-const User = mongoose.model('User', userSchema);
-module.exports = User;
+module.exports = mongoose.model('User', UserSchema);

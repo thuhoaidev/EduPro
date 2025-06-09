@@ -3,7 +3,7 @@ const router = express.Router();
 const { ROLES } = require('../models/Role');
 const User = require('../models/User');
 
-const { auth, checkRole, checkPermission, requireAuth, requireVerifiedEmail } = require('../middlewares/auth');
+const { auth, checkRole, checkPermission, requireVerifiedEmail, requireAuth } = require('../middlewares/auth');
 const {
   register,
   login,
@@ -21,22 +21,27 @@ const { getApprovedInstructors, approveInstructorProfile, getPendingInstructors 
 const { getCurrentUser, updateCurrentUser, uploadAvatar } = require('../controllers/user.controller');
 const upload = require('../middlewares/upload');
 
-// Routes công khai
 router.post('/register', register);
 router.post('/login', login);
-router.get('/verify-email/:token', verifyEmail);
+router.post('/logout', (req, res) => {
+  res.clearCookie('token');
+  res.status(200).json({
+    success: true,
+    message: 'Đăng xuất thành công'
+  });
+});
+router.get('/verify-email/:slug/:token', verifyEmail); // Không sử dụng middleware auth vì route này không cần xác thực
 router.post('/resend-verification', resendVerificationEmail);
 router.post('/forgot-password', forgotPassword);
-router.post('/reset-password/:token', resetPassword);
+router.post('/reset-password/:resetToken', resetPassword);
 
 // Routes hồ sơ giảng viên
-// router.put('/instructor-profile', auth, requireAuth, updateOrCreateInstructorProfile);
 router.get('/admin/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), getPendingInstructors);
 router.post('/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), approveInstructorProfile);
-router.get('/admin/instructor-profile/:id?', requireAuth, getInstructorApplication);
+router.get('/admin/instructor-profile/:id?', auth, requireAuth, getInstructorApplication);
 
 // Routes yêu cầu xác thực
-router.use(auth); // Middleware xác thực cho tất cả routes bên dưới
+router.use(auth); 
 router.post('/register/instructor', registerInstructor);
 
 // Routes cho tất cả user đã đăng nhập
@@ -45,7 +50,6 @@ router.patch('/me', requireAuth, updateMe);
 router.patch('/change-password', requireAuth, changePassword);
 
 // Routes hồ sơ giảng viên
-// router.get('/instructor-profile/:id?', requireAuth, getInstructorProfile);
 router.put('/instructor-profile/:id?', requireAuth, updateOrCreateInstructorProfile);
 router.get('/instructors-unapproved/:id?', requireAuth, getApprovedInstructors);
 router.get('/instructors-pending', requireAuth, getPendingInstructors);
@@ -71,6 +75,5 @@ router.get('/me/instructor', requireAuth, async (req, res) => {
     return res.status(500).json({ message: 'Lỗi máy chủ' });
   }
 });
-
 
 module.exports = router; 

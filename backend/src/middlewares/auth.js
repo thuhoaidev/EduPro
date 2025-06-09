@@ -5,6 +5,12 @@ const ApiError = require('../utils/ApiError');
 // Middleware xác thực người dùng
 exports.auth = async (req, res, next) => {
   try {
+    // Kiểm tra nếu là route logout thì không cần xác thực token
+    if (req.path === '/logout') {
+      next();
+      return;
+    }
+
     // Lấy token từ header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

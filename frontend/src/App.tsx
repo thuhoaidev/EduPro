@@ -18,7 +18,7 @@ import ReportsPage from "./pages/admin/reports/Reports";
 import VouchersPage from "./pages/admin/Vouchers/VouchersPage";
 import Notifications from "./pages/admin/Notifications/Notifications";
 import AdminStatistics from "./pages/admin/Statistics/AdminStatistics";
-import LoginPage from "./pages/client/auth/login";
+import { LoginPage } from "./pages/client/auth/login";
 import RegisterPage from "./pages/client/auth/register";
 import ForgotPassword from "./pages/client/auth/forgotPassword";
 import ResetPassword from "./pages/client/auth/resetPassword";
@@ -32,7 +32,7 @@ import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfile
 import ModeratorLayout from "./pages/layout/ModeratorLayout";
 import InstructorLayout from "./pages/layout/InstructorLayout";
 import ChangePassword from "./pages/layout/ChangePassword";
-
+import Profile from "./pages/client/Profile/Profile";
 
 const queryClient = new QueryClient();
 
@@ -43,7 +43,7 @@ function App() {
       element: <ClientLayout />,
       children: [
         { index: true, element: <Homepage /> },
-        { path: 'verify-email/:token', element: <VerifyEmail /> },
+        { path: 'verify-email/:slug/:token', element: <VerifyEmail /> },
         { path: 'instructor/earnings', element: <Earnings /> },
       ]
     },
@@ -60,41 +60,39 @@ function App() {
       path: "/admin",
       element: <AdminLayout />,
       children: [
-        { path: "users", element: < UserPage /> }, // Quản lý người dùng
-        { path: "users/:id", element: < UserDetail /> }, // Chi tiết người dùng
+        { path: "users", element: <UserPage /> },
+        { path: "users/:id", element: <UserDetail /> },
         { path: "instructor-approval", element: <InstructorPendingListPage /> },
         { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },
-        { path: "instructors", element: < InstructorList /> },
-        { path: "sectionLesson/CourseManagement", element: < CourseManagement /> },
-        { path: "users/instructor/:id", element: < InstructorDetail /> },
-        { path: "content-approval", element: < ContentApprovalPage /> },
-        { path: "reports", element: < ReportsPage /> },
-        { path: "system/vouchers", element: < VouchersPage /> },
-        { path: "system/notifications", element: < Notifications /> },
-        { path: "statistics", element: < AdminStatistics /> },
-        { path: "coupons", element: < CouponManagement /> },
-        { path: "history", element: < TransactionHistory /> },
+        { path: "instructors", element: <InstructorList /> },
+        { path: "sectionLesson/CourseManagement", element: <CourseManagement /> },
+        { path: "users/instructor/:id", element: <InstructorDetail /> },
+        { path: "content-approval", element: <ContentApprovalPage /> },
+        { path: "reports", element: <ReportsPage /> },
+        { path: "system/vouchers", element: <VouchersPage /> },
+        { path: "system/notifications", element: <Notifications /> },
+        { path: "statistics", element: <AdminStatistics /> },
+        { path: "coupons", element: <CouponManagement /> },
+        { path: "history", element: <TransactionHistory /> },
       ],
     },
     {
       path: "/moderator",
       element: <ModeratorLayout />,
       children: [
-
       ],
     },
     {
       path: "/instructor",
       element: <InstructorLayout />,
       children: [
-
       ],
     },
     { path: '/login', element: <LoginPage /> },
     { path: '/register', element: <RegisterPage /> },
     { path: '/forgot-password', element: <ForgotPassword /> },
-    { path: '/reset-password/:token', element: < ResetPassword /> },
-    { path: '/register/instructor', element: < InstructorRegistrationPage /> }
+    { path: '/reset-password/:token', element: <ResetPassword /> },
+    { path: '/register/instructor', element: <InstructorRegistrationPage /> }
   ];
 
   const element = useRoutes(routes);

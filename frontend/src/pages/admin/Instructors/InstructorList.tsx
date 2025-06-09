@@ -16,12 +16,12 @@ import {
 import { useNavigate } from "react-router-dom";
 import type { InstructorProfile } from "../../../interfaces/Admin.interface";
 
-// Giả lập data có thêm fullName
-const fakeInstructors: (InstructorProfile & { fullName: string; avatar?: string })[] = [
+// Giả lập data có thêm fullname
+const fakeInstructors: (InstructorProfile & { fullname: string; avatar?: string })[] = [
   {
     id: 1,
     user_id: 101,
-    fullName: "Nguyễn Văn A",
+    fullname: "Nguyễn Văn A",
     avatar: "https://i.pravatar.cc/150?img=11",
     bio: "Giảng viên chuyên về lập trình web",
     expertise: "Web Development",
@@ -32,7 +32,7 @@ const fakeInstructors: (InstructorProfile & { fullName: string; avatar?: string 
   {
     id: 2,
     user_id: 102,
-    fullName: "Trần Thị B",
+    fullname: "Trần Thị B",
     avatar: "https://i.pravatar.cc/150?img=12",
     bio: "Giảng viên về thiết kế đồ họa",
     expertise: "Graphic Design",
@@ -43,7 +43,7 @@ const fakeInstructors: (InstructorProfile & { fullName: string; avatar?: string 
   {
     id: 3,
     user_id: 103,
-    fullName: "Lê Văn C",
+    fullname: "Lê Văn C",
     avatar: "https://i.pravatar.cc/150?img=13",
     bio: "Chuyên gia an ninh mạng",
     expertise: "Cybersecurity",
@@ -63,7 +63,7 @@ const InstructorList = () => {
       (statusFilter === "all" || ins.status === statusFilter) &&
       (ins.expertise.toLowerCase().includes(searchText.toLowerCase()) ||
       ins.bio.toLowerCase().includes(searchText.toLowerCase()) ||
-      ins.fullName.toLowerCase().includes(searchText.toLowerCase()))
+      ins.fullname.toLowerCase().includes(searchText.toLowerCase()))
   );
 
   // Calculate statistics
@@ -102,7 +102,7 @@ const InstructorList = () => {
     },
     {
       title: "Giảng viên",
-      dataIndex: "fullName",
+      dataIndex: "fullname",
       render: (_, record) => (
         <Space direction="horizontal" size="middle" className="py-2">
           <Avatar 
@@ -113,7 +113,7 @@ const InstructorList = () => {
           />
           <div>
             <div className="font-semibold text-base hover:text-blue-600 cursor-pointer">
-              {record.fullName}
+              {record.fullname}
             </div>
             <div className="text-sm text-gray-600 font-medium">{record.expertise}</div>
             <div className="text-xs text-gray-500 mt-1 line-clamp-2">{record.bio}</div>

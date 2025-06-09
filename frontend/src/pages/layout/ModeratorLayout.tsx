@@ -25,7 +25,7 @@ const { Header, Sider, Content } = Layout;
 
 interface User {
   avatar?: string;
-  fullName: string;
+  fullname: string;
   email: string;
   role: string;
 }
@@ -163,7 +163,7 @@ const ModeratorLayout = () => {
       <Menu.ItemGroup
         title={
           <div style={{ padding: "8px 12px" }}>
-            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullName}</p>
+            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullname}</p>
             <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: Quản trị viên</p>
             <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>{user?.email}</p>
           </div>

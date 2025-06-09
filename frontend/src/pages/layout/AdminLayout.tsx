@@ -27,7 +27,7 @@ const { Header, Sider, Content } = Layout;
 
 interface User {
   avatar?: string;
-  fullName: string;
+  fullname: string;
   email: string;
   role: string;
 }
@@ -45,7 +45,8 @@ const AdminLayout = () => {
 
       if (storedUser) {
         const userData = JSON.parse(storedUser);
-        if (userData.role !== 'admin') {
+        const roleName = typeof userData.role === 'object' ? userData.role.name : userData.role;
+        if (roleName !== 'admin') {
           message.error('Bạn không có quyền truy cập trang này!');
           nav('/');
           return;
@@ -90,7 +91,7 @@ const AdminLayout = () => {
       const url = `/${array.slice(0, index + 1).join("/")}`;
       const name = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, " ");
       return {
-        key: url,
+        key: `breadcrumb-${url.replace('/', '-')}`,
         title: <a href={url}>{name}</a>,
       };
     });
@@ -218,7 +219,7 @@ const AdminLayout = () => {
       <Menu.ItemGroup
         title={
           <div style={{ padding: "8px 12px" }}>
-            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullName}</p>
+            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullname}</p>
             <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: {user?.role === 'admin' ? 'Admin' : user?.role === 'instructor' ? 'Giảng viên' : user?.role === 'moderator' ? 'Quản trị viên' : 'Người dùng'}</p>
             <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>{user?.email}</p>
           </div>

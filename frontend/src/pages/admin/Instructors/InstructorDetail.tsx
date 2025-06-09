@@ -19,7 +19,7 @@ import type { InstructorDetail } from "../../../interfaces/Admin.interface";
 const fakeInstructors: InstructorDetail[] = [
   {
     id: 1,
-    fullName: "Nguyễn Văn A",
+    fullname: "Nguyễn Văn A",
     email: "nva@gmail.com",
     avatar: "https://i.pravatar.cc/150?img=11",
     status: "active",
@@ -30,7 +30,7 @@ const fakeInstructors: InstructorDetail[] = [
   },
   {
     id: 2,
-    fullName: "Trần Thị B",
+    fullname: "Trần Thị B",
     email: "ttb@gmail.com",
     avatar: "https://i.pravatar.cc/150?img=12",
     status: "inactive",
@@ -126,7 +126,7 @@ const InstructorDetailPage = () => {
 
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                  {instructor.fullName}
+                  {instructor.fullname}
                 </h1>
                 {/* Assuming a location field might be added later */}
                 <div className="flex items-center gap-2 text-gray-600 mb-4">

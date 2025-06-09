@@ -41,12 +41,17 @@ export interface ApiUser {
 }
 
 // Frontend User interface (used in components)
+export interface Role {
+  _id: string;
+  name: UserRole;
+}
+
 export interface User {
   id: string;
-  fullName: string;
+  fullname: string;
   email: string;
   avatar: string;
-  role: UserRole;
+  role: UserRole | Role;
   status: UserStatus;
   createdAt: string;
   updatedAt?: string;
@@ -142,7 +147,7 @@ export interface EarningTransaction {
 
 export interface InstructorDetail {
   id: number;
-  fullName: string;
+  fullname: string;
   email: string;
   avatar: string;
   status: "active" | "inactive" | "banned";

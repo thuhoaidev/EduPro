@@ -11,7 +11,8 @@ const authProvider = {
 
     register: async ({ resource, variables }: registerType) => {
         const response = await config.post(`/auth/${resource}`, variables);
-        return response.data.data; 
+        // Trả về dữ liệu gốc từ API
+        return response.data;
     },
     login: async ({ resource, variables }: loginType) => {
         const response = await config.post(`/auth/${resource}`, variables);

@@ -1,39 +1,52 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { notification, Spin } from 'antd';
-// import axios from 'axios';
-import { config } from "../api/axios";
+import axios from "axios";
+
 const VerifyEmail = () => {
-    const { token } = useParams();
+    const { slug, token } = useParams();
+    const location = useLocation();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Kiểm tra slug và token từ URL
+        if (!token || !slug) {
+            notification.error({
+                message: 'Không tìm thấy thông tin xác thực',
+                placement: "topRight",
+            });
+            navigate('/login');
+            return;
+        }
+
         const verifyEmail = async () => {
             try {
                 setLoading(true);
-                const response = await config.get(`/auth/verify-email/${token}`);
+                // Sử dụng axios trực tiếp thay vì config để không cần token
+                const response = await axios.get(`http://localhost:5000/api/auth/verify-email/${slug}/${token}`);
                 notification.success({
                     message: response.data.message || "Xác thực Email thành công",
-                    // description: "Mật khẩu đã được đặt lại. Bạn sẽ được chuyển hướng.",
                     placement: "topRight",
                 });
-                // alert(response.data.message); // "Xác thực email thành công"
-                navigate('/login');
+                // Lưu token mới vào localStorage
+                if (response.data.token) {
+                    localStorage.setItem('token', response.data.token);
+                }
+                // Chuyển hướng đến trang chủ sau khi xác thực thành công
+                navigate('/');
             } catch (error: any) {
                 notification.error({
                     message: error.response?.data?.message || 'Lỗi xác thực email',
-                    // description: "Lỗi xác thực Email",
                     placement: "topRight",
                 });
-                // alert(error.response?.data?.message || 'Lỗi xác thực email');
+                navigate('/login');
+            } finally {
+                setLoading(false);
             }
-            // finally {
-            //     setLoading(false);
-            // }
         };
         verifyEmail();
-    }, [token, navigate]);
+    }, [token, location, navigate]);
 
     if (loading) {
         return (
@@ -42,6 +55,13 @@ const VerifyEmail = () => {
             </div>
         );
     }
+
+    return (
+        <div style={{ textAlign: 'center', padding: 40 }}>
+            <h2>Xác thực Email</h2>
+            <p>Vui lòng đợi trong khi chúng tôi xác thực email của bạn...</p>
+        </div>
+    );
 }
 
 export default VerifyEmail;

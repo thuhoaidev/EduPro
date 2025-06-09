@@ -44,6 +44,7 @@ app.use(cors({
 })); // CORS
 app.use(cookieParser()); // Parse cookies
 app.use(compression()); // Nén response
+app.use(express.json()); // Parse JSON body
 
 // Rate limiting
 const limiter = rateLimit({

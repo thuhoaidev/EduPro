@@ -3,7 +3,7 @@ import { User, Edit2, Share2, MessageSquare, Clock, TrendingUp } from "lucide-re
 import { motion } from "framer-motion";
 
 const userInfo = {
-  fullName: "Hoài Thu Mai",
+  fullname: "Hoài Thu Mai",
   username: "thumaihoai",
   avatar:
     "https://ui-avatars.com/api/?name=Hoai+Thu+Mai&background=4f8cff&color=fff&size=256",
@@ -100,7 +100,7 @@ const Profile = () => {
             className="w-36 h-36 rounded-full border-4 border-white shadow mb-4 object-cover"
           />
           <div className="text-2xl font-bold text-gray-900 mb-1 text-center md:text-left">
-            {userInfo.fullName}
+            {userInfo.fullname}
           </div>
           <div className="text-gray-500 text-base mb-3 text-center md:text-left">@{userInfo.username}</div>
           <div className="flex items-center gap-2 text-gray-600 mb-2 text-sm">

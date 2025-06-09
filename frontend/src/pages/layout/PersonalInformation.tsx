@@ -8,7 +8,7 @@ const PersonalInfoPage = () => {
   const [verificationCode, setVerificationCode] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [formData, setFormData] = useState({
-    fullName: 'Doanh Phạm Đức (PH48812)',
+    fullname: 'Doanh Phạm Đức (PH48812)',
     username: 'phamducph48812doanh',
     bio: 'Chưa cập nhật',
     website: 'Chưa cập nhật',
@@ -99,7 +99,7 @@ const PersonalInfoPage = () => {
 
   const getFieldTitle = (field) => {
     const titles = {
-      fullName: 'Cập nhật tên của bạn',
+      fullname: 'Cập nhật tên của bạn',
       username: 'Cập nhật tên người dùng',
       bio: 'Cập nhật giới thiệu',
       website: 'Cập nhật trang web cá nhân',
@@ -116,7 +116,7 @@ const PersonalInfoPage = () => {
 
   const getFieldDescription = (field) => {
     const descriptions = {
-      fullName: 'Tên sẽ được hiển thị trên trang cá nhân, trong các bình luận và bài viết của bạn.',
+      fullname: 'Tên sẽ được hiển thị trên trang cá nhân, trong các bình luận và bài viết của bạn.',
       username: 'Tên người dùng sẽ được sử dụng để tạo đường dẫn tới trang cá nhân của bạn.',
       bio: 'Mô tả ngắn về bản thân bạn để mọi người hiểu rõ hơn về bạn.',
       website: 'Đường dẫn tới trang web cá nhân hoặc blog của bạn.',
@@ -133,7 +133,7 @@ const PersonalInfoPage = () => {
 
   const getFieldLabel = (field) => {
     const labels = {
-      fullName: 'Họ và tên',
+      fullname: 'Họ và tên',
       username: 'Tên người dùng',
       bio: 'Giới thiệu',
       website: 'Trang web cá nhân',
@@ -150,7 +150,7 @@ const PersonalInfoPage = () => {
 
   const getFieldPlaceholder = (field) => {
     const placeholders = {
-      fullName: 'Nhập họ và tên của bạn',
+      fullname: 'Nhập họ và tên của bạn',
       username: 'Nhập tên người dùng',
       bio: 'Mô tả ngắn về bản thân bạn',
       website: 'https://yourwebsite.com',
@@ -263,8 +263,8 @@ const PersonalInfoPage = () => {
                   <div className="space-y-2">
                     <InfoField 
                       label="Họ và tên" 
-                      value={formData.fullName} 
-                      field="fullName"
+                      value={formData.fullname} 
+                      field="fullname"
                     />
                     <InfoField 
                       label="Tên người dùng" 

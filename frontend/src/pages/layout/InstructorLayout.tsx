@@ -27,7 +27,7 @@ const { Header, Sider, Content } = Layout;
 
 interface User {
   avatar?: string;
-  fullName: string;
+  fullname: string;
   email: string;
   role: string;
 }
@@ -46,7 +46,8 @@ const InstructorLayout = () => {
       if (storedUser) {
         const userData = JSON.parse(storedUser);
         // Kiểm tra role instructor
-        if (userData.role !== 'instructor') {
+        const roleName = typeof userData.role === 'object' ? userData.role.name : userData.role;
+        if (roleName !== 'instructor') {
           message.error('Bạn không có quyền truy cập trang này!');
           nav('/');
           return;
@@ -170,7 +171,7 @@ const InstructorLayout = () => {
       <Menu.ItemGroup
         title={
           <div style={{ padding: "8px 12px" }}>
-            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullName}</p>
+            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullname}</p>
             <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: Giảng viên</p>
             <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>{user?.email}</p>
           </div>

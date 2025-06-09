@@ -116,10 +116,10 @@ const UserPage = () => {
           console.log('Processing user:', user);
           const mappedUser = {
             id: user._id,
-            fullName: user.name,
+            fullname: user.name,
             email: user.email,
             avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
-            role: user.role_id.name,
+            role: user.role_id,
             status: user.status,
             createdAt: user.created_at,
             updatedAt: user.updated_at,
@@ -191,14 +191,15 @@ const UserPage = () => {
   };
 
   // Helper to get role tag
-  const getRoleTag = (role: UserRole) => {
+  const getRoleTag = (role: UserRole | Role) => {
+    const roleName = typeof role === 'object' ? role.name : role;
     const roleMap: Record<UserRole, { color: string; label: string }> = {
       [UserRole.ADMIN]: { color: "red", label: 'Admin' },
       [UserRole.INSTRUCTOR]: { color: "blue", label: 'Giảng viên' },
       [UserRole.STUDENT]: { color: "green", label: 'Học viên' },
       [UserRole.MODERATOR]: { color: "orange", label: 'Kiểm duyệt viên' },
     };
-    const tag = roleMap[role] || { color: "default", label: role };
+    const tag = roleMap[roleName] || { color: "default", label: roleName };
     return (
       <Tag color={tag.color} className="px-2 py-1 rounded-full text-sm font-medium">
         {tag.label}
@@ -215,7 +216,7 @@ const UserPage = () => {
   const handleEditUser = (user: User) => {
     setEditingUser(user);
     form.setFieldsValue({
-      fullName: user.fullName,
+      fullname: user.fullname,
       email: user.email,
       role: user.role,
       status: user.status,
@@ -262,7 +263,7 @@ const UserPage = () => {
         }
 
         const updateData = {
-          name: values.fullName,
+          name: values.fullname,
           role_id: selectedRole._id, // Sử dụng ID vai trò tìm được
           status: values.status,
           phone: values.phone || '',
@@ -277,7 +278,7 @@ const UserPage = () => {
       } else {
         // Add new user
         console.log('Thêm mới người dùng');
-        console.log('Tên người dùng:', values.fullName);
+        console.log('Tên người dùng:', values.fullname);
         console.log('Email:', values.email);
         console.log('Mật khẩu:', values.password);
         console.log('Vai trò:', values.role);
@@ -293,7 +294,7 @@ const UserPage = () => {
         const userData = {
           email: values.email,
           password: values.password,
-          name: values.fullName,
+          name: values.fullname,
           role_id: selectedRole._id,
           status: values.status,
           phone: values.phone || '',
@@ -327,6 +328,30 @@ const UserPage = () => {
     fetchUsers(pagination.current || 1, pagination.pageSize || 10);
   };
 
+  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    try {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+
+      // Nếu role là object, lấy name
+      const currentRole = typeof user.role === 'object' ? user.role.name : user.role;
+      if (currentRole === newRole) return;
+
+      // Tìm role_id dựa trên role name
+      const selectedRole = roles.find(r => r.name === newRole);
+      if (!selectedRole) {
+        message.error('Vai trò không hợp lệ');
+        return;
+      }
+
+      await updateUser(userId, { role_id: selectedRole._id });
+      message.success('Cập nhật vai trò thành công');
+      fetchUsers(pagination.current);
+    } catch (error) {
+      message.error('Lỗi khi cập nhật vai trò');
+    }
+  };
+
   const columns: ColumnsType<User> = [
     {
       title: "#",
@@ -339,7 +364,7 @@ const UserPage = () => {
     },
     {
       title: "Người dùng",
-      dataIndex: "fullName",
+      dataIndex: "fullname",
       render: (_: unknown, user: User) => (
         <Space direction="horizontal" size="middle" className="py-2">
           <Avatar
@@ -360,7 +385,7 @@ const UserPage = () => {
                 handleViewDetails(user);
               }}
             >
-              {user.fullName}
+              {user.fullname}
             </div>
             <div className="text-sm text-gray-600 font-medium">{user.email}</div>
           </div>
@@ -371,7 +396,17 @@ const UserPage = () => {
       title: "Quyền hạn",
       dataIndex: "role",
       align: "center",
-      render: (_: unknown, user: User) => getRoleTag(user.role),
+      render: (_: unknown, user: User) => (
+        <Select
+          value={typeof user.role === 'object' ? user.role.name : user.role}
+          onChange={(value) => handleRoleChange(user.id, value)}
+          style={{ width: '120px' }}
+          options={roles.map(role => ({
+            value: role.name,
+            label: getRoleTag(role.name)
+          }))}
+        />
+      ),
     },
     {
       title: "Trạng thái",
@@ -559,7 +594,7 @@ const UserPage = () => {
           initialValues={{ role: UserRole.STUDENT, status: UserStatus.ACTIVE }}
         >
           <Form.Item
-            name="fullName"
+            name="fullname"
             label="Họ và tên"
             rules={[{ required: true, message: "Vui lòng nhập họ và tên" }]}
           >
@@ -711,7 +746,7 @@ const UserPage = () => {
                 className="mr-6 border-2 border-gray-100 shadow-sm"
               />
               <div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">{viewingUser.fullName}</h3>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">{viewingUser.fullname}</h3>
                 <div className="flex items-center gap-4">
                   <div className="text-gray-600 flex items-center">
                     <span className="mr-2">Email:</span>

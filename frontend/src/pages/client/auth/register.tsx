@@ -1,10 +1,11 @@
 import {
-      Button,
-      Form,
-      Input,
-      message,
-      Modal,
+  Button,
+  Form,
+  Input,
+  message,
+  Modal,
 } from "antd";
+import { UserOutlined } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
 import useRegister from "../../../hooks/Auths/useRegister";
 import ReCAPTCHA from "react-google-recaptcha";
@@ -25,32 +26,31 @@ export function RegisterPage() {
             }
 
             const newObject = {
-                  fullName: formData.fullName,
+                  nickname: formData.nickname,
                   email: formData.email,
                   password: formData.password,
-                  repassword: formData.repassword,
+                  fullName: formData.fullName,
                   captchaToken,
             };
 
             setLoading(true);
 
             mutate(newObject, {
-                  onSuccess: (data: any) => {
-                        localStorage.setItem("token", data.token);
-                        localStorage.setItem("user", JSON.stringify(data.user));
+                  onSuccess: () => {
                         Modal.success({
                               title: "Tạo tài khoản thành công!",
                               content: (
                                     <div>
-                                          <p>Vui lòng kiểm tra email để xác thực tài khoản.</p>
-                                          <p>Sau khi xác thực, bạn có thể đăng nhập.</p>
+                                          <p>Tài khoản của bạn đã được tạo thành công!</p>
+                                          <p>Vui lòng đăng nhập để tiếp tục.</p>
                                     </div>
                               ),
                               okText: "Đã hiểu",
-                              onOk: () => setTimeout(() => {
-                                    navigate("/login");
-                              }, 1500)
+                              onOk: () => {
+                                    navigate("/");
+                              }
                         });
+                        navigate("/");
                   },
                   onError: (error: any) => {
                         const errorMessage = error?.response?.data?.message || "Đã xảy ra lỗi.";
@@ -76,20 +76,42 @@ export function RegisterPage() {
                               <Form layout="vertical" onFinish={onFinish}>
                                     <Form.Item
                                           name="fullName"
-                                          rules={[{ required: true, message: "Vui lòng nhập họ tên!" }]}
+                                          rules={[
+                                                {
+                                                  required: true,
+                                                  message: 'Vui lòng nhập họ và tên!',
+                                                },
+                                                {
+                                                  min: 2,
+                                                  message: 'Họ và tên phải có ít nhất 2 ký tự!',
+                                                },
+                                          ]}
+                                    >
+                                          <Input
+                                                placeholder="Họ và tên"
+                                                size="large"
+                                          />
+                                    </Form.Item>
+
+                                    <Form.Item
+                                          name="nickname"
+                                          rules={[
+                                                { required: true, message: "Tên đăng nhập là bắt buộc" },
+                                                { pattern: /^[a-zA-Z0-9]+$/, message: "Tên đăng nhập chỉ được chứa chữ cái và số" },
+                                          ]}
                                     >
                                           <Input
                                                 size="large"
-                                                placeholder="Họ tên"
+                                                placeholder="Tên đăng nhập (chữ và số)"
                                                 className="bg-gray-50 py-3"
-                                                autoComplete="name"
+                                                autoComplete="username"
                                           />
                                     </Form.Item>
 
                                     <Form.Item
                                           name="email"
                                           rules={[
-                                                { required: true, message: "Vui lòng nhập email!" },
+                                                { required: true, message: "Email là bắt buộc" },
                                                 { type: "email", message: "Email không hợp lệ" },
                                           ]}
                                     >
@@ -104,42 +126,13 @@ export function RegisterPage() {
                                     <Form.Item
                                           name="password"
                                           rules={[
-                                                { required: true, message: "Vui lòng nhập mật khẩu!" },
+                                                { required: true, message: "Mật khẩu là bắt buộc" },
                                                 { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },
                                           ]}
                                     >
                                           <Input.Password
                                                 size="large"
                                                 placeholder="Mật khẩu"
-                                                className="bg-gray-50 py-3"
-                                                autoComplete="new-password"
-                                          />
-                                    </Form.Item>
-
-                                    <Form.Item
-                                          name="repassword"
-                                          dependencies={["password"]}
-                                          hasFeedback
-                                          rules={[
-                                                {
-                                                      required: true,
-                                                      message: "Vui lòng xác nhận mật khẩu của bạn!",
-                                                },
-                                                ({ getFieldValue }) => ({
-                                                      validator(_, value) {
-                                                            if (!value || getFieldValue("password") === value) {
-                                                                  return Promise.resolve();
-                                                            }
-                                                            return Promise.reject(
-                                                                  new Error("Mật khẩu mới bạn nhập không khớp!")
-                                                            );
-                                                      },
-                                                }),
-                                          ]}
-                                    >
-                                          <Input.Password
-                                                size="large"
-                                                placeholder="Nhập lại mật khẩu"
                                                 className="bg-gray-50 py-3"
                                                 autoComplete="new-password"
                                           />
@@ -169,11 +162,6 @@ export function RegisterPage() {
                                                 Bạn đã có tài khoản?
                                           </Link>
                                     </div>
-                                    {/* <div className="text-center text-base mt-2">
-                                          <Link to="/register/instructor" className="text-blue-500 hover:underline">
-                                                Đăng ký làm giảng viên
-                                          </Link>
-                                    </div> */}
                               </Form>
 
                               {contextHolder}
