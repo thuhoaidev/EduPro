@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { config } from '../../api/axios';
 import { useNavigate } from 'react-router-dom';
 import {
-  Layout, Input, Space, Button, Avatar, Badge, Dropdown, Spin, message
+  Layout, Input, Space, Button, Avatar, Dropdown, Spin, message
 } from 'antd';
 import {
   SearchOutlined,
@@ -148,11 +148,18 @@ const AppHeader = () => {
       color: '#000',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #f0f0f0' }}>
-        <Avatar 
-          src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : undefined} 
-          size={48} 
-          style={{ flexShrink: 0 }} 
-          icon={<UserOutlined />} 
+        <img
+          src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.fullname || '') + '&background=4f8cff&color=fff&size=48'}
+          alt="avatar"
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            objectFit: 'cover',
+            flexShrink: 0,
+            border: '2px solid #fff',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}
         />
         <div style={{ marginLeft: 12, flex: 1, minWidth: 0 }}>
           <div style={{
@@ -337,14 +344,22 @@ const AppHeader = () => {
               placement="bottomRight" 
               arrow
             >
-              <Badge dot offset={[-2, 2]} size="small">
-                <Avatar 
-                  src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : undefined} 
-                  size={32} 
-                  style={{ backgroundColor: '#f5f5f5' }} 
-                  icon={<UserOutlined />} 
-                />
-              </Badge>
+              <img
+                src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.fullname || '') + '&background=4f8cff&color=fff&size=32'}
+                alt="avatar"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '2px solid #fff',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              />
             </Dropdown>
           ) : (
             <Dropdown

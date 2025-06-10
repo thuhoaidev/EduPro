@@ -32,7 +32,7 @@ import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfile
 import ModeratorLayout from "./pages/layout/ModeratorLayout";
 import InstructorLayout from "./pages/layout/InstructorLayout";
 import ChangePassword from "./pages/layout/ChangePassword";
-import Profile from "./pages/client/Profile/Profile";
+import Profile from "./pages/client/profile/Profile";
 
 const queryClient = new QueryClient();
 

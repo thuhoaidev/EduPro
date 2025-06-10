@@ -1,158 +1,145 @@
-import React from "react";
-import { User, Edit2, Share2, MessageSquare, Clock, TrendingUp } from "lucide-react";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { User } from "lucide-react";
+import { config } from "../../../api/axios";
+import { formatDistanceToNow } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
-const userInfo = {
-  fullname: "Hoài Thu Mai",
-  username: "thumaihoai",
-  avatar:
-    "https://ui-avatars.com/api/?name=Hoai+Thu+Mai&background=4f8cff&color=fff&size=256",
-  joined: "Tham gia F8 từ một tháng trước",
-  followers: 0,
-  following: 1,
-};
-
-const courses = [
-  {
-    title: "Lập Trình JavaScript Nâng Cao",
-    subtitle: "JavaScript {.Nâng cao}",
-    image:
-      "https://files.fullstack.edu.vn/f8-prod/courses/12.png",
-    free: true,
-    students: 40782,
-    lessons: 19,
-    time: "8h41p",
-  },
-  {
-    title: "HTML CSS từ Zero đến Hero",
-    subtitle: "HTML, CSS từ zero đến hero",
-    image:
-      "https://files.fullstack.edu.vn/f8-prod/courses/2.png",
-    free: true,
-    students: 210789,
-    lessons: 117,
-    time: "29h5p",
-  },
-  {
-    title: "Làm việc với Terminal & Ubuntu",
-    subtitle: "WSL Ubuntu",
-    image:
-      "https://files.fullstack.edu.vn/f8-prod/courses/14/624faac11d109.png",
-    free: true,
-    students: 20704,
-    lessons: 28,
-    time: "4h59p",
-  },
-  {
-    title: "Kiến thức nhập môn IT",
-    subtitle: "Kiến Thức Nền Tảng",
-    image:
-      "https://files.fullstack.edu.vn/f8-prod/courses/1.png",
-    free: true,
-    students: 124789,
-    lessons: 31,
-    time: "6h30p",
-  },
-  {
-    title: "Responsive web design",
-    subtitle: "Responsive",
-    image:
-      "https://files.fullstack.edu.vn/f8-prod/courses/3.png",
-    free: true,
-    students: 78945,
-    lessons: 22,
-    time: "5h10p",
-  },
-  {
-    title: "Từ cơ bản đến nâng cao",
-    subtitle: "Từ cơ bản đến nâng cao",
-    image:
-      "https://files.fullstack.edu.vn/f8-prod/courses/7.png",
-    free: true,
-    students: 56789,
-    lessons: 15,
-    time: "3h45p",
-  },
-];
-
-// Dữ liệu mẫu cho biểu đồ nhiệt hoạt động (7x18 = 126 ngày)
-const heatmapData = Array.from({ length: 18 }, () =>
-  Array.from({ length: 7 }, () => Math.floor(Math.random() * 5))
-);
-
-const getHeatColor = (value: number) => {
-  if (value === 0) return '#f3f4f6';
-  if (value === 1) return '#d2f9e5';
-  if (value === 2) return '#7be3b5';
-  if (value === 3) return '#34d399';
-  return '#059669';
-};
+interface User {
+  id: number;
+  avatar?: string;
+  fullname: string;
+  nickname?: string;
+  email: string;
+  created_at: string;
+  approval_status?: string;
+  role?: {
+    name: string;
+    description: string;
+    permissions: string[];
+  };
+}
 
 const Profile = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          // Redirect to login if no token
+          window.location.href = '/login';
+          return;
+        }
+
+        // Kiểm tra user trong localStorage trước
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          setLoading(false);
+          return;
+        }
+
+        const response = await config.get('/auth/me');
+        
+        // Lưu user vào localStorage
+        localStorage.setItem('user', JSON.stringify(response.data));
+        
+        setUser(response.data);
+        setError(null);
+      } catch (error: any) {
+        console.error('Error fetching user profile:', error);
+        setError(error.response?.data?.message || 'Không thể tải thông tin người dùng');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-screen bg-white">
+        <div className="text-xl text-red-500 mb-2">{error}</div>
+        <button
+          onClick={() => window.location.href = '/login'}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Đăng nhập lại
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-[#fafbfc] min-h-screen py-8">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-8 px-2 md:px-0">
         {/* Left: User Info */}
         <div className="w-full md:w-1/4 flex flex-col items-center md:items-start pt-2">
           <img
-            src={userInfo.avatar}
+            src={user?.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.fullname || '') + '&background=4f8cff&color=fff&size=256'}
             alt="avatar"
             className="w-36 h-36 rounded-full border-4 border-white shadow mb-4 object-cover"
           />
           <div className="text-2xl font-bold text-gray-900 mb-1 text-center md:text-left">
-            {userInfo.fullname}
+            {user?.fullname || 'Không có tên'}
           </div>
-          <div className="text-gray-500 text-base mb-3 text-center md:text-left">@{userInfo.username}</div>
+          <div className="text-gray-500 text-base mb-3 text-center md:text-left">{user?.nickname || user?.email || 'Không có nickname'}</div>
           <div className="flex items-center gap-2 text-gray-600 mb-2 text-sm">
             <User size={16} />
-            <span><b>{userInfo.followers}</b> người theo dõi · <b>{userInfo.following}</b> đang theo dõi</span>
+            <span><b>1.2K</b> người theo dõi · <b>500</b> đang theo dõi</span>
           </div>
           <div className="flex items-center gap-2 text-gray-600 mb-2 text-sm">
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path fill="#888" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Zm0-14a6 6 0 0 0-6 6c0 3.31 2.69 6 6 6s6-2.69 6-6a6 6 0 0 0-6-6Zm0 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"/></svg>
-            <span>{userInfo.joined}</span>
+            <span>Tham gia từ {user?.created_at ? formatDistanceToNow(new Date(user.created_at), { addSuffix: true, locale: vi }) : 'Không rõ thời gian tham gia'}</span>
           </div>
-        </div>
-        {/* Right: Activity + Courses */}
-        <div className="w-full md:w-3/4 flex flex-col gap-8">
-          {/* Tab khóa học đã đăng ký */}
-          <div className="bg-white rounded-xl shadow p-0">
-            <div className="flex items-center gap-2 border-b border-gray-200 px-6 pt-4 pb-2">
-              <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path fill="#222" d="M4 4h16v2H4V4Zm0 4h16v2H4V8Zm0 4h16v2H4v-2Zm0 4h16v2H4v-2Zm0 4h16v2H4v-2Z"/></svg>
-              <span className="text-base font-semibold text-[#222] border-b-2 border-[#1dc071] pb-1">Khóa học đã đăng ký ({courses.length})</span>
+          
+          {/* Hiển thị role nếu có */}
+          {user?.role?.name && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 text-gray-600 text-sm">
+                <span className="text-blue-500 font-semibold">Vai trò: {user.role.name}</span>
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 p-6">
-              {courses.map((course, idx) => (
-                <div
-                  key={idx}
-                  className="bg-white rounded-xl shadow border border-gray-100 hover:shadow-xl transition flex flex-col gap-2 cursor-pointer"
-                  style={{ minHeight: 210 }}
-                >
-                  <img
-                    src={course.image}
-                    alt={course.title}
-                    className="w-full h-28 object-cover rounded-lg mb-2"
-                  />
-                  <div className="text-base font-semibold text-gray-900 mb-1">
-                    {course.subtitle}
-                  </div>
-                  <div className="text-sm text-gray-500 mb-1">{course.title}</div>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                    <span className="font-semibold text-[#f05123]">Miễn phí</span>
-                    <span className="flex items-center gap-1">
-                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path fill="#888" d="M16 11V7a4 4 0 1 0-8 0v4a4 4 0 1 0 8 0Zm-4 6a6 6 0 0 1-6-6V7a6 6 0 1 1 12 0v4a6 6 0 0 1-6 6Z"/></svg>
-                      {course.students.toLocaleString()}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path fill="#888" d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm0 10a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"/></svg>
-                      {course.lessons}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path fill="#888" d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm0 10a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"/></svg>
-                      {course.time}
-                    </span>
-                  </div>
+          )}
+        </div>
+        {/* Right: Activity & Courses */}
+        <div className="w-full md:w-3/4">
+          {/* Activity */}
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4">Hoạt động gần đây</h2>
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: 18 }).map((_, row) => (
+                <div key={row} className="flex">
+                  {Array.from({ length: 7 }).map((_, col) => (
+                    <div
+                      key={col}
+                      className="w-4 h-4 rounded"
+                      style={{ backgroundColor: '#f3f4f6' }}
+                    />
+                  ))}
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Courses */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Khóa học đang học</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Add your course cards here */}
             </div>
           </div>
         </div>
