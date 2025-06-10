@@ -35,10 +35,24 @@ interface User {
 
 const AppHeader = () => {
   const getRoleName = (user: User): string => {
-    if (!user || !user.role) {
-      return 'user'; // Mặc định là user nếu không có role
+    if (!user) {
+      return 'user';
     }
-    return user.role.name || 'user';
+
+    // Kiểm tra approval_status để xác định role
+    if (user.approval_status === 'approved') {
+      if (user.email === 'admin@pro.edu.vn') {
+        return 'admin';
+      }
+      if (user.email === 'nguoikiemduyet@pro.edu.vn') {
+        return 'moderator';
+      }
+      if (user.email.endsWith('@pro.edu.vn')) {
+        return 'instructor';
+      }
+    }
+    
+    return 'user';
   };
 
   const [user, setUser] = useState<User | null | false>(null); // null: chưa load, User: đã đăng nhập, false: chưa đăng nhập
@@ -58,11 +72,30 @@ const AppHeader = () => {
   };
 
   const handleMenuClick = (path: string) => {
-    if (path === '/admin/users') {
-      navigate('/admin');
-    } else {
-      navigate(path);
+    if (!user) {
+      message.error('Vui lòng đăng nhập để tiếp tục');
+      return;
     }
+
+    // Kiểm tra role trước khi cho phép truy cập
+    const roleName = getRoleName(user);
+    
+    if (path === '/admin' && roleName !== 'admin') {
+      message.error('Bạn không có quyền truy cập trang quản trị');
+      return;
+    }
+    
+    if (path === '/moderator' && roleName !== 'moderator') {
+      message.error('Bạn không có quyền truy cập trang kiểm duyệt');
+      return;
+    }
+    
+    if (path === '/instructor' && roleName !== 'instructor') {
+      message.error('Bạn không có quyền truy cập trang giảng viên');
+      return;
+    }
+
+    navigate(path);
   };
 
   useEffect(() => {
@@ -90,6 +123,7 @@ const AppHeader = () => {
             Authorization: `Bearer ${token}`,
           },
         });
+        console.log('User data from API:', response.data); // Log user data
         setUser(response.data);
         localStorage.setItem('user', JSON.stringify(response.data));
       } catch (error) {
@@ -143,35 +177,7 @@ const AppHeader = () => {
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {getRoleName(user) === 'user' ? (
-          <>
-            <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{ 
-              color: '#000',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '8px 12px',
-              borderRadius: 6,
-              transition: 'all 0.3s'
-            }}>
-              <SettingOutlined style={{ marginRight: 8 }} />
-              Cài đặt
-            </a>
-            <a onClick={handleLogout} className="menu-item-danger" style={{ 
-              color: '#ff4d4f',
-              fontWeight: '500',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '8px 12px',
-              borderRadius: 6,
-              transition: 'all 0.3s'
-            }}>
-              <LogoutOutlined style={{ marginRight: 8 }} />
-              Đăng xuất
-            </a>
-          </>
-        ) : (
-          <>
+        <>
             {getRoleName(user) === 'admin' && (
               <a onClick={() => handleMenuClick('/admin/users')} className="menu-item" style={{ 
                 color: '#000',
@@ -183,6 +189,19 @@ const AppHeader = () => {
               }}>
                 <DashboardOutlined style={{ marginRight: 8 }} />
                 Trang quản trị
+              </a>
+            )}
+            {getRoleName(user) === 'moderator' && (
+              <a onClick={() => handleMenuClick('/moderator')} className="menu-item" style={{ 
+                color: '#000',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                borderRadius: 6,
+                transition: 'all 0.3s'
+              }}>
+                <DashboardOutlined style={{ marginRight: 8 }} />
+                Trang kiểm duyệt
               </a>
             )}
             {getRoleName(user) === 'instructor' && (
@@ -198,19 +217,6 @@ const AppHeader = () => {
                 Trang giảng viên
               </a>
             )}
-            {getRoleName(user) === 'moderator' && (
-              <a onClick={() => handleMenuClick('/moderator')} className="menu-item" style={{ 
-                color: '#000',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '8px 12px',
-                borderRadius: 6,
-                transition: 'all 0.3s'
-              }}>
-                <DashboardOutlined style={{ marginRight: 8 }} />
-                Trang quản trị viên
-              </a>
-            )}
             <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{ 
               color: '#000',
               display: 'flex',
@@ -235,8 +241,7 @@ const AppHeader = () => {
               <LogoutOutlined style={{ marginRight: 8 }} />
               Đăng xuất
             </a>
-          </>
-        )}
+        </>
       </div>
     </div>
   );

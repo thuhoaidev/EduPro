@@ -29,14 +29,45 @@ interface User {
   avatar?: string;
   fullname: string;
   email: string;
-  role: string;
+  role?: {
+    name: string;
+    description: string;
+    permissions: string[];
+  };
+  approval_status?: string;
 }
 
+const getRoleName = (user: User): string => {
+  if (!user) {
+    return 'user';
+  }
+
+  // Kiểm tra approval_status để xác định role
+  if (user.approval_status === 'approved') {
+    if (user.email === 'admin@pro.edu.vn') {
+      return 'admin';
+    }
+    if (user.email === 'nguoikiemduyet@pro.edu.vn') {
+      return 'moderator';
+    }
+    if (user.email.endsWith('@pro.edu.vn')) {
+      return 'instructor';
+    }
+  }
+  
+  return 'user';
+};
+
+const checkRole = (user: User, requiredRole: string): boolean => {
+  return getRoleName(user) === requiredRole;
+};
+
 const InstructorLayout = () => {
-  const nav = useNavigate();
+  const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -45,20 +76,14 @@ const InstructorLayout = () => {
 
       if (storedUser) {
         const userData = JSON.parse(storedUser);
-        // Kiểm tra role instructor
-        const roleName = typeof userData.role === 'object' ? userData.role.name : userData.role;
-        if (roleName !== 'instructor') {
-          message.error('Bạn không có quyền truy cập trang này!');
-          nav('/');
-          return;
-        }
         setUser(userData);
+        setLoading(false);
         return;
       }
 
       if (!token) {
-        message.error('Bạn không có quyền truy cập trang này!');
-        nav('/');
+        setUser(null);
+        setLoading(false);
         return;
       }
 
@@ -68,23 +93,34 @@ const InstructorLayout = () => {
             Authorization: `Bearer ${token}`,
           },
         });
-        // Kiểm tra role instructor
-        if (response.data.role !== 'instructor') {
-          message.error('Bạn không có quyền truy cập trang này!');
-          nav('/');
-          return;
-        }
         setUser(response.data);
         localStorage.setItem('user', JSON.stringify(response.data));
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
-        message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-        nav('/login');
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchUser();
-  }, [nav]);
+  }, [navigate]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    navigate('/login');
+    return null;
+  }
+
+  // Kiểm tra role
+  if (!checkRole(user, 'instructor')) {
+    message.error('Bạn không có quyền truy cập trang giảng viên');
+    navigate('/');
+    return null;
+  }
 
   const breadcrumbItems = location.pathname
     .split("/")
