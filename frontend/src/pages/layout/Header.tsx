@@ -14,6 +14,7 @@ import {
   DashboardOutlined,
   LoginOutlined,
   UserAddOutlined,
+  ArrowLeftOutlined,
 } from '@ant-design/icons';
 
 
@@ -290,14 +291,26 @@ const AppHeader = () => {
           <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
             <span className="logo-text mr-2">EduPro</span>
           </div>
-          {window.location.pathname === '/profile' && (
-            <div
+          {['/profile', '/profile/edit'].includes(window.location.pathname) && (
+            <Button
+              type="text"
               onClick={() => navigate('/')}
-              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginLeft: 16 }}
+              style={{
+                marginLeft: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '0 8px',
+                height: 'auto',
+                color: '#1a73e8',
+                fontSize: 14,
+                fontWeight: 500,
+                transition: 'all 0.2s'
+              }}
+              icon={<ArrowLeftOutlined style={{ fontSize: '1.2em' }} />}
             >
-              <span style={{ fontSize: 20, marginRight: 4, color: '#8a94a5', display: 'flex', alignItems: 'center', lineHeight: 1 }}>&lt;</span>
-              <span style={{ fontWeight: 400, fontSize: 13, color: '#8a94a5', letterSpacing: 1 }}>QUAY LẠI</span>
-            </div>
+              Quay lại
+            </Button>
           )}
         </div>
 
