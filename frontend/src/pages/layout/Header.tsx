@@ -19,23 +19,26 @@ import {
 
 const { Header } = Layout;
 
-interface Role {
-  name: string;
-  description: string;
-  permissions: string[];
-}
-
 interface User {
   avatar?: string;
   fullname: string;
   email: string;
-  role: Role;
+  role?: {
+    name: string;
+    description: string;
+    permissions: string[];
+  };
   nickname?: string;
+  isVerified?: boolean;
+  approval_status?: string;
 }
 
 const AppHeader = () => {
-  const getRoleName = (role: Role): string => {
-    return role.name;
+  const getRoleName = (user: User): string => {
+    if (!user || !user.role) {
+      return 'user'; // Mặc định là user nếu không có role
+    }
+    return user.role.name || 'user';
   };
 
   const [user, setUser] = useState<User | null | false>(null); // null: chưa load, User: đã đăng nhập, false: chưa đăng nhập
@@ -135,12 +138,12 @@ const AppHeader = () => {
             whiteSpace: 'nowrap',
             cursor: 'pointer'
           }} onClick={() => navigate('/profile')}>
-            {getRoleName(user.role) === 'user' ? user.email : user.nickname || user.email}
+            {getRoleName(user) === 'user' ? user.email : user.nickname || user.email}
           </div>
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {getRoleName(user.role) === 'user' ? (
+        {getRoleName(user) === 'user' ? (
           <>
             <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{ 
               color: '#000',
@@ -169,7 +172,7 @@ const AppHeader = () => {
           </>
         ) : (
           <>
-            {getRoleName(user.role) === 'admin' && (
+            {getRoleName(user) === 'admin' && (
               <a onClick={() => handleMenuClick('/admin/users')} className="menu-item" style={{ 
                 color: '#000',
                 display: 'flex',
@@ -182,7 +185,7 @@ const AppHeader = () => {
                 Trang quản trị
               </a>
             )}
-            {getRoleName(user.role) === 'instructor' && (
+            {getRoleName(user) === 'instructor' && (
               <a onClick={() => handleMenuClick('/instructor')} className="menu-item" style={{ 
                 color: '#000',
                 display: 'flex',
@@ -195,7 +198,7 @@ const AppHeader = () => {
                 Trang giảng viên
               </a>
             )}
-            {getRoleName(user.role) === 'moderator' && (
+            {getRoleName(user) === 'moderator' && (
               <a onClick={() => handleMenuClick('/moderator')} className="menu-item" style={{ 
                 color: '#000',
                 display: 'flex',
