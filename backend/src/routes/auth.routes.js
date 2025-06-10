@@ -30,7 +30,7 @@ router.post('/logout', (req, res) => {
     message: 'Đăng xuất thành công'
   });
 });
-router.get('/verify-email/:slug/:token', verifyEmail); // Không sử dụng middleware auth vì route này không cần xác thực
+router.get('/verify-email/:slug/:token', verifyEmail); // Route xác thực email, không cần middleware auth
 router.post('/resend-verification', resendVerificationEmail);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:resetToken', resetPassword);
