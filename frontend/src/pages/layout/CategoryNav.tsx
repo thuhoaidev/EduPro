@@ -34,6 +34,7 @@ interface BackendCategory {
   _id: string;
   name: string;
   description: string;
+  status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
   __v: number;
@@ -67,7 +68,8 @@ const AppSidebar: React.FC = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await config.get<BackendCategory[]>('/categories');
+        // Lấy danh mục active
+        const response = await config.get<BackendCategory[]>('/categories/status/active');
         const backendCategories = response.data.data; // Dữ liệu từ API có trong trường data
         
         // Chuyển đổi dữ liệu từ backend về định dạng cần thiết
