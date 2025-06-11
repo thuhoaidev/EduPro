@@ -33,6 +33,7 @@ import ModeratorLayout from "./pages/layout/ModeratorLayout";
 import InstructorLayout from "./pages/layout/InstructorLayout";
 import ChangePassword from "./pages/layout/ChangePassword";
 import Profile from "./pages/client/profile/Profile";
+import CategoryPage from "./pages/admin/categories/CategoryPage";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ function App() {
       children: [
         { path: "users", element: <UserPage /> },
         { path: "users/:id", element: <UserDetail /> },
+        { path: "categories", element: <CategoryPage /> },
         { path: "instructors", element: <InstructorList /> },
         { path: "instructor-approval", element: <InstructorPendingListPage /> },
         { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },

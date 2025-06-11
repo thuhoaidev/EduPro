@@ -191,7 +191,7 @@ const TransactionHistory = () => {
           className="tw-w-full sm:tw-w-40 tw-rounded-md tw-border tw-border-gray-300 tw-py-2 tw-px-4 focus:tw-border-blue-500 focus:tw-ring-0 tw-shadow-none"
           style={{ height: '40px' }}
         />
-        <Dropdown overlay={sortMenu} trigger={['click']}>
+        <Dropdown menu={sortMenu} trigger={['click']}>
           <Button className="tw-rounded-md tw-border tw-border-gray-300 tw-py-2 tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-between">
             Sắp xếp giá <CaretDownOutlined />
           </Button>
