@@ -42,13 +42,13 @@ const AppHeader = () => {
 
     // Kiểm tra approval_status để xác định role
     if (user.approval_status === 'approved') {
-      if (user.email === 'admin@pro.edu.vn') {
+      if (user.role?.name === 'admin') {
         return 'admin';
       }
-      if (user.email === 'nguoikiemduyet@pro.edu.vn') {
+      if (user.role?.name === 'moderator') {
         return 'moderator';
       }
-      if (user.email.endsWith('@pro.edu.vn')) {
+      if (user.role?.name === 'instructor') {
         return 'instructor';
       }
     }
