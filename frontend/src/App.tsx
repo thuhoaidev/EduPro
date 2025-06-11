@@ -62,9 +62,9 @@ function App() {
       children: [
         { path: "users", element: <UserPage /> },
         { path: "users/:id", element: <UserDetail /> },
+        { path: "instructors", element: <InstructorList /> },
         { path: "instructor-approval", element: <InstructorPendingListPage /> },
         { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },
-        { path: "instructors", element: <InstructorList /> },
         { path: "sectionLesson/CourseManagement", element: <CourseManagement /> },
         { path: "users/instructor/:id", element: <InstructorDetail /> },
         { path: "content-approval", element: <ContentApprovalPage /> },

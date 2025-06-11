@@ -65,6 +65,9 @@ const checkRole = (user: User, requiredRole: string): boolean => {
 
 const AdminLayout = () => {
   const navigate = useNavigate();
+  const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
+    navigate(key);
+  };
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -305,7 +308,7 @@ const AdminLayout = () => {
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
-          onClick={({ key }) => nav(key)}
+          onClick={handleMenuClick}
           items={menuItems}
           className={styles.customAdminMenu}
           style={{
