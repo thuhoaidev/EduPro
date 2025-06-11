@@ -169,49 +169,6 @@ const Homepage = () => {
           ))}
         </Row>
       </div>
-      <div className="mb-12">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h3 className="text-2xl font-bold text-gray-800">Khóa học mất phí</h3>
-            <p className="text-gray-600 mt-1">Học thử các khóa học chất lượng cao</p>
-          </div>
-          <a href="#" className="text-[#1a73e8] hover:text-[#1557b0] font-medium">Xem tất cả ›</a>
-        </div>
-        <Row gutter={[24, 24]}>
-          {courses.map((course, index) => (
-            <Col xs={24} sm={12} md={8} lg={6} key={index}>
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden h-full flex flex-col
-                           transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-                <div className="relative">
-                  <img src={course.Image} alt={course.title} className="w-full h-48 object-cover" />
-                  <div className="absolute inset-0 bg-black bg-opacity-20 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <PlayCircleOutlined className="text-white text-4xl" />
-                  </div>
-                </div>
-                <div className="p-4 flex-grow flex flex-col justify-between">
-                  <div>
-                    <h5 className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">{course.title}</h5>
-                    <p className="text-sm text-gray-600 mb-2">{course.author}</p>
-                    <div className="flex items-center mb-2">
-                      <Rate disabled defaultValue={course.rating} allowHalf className="text-yellow-500 text-sm" />
-                      <span className="ml-2 text-sm text-gray-600">({course.reviews})</span>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500 mb-2">
-                      <BookOutlined className="mr-1" />
-                      <span>12 bài học</span>
-                      <ClockCircleOutlined className="ml-4 mr-1" />
-                      <span>2.5 giờ</span>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <span className="text-lg font-bold text-[#1a73e8]">{course.price}</span>
-                  </div>
-                </div>
-              </div>
-            </Col>
-          ))}
-        </Row>
-      </div>
      
     </div>
   );
