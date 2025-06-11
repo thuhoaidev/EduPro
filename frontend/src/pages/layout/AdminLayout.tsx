@@ -9,6 +9,7 @@ import {
   BarChartOutlined,
   WarningOutlined,
   AppstoreOutlined,
+  LogoutOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -42,7 +43,7 @@ const getRoleName = (user: User): string => {
     return 'user';
   }
 
-  // Kiểm tra approval_status để xác định role
+  // Kiểm tra approval_status để xác định vai trò
   if (user.approval_status === 'approved') {
     if (user.email === 'admin@pro.edu.vn') {
       return 'admin';
@@ -201,6 +202,11 @@ const AdminLayout = () => {
           icon: <FileSearchOutlined className="text-lg" />,
           label: renderLabel("Duyệt khóa học & blog"),
         },
+        {
+          key: "/admin/categories",
+          icon: <TagsOutlined className="text-lg" />,
+          label: renderLabel("Quản lý danh mục"),
+        },
       ],
     },
     {
@@ -275,6 +281,9 @@ const AdminLayout = () => {
       <Menu.Divider />
       <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => nav('/')}>
         Trang người dùng
+      </Menu.Item>
+      <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout}>
+        Đăng xuất
       </Menu.Item>
     </Menu>
   );

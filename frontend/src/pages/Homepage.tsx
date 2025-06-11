@@ -415,24 +415,9 @@ const Homepage = () => {
             margin: "0 auto 32px",
           }}
         >
-          Đăng ký ngay hôm nay để truy cập vào kho tàng kiến thức và kỹ năng công nghệ mới nhất
+           Tìm hiểu ngay hôm nay để truy cập vào kho tàng kiến thức và kỹ năng công nghệ mới nhất
         </Paragraph>
         <Space size="middle">
-          <Button
-            type="primary"
-            size="large"
-            style={{
-              background: "white",
-              borderColor: "white",
-              color: "#1a73e8",
-              height: "48px",
-              fontSize: "16px",
-              fontWeight: 500,
-              padding: "0 24px",
-            }}
-          >
-            Đăng ký ngay
-          </Button>
           <Button
             ghost
             size="large"
