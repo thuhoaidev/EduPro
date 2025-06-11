@@ -51,6 +51,9 @@ const AppHeader = () => {
       if (user.role?.name === 'instructor') {
         return 'instructor';
       }
+      if (user.role?.name === 'student') {
+        return 'student';
+      }
     }
     
     return 'user';
@@ -197,6 +200,19 @@ const AppHeader = () => {
               }}>
                 <DashboardOutlined style={{ marginRight: 8 }} />
                 Trang quản trị
+              </a>
+            )}
+            {getRoleName(user) === 'student' && (
+              <a onClick={() => navigate('/register-instructor')} className="menu-item" style={{ 
+                color: '#000',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                borderRadius: 6,
+                transition: 'all 0.3s'
+              }}>
+                <UserAddOutlined style={{ marginRight: 8 }} />
+                Đăng ký tài khoản giảng viên
               </a>
             )}
             {getRoleName(user) === 'moderator' && (
