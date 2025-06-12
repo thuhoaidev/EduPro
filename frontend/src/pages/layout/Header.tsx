@@ -40,20 +40,18 @@ const AppHeader = () => {
       return 'user';
     }
 
-    // Kiểm tra approval_status để xác định role
-    if (user.approval_status === 'approved') {
-      if (user.role?.name === 'admin') {
-        return 'admin';
-      }
-      if (user.role?.name === 'moderator') {
-        return 'moderator';
-      }
-      if (user.role?.name === 'instructor') {
-        return 'instructor';
-      }
-      if (user.role?.name === 'student') {
-        return 'student';
-      }
+    // Kiểm tra role của người dùng
+    if (user.role?.name === 'admin') {
+      return 'admin';
+    }
+    if (user.role?.name === 'moderator') {
+      return 'moderator';
+    }
+    if (user.role?.name === 'instructor') {
+      return 'instructor';
+    }
+    if (user.role?.name === 'student') {
+      return 'student';
     }
     
     return 'user';
@@ -83,6 +81,7 @@ const AppHeader = () => {
 
     // Kiểm tra role trước khi cho phép truy cập
     const roleName = getRoleName(user);
+    console.log('Current role:', roleName); // Log role name
     
     if (path === '/admin' && roleName !== 'admin') {
       message.error('Bạn không có quyền truy cập trang quản trị');
@@ -127,9 +126,26 @@ const AppHeader = () => {
             Authorization: `Bearer ${token}`,
           },
         });
-        console.log('User data from API:', response.data); // Log user data
-        setUser(response.data);
-        localStorage.setItem('user', JSON.stringify(response.data));
+        const userData = response.data;
+        console.log('Raw user data from API:', userData); // Log raw data
+        
+        // Ensure role is properly structured if it exists
+        if (userData.role) {
+          // Keep the original role object structure
+          userData.role.name = userData.role.name || 'user';
+          userData.role.description = userData.role.description || '';
+          userData.role.permissions = userData.role.permissions || [];
+        } else {
+          userData.role = {
+            name: 'user',
+            description: '',
+            permissions: []
+          };
+        }
+        
+        console.log('Processed user data:', userData); // Log processed data
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
         setUser(false);
