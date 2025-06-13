@@ -31,7 +31,7 @@ import { getAllCategories, createCategory, updateCategory, deleteCategory } from
 import type { Category } from "../../../interfaces/Category.interface";
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
-import styles from './CategoryPage.module.css';
+import styles from '../../../styles/CategoryPage.module.css';
 
 dayjs.locale('vi');
 
@@ -153,7 +153,7 @@ const CategoryPage = () => {
       key: 'status',
       render: (status) => (
         <Tag color={status === 'active' ? 'green' : 'red'}>
-          {status === 'active' ? 'Hoạt động' : 'Ngừng hoạt động'}
+          {status === 'active' ? 'Hiển thị' : 'Ẩn'}
         </Tag>
       ),
     },
@@ -161,13 +161,13 @@ const CategoryPage = () => {
       title: 'Ngày tạo',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (createdAt) => new Date(createdAt).toLocaleDateString('vi-VN'),
+      render: (createdAt) => dayjs(createdAt).format('DD/MM/YYYY HH:mm'),
     },
     {
       title: 'Ngày cập nhật',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      render: (updatedAt) => new Date(updatedAt).toLocaleDateString('vi-VN'),
+      render: (updatedAt) => dayjs(updatedAt).format('DD/MM/YYYY HH:mm'),
     },
     {
       title: 'Hành động',
@@ -302,14 +302,14 @@ const CategoryPage = () => {
                   </Col>
                   <Col span={8}>
                     <Statistic
-                      title="Đang hoạt động"
+                      title="Hiển thị"
                       value={categoryStats.active}
                       valueStyle={{ color: '#3f8600' }}
                     />
                   </Col>
                   <Col span={8}>
                     <Statistic
-                      title="Ngừng hoạt động"
+                      title="Ẩn"
                       value={categoryStats.inactive}
                       valueStyle={{ color: '#cf1322' }}
                     />
@@ -376,13 +376,13 @@ const CategoryPage = () => {
                     <Select.Option value="active">
                       <Space>
                         <CheckCircleOutlined style={{ color: 'green' }} />
-                        Hoạt động
+                        Hiển thị
                       </Space>
                     </Select.Option>
                     <Select.Option value="inactive">
                       <Space>
                         <CloseCircleOutlined style={{ color: 'red' }} />
-                        Ngừng hoạt động
+                        Ẩn
                       </Space>
                     </Select.Option>
                   </Select>

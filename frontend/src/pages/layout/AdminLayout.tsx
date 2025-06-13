@@ -20,7 +20,7 @@ import {
 } from "antd";
 import type { MenuProps } from "antd";
 import React, { useState, useEffect } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import styles from "../../styles/AdminLayout.module.css";
 import { config } from "../../api/axios";
 
@@ -64,9 +64,9 @@ const checkRole = (user: User, requiredRole: string): boolean => {
 };
 
 const AdminLayout = () => {
-  const navigate = useNavigate();
+  const nav = useNavigate();
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
-    navigate(key);
+    nav(key);
   };
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
@@ -108,14 +108,14 @@ const AdminLayout = () => {
     };
 
     fetchUser();
-  }, [navigate]);
+  }, [nav]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
     message.success('Đăng xuất thành công!');
-    navigate('/login');
+    nav('/login');
   };
 
   if (loading) {
@@ -123,14 +123,14 @@ const AdminLayout = () => {
   }
 
   if (!user) {
-    navigate('/login');
+    nav('/login');
     return null;
   }
 
   // Kiểm tra role
   if (!checkRole(user, 'admin')) {
     message.error('Bạn không có quyền truy cập trang quản trị');
-    navigate('/');
+    nav('/');
     return null;
   }
 
