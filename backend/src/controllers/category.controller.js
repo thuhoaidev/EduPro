@@ -84,51 +84,37 @@ exports.getCategoryById = async (req, res, next) => {
 exports.updateCategory = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const validatedData = await validateSchema(updateCategorySchema, req.body);
+        const { name, description, status } = req.body;
 
-        const category = await Category.findByIdAndUpdate(
-            id,
-            { $set: validatedData },
-            { new: true, runValidators: true }
-        );
-
+        // Kiểm tra danh mục có tồn tại không
+        const category = await Category.findById(id);
         if (!category) {
-            throw new ApiError(404, 'Không tìm thấy danh mục');
+            throw new ApiError(404, 'Danh mục không tồn tại');
         }
 
-        res.json({
-            success: true,
-            data: category
-        });
-    } catch (error) {
-        // Xử lý lỗi trùng lặp tên danh mục
-        if (error.code === 11000 && error.keyPattern && error.keyPattern.name) {
-            return next(new ApiError(400, 'Tên danh mục đã tồn tại'));
-        }
-        next(error);
-    }
-};
-
-// Cập nhật trạng thái danh mục
-exports.updateCategoryStatus = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
-
-        // Kiểm tra giá trị status có hợp lệ không
-        if (!['active', 'inactive'].includes(status.toLowerCase())) {
-            throw new ApiError(400, 'Trạng thái không hợp lệ. Phải là active hoặc inactive');
+        // Kiểm tra xem có cập nhật tên không
+        if (name && name !== category.name) {
+            // Kiểm tra xem tên mới đã tồn tại chưa
+            const existingCategory = await Category.findOne({ name });
+            if (existingCategory) {
+                throw new ApiError(400, 'Tên danh mục đã tồn tại');
+            }
         }
 
-        const category = await Category.findByIdAndUpdate(
-            id,
-            { status: status.toLowerCase() },
-            { new: true, runValidators: true }
-        );
+        // Cập nhật thông tin
+        if (name) category.name = name;
+        if (description !== undefined) category.description = description;
 
-        if (!category) {
-            throw new ApiError(404, 'Không tìm thấy danh mục');
+        // Cập nhật trạng thái nếu có
+        if (status !== undefined) {
+            // Kiểm tra giá trị status có hợp lệ không
+            if (!['active', 'inactive'].includes(status.toLowerCase())) {
+                throw new ApiError(400, 'Trạng thái không hợp lệ. Phải là active hoặc inactive');
+            }
+            category.status = status.toLowerCase();
         }
+
+        await category.save();
 
         res.json({
             success: true,
