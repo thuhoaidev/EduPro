@@ -3,7 +3,6 @@ const { uploadBufferToCloudinary, getPublicIdFromUrl, deleteFromCloudinary } = r
 const { validateSchema } = require('../utils/validateSchema');
 const { createCourseSchema, updateCourseSchema, updateCourseStatusSchema } = require('../validations/course.validation');
 const ApiError = require('../utils/ApiError');
-const InstructorProfile = require('../models/InstructorProfile');
 const Section = require('../models/Section');
 // const Joi = require('joi'); // Không cần Joi ở đây nữa
 

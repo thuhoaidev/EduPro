@@ -3,8 +3,6 @@ const { Role } = require('../models/Role');
 const jwt = require('jsonwebtoken');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../config/email');
 const crypto = require('crypto');
-const InstructorProfile = require('../models/InstructorProfile');
-const { log } = require('console');
 const ApiError = require('../utils/ApiError');
 const { validateSchema } = require('../utils/validateSchema');
 const { loginSchema, registerSchema } = require('../validations/auth.validation');
@@ -636,70 +634,6 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi đặt lại mật khẩu',
-      error: error.message,
-    });
-  }
-};
-
-// Lấy thông tin user hiện tại
-exports.getMe = async (req, res, next) => {
-  try {
-    const user = await User.findById(req.user._id).populate('role_id');
-    if (!user) {
-      throw new ApiError(404, 'Không tìm thấy tài khoản');
-    }
-
-    res.json({
-      success: true,
-      data: {
-        _id: user._id,
-        email: user.email,
-        full_name: user.name,
-        role: user.role_id,
-        avatar: user.avatar,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Cập nhật thông tin user
-exports.updateMe = async (req, res) => {
-  try {
-    const allowedUpdates = ['name', 'nickname', 'avatar', 'bio', 'social_links'];
-
-    // Lọc các trường được phép cập nhật
-    const updates = Object.keys(req.body)
-      .filter(key => allowedUpdates.includes(key))
-      .reduce((obj, key) => {
-        obj[key] = req.body[key];
-        return obj;
-      }, {});
-
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { $set: updates },
-      { new: true, runValidators: true },
-    ).populate('role_id');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy tài khoản',
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Cập nhật thông tin thành công',
-      user: user.toJSON(),
-    });
-  } catch (error) {
-    console.error('Lỗi cập nhật thông tin:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi cập nhật thông tin',
       error: error.message,
     });
   }
