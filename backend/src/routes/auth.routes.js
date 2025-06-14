@@ -35,25 +35,10 @@ router.post('/resend-verification', resendVerificationEmail);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:resetToken', resetPassword);
 
-// Routes hồ sơ giảng viên
-router.get('/admin/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), getPendingInstructors);
-router.post('/instructor-approval', auth, checkRole(ROLES.ADMIN, ROLES.MODERATOR), approveInstructorProfile);
-router.get('/admin/instructor-profile/:id?', auth, requireAuth, getInstructorApplication);
-
-// Routes yêu cầu xác thực
-router.use(auth); 
-router.post('/register/instructor', registerInstructor);
-
 // Routes cho tất cả user đã đăng nhập
 router.get('/me', requireAuth, getMe);
 router.patch('/me', requireAuth, updateMe);
 router.patch('/change-password', requireAuth, changePassword);
-
-// Routes hồ sơ giảng viên
-router.put('/instructor-profile/:id?', requireAuth, updateOrCreateInstructorProfile);
-router.get('/instructors-unapproved/:id?', requireAuth, getApprovedInstructors);
-router.get('/instructors-pending', requireAuth, getPendingInstructors);
-router.post('/instructors-approve', requireAuth, approveInstructorProfile);
 
 // Routes hồ sơ cá nhân
 router.get('/use-me', auth, requireAuth, getCurrentUser);
