@@ -9,11 +9,14 @@ router.post('/', auth, requireAuth, upload.single('thumbnail'), handleUploadErro
 router.put('/:id', auth, requireAuth, upload.single('thumbnail'), handleUploadError, courseController.updateCourse);
 router.patch('/:id/status', auth, requireAuth, courseController.updateCourseStatus);
 router.delete('/:id', auth, requireAuth, courseController.deleteCourse);
-router.get('/', courseController.getCourses);
-router.get('/:id', courseController.getCourseById);
-router.get('/slug/:slug', courseController.getCourseBySlug);
+// Lấy danh sách khóa học
+router.get('/', auth, requireAuth(['instructor', 'admin']), courseController.getCourses);
+
+// Lấy chi tiết khóa học
+router.get('/:id', auth, requireAuth(['admin', 'instructor']), courseController.getCourseById);
+router.get('/slug/:slug', auth, requireAuth(['admin', 'instructor']), courseController.getCourseBySlug);
 
 // Lấy danh sách chương học và bài học theo khóa học
-router.get('/:course_id/sections', courseController.getCourseSectionsAndLessons);
+router.get('/:course_id/sections', auth, requireAuth(['admin', 'instructor']), courseController.getCourseSectionsAndLessons);
 
 module.exports = router; 

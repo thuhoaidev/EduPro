@@ -1,26 +1,17 @@
 const Course = require('../models/Course');
+const InstructorProfile = require('../models/InstructorProfile');
 const { uploadBufferToCloudinary, getPublicIdFromUrl, deleteFromCloudinary } = require('../utils/cloudinary');
 const { validateSchema } = require('../utils/validateSchema');
 const { createCourseSchema, updateCourseSchema, updateCourseStatusSchema } = require('../validations/course.validation');
 const ApiError = require('../utils/ApiError');
 const Section = require('../models/Section');
-// const Joi = require('joi'); // Không cần Joi ở đây nữa
+const User = require('../models/User');
 
 // Tạo khóa học mới
 exports.createCourse = async (req, res, next) => {
     try {
         // Kiểm tra file thumbnail
         if (!req.file || !req.file.buffer) {
-            console.log('Debug file upload:', {
-                hasFile: !!req.file,
-                fileInfo: req.file ? {
-                    fieldname: req.file.fieldname,
-                    originalname: req.file.originalname,
-                    mimetype: req.file.mimetype,
-                    size: req.file.size,
-                    hasBuffer: !!req.file.buffer
-                } : null
-            });
             throw new ApiError(400, 'Vui lòng tải lên ảnh đại diện cho khóa học');
         }
 
@@ -98,21 +89,9 @@ exports.createCourse = async (req, res, next) => {
                     .map(key => req.body[key])
         };
 
-        // Log dữ liệu trước khi validate
-        console.log('\n=== COURSE DATA BEFORE VALIDATION ===');
-        console.log(JSON.stringify(courseData, null, 2));
-        console.log('=== END COURSE DATA ===\n');
-
-        // Validate toàn bộ dữ liệu đã kết hợp với schema đầy đủ
+        // Validate và lưu dữ liệu
         const validatedData = await validateSchema(createCourseSchema, courseData);
-
-        // Chuyển instructor string trở lại thành ObjectId trước khi lưu vào database
         validatedData.instructor = instructorProfile._id;
-
-        // Log dữ liệu sau khi validate
-        console.log('\n=== VALIDATED COURSE DATA ===');
-        console.log(JSON.stringify(validatedData, null, 2));
-        console.log('=== END VALIDATED DATA ===\n');
 
         // Tạo instance Course mới và lưu vào database
         const course = new Course(validatedData);
@@ -268,15 +247,10 @@ exports.updateCourse = async (req, res, next) => {
             }
         );
 
-        if (!course) {
-            throw new ApiError(404, 'Không tìm thấy khóa học');
-        }
-
         res.json({
             success: true,
             data: course
         });
-
     } catch (error) {
         console.error('\n=== LỖI CẬP NHẬT KHÓA HỌC ===');
         console.error('Error name:', error.name);
@@ -290,68 +264,40 @@ exports.updateCourse = async (req, res, next) => {
     }
 };
 
-// Cập nhật trạng thái khóa học
-exports.updateCourseStatus = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { status } = await validateSchema(updateCourseStatusSchema, req.body);
-
-        const course = await Course.findByIdAndUpdate(
-            id,
-            { status },
-            { 
-                new: true, 
-                runValidators: true,
-                populate: [
-                    { path: 'instructor', select: 'userId bio expertise rating' },
-                    { path: 'category', select: 'name' }
-                ]
-            }
-        );
-
-        if (!course) {
-            throw new ApiError(404, 'Không tìm thấy khóa học');
-        }
-
-        res.json({
-            success: true,
-            data: course
-        });
-    } catch (error) {
-        console.error('\n=== LỖI CẬP NHẬT TRẠNG THÁI ===');
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-        console.error('=== END LỖI ===\n');
-        next(error);
-    }
-};
-
 // Xóa khóa học
 exports.deleteCourse = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        // Tìm và xóa khóa học
+        // Kiểm tra khóa học tồn tại
         const course = await Course.findById(id);
         if (!course) {
             throw new ApiError(404, 'Không tìm thấy khóa học');
         }
 
-        // Xóa ảnh trên Cloudinary
+        // Kiểm tra quyền xóa
+        const instructorProfile = await InstructorProfile.findOne({ userId: req.user.id });
+        if (!instructorProfile) {
+            throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên');
+        }
+
+        if (instructorProfile.status !== 'approved') {
+            throw new ApiError(403, 'Hồ sơ giảng viên chưa được duyệt');
+        }
+
+        if (course.instructor._id.toString() !== instructorProfile._id.toString()) {
+            throw new ApiError(403, 'Bạn không có quyền xóa khóa học này');
+        }
+
+        // Xóa ảnh từ Cloudinary nếu có
         if (course.thumbnail && course.thumbnail.includes('res.cloudinary.com')) {
-            try {
-                const publicId = getPublicIdFromUrl(course.thumbnail);
-                if (publicId) {
-                    await deleteFromCloudinary(publicId);
-                }
-            } catch (deleteError) {
-                console.error('Lỗi xóa ảnh trên Cloudinary:', deleteError);
-                // Không throw error ở đây để vẫn xóa được course trong DB
+            const publicId = getPublicIdFromUrl(course.thumbnail);
+            if (publicId) {
+                await deleteFromCloudinary(publicId);
             }
         }
 
-        // Xóa khóa học trong database
+        // Xóa khóa học
         await Course.findByIdAndDelete(id);
 
         res.json({
@@ -370,11 +316,64 @@ exports.deleteCourse = async (req, res, next) => {
         console.error('=== END LỖI ===\n');
         next(error);
     }
+}; // Đóng ngoặc hàm deleteCourse
+
+// Cập nhật trạng thái khóa học
+exports.updateCourseStatus = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Kiểm tra quyền
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            throw new ApiError(404, 'Người dùng không tồn tại');
+        }
+
+        if (!user.roles.includes('admin')) {
+            throw new ApiError(403, 'Bạn không có quyền cập nhật trạng thái khóa học');
+        }
+
+        // Cập nhật trạng thái
+        const course = await Course.findByIdAndUpdate(
+            id,
+            { status },
+            { new: true }
+        );
+
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+
+        res.json({
+            success: true,
+            data: course
+        });
+    } catch (error) {
+        next(error);
+    }
 };
 
 // Lấy danh sách khóa học
 exports.getCourses = async (req, res, next) => {
     try {
+        // Kiểm tra xem user có phải là giảng viên không
+        if (!req.user) {
+            throw new ApiError(401, 'Vui lòng đăng nhập để truy cập danh sách khóa học');
+        }
+
+        // Log thông tin user để debug
+        console.log('Course controller user:', {
+            id: req.user._id,
+            roles: req.user.roles,
+            role_id: req.user.role_id
+        });
+
+        // Kiểm tra quyền truy cập của user
+        if (!req.user.roles.includes('admin') && !req.user.roles.includes('instructor')) {
+            throw new ApiError(403, 'Bạn không có quyền truy cập danh sách khóa học');
+        }
+
         const {
             page = 1,
             limit = 10,
@@ -428,38 +427,7 @@ exports.getCourses = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-};
-
-// Lấy chi tiết khóa học theo ID
-exports.getCourseById = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-
-        const course = await Course.findById(id)
-            .populate('instructor', 'userId bio expertise rating')
-            .populate('category', 'name');
-
-        if (!course) {
-            throw new ApiError(404, 'Không tìm thấy khóa học');
-        }
-
-        // Tăng lượt xem
-        course.views = (course.views || 0) + 1;
-        await course.save();
-
-        res.json({
-            success: true,
-            data: course
-        });
-    } catch (error) {
-        console.error('\n=== LỖI LẤY CHI TIẾT KHÓA HỌC ===');
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-        console.error('=== END LỖI ===\n');
-        next(error);
-    }
-};
+}; // Đóng ngoặc hàm getCourses
 
 // Lấy khóa học theo slug
 exports.getCourseBySlug = async (req, res, next) => {
@@ -482,6 +450,7 @@ exports.getCourseBySlug = async (req, res, next) => {
             success: true,
             data: course
         });
+
     } catch (error) {
         console.error('\n=== LỖI LẤY KHÓA HỌC THEO SLUG ===');
         console.error('Error name:', error.name);
@@ -490,33 +459,125 @@ exports.getCourseBySlug = async (req, res, next) => {
         console.error('=== END LỖI ===\n');
         next(error);
     }
-};
+}; // Đóng ngoặc hàm getCourseBySlug
 
 // Lấy danh sách chương học và bài học theo khóa học
 exports.getCourseSectionsAndLessons = async (req, res, next) => {
-  try {
-    const { course_id } = req.params;
+    try {
+        const { course_id } = req.params;
 
-    // Kiểm tra khóa học tồn tại
-    const course = await Course.findById(course_id);
-    if (!course) {
-      throw new ApiError(404, 'Không tìm thấy khóa học');
+        // Kiểm tra khóa học tồn tại
+        const course = await Course.findById(course_id);
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+
+        // Lấy danh sách chương học và bài học
+        const sections = await Section.find({ course_id })
+            .sort({ position: 1 })
+            .populate({
+                path: 'lessons',
+                select: 'title position is_preview',
+                options: { sort: { position: 1 } },
+            });
+
+        res.json({
+            success: true,
+            data: sections,
+        });
+
+    } catch (error) {
+        next(error);
     }
+}; // Đóng ngoặc hàm getCourseSectionsAndLessons
+exports.getCourseById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
 
-    // Lấy danh sách chương học và bài học
-    const sections = await Section.find({ course_id })
-      .sort({ position: 1 })
-      .populate({
-        path: 'lessons',
-        select: 'title position is_preview',
-        options: { sort: { position: 1 } },
-      });
+        const course = await Course.findById(id)
+            .populate('instructor', 'userId bio expertise rating')
+            .populate('category', 'name');
 
-    res.json({
-      success: true,
-      data: sections,
-    });
-  } catch (error) {
-    next(error);
-  }
-}; 
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+
+        // Tăng lượt xem
+        course.views = (course.views || 0) + 1;
+        await course.save();
+
+        res.json({
+            success: true,
+            data: course
+        });
+
+    } catch (error) {
+        console.error('\n=== LỖI LẤY CHI TIẾT KHÓA HỌC ===');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('=== END LỖI ===\n');
+        next(error);
+    }
+}; // Đóng ngoặc hàm getCourseById
+
+// Lấy khóa học theo slug
+exports.getCourseBySlug = async (req, res, next) => {
+    try {
+        const { slug } = req.params;
+
+        const course = await Course.findOne({ slug })
+            .populate('instructor', 'userId bio expertise rating')
+            .populate('category', 'name');
+
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+
+        // Tăng lượt xem
+        course.views = (course.views || 0) + 1;
+        await course.save();
+
+        res.json({
+            success: true,
+            data: course
+        });
+
+    } catch (error) {
+        console.error('\n=== LỖI LẤY KHÓA HỌC THEO SLUG ===');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('=== END LỖI ===\n');
+        next(error);
+    }
+}; // Đóng ngoặc hàm getCourseBySlug
+
+// Lấy danh sách chương học và bài học theo khóa học
+exports.getCourseSectionsAndLessons = async (req, res, next) => {
+    try {
+        const { course_id } = req.params;
+
+        // Kiểm tra khóa học tồn tại
+        const course = await Course.findById(course_id);
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+
+        // Lấy danh sách chương học và bài học
+        const sections = await Section.find({ course_id })
+            .sort({ position: 1 })
+            .populate({
+                path: 'lessons',
+                select: 'title position is_preview',
+                options: { sort: { position: 1 } },
+            });
+
+        res.json({
+            success: true,
+            data: sections,
+        });
+    } catch (error) {
+        next(error);
+    }
+}; // Đóng ngoặc hàm getCourseSectionsAndLessons
