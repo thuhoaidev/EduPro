@@ -8,7 +8,7 @@ const { auth, requireAuth } = require('../middlewares/auth');
 router.post('/', auth, requireAuth(['instructor', 'admin']), upload.single('thumbnail'), handleUploadError, courseController.createCourse);
 router.put('/:id', auth, requireAuth, upload.single('thumbnail'), handleUploadError, courseController.updateCourse);
 router.patch('/:id/status', auth, requireAuth, courseController.updateCourseStatus);
-router.delete('/:id', auth, requireAuth, courseController.deleteCourse);
+router.delete('/:id', auth, requireAuth(['instructor', 'admin']), courseController.deleteCourse);
 // Lấy danh sách khóa học
 router.get('/', auth, requireAuth(['instructor', 'admin']), courseController.getCourses);
 

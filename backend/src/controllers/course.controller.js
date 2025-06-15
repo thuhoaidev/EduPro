@@ -344,49 +344,120 @@ exports.deleteCourse = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        // Kiểm tra khóa học tồn tại
-        const course = await Course.findById(id);
+        // Lấy khóa học hiện tại
+        console.log('=== DEBUG DELETE COURSE ===');
+        console.log('Course ID:', id);
+        console.log('User ID:', req.user._id);
+        console.log('User roles:', req.user.roles);
+
+        const course = await Course.findById(id)
+            .populate('instructor', 'user status is_approved')
+            .populate('category', 'name');
+        
         if (!course) {
             throw new ApiError(404, 'Không tìm thấy khóa học');
         }
 
         // Kiểm tra quyền xóa
-        const instructorProfile = await InstructorProfile.findOne({ userId: req.user.id });
-        if (!instructorProfile) {
-            throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên');
-        }
+        let instructorProfile;
+        try {
+            // Bỏ qua instructor từ body request
+            delete req.body.instructor;
+            
+            console.log('\n=== DEBUG INSTRUCTOR PROFILE ===');
+            console.log('User ID từ token:', req.user._id);
+            
+            instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+            
+            if (!instructorProfile) {
+                console.log('Không tìm thấy hồ sơ giảng viên nào cho user này');
+                throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên. Vui lòng tạo hồ sơ giảng viên trước.');
+            }
+            
+            console.log('Tìm thấy hồ sơ giảng viên:', {
+                id: instructorProfile._id,
+                userId: instructorProfile.userId,
+                status: instructorProfile.status,
+                is_approved: instructorProfile.is_approved,
+                bio: instructorProfile.bio,
+                expertise: instructorProfile.expertise
+            });
+            
+            if (instructorProfile.status !== 'approved' || !instructorProfile.is_approved) {
+                console.log('Hồ sơ giảng viên chưa được duyệt. Trạng thái hiện tại:', instructorProfile.status);
+                throw new ApiError(403, `Hồ sơ giảng viên của bạn đang ở trạng thái "${instructorProfile.status}". Vui lòng đợi được phê duyệt.`);
+            }
 
-        if (instructorProfile.status !== 'approved') {
-            throw new ApiError(403, 'Hồ sơ giảng viên chưa được duyệt');
-        }
-
-        if (course.instructor._id.toString() !== instructorProfile._id.toString()) {
-            throw new ApiError(403, 'Bạn không có quyền xóa khóa học này');
+            // Kiểm tra xem người dùng có phải là giảng viên của khóa học này không
+            if (course.instructor._id.toString() !== instructorProfile._id.toString()) {
+                throw new ApiError(403, 'Bạn không có quyền xóa khóa học này');
+            }
+            
+            console.log('=== END DEBUG ===\n');
+            
+        } catch (instructorError) {
+            console.error('\n=== LỖI CHI TIẾT ===');
+            console.error('Error name:', instructorError.name);
+            console.error('Error message:', instructorError.message);
+            console.error('Error stack:', instructorError.stack);
+            console.error('=== END LỖI ===\n');
+            
+            if (instructorError instanceof ApiError) {
+                throw instructorError;
+            }
+            throw new ApiError(500, 'Lỗi khi xác thực thông tin giảng viên: ' + instructorError.message);
         }
 
         // Xóa ảnh từ Cloudinary nếu có
         if (course.thumbnail && course.thumbnail.includes('res.cloudinary.com')) {
-            const publicId = getPublicIdFromUrl(course.thumbnail);
-            if (publicId) {
-                await deleteFromCloudinary(publicId);
+            console.log('Deleting thumbnail from Cloudinary...');
+            try {
+                const publicId = getPublicIdFromUrl(course.thumbnail);
+                if (publicId) {
+                    await deleteFromCloudinary(publicId);
+                    console.log('Thumbnail deleted successfully');
+                }
+            } catch (cloudinaryError) {
+                console.error('Error deleting thumbnail:', cloudinaryError);
+                // Không throw lỗi vì việc xóa thumbnail không quan trọng
             }
         }
 
         // Xóa khóa học
-        await Course.findByIdAndDelete(id);
+        try {
+            await Course.findByIdAndDelete(id);
+            console.log('Course deleted successfully');
+        } catch (deleteError) {
+            console.error('Error deleting course:', deleteError);
+            throw new ApiError(500, 'Lỗi khi xóa khóa học', deleteError);
+        }
 
+        // Trả về kết quả
         res.json({
             success: true,
             message: 'Xóa khóa học thành công',
             data: {
                 id: course._id,
-                title: course.title
+                title: course.title,
+                instructor: {
+                    id: course.instructor._id,
+                    name: course.instructor.user.fullname,
+                    status: course.instructor.status,
+                    is_approved: course.instructor.is_approved
+                },
+                category: {
+                    id: course.category._id,
+                    name: course.category.name
+                }
             }
         });
     } catch (error) {
         console.error('\n=== LỖI XÓA KHÓA HỌC ===');
         console.error('Error name:', error.name);
         console.error('Error message:', error.message);
+        if (error.errors) {
+            console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+        }
         console.error('Error stack:', error.stack);
         console.error('=== END LỖI ===\n');
         next(error);
