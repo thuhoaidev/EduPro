@@ -7,6 +7,15 @@ const instructorProfileSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected', 'draft'],
+        default: 'pending'
+    },
+    is_approved: {
+        type: Boolean,
+        default: false
+    },
     bio: {
         type: String,
         trim: true

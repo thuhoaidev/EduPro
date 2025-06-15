@@ -31,11 +31,24 @@ exports.auth = async (req, res, next) => {
     }
 
     // Kiểm tra xem user có roles không
-    let roles = user.roles || ['guest'];  // Sử dụng 'guest' nếu không có roles
+    let roles = user.roles || [];
 
-    // Sử dụng isInstrutor để xác định roles
+    // Nếu user.isInstructor là true, thêm 'instructor' vào roles
     if (user.isInstructor) {
-      roles = ['instructor'];
+      roles.push('instructor');
+    }
+
+    // Kiểm tra role_id để xác định roles
+    if (user.role_id) {
+      // Nếu role_id là ObjectId của admin role
+      if (user.role_id.toString() === '68484e6282351f68a98e5d9d') {
+        roles.push('admin');
+      }
+    }
+
+    // Nếu không có roles nào, gán là 'guest'
+    if (roles.length === 0) {
+      roles = ['guest'];
     }
 
     // Thêm thông tin role_id vào user

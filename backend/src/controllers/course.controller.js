@@ -10,109 +10,184 @@ const User = require('../models/User');
 // Tạo khóa học mới
 exports.createCourse = async (req, res, next) => {
     try {
+        // Kiểm tra quyền truy cập
+        if (!req.user.roles.includes('instructor') && !req.user.roles.includes('admin')) {
+            throw new ApiError(403, 'Bạn không có quyền tạo khóa học');
+        }
+
         // Kiểm tra file thumbnail
         if (!req.file || !req.file.buffer) {
             throw new ApiError(400, 'Vui lòng tải lên ảnh đại diện cho khóa học');
         }
 
-        // Tìm instructor profile của user hiện tại
-        let instructorProfile;
-        try {
-            // Bỏ qua instructor từ body request vì chúng ta sẽ dùng user đang đăng nhập
-            delete req.body.instructor;
+        // Log thông tin user
+        console.log('\n=== DEBUG INSTRUCTOR PROFILE ===');
+        console.log('User ID:', req.user._id);
+        console.log('User roles:', req.user.roles);
+
+        // Nếu là admin, bỏ qua kiểm tra instructor profile
+        if (req.user.roles.includes('admin')) {
+            console.log('User is admin, skipping instructor profile check');
+        } else {
+            // Kiểm tra thông tin từ user trước
+            if (!req.user.isInstructor || req.user.approvalStatus !== 'approved') {
+                console.log('User is not approved instructor');
+                throw new ApiError(403, 'Tài khoản của bạn chưa được cấp quyền giảng viên. Vui lòng liên hệ quản trị viên.');
+            }
+
+            // Tìm instructor profile
+            console.log('Searching instructor profile with user:', req.user._id);
+            const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
             
-            // Log rõ ràng hơn
-            console.log('\n=== DEBUG INSTRUCTOR PROFILE ===');
-            console.log('User ID từ token:', req.user.id);
+            // Nếu không tìm thấy, thử tìm bằng email
+            if (!instructorProfile) {
+                console.log('Profile not found with user_id, trying email...');
+                instructorProfile = await InstructorProfile.findOne({ email: req.user.email });
+            }
             
-            // Tìm profile với điều kiện đơn giản hơn
-            instructorProfile = await InstructorProfile.findOne({ userId: req.user.id });
+            // Nếu vẫn không tìm thấy, tạo mới profile
+            if (!instructorProfile) {
+                console.log('Creating new profile for user...');
+                
+                // Kiểm tra và xóa record với user_id null nếu có
+                const nullProfile = await InstructorProfile.findOne({ user: null });
+                if (nullProfile) {
+                    console.log('Found and removing profile with null user_id...');
+                    await nullProfile.remove();
+                }
+                
+                instructorProfile = new InstructorProfile({
+                    user: req.user._id, // Sử dụng trường user thay vì userId
+                    email: req.user.email,
+                    status: 'approved',  // Đặt status là approved vì user.isInstructor=true
+                    is_approved: true,    // Đặt is_approved là true vì user.isInstructor=true
+                    bio: req.user.bio,
+                    fullname: req.user.fullname,
+                    avatar: req.user.avatar
+                });
+                
+                try {
+                    await instructorProfile.save();
+                    console.log('Profile created successfully');
+                } catch (saveError) {
+                    console.error('Error saving profile:', saveError);
+                    throw new ApiError(500, 'Lỗi khi tạo hồ sơ giảng viên', saveError);
+                }
+            }
+
+            // Log kết quả tìm kiếm
+            console.log('=== DEBUG PROFILE RESULT ===');
+            if (instructorProfile) {
+                console.log('Found instructor profile:', {
+                    id: instructorProfile._id,
+                    status: instructorProfile.status,
+                    is_approved: instructorProfile.is_approved
+                });
+            } else {
+                console.log('No instructor profile found');
+            }
+
+            // Kiểm tra trạng thái profile
+            console.log('=== DEBUG PROFILE STATUS CHECK ===');
+            console.log('Profile status:', instructorProfile.status);
+            console.log('Profile is_approved:', instructorProfile.is_approved);
             
             if (!instructorProfile) {
-                console.log('Không tìm thấy hồ sơ giảng viên nào cho user này');
+                console.log('Profile not found after all attempts');
                 throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên. Vui lòng tạo hồ sơ giảng viên trước.');
             }
             
-            console.log('Tìm thấy hồ sơ giảng viên:', {
-                id: instructorProfile._id,
-                userId: instructorProfile.userId,
-                status: instructorProfile.status,
-                bio: instructorProfile.bio,
-                expertise: instructorProfile.expertise
-            });
-            
-            if (instructorProfile.status !== 'approved') {
-                console.log('Hồ sơ giảng viên chưa được duyệt. Trạng thái hiện tại:', instructorProfile.status);
-                throw new ApiError(403, `Hồ sơ giảng viên của bạn đang ở trạng thái "${instructorProfile.status}". Vui lòng đợi được phê duyệt.`);
+            // Nếu profile có status pending hoặc is_approved=false, cập nhật lại
+            if (instructorProfile.status !== 'approved' || !instructorProfile.is_approved) {
+                console.log('Updating profile status to match user status');
+                instructorProfile.status = 'approved';
+                instructorProfile.is_approved = true;
+                await instructorProfile.save();
             }
-            
-            console.log('=== END DEBUG ===\n');
-            
-        } catch (instructorError) {
-            console.error('\n=== LỖI CHI TIẾT ===');
-            console.error('Error name:', instructorError.name);
-            console.error('Error message:', instructorError.message);
-            console.error('Error stack:', instructorError.stack);
-            console.error('=== END LỖI ===\n');
-            
-            // Nếu là ApiError thì throw trực tiếp
-            if (instructorError instanceof ApiError) {
-                throw instructorError;
-            }
-            // Nếu là lỗi khác thì wrap trong ApiError
-            throw new ApiError(500, 'Lỗi khi xác thực thông tin giảng viên: ' + instructorError.message);
+
+            // Lưu instructor profile vào request để sử dụng sau
+            req.instructorProfile = instructorProfile;
+            console.log('Instructor profile saved to request');
         }
 
-        // Upload thumbnail lên Cloudinary từ buffer
-        let thumbnailUrl = '';
-        try {
-            console.log('Bắt đầu upload thumbnail lên Cloudinary...');
-            const uploadResult = await uploadBufferToCloudinary(req.file.buffer, 'courses');
-            thumbnailUrl = uploadResult.secure_url;
-            console.log('Upload thumbnail thành công:', thumbnailUrl);
-        } catch (uploadError) {
-            console.error('Lỗi upload thumbnail:', uploadError);
-            throw new ApiError(500, 'Lỗi khi tải lên ảnh đại diện: ' + uploadError.message);
+        // Kiểm tra và xử lý thumbnail
+        let thumbnailUrl = null;
+        if (req.file && req.file.buffer) {
+            console.log('Đang upload thumbnail...');
+            try {
+                const uploadResult = await uploadBufferToCloudinary(req.file.buffer, 'courses');
+                thumbnailUrl = uploadResult.secure_url;
+                console.log('Upload thành công:', thumbnailUrl);
+            } catch (uploadError) {
+                console.error('Lỗi upload thumbnail:', uploadError);
+                throw new ApiError(500, 'Lỗi khi upload ảnh đại diện', uploadError);
+            }
+        } else {
+            console.log('Không có file thumbnail hoặc file không hợp lệ');
+            // Sử dụng ảnh mặc định nếu không có thumbnail
+            thumbnailUrl = 'default-course-thumbnail.jpg';
         }
+
+        // Log thông tin về dữ liệu gửi lên
+        console.log('=== DEBUG REQUEST DATA ===');
+        console.log('Body:', JSON.stringify(req.body, null, 2));
+        console.log('Thumbnail URL:', thumbnailUrl);
+        console.log('Instructor Profile ID:', req.instructorProfile._id);
 
         // Chuẩn bị dữ liệu khóa học
         const courseData = {
             ...req.body,
-            instructor: instructorProfile._id.toString(), // Chuyển ObjectId thành string
-            thumbnail: thumbnailUrl, // URL từ Cloudinary
-            price: Number(req.body.price), // Chuyển đổi price sang số
-            discount: Number(req.body.discount || 0), // Chuyển đổi discount sang số, mặc định là 0
-            requirements: Array.isArray(req.body.requirements) 
-                ? req.body.requirements 
-                : Object.keys(req.body)
-                    .filter(key => key.startsWith('requirements['))
-                    .map(key => req.body[key])
+            instructor: req.instructorProfile._id.toString(), // Chuyển đổi thành string
+            thumbnail: thumbnailUrl,
+            price: Number(req.body.price),
+            discount: Number(req.body.discount || 0),
+            requirements: Array.isArray(req.body.requirements) ? req.body.requirements : [],
+            category: req.body.category
         };
 
-        // Validate và lưu dữ liệu
-        const validatedData = await validateSchema(createCourseSchema, courseData);
-        validatedData.instructor = instructorProfile._id;
-
-        // Tạo instance Course mới và lưu vào database
-        const course = new Course(validatedData);
-        await course.save();
-
-        // Trả về response thành công
-        res.status(201).json({
-            success: true,
-            data: course
-        });
-
-    } catch (error) {
-        // Xử lý các lỗi xảy ra (validation, upload, database,...)
-        console.error('\n=== LỖI TẠO KHÓA HỌC ===');
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        if (error.errors) {
-            console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+        // Kiểm tra độ dài mô tả
+        if (courseData.description && courseData.description.length < 10) {
+            throw new ApiError(400, 'Mô tả phải có ít nhất 10 ký tự');
         }
+
+        // Log dữ liệu trước khi validate
+        console.log('=== DEBUG COURSE DATA ===');
+        console.log('Course Data:', JSON.stringify(courseData, null, 2));
+
+        // Validate dữ liệu
+        try {
+            const validatedData = await validateSchema(createCourseSchema, courseData);
+            validatedData.instructor = req.instructorProfile._id.toString(); // Đảm bảo instructor là string
+            
+            // Log dữ liệu sau validate
+            console.log('=== DEBUG VALIDATED DATA ===');
+            console.log('Validated Data:', JSON.stringify(validatedData, null, 2));
+
+            // Tạo và lưu khóa học
+            try {
+                const course = new Course(validatedData);
+                await course.save();
+
+                // Trả về kết quả
+                res.status(201).json({
+                    success: true,
+                    data: course
+                });
+            } catch (error) {
+                console.error('Lỗi khi tạo khóa học:', error);
+                if (error.name === 'ValidationError') {
+                    console.error('Validation errors:', error.errors);
+                    throw new ApiError(400, 'Dữ liệu không hợp lệ', error.errors);
+                }
+                throw new ApiError(500, 'Lỗi khi tạo khóa học', error);
+            }
+        } catch (validationError) {
+            console.error('Lỗi validate dữ liệu:', validationError);
+            throw new ApiError(400, 'Dữ liệu không hợp lệ', validationError);
+        }
+    } catch (error) {
+        console.error('Lỗi tổng quát:', error);
         console.error('Error stack:', error.stack);
-        console.error('=== END LỖI ===\n');
         next(error);
     }
 };
