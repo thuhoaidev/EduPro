@@ -14,9 +14,8 @@ const {
   updateInstructorApproval
 } = require('../controllers/userManagement.controller');
 
-// Tất cả các routes đều yêu cầu xác thực và quyền admin
+// Tất cả các routes đều yêu cầu xác thực
 router.use(auth);
-router.use(checkRole(ROLES.ADMIN));
 
 // Routes liên quan đến giảng viên
 router.route('/instructors')

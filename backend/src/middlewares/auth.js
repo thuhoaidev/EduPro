@@ -129,33 +129,38 @@ exports.checkPermission = (requiredPermission) => {
 };
 
 // Middleware kiểm tra role
-exports.checkRole = (roles) => {
+exports.checkRole = (requiredRoles) => {
   return async (req, res, next) => {
     try {
-      // Lấy thông tin role từ user (đã được populate trong auth middleware)
-      const userRole = req.user.role_id;
-
-      // Nếu là guest, chỉ cho phép truy cập các route công khai
-      if (userRole && userRole.name === 'guest' && !roles.includes('guest')) {
-        return res.status(403).json({
-          success: false,
-          message: 'Vui lòng đăng nhập để thực hiện chức năng này',
-        });
-      }
-
-      if (!userRole || !roles.includes(userRole.name)) {
+      const user = req.user;
+      const userRoles = user.roles || [];
+      
+      // Debug log
+      console.log('Checking role:', {
+        userRoles: userRoles,
+        requiredRoles: requiredRoles,
+        hasRole: userRoles.some(role => requiredRoles.includes(role))
+      });
+      
+      // Kiểm tra role
+      if (!userRoles.some(role => requiredRoles.includes(role))) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền truy cập',
+          debug: {
+            userRoles: userRoles,
+            requiredRoles: requiredRoles
+          }
         });
       }
-
+      
       next();
     } catch (error) {
       console.error('Lỗi kiểm tra role:', error);
       res.status(500).json({
         success: false,
         message: 'Lỗi kiểm tra role',
+        error: error.message
       });
     }
   };
@@ -163,8 +168,12 @@ exports.checkRole = (roles) => {
 
 // Middleware yêu cầu đăng nhập
 exports.requireAuth = (roles = []) => {
-    return (req, res, next) => {
-        try {
+  return (req, res, next) => {
+    try {
+      console.log('Checking permissions...');
+      console.log('User:', JSON.stringify(req.user, null, 2));
+      console.log('User roles:', req.user?.roles);
+      console.log('Required roles:', roles);
             console.log('Checking permissions...');
             console.log('User:', JSON.stringify(req.user, null, 2));
             console.log('User roles:', req.user?.roles);
