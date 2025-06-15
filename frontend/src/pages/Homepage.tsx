@@ -1,18 +1,29 @@
 import React from 'react';
-import { Rate, Row, Col } from 'antd';
-// Assuming you still need some antd components or will replace them
-
-// Import the new PromoBanner component
-import PromoBanner from '../components/PromoBanner';
-
-// Đảm bảo đường dẫn tới các file ảnh này là chính xác
+import { 
+  Row, 
+  Col, 
+  Card, 
+  Typography, 
+  Button, 
+  Rate, 
+  Tag, 
+  Image
+} from 'antd';
+import { 
+  PlayCircleOutlined, 
+  BookOutlined, 
+  ClockCircleOutlined 
+} from '@ant-design/icons';
 import javascriptBg from '../assets/images/course/javascript.png';
 import htmlCssBg from '../assets/images/course/htmlcsspro.png';
 import wslUbuntuBg from '../assets/images/course/nhapmonit.png';
 import nodeExpressBg from '../assets/images/course/nodejs.png';
 import basicItBg from '../assets/images/course/react.png';
+import '../styles/courseCard.css';
 
-const courses = [
+const { Title, Text } = Typography;
+
+export const courses = [
   {
     title: 'JavaScript Pro',
     subtitle: 'Nâng cao',
@@ -98,59 +109,111 @@ const courses = [
   },
 ];
 
-// Assuming you might have separate data for free courses, articles, and videos
-// For now, we might reuse the 'courses' data or use placeholders
-
-const freeCourses = courses; // Using existing courses data for free courses for now
-// Assuming placeholder data for articles and videos for now
-const articles = [1, 2, 3, 4, 5]; // Placeholder data
-const videos = [1, 2, 3, 4, 5]; // Placeholder data
+const freeCourses = courses; 
+const articles = [1, 2, 3, 4, 5]; 
+const videos = [1, 2, 3, 4, 5]; 
 
 const Homepage = () => {
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Promo Banner */}
-      <PromoBanner />
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-[#1a73e8] to-[#34a853] rounded-2xl p-8 mb-12 text-white">
+        <div className="max-w-3xl">
+          <h1 className="text-4xl font-bold mb-4">Học trực tuyến với EduPro</h1>
+          <p className="text-lg mb-6">Khám phá hàng ngàn khóa học chất lượng cao từ các giảng viên hàng đầu</p>
+          <Button type="primary" size="large" className="bg-white text-[#1a73e8] hover:bg-gray-100">
+            Bắt đầu học ngay
+          </Button>
+        </div>
+      </div>
+
+    
 
       {/* Khóa học miễn phí Section */}
       <div className="mb-12">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-2xl font-bold text-gray-800">Khóa học miễn phí</h3>
-          {/* "Xem tất cả" link */}
-          <a href="#" className="text-blue-600 hover:underline">Xem tất cả ›</a>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-2xl font-bold text-gray-800">Khóa học miễn phí</h3>
+            <p className="text-gray-600 mt-1">Học thử các khóa học chất lượng cao</p>
+          </div>
+          <a href="#" className="text-[#1a73e8] hover:text-[#1557b0] font-medium">Xem tất cả ›</a>
         </div>
-        {/* Grid container for free courses - reusing Ant Design Row/Col for now, or could use CSS Grid/Flex */}
         <Row gutter={[24, 24]}>
           {freeCourses.map((course, index) => (
-            <Col xs={24} sm={12} md={8} lg={4} key={index}> {/* Adjust Col sizes for grid layout */}
-              {/* Added hover effect to the inner div */}
-              <div className="bg-white rounded-lg shadow-md overflow-hidden h-full flex flex-col
-                         transition-transform duration-300 ease-in-out hover:-translate-y-2">
-                {/* Course Image */}
-                <img src={course.Image} alt={course.title} className="w-full h-32 object-cover" />
+            <Col xs={24} sm={12} md={8} lg={6} key={index}>
+              <Card
+                className="course-card"
+                hoverable
+                cover={<Image src={course.Image} alt={course.title} />}
+                actions={[
+                  <Rate value={course.rating} disabled allowHalf style={{ color: '#ff9900' }} />,
+                  <Text type="secondary">{course.reviews} đánh giá</Text>
+                ]}
+              >
+                <Card.Meta
+                  title={course.title}
+                  description={course.subtitle}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text strong>{course.price}</Text>
+                  {course.price === 'Miễn phí' ? (
+                    <Tag color="green">Miễn phí</Tag>
+                  ) : course.oldPrice ? (
+                    <Text type="secondary" delete>
+                      {course.oldPrice}
+                    </Text>
+                  ) : null}
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </div>
+      <div className="mb-12">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-2xl font-bold text-gray-800">Khóa học mất phí</h3>
+            <p className="text-gray-600 mt-1">Học thử các khóa học chất lượng cao</p>
+          </div>
+          <a href="#" className="text-[#1a73e8] hover:text-[#1557b0] font-medium">Xem tất cả ›</a>
+        </div>
+        <Row gutter={[24, 24]}>
+          {courses.map((course, index) => (
+            <Col xs={24} sm={12} md={8} lg={6} key={index}>
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden h-full flex flex-col
+                           transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                <div className="relative">
+                  <img src={course.Image} alt={course.title} className="w-full h-48 object-cover" />
+                  <div className="absolute inset-0 bg-black bg-opacity-20 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <PlayCircleOutlined className="text-white text-4xl" />
+                  </div>
+                </div>
                 <div className="p-4 flex-grow flex flex-col justify-between">
                   <div>
-                    {/* Course Title */}
-                    <h5 className="text-md font-bold text-gray-800 mb-1">{course.title}</h5>
-                    {/* Author */}
-                    <p className="text-xs text-gray-600 mb-2">{course.author}</p>
-                    {/* Rating and Reviews (simplified) */}
+                    <h5 className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">{course.title}</h5>
+                    <p className="text-sm text-gray-600 mb-2">{course.author}</p>
                     <div className="flex items-center mb-2">
-                      <Rate disabled defaultValue={course.rating} allowHalf count={5} className="text-yellow-500 text-xs" />
-                      <span className="ml-1 text-sm text-gray-600">({course.reviews})</span>
+                      <Rate disabled defaultValue={course.rating} allowHalf className="text-yellow-500 text-sm" />
+                      <span className="ml-2 text-sm text-gray-600">({course.reviews})</span>
+                    </div>
+                    <div className="flex items-center text-sm text-gray-500 mb-2">
+                      <BookOutlined className="mr-1" />
+                      <span>12 bài học</span>
+                      <ClockCircleOutlined className="ml-4 mr-1" />
+                      <span>2.5 giờ</span>
                     </div>
                   </div>
-                  {/* Price */}
-                  <span className="text-lg font-bold text-orange-600">Miễn phí</span>
+                  <div className="mt-4">
+                    <span className="text-lg font-bold text-[#1a73e8]">{course.price}</span>
+                  </div>
                 </div>
               </div>
             </Col>
           ))}
         </Row>
       </div>
-
-
-    </div >
+     
+    </div>
   );
 };
 

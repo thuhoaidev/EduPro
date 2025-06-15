@@ -168,7 +168,7 @@ exports.assignRoleToUser = async (req, res) => {
       data: {
         user: {
           id: user._id,
-          fullName: user.fullName,
+          fullname: user.fullname,
           email: user.email,
           role: role.name
         }

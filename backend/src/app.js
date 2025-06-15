@@ -12,7 +12,15 @@ const path = require('path');
 require('dotenv').config();
 
 // Import routes
-const authRoutes = require('./routes/auth');
+const authRoutes = require('./routes/auth.routes');
+const roleRoutes = require('./routes/role.routes');
+const userManagementRoutes = require('./routes/userManagement.routes');
+const courseRoutes = require('./routes/course.routes');
+const categoryRoutes = require('./routes/category.routes');
+const sectionRoutes = require('./routes/section.routes');
+const lessonRoutes = require('./routes/lesson.routes');
+const videoRoutes = require('./routes/video.routes');
+const quizRoutes = require('./routes/quiz.routes');
 
 // Khởi tạo app
 const app = express();
@@ -36,6 +44,7 @@ app.use(cors({
 })); // CORS
 app.use(cookieParser()); // Parse cookies
 app.use(compression()); // Nén response
+app.use(express.json()); // Parse JSON body
 
 // Rate limiting
 const limiter = rateLimit({
@@ -59,11 +68,20 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/roles', roleRoutes);
+app.use('/api/admin/users', userManagementRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/sections', sectionRoutes);
+app.use('/api/lessons', lessonRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/videos', videoRoutes);
+app.use('/api/quizzes', quizRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(err.status || 500).json({
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
     success: false,
     message: err.message || 'Lỗi server',
     error: process.env.NODE_ENV === 'development' ? err : {},

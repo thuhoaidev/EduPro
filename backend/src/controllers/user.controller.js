@@ -2,7 +2,6 @@ const User = require('../models/User');
 const path = require('path');
 const fs = require('fs').promises;
 
-// controllers/userController.js
 exports.getCurrentUser = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate('role_id');

@@ -7,32 +7,28 @@ const ROLES = {
   STUDENT: 'student',
 };
 
-const roleSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'Tên vai trò là bắt buộc'],
-    unique: true,
-    trim: true,
-    lowercase: true,
+const roleSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, 'Tên vai trò là bắt buộc'],
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
+    permissions: [{
+      type: String,
+      trim: true,
+    }],
   },
-  description: {
-    type: String,
-    required: [true, 'Mô tả vai trò là bắt buộc'],
-  },
-  permissions: [{
-    type: String,
-    required: true,
-  }],
-  created_at: {
-    type: Date,
-    default: Date.now,
-  },
-}, {
-  timestamps: {
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
-  },
-});
+  {
+    timestamps: true,
+  }
+);
 
 // Virtual populate cho users có role này
 roleSchema.virtual('users', {
@@ -67,6 +63,6 @@ roleSchema.methods.removePermission = async function(permission) {
   return this;
 };
 
-const Role = mongoose.models.Role || mongoose.model('Role', roleSchema);
+const Role = mongoose.model('Role', roleSchema);
 
 module.exports = { Role, ROLES };

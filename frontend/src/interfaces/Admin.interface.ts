@@ -17,19 +17,52 @@ export const UserStatus = {
 
 export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus];
 
+// API User interface (matches backend response)
+export interface ApiUser {
+  _id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role_id: {
+    _id: string;
+    name: UserRole;
+  };
+  status: UserStatus;
+  created_at: string;
+  updated_at?: string;
+  phone?: string;
+  address?: string;
+  dob?: string;
+  gender?: string;
+  approval_status?: 'approved' | 'pending' | 'rejected';
+  email_verified?: boolean;
+  description?: string;
+  coursesCount?: number;
+}
+
+// Frontend User interface (used in components)
+export interface Role {
+  _id: string;
+  name: UserRole;
+}
+
 export interface User {
-  id: number;
-  fullName: string;
+  id: string;
+  fullname: string;
   email: string;
   avatar: string;
-  role: UserRole;
+  role: UserRole | Role;
   status: UserStatus;
   createdAt: string;
   updatedAt?: string;
   phone?: string;
   address?: string;
-  description?: string; // mô tả nếu là giảng viên
+  description?: string;
   coursesCount?: number;
+  gender?: string;
+  dob?: string;
+  approval_status?: 'approved' | 'pending' | 'rejected';
+  email_verified?: boolean;
 }
 
 export interface UserQueryParams {
@@ -96,18 +129,6 @@ export interface Coupon {
   expiresAt: string; // Ngày hết hạn, định dạng YYYY-MM-DD
 }
 
-
-//instructor :  Giáo viênviên
-export interface InstructorProfile {
-  id: number;
-  user_id: number;           // id người dùng liên kết
-  bio: string;
-  expertise: string;
-  rating: number;            
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;        // ISO date string hoặc Date tùy project
-}
-
 export interface InstructorEarnings {
   id: number;
   instructor_id: number;     // liên kết tới InstructorProfile.id
@@ -126,7 +147,7 @@ export interface EarningTransaction {
 
 export interface InstructorDetail {
   id: number;
-  fullName: string;
+  fullname: string;
   email: string;
   avatar: string;
   status: "active" | "inactive" | "banned";
@@ -135,9 +156,64 @@ export interface InstructorDetail {
   phone: string;
   gender: "Nam" | "Nữ" | "Khác";
 }
+// export interface InstructorApprovalProfile {
+//   id: string;
+//   name: string;
+//   email: string;
+//   phone: string;
+//   bio: string;
+//   avatarUrl?: string;
+//   gender: "Nam" | "Nữ" | "Khác";
+//   status: 'pending' | 'approved' | 'rejected';
+//   education: {
+//     degree: string;
+//     field: string;
+//     institution: string;
+//     year: number;
+//     description: string;
+//     _id: string;
+//   }[];
+//   experience: {
+//     position: string;
+//     company: string;
+//     startDate: string; // ISO format string
+//     endDate: string;   // ISO format string
+//     description: string;
+//     _id: string;
+//   }[];
+// }
+
 
 
 //Notification
+
+export interface InstructorApprovalProfile {
+  _id: string;
+  name: string;
+  email: string;
+  approval_status: string;
+  instructorInfo?: {
+    bio?: string;
+    gender?: string;
+    phone?: string;
+    education?: {
+      degree?: string;
+      field?: string;
+      institution?: string;
+      year?: number;
+      description?: string;
+    }[];
+    experience?: {
+      position?: string;
+      company?: string;
+      startDate?: string;
+      endDate?: string;
+      description?: string;
+    }[];
+  };
+}
+
+
 export type NotificationStatus = "unread" | "read";
 
 export interface Notification {
@@ -148,4 +224,21 @@ export interface Notification {
   createdAt: string; // ISO date string
   userId?: number; // Nếu notification liên quan user cụ thể
   notifyTime?: string;
+}
+
+// API Response interfaces
+export interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
+
+export interface PaginatedResponse {
+  users: ApiUser[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }

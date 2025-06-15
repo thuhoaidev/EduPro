@@ -12,7 +12,7 @@ import {
 const mockUsers: User[] = [
   {
     id: 1,
-    fullName: "Nguyễn Văn A",
+    fullname: "Nguyễn Văn A",
     email: "a@example.com",
     avatar: "https://i.pravatar.cc/150?img=1",
     role: UserRole.ADMIN,
@@ -24,7 +24,7 @@ const mockUsers: User[] = [
   },
   {
     id: 2,
-    fullName: "Trần Thị B",
+    fullname: "Trần Thị B",
     email: "b@example.com",
     avatar: "https://i.pravatar.cc/150?img=2",
     role: UserRole.INSTRUCTOR,
@@ -38,7 +38,7 @@ const mockUsers: User[] = [
   },
   {
     id: 3,
-    fullName: "Lê Văn C",
+    fullname: "Lê Văn C",
     email: "c@example.com",
     avatar: "https://i.pravatar.cc/150?img=3",
     role: UserRole.STUDENT,
@@ -107,7 +107,7 @@ const roleColor = {
         <div className="flex items-center gap-6 mb-6">
           <Avatar size={100} src={user.avatar} />
           <div>
-            <h2 className="text-2xl font-semibold">{user.fullName}</h2>
+            <h2 className="text-2xl font-semibold">{user.fullname}</h2>
             <p className="text-gray-500">{user.email}</p>
           </div>
         </div>
