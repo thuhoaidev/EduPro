@@ -132,7 +132,7 @@ const UserPage = () => {
           number: (page - 1) * pagination.pageSize + index + 1
         }));
 
-        setUsers(mappedUsers);
+        setUsers(mappedUsers as User[]);
         setPagination({
           ...pagination,
           current: page,
@@ -170,7 +170,7 @@ const UserPage = () => {
     const statusMap: Record<UserStatus, { color: string; label: string; icon: React.ReactNode }> = {
       [UserStatus.ACTIVE]: { color: "green", label: "Đang hoạt động", icon: <CheckCircleOutlined /> },
       [UserStatus.INACTIVE]: { color: "default", label: "Không hoạt động", icon: <ClockCircleOutlined /> },
-      [UserStatus.BANNED]: { color: "red", label: "Bị cấm", icon: <CloseCircleOutlined /> },
+      
     };
 
     const tag = statusMap[status] || { color: "default", label: status, icon: null };
@@ -192,13 +192,13 @@ const UserPage = () => {
       [UserRole.ADMIN]: { color: "red", label: 'Admin' },
       [UserRole.INSTRUCTOR]: { color: "blue", label: 'Giảng viên' },
       [UserRole.STUDENT]: { color: "green", label: 'Học viên' },
-      [UserRole.MODERATOR]: { color: "orange", label: 'Kiểm duyệt viên' },
+      [UserRole.MODERATOR]: { color: "orange", label: 'Kiểm duyệt' },
     };
     const tag = roleMap[roleName] || { color: "default", label: roleName };
     return (
       <Tag color={tag.color} className="px-2 py-1 rounded-full text-sm font-medium">
         {tag.label}
-      </Tag>
+      </Tag>  
     );
   };
 
@@ -213,16 +213,19 @@ const UserPage = () => {
     form.setFieldsValue({
       fullname: user.fullname,
       email: user.email,
-      role: user.role,
+      role_id: typeof user.role_id === 'object' ? user.role_id.name : user.role_id,
       status: user.status,
-      phone: user.phone,
-      address: user.address,
+      phone: user.phone || '',
+      address: user.address || '',
       dob: user.dob ? dayjs(user.dob) : null,
-      gender: user.gender,
-      approval_status: user.approval_status,
+      gender: user.gender || 'Khác',
+      approval_status: user.approval_status || 'approved',
+      description: user.description || '',
+      email_verified: user.email_verified || false,
     });
     setIsModalVisible(true);
   };
+  console.log(form.getFieldsValue()); 
 
   const handleDeleteUser = async (id: string) => {
     try {
@@ -476,9 +479,8 @@ const UserPage = () => {
           <p className="text-gray-500 mt-1">Quản lý và theo dõi thông tin người dùng</p>
         </div>
       </div>
-
       <Row gutter={[16, 16]} className="mb-6">
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={8}>
           <Card className="shadow-sm hover:shadow-md transition-shadow">
             <Statistic
               title="Tổng số người dùng"
@@ -488,17 +490,17 @@ const UserPage = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={8}>
           <Card className="shadow-sm hover:shadow-md transition-shadow">
             <Statistic
-              title="Đang hoạt động"
-              value={userStats.active}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+             title="Đang hoạt động"
+             value={userStats.active}
+             prefix={<CheckCircleOutlined />}
+             valueStyle={{ color: '#52c41a' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={8}>
           <Card className="shadow-sm hover:shadow-md transition-shadow">
             <Statistic
               title="Không hoạt động"
@@ -508,17 +510,8 @@ const UserPage = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
-            <Statistic
-              title="Bị cấm"
-              value={userStats.banned}
-              prefix={<CloseCircleOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
       </Row>
+      
 
       <Card className="mb-6 shadow-sm">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
@@ -597,13 +590,7 @@ const UserPage = () => {
           layout="vertical"
           initialValues={{ role: UserRole.STUDENT, status: UserStatus.ACTIVE }}
         >
-          <Form.Item
-            name="fullname"
-            label="Họ và tên"
-            rules={[{ required: true, message: "Vui lòng nhập họ và tên" }]}
-          >
-            <Input placeholder="Nhập họ và tên" />
-          </Form.Item>
+         
           <Form.Item
             name="email"
             label="Email"
@@ -700,25 +687,9 @@ const UserPage = () => {
               <Select.Option value="rejected">Bị từ chối</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item
-            name="phone"
-            label="Số điện thoại"
-            rules={[{ pattern: /^\d{10}$/, message: "Số điện thoại phải có 10 chữ số" }]}
-          >
-            <Input placeholder="Nhập số điện thoại" />
-          </Form.Item>
-          <Form.Item
-            name="address"
-            label="Địa chỉ"
-          >
-            <Input.TextArea placeholder="Nhập địa chỉ" />
-          </Form.Item>
-          <Form.Item
-            name="dob"
-            label="Ngày sinh"
-          >
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
+         
+          
+          
           <Form.Item
             name="gender"
             label="Giới tính"

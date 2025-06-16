@@ -9,8 +9,7 @@ export enum UserRole {
 
 export enum UserStatus {
   ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  BANNED = 'banned'
+  INACTIVE = 'inactive'
 }
 
 // API User interface (matches backend response)

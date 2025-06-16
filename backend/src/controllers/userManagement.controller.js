@@ -268,7 +268,8 @@ exports.updateUser = async (req, res) => {
       dob,
       gender,
       email,
-      approval_status
+      approval_status,
+      description
     } = req.body;
     const userId = req.params.id;
 
@@ -315,6 +316,8 @@ exports.updateUser = async (req, res) => {
       gender: gender !== undefined ? gender : user.gender,
       email: email !== undefined ? email : user.email,
       approval_status: approval_status !== undefined ? approval_status : user.approval_status,
+      description: description !== undefined ? description : user.description,
+      updated_at: new Date()
     };
 
     // Sử dụng findByIdAndUpdate với session nếu cần transaction, ở đây dùng đơn giản
@@ -331,10 +334,14 @@ exports.updateUser = async (req, res) => {
       });
     }
 
+    // Format dữ liệu trả về
+    const userData = updatedUser.toJSON();
+    userData.fullname = userData.name; // Thêm trường fullname để tương thích với frontend
+
     res.status(200).json({
       success: true,
       message: 'Cập nhật người dùng thành công',
-      data: updatedUser.toJSON()
+      data: userData
     });
   } catch (error) {
     console.error('Lỗi chi tiết khi cập nhật người dùng:', error);
