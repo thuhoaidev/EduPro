@@ -1,21 +1,17 @@
 // ✅ user.interface.ts
 
-export const UserRole = {
-  ADMIN: "admin",
-  INSTRUCTOR: "instructor",
-  STUDENT: "student",
-  MODERATOR: "moderator",
-} as const;
+export enum UserRole {
+  ADMIN = 'admin',
+  INSTRUCTOR = 'instructor',
+  STUDENT = 'student',
+  MODERATOR = 'moderator'
+}
 
-export type UserRole = (typeof UserRole)[keyof typeof UserRole];
-
-export const UserStatus = {
-  ACTIVE: "active",
-  INACTIVE: "inactive",
-  BANNED: "banned",
-} as const;
-
-export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus];
+export enum UserStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  BANNED = 'banned'
+}
 
 // API User interface (matches backend response)
 export interface ApiUser {
@@ -23,19 +19,16 @@ export interface ApiUser {
   name: string;
   email: string;
   avatar?: string;
-  role_id: {
-    _id: string;
-    name: UserRole;
-  };
+  role_id: string;
   status: UserStatus;
   created_at: string;
-  updated_at?: string;
+  updated_at: string;
   phone?: string;
   address?: string;
   dob?: string;
   gender?: string;
-  approval_status?: 'approved' | 'pending' | 'rejected';
-  email_verified?: boolean;
+  approval_status: string;
+  email_verified: boolean;
   description?: string;
   coursesCount?: number;
 }
@@ -230,11 +223,12 @@ export interface Notification {
 export interface ApiResponse<T> {
   success: boolean;
   message?: string;
-  data: T;
+  data?: T;
+  error?: string;
 }
 
-export interface PaginatedResponse {
-  users: ApiUser[];
+export interface PaginatedResponse<T> {
+  users: T[];
   pagination: {
     total: number;
     page: number;

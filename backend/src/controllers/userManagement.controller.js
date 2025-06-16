@@ -65,7 +65,7 @@ exports.getAllUsers = async (req, res) => {
 exports.getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).populate('role_id');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -173,17 +173,18 @@ exports.updateInstructorApproval = async (req, res) => {
 // Tạo người dùng mới
 exports.createUser = async (req, res) => {
   try {
-    const { 
-      email, 
-      password, 
-      name, 
-      role_id, 
+    const {
+      email,
+      password,
+      name,
+      role_id,
       status = 'active',
       phone,
       address,
       dob,
       gender,
-      approval_status = 'approved'
+      approval_status = 'approved',
+      nickname
     } = req.body;
 
     // Kiểm tra email đã tồn tại
@@ -204,6 +205,21 @@ exports.createUser = async (req, res) => {
       });
     }
 
+    // Xử lý nickname để tạo slug
+    const normalizedNickname = nickname.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+    // Kiểm tra xem slug đã tồn tại chưa
+    let slug = normalizedNickname;
+    let counter = 1;
+    let userWithSlug;
+
+    do {
+      userWithSlug = await User.findOne({ slug });
+      if (userWithSlug) {
+        slug = `${normalizedNickname}-${counter++}`;
+      }
+    } while (userWithSlug);
+
     // Tạo user mới
     const user = new User({
       email,
@@ -216,7 +232,9 @@ exports.createUser = async (req, res) => {
       dob,
       gender,
       approval_status,
-      email_verified: true // Admin tạo user nên mặc định đã xác thực email
+      email_verified: true, // Admin tạo user nên mặc định đã xác thực email
+      nickname,
+      slug
     });
 
     await user.save();
@@ -240,9 +258,9 @@ exports.createUser = async (req, res) => {
 // Cập nhật thông tin người dùng
 exports.updateUser = async (req, res) => {
   try {
-    const { 
-      name, 
-      role_id, 
+    const {
+      name,
+      role_id,
       status,
       email_verified,
       phone,
@@ -307,10 +325,10 @@ exports.updateUser = async (req, res) => {
     ).populate('role_id');
 
     if (!updatedUser) {
-       return res.status(404).json({
-         success: false,
-         message: 'Không tìm thấy người dùng sau khi cập nhật'
-       });
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng sau khi cập nhật'
+      });
     }
 
     res.status(200).json({
@@ -329,7 +347,7 @@ exports.updateUser = async (req, res) => {
         errors: messages
       });
     }
-     if (error.name === 'CastError') {
+    if (error.name === 'CastError') {
       return res.status(400).json({
         success: false,
         message: `Lỗi chuyển đổi kiểu dữ liệu cho trường ${error.path}: ${error.message}`,
@@ -503,7 +521,7 @@ exports.getInstructorProfile = async (req, res) => {
 exports.updateInstructorProfile = async (req, res) => {
   try {
     const instructorId = req.params.id;
-    const { 
+    const {
       name,
       email,
       phone,

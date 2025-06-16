@@ -104,7 +104,7 @@ const UserPage = () => {
       
       console.log('API Response:', response);
       
-      if (response.success) {
+      if (response.success && response.data) {
         console.log('Raw user data from API:', response.data.users);
         // Sắp xếp người dùng theo thứ tự mới nhất
         const sortedUsers = [...response.data.users].sort((a, b) => {
@@ -112,30 +112,25 @@ const UserPage = () => {
         });
 
         // Map và thêm số thứ tự
-        const mappedUsers = sortedUsers.map((user, index) => {
-          console.log('Processing user:', user);
-          const mappedUser = {
-            id: user._id,
-            fullname: user.name,
-            email: user.email,
-            avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
-            role: user.role_id,
-            status: user.status,
-            createdAt: user.created_at,
-            updatedAt: user.updated_at,
-            phone: user.phone,
-            address: user.address,
-            dob: user.dob,
-            gender: user.gender,
-            approval_status: user.approval_status,
-            email_verified: user.email_verified,
-            description: user.description,
-            coursesCount: user.coursesCount,
-            number: (page - 1) * pagination.pageSize + index + 1
-          };
-          console.log('Mapped user data:', mappedUser);
-          return mappedUser;
-        });
+        const mappedUsers = sortedUsers.map((user, index) => ({
+          id: user._id,
+          fullname: user.name,
+          email: user.email,
+          avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
+          role: user.role_id,
+          status: user.status,
+          createdAt: user.created_at,
+          updatedAt: user.updated_at,
+          phone: user.phone,
+          address: user.address,
+          dob: user.dob,
+          gender: user.gender,
+          approval_status: user.approval_status,
+          email_verified: user.email_verified,
+          description: user.description,
+          coursesCount: user.coursesCount,
+          number: (page - 1) * pagination.pageSize + index + 1
+        }));
 
         setUsers(mappedUsers);
         setPagination({
@@ -258,36 +253,38 @@ const UserPage = () => {
         // Tìm role_id dựa trên role name
         const selectedRole = roles.find(r => r.name === values.role);
         if (!selectedRole) {
-          message.error('Vai trò không hợp lệ');
+          message.error('Không tìm thấy vai trò');
           return;
         }
 
         const updateData = {
           name: values.fullname,
-          role_id: selectedRole._id, // Sử dụng ID vai trò tìm được
+          role_id: selectedRole._id,
           status: values.status,
           phone: values.phone || '',
           address: values.address || '',
-          dob: values.dob ? values.dob.toISOString() : null, // Chuyển Dayjs object sang ISO string
+          dob: values.dob ? values.dob.toISOString() : null,
           gender: values.gender || 'Khác',
           approval_status: values.approval_status || 'approved',
         };
+
         console.log('Update data:', updateData);
-        await updateUser(editingUser.id.toString(), updateData);
-        message.success("Cập nhật người dùng thành công");
+        const response = await updateUser(editingUser.id.toString(), updateData);
+        if (response.success) {
+          message.success("Cập nhật người dùng thành công");
+          setIsModalVisible(false);
+          fetchUsers(pagination.current);
+        } else {
+          message.error(response.message || "Lỗi khi cập nhật người dùng");
+        }
       } else {
         // Add new user
         console.log('Thêm mới người dùng');
-        console.log('Tên người dùng:', values.fullname);
-        console.log('Email:', values.email);
-        console.log('Mật khẩu:', values.password);
-        console.log('Vai trò:', values.role);
-        console.log('Trạng thái:', values.status);
-
+        
         // Tìm role_id dựa trên role name
         const selectedRole = roles.find(r => r.name === values.role);
         if (!selectedRole) {
-          message.error('Vai trò không hợp lệ');
+          message.error('Không tìm thấy vai trò');
           return;
         }
 
@@ -301,14 +298,21 @@ const UserPage = () => {
           address: values.address || '',
           dob: values.dob ? values.dob.toISOString() : null,
           gender: values.gender || 'Khác',
-          approval_status: values.approval_status || 'approved'
+          approval_status: values.approval_status || 'approved',
+          nickname: values.fullname.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          email_verified: true
         };
+
         console.log('Creating new user with data:', userData);
-        await createUser(userData);
-        message.success("Thêm người dùng thành công");
+        const response = await createUser(userData);
+        if (response.success) {
+          message.success("Thêm người dùng thành công");
+          setIsModalVisible(false);
+          fetchUsers(pagination.current);
+        } else {
+          message.error(response.message || "Lỗi khi thêm người dùng");
+        }
       }
-      setIsModalVisible(false);
-      fetchUsers(pagination.current);
     } catch (error) {
       console.error('Error details:', {
         error: error,
