@@ -91,9 +91,11 @@ exports.register = async (req, res, next) => {
     } while (userWithSlug);
     
     // Xử lý fullname
-    const normalizedFullname = fullname.normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[đĐ]/g, 'd');
+    const normalizedFullname = fullname ? 
+      fullname.normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[đĐ]/g, 'd') 
+      : '';
 
     // Tạo token xác thực email
     const verificationToken = crypto.randomBytes(32).toString('hex');
