@@ -1,15 +1,16 @@
 // ✅ user.interface.ts
 
 export enum UserRole {
-  ADMIN = 'admin',
-  INSTRUCTOR = 'instructor',
-  STUDENT = 'student',
-  MODERATOR = 'moderator'
+  ADMIN = "admin",
+  INSTRUCTOR = "instructor",
+  STUDENT = "student",
+  MODERATOR = "moderator"
 }
 
 export enum UserStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive'
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  BANNED = "banned"
 }
 
 // API User interface (matches backend response)
@@ -41,20 +42,22 @@ export interface Role {
 export interface User {
   id: string;
   fullname: string;
+  name?: string;
   email: string;
-  avatar: string;
+  avatar?: string;
   role: UserRole | Role;
   status: UserStatus;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
   phone?: string;
   address?: string;
+  dob?: string | null;
+  gender?: string;
+  approval_status?: string;
+  email_verified?: boolean;
   description?: string;
   coursesCount?: number;
-  gender?: string;
-  dob?: string;
-  approval_status?: 'approved' | 'pending' | 'rejected';
-  email_verified?: boolean;
+  number?: number;
 }
 
 export interface UserQueryParams {
