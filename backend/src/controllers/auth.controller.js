@@ -3,8 +3,6 @@ const { Role } = require('../models/Role');
 const jwt = require('jsonwebtoken');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../config/email');
 const crypto = require('crypto');
-const InstructorProfile = require('../models/InstructorProfile');
-const { log } = require('console');
 const ApiError = require('../utils/ApiError');
 const { validateSchema } = require('../utils/validateSchema');
 const { loginSchema, registerSchema } = require('../validations/auth.validation');
@@ -93,9 +91,11 @@ exports.register = async (req, res, next) => {
     } while (userWithSlug);
     
     // Xử lý fullname
-    const normalizedFullname = fullname.normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[đĐ]/g, 'd');
+    const normalizedFullname = fullname ? 
+      fullname.normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[đĐ]/g, 'd') 
+      : '';
 
     // Tạo token xác thực email
     const verificationToken = crypto.randomBytes(32).toString('hex');
@@ -237,132 +237,6 @@ exports.register = async (req, res, next) => {
   }
 };
 
-exports.registerInstructor = async (req, res) => {
-  try {
-    const { bio, expertise, gender, education, experience } = req.body;
-
-    const user = await User.findById(req.user._id);
-    console.log('User loaded from DB:', user);
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Vui lòng đăng nhập để đăng ký làm giảng viên',
-      });
-    }
-
-    // Kiểm tra đã là giảng viên chưa
-    if (user.isInstructor) {
-      return res.status(400).json({
-        success: false,
-        message: 'Bạn đã là giảng viên',
-      });
-    }
-
-    // Kiểm tra đã gửi đăng ký rồi chưa
-    if (user.has_registered_instructor) {
-      return res.status(400).json({
-        success: false,
-        message: 'Bạn đã đăng ký làm giảng viên rồi. Vui lòng chờ duyệt.',
-      });
-    }
-    user.has_registered_instructor = true;
-
-    const instructorRole = await Role.findOne({ name: 'instructor' });
-    if (!instructorRole) {
-      return res.status(500).json({
-        success: false,
-        message: 'Không tìm thấy role instructor',
-      });
-    }
-
-    // Hàm helper parse JSON hoặc trả về mảng rỗng
-    const parseJsonArray = (input) => {
-      if (!input) return [];
-      if (typeof input === 'string') {
-        if (input.trim() === '') return [];
-        try {
-          const parsed = JSON.parse(input);
-          return Array.isArray(parsed) ? parsed : [];
-        } catch {
-          return null; // lỗi parse
-        }
-      }
-      return Array.isArray(input) ? input : [];
-    };
-
-    const parsedEducation = parseJsonArray(education);
-    if (parsedEducation === null) {
-      return res.status(400).json({ success: false, message: 'education không hợp lệ' });
-    }
-
-    const parsedExperience = parseJsonArray(experience);
-    if (parsedExperience === null) {
-      return res.status(400).json({ success: false, message: 'experience không hợp lệ' });
-    }
-
-    const filteredExperience = parsedExperience.filter(
-      item =>
-        item &&
-        typeof item === 'object' &&
-        item.position &&
-        item.company &&
-        item.startDate
-    ).map(item => ({
-      ...item,
-      startDate: new Date(item.startDate),
-      endDate: item.endDate ? new Date(item.endDate) : undefined,
-    }));
-
-    const filteredEducation = parsedEducation.filter(
-      item =>
-        item &&
-        typeof item === 'object' &&
-        item.degree &&
-        item.institution &&
-        item.year
-    );
-
-    // Cập nhật thông tin giảng viên (chưa duyệt)
-    user.role_id = instructorRole._id;
-    user.approval_status = 'pending';
-    user.has_registered_instructor = true; // Đánh dấu đã gửi đăng ký
-    user.instructorInfo = {
-      bio: bio || '',
-      gender: req.body.gender || user.instructorInfo?.gender,
-      phone: user.instructorInfo?.phone || '',
-      education: filteredEducation.length > 0 ? filteredEducation : [],
-      experience: filteredExperience.length > 0 ? filteredExperience : [],
-      is_approved: false,
-    };
-
-    await user.save();
-
-    return res.status(201).json({
-      success: true,
-      message: 'Đăng ký tài khoản giảng viên thành công. Vui lòng chờ xác minh tài khoản!',
-      data: {
-        user: {
-          _id: user._id,
-          email: user.email,
-          fullname: user.fullname,
-          role: instructorRole.name,
-          approval_status: user.approval_status,
-          status: user.status,
-          instructorInfo: user.instructorInfo,
-        },
-      },
-    });
-
-  } catch (error) {
-    console.error('Lỗi đăng ký giảng viên:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Lỗi server',
-      error: error.message,
-    });
-  }
-};
 
 // Đăng nhập
 exports.verifyEmail = async (req, res, next) => {
@@ -762,70 +636,6 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi đặt lại mật khẩu',
-      error: error.message,
-    });
-  }
-};
-
-// Lấy thông tin user hiện tại
-exports.getMe = async (req, res, next) => {
-  try {
-    const user = await User.findById(req.user._id).populate('role_id');
-    if (!user) {
-      throw new ApiError(404, 'Không tìm thấy tài khoản');
-    }
-
-    res.json({
-      success: true,
-      data: {
-        _id: user._id,
-        email: user.email,
-        full_name: user.name,
-        role: user.role_id,
-        avatar: user.avatar,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Cập nhật thông tin user
-exports.updateMe = async (req, res) => {
-  try {
-    const allowedUpdates = ['name', 'nickname', 'avatar', 'bio', 'social_links'];
-
-    // Lọc các trường được phép cập nhật
-    const updates = Object.keys(req.body)
-      .filter(key => allowedUpdates.includes(key))
-      .reduce((obj, key) => {
-        obj[key] = req.body[key];
-        return obj;
-      }, {});
-
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { $set: updates },
-      { new: true, runValidators: true },
-    ).populate('role_id');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy tài khoản',
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Cập nhật thông tin thành công',
-      user: user.toJSON(),
-    });
-  } catch (error) {
-    console.error('Lỗi cập nhật thông tin:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi cập nhật thông tin',
       error: error.message,
     });
   }

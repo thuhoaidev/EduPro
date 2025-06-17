@@ -39,6 +39,27 @@ exports.getCategories = async (req, res, next) => {
     }
 };
 
+// Lấy danh sách danh mục theo trạng thái
+exports.getCategoriesByStatus = async (req, res, next) => {
+    try {
+        const { status } = req.params;
+        
+        // Kiểm tra giá trị status có hợp lệ không
+        if (!['active', 'inactive'].includes(status.toLowerCase())) {
+            throw new ApiError(400, 'Trạng thái không hợp lệ. Phải là active hoặc inactive');
+        }
+
+        const categories = await Category.find({ status: status.toLowerCase() });
+        
+        res.json({
+            success: true,
+            data: categories
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // Lấy chi tiết danh mục
 exports.getCategoryById = async (req, res, next) => {
     try {
@@ -63,27 +84,43 @@ exports.getCategoryById = async (req, res, next) => {
 exports.updateCategory = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const validatedData = await validateSchema(updateCategorySchema, req.body);
+        const { name, description, status } = req.body;
 
-        const category = await Category.findByIdAndUpdate(
-            id,
-            { $set: validatedData },
-            { new: true, runValidators: true }
-        );
-
+        // Kiểm tra danh mục có tồn tại không
+        const category = await Category.findById(id);
         if (!category) {
-            throw new ApiError(404, 'Không tìm thấy danh mục');
+            throw new ApiError(404, 'Danh mục không tồn tại');
         }
+
+        // Kiểm tra xem có cập nhật tên không
+        if (name && name !== category.name) {
+            // Kiểm tra xem tên mới đã tồn tại chưa
+            const existingCategory = await Category.findOne({ name });
+            if (existingCategory) {
+                throw new ApiError(400, 'Tên danh mục đã tồn tại');
+            }
+        }
+
+        // Cập nhật thông tin
+        if (name) category.name = name;
+        if (description !== undefined) category.description = description;
+
+        // Cập nhật trạng thái nếu có
+        if (status !== undefined) {
+            // Kiểm tra giá trị status có hợp lệ không
+            if (!['active', 'inactive'].includes(status.toLowerCase())) {
+                throw new ApiError(400, 'Trạng thái không hợp lệ. Phải là active hoặc inactive');
+            }
+            category.status = status.toLowerCase();
+        }
+
+        await category.save();
 
         res.json({
             success: true,
             data: category
         });
     } catch (error) {
-        // Xử lý lỗi trùng lặp tên danh mục
-        if (error.code === 11000 && error.keyPattern && error.keyPattern.name) {
-            return next(new ApiError(400, 'Tên danh mục đã tồn tại'));
-        }
         next(error);
     }
 };
@@ -92,12 +129,6 @@ exports.updateCategory = async (req, res, next) => {
 exports.deleteCategory = async (req, res, next) => {
     try {
         const { id } = req.params;
-
-        // Kiểm tra xem danh mục có danh mục con không (vẫn giữ lại logic này nếu bạn định thêm lại parent sau)
-        // const childCategories = await Category.countDocuments({ parent: id });
-        // if (childCategories > 0) {
-        //     throw new ApiError(400, 'Không thể xóa danh mục có danh mục con');
-        // }
 
         // Kiểm tra xem danh mục có khóa học nào không
         const Course = require('../models/Course'); // Import Course để kiểm tra

@@ -59,7 +59,7 @@ const getRoleName = (user: User): string => {
 };
 
 const checkRole = (user: User, requiredRole: string): boolean => {
-  return getRoleName(user) === requiredRole;
+  return user?.role?.name === requiredRole;
 };
 
 const InstructorLayout = () => {

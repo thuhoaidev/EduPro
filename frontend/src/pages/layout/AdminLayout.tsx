@@ -9,6 +9,7 @@ import {
   BarChartOutlined,
   WarningOutlined,
   AppstoreOutlined,
+  LogoutOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -19,7 +20,7 @@ import {
 } from "antd";
 import type { MenuProps } from "antd";
 import React, { useState, useEffect } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import styles from "../../styles/AdminLayout.module.css";
 import { config } from "../../api/axios";
 
@@ -42,7 +43,7 @@ const getRoleName = (user: User): string => {
     return 'user';
   }
 
-  // Kiểm tra approval_status để xác định role
+  // Kiểm tra approval_status để xác định vai trò
   if (user.approval_status === 'approved') {
     if (user.email === 'admin@pro.edu.vn') {
       return 'admin';
@@ -59,11 +60,14 @@ const getRoleName = (user: User): string => {
 };
 
 const checkRole = (user: User, requiredRole: string): boolean => {
-  return getRoleName(user) === requiredRole;
+  return user?.role?.name === requiredRole;
 };
 
 const AdminLayout = () => {
-  const navigate = useNavigate();
+  const nav = useNavigate();
+  const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
+    nav(key);
+  };
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -104,14 +108,14 @@ const AdminLayout = () => {
     };
 
     fetchUser();
-  }, [navigate]);
+  }, [nav]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
     message.success('Đăng xuất thành công!');
-    navigate('/login');
+    nav('/login');
   };
 
   if (loading) {
@@ -119,14 +123,14 @@ const AdminLayout = () => {
   }
 
   if (!user) {
-    navigate('/login');
+    nav('/login');
     return null;
   }
 
   // Kiểm tra role
   if (!checkRole(user, 'admin')) {
     message.error('Bạn không có quyền truy cập trang quản trị');
-    navigate('/');
+    nav('/');
     return null;
   }
 
@@ -200,6 +204,11 @@ const AdminLayout = () => {
           key: "/admin/content-approval",
           icon: <FileSearchOutlined className="text-lg" />,
           label: renderLabel("Duyệt khóa học & blog"),
+        },
+        {
+          key: "/admin/categories",
+          icon: <TagsOutlined className="text-lg" />,
+          label: renderLabel("Quản lý danh mục"),
         },
       ],
     },
@@ -276,6 +285,9 @@ const AdminLayout = () => {
       <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => nav('/')}>
         Trang người dùng
       </Menu.Item>
+      <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout}>
+        Đăng xuất
+      </Menu.Item>
     </Menu>
   );
 
@@ -296,7 +308,7 @@ const AdminLayout = () => {
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
-          onClick={({ key }) => nav(key)}
+          onClick={handleMenuClick}
           items={menuItems}
           className={styles.customAdminMenu}
           style={{

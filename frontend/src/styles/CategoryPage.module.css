@@ -1,0 +1,43 @@
+.customModal {
+  .ant-modal-content {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .ant-modal-header {
+    border-bottom: 1px solid #f0f0f0;
+    padding: 16px 24px;
+    background: #fff;
+  }
+
+  .ant-modal-body {
+    padding: 24px;
+    background: #fff;
+  }
+
+  .ant-form-item-label {
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.85);
+    font-size: 14px;
+  }
+
+  .ant-select-item-option-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ant-input, .ant-input-number {
+    height: 32px;
+    line-height: 32px;
+  }
+
+  .ant-select-selector {
+    height: 32px;
+    line-height: 32px;
+  }
+
+  .ant-form-item-control {
+    line-height: 32px;
+  }
+}

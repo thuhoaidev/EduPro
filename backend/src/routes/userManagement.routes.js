@@ -8,11 +8,25 @@ const {
   createUser,
   updateUser,
   deleteUser,
+  getInstructors,
+  getInstructorProfile,
+  updateInstructorProfile,
+  updateInstructorApproval
 } = require('../controllers/userManagement.controller');
 
-// Tất cả các routes đều yêu cầu xác thực và quyền admin
+// Tất cả các routes đều yêu cầu xác thực
 router.use(auth);
-router.use(checkRole(ROLES.ADMIN));
+
+// Routes liên quan đến giảng viên
+router.route('/instructors')
+  .get(getInstructors); // Lấy danh sách giảng viên và hồ sơ chờ duyệt
+
+router.route('/instructors/:id')
+  .get(getInstructorProfile) // Lấy chi tiết hồ sơ giảng viên
+  .put(updateInstructorProfile); // Cập nhật hồ sơ giảng viên
+
+// Cập nhật trạng thái hồ sơ giảng viên
+router.put('/instructors/:id/approval', updateInstructorApproval);
 
 // Lấy danh sách người dùng (có phân trang và tìm kiếm)
 router.get('/', getAllUsers);
@@ -29,4 +43,4 @@ router.put('/:id', updateUser);
 // Xóa người dùng
 router.delete('/:id', deleteUser);
 
-module.exports = router; 
+module.exports = router;

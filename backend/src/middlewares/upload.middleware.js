@@ -28,12 +28,13 @@ const upload = multer({
 // Middleware xử lý lỗi upload
 const handleUploadError = (err, req, res, next) => {
     if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-            return next(new ApiError(400, 'File không được vượt quá 10MB'));
-        }
-        return next(new ApiError(400, err.message));
+        console.error('Multer error:', err);
+        next(new ApiError(400, 'Lỗi khi upload file: ' + err.message));
+    } else if (err) {
+        console.error('Upload error:', err);
+        next(new ApiError(500, 'Lỗi không xác định khi upload file'));
     }
-    next(err);
+    // Không gọi next() ở đây để tránh gọi next() hai lần
 };
 
 module.exports = {
