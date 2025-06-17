@@ -9,6 +9,7 @@ const authRoutes = require('./src/routes/auth.routes');
 const roleRoutes = require('./src/routes/role.routes');
 const voucherRoutes = require('./src/routes/voucher.routes');
 const categoryRoutes = require('./src/routes/category.routes');
+const userRoutes = require('./src/routes/userManagement.routes');
 
 const PORT = process.env.PORT || 5000;
 
@@ -35,6 +36,7 @@ appMiddleware.use('/api/auth', authRoutes);
 appMiddleware.use('/api/roles', roleRoutes);
 appMiddleware.use('/api/vouchers', voucherRoutes);
 appMiddleware.use('/api/categories', categoryRoutes);
+appMiddleware.use('/api/admin/users', userRoutes);
 
 // Xử lý preflight request (OPTIONS)
 appMiddleware.options('*', cors());
