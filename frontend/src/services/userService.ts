@@ -8,22 +8,9 @@ export const getAllUsers = async (params: {
   search?: string;
   role?: UserRole;
   status?: UserStatus;
-}): Promise<ApiResponse<PaginatedResponse>> => {
-  console.log('Making API call to /admin/users with params:', params);
-  
-  try {
-    const response = await config.get('/users', { 
-      params: {
-        ...params,
-        role: 'admin'
-      }
-    });
-    console.log('API response:', response);
-    return response.data;
-  } catch (error) {
-    console.error('API Error:', error);
-    throw error;
-  }
+}): Promise<ApiResponse<PaginatedResponse<ApiUser>>> => {
+  const response = await config.get('/admin/users', { params });
+  return response.data;
 };
 
 // Get user by ID

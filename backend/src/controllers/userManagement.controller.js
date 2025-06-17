@@ -65,7 +65,7 @@ exports.getAllUsers = async (req, res) => {
 exports.getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).populate('role_id');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -173,17 +173,18 @@ exports.updateInstructorApproval = async (req, res) => {
 // Tạo người dùng mới
 exports.createUser = async (req, res) => {
   try {
-    const { 
-      email, 
-      password, 
-      name, 
-      role_id, 
+    const {
+      email,
+      password,
+      name,
+      role_id,
       status = 'active',
       phone,
       address,
       dob,
       gender,
-      approval_status = 'approved'
+      approval_status = 'approved',
+      nickname
     } = req.body;
 
     // Kiểm tra email đã tồn tại
@@ -204,6 +205,21 @@ exports.createUser = async (req, res) => {
       });
     }
 
+    // Xử lý nickname để tạo slug
+    const normalizedNickname = nickname.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+    // Kiểm tra xem slug đã tồn tại chưa
+    let slug = normalizedNickname;
+    let counter = 1;
+    let userWithSlug;
+
+    do {
+      userWithSlug = await User.findOne({ slug });
+      if (userWithSlug) {
+        slug = `${normalizedNickname}-${counter++}`;
+      }
+    } while (userWithSlug);
+
     // Tạo user mới
     const user = new User({
       email,
@@ -216,7 +232,9 @@ exports.createUser = async (req, res) => {
       dob,
       gender,
       approval_status,
-      email_verified: true // Admin tạo user nên mặc định đã xác thực email
+      email_verified: true, // Admin tạo user nên mặc định đã xác thực email
+      nickname,
+      slug
     });
 
     await user.save();
@@ -240,105 +258,95 @@ exports.createUser = async (req, res) => {
 // Cập nhật thông tin người dùng
 exports.updateUser = async (req, res) => {
   try {
-    const { 
-      name, 
-      role_id, 
-      status,
-      email_verified,
-      phone,
-      address,
-      dob,
-      gender,
-      email,
-      approval_status
-    } = req.body;
-    const userId = req.params.id;
+    const { id } = req.params;
+    const updateData = req.body;
+    console.log('Update request body:', updateData); // Debug log
 
     // Kiểm tra user tồn tại
-    const user = await User.findById(userId);
-    if (!user) {
+    const existingUser = await User.findById(id);
+    if (!existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy người dùng'
+        message: "Không tìm thấy người dùng"
       });
     }
 
-    // Kiểm tra email duy nhất (nếu email được cập nhật)
-    if (email !== undefined && email !== user.email) {
-      const existingUserWithEmail = await User.findOne({ email });
-      if (existingUserWithEmail && existingUserWithEmail._id.toString() !== userId) {
+    // Kiểm tra role tồn tại nếu có cập nhật role
+    if (updateData.role_id) {
+      const roleExists = await Role.findById(updateData.role_id);
+      if (!roleExists) {
         return res.status(400).json({
           success: false,
-          message: 'Email đã được sử dụng bởi người dùng khác'
+          message: "Vai trò không tồn tại"
         });
       }
     }
 
-    // Kiểm tra role_id nếu cập nhật
-    if (role_id !== undefined && role_id !== user.role_id) {
-      const role = await Role.findById(role_id);
-      if (!role) {
+    // Kiểm tra email trùng lặp nếu có cập nhật email
+    if (updateData.email && updateData.email !== existingUser.email) {
+      const emailExists = await User.findOne({ email: updateData.email });
+      if (emailExists) {
         return res.status(400).json({
           success: false,
-          message: 'Vai trò không hợp lệ'
+          message: "Email đã tồn tại"
         });
       }
     }
 
-    // Cập nhật thông tin
-    const updateData = {
-      name: name !== undefined ? name : user.name,
-      role_id: role_id !== undefined ? role_id : user.role_id,
-      status: status !== undefined ? status : user.status,
-      email_verified: email_verified !== undefined ? email_verified : user.email_verified,
-      phone: phone !== undefined ? phone : user.phone,
-      address: address !== undefined ? address : user.address,
-      dob: dob !== undefined ? dob : user.dob,
-      gender: gender !== undefined ? gender : user.gender,
-      email: email !== undefined ? email : user.email,
-      approval_status: approval_status !== undefined ? approval_status : user.approval_status,
+    // Chuẩn bị dữ liệu cập nhật
+    const dataToUpdate = {
+      name: updateData.name || existingUser.name,
+      email: updateData.email || existingUser.email,
+      role_id: updateData.role_id || existingUser.role_id,
+      status: updateData.status || existingUser.status,
+      phone: updateData.phone || existingUser.phone,
+      address: updateData.address || existingUser.address,
+      dob: updateData.dob || existingUser.dob,
+      gender: updateData.gender || existingUser.gender,
+      approval_status: updateData.approval_status || existingUser.approval_status
     };
 
-    // Sử dụng findByIdAndUpdate với session nếu cần transaction, ở đây dùng đơn giản
+    console.log('Data to update:', dataToUpdate); // Debug log
+
+    // Cập nhật user
     const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      updateData,
+      id,
+      { $set: dataToUpdate },
       { new: true, runValidators: true }
     ).populate('role_id');
 
-    if (!updatedUser) {
-       return res.status(404).json({
-         success: false,
-         message: 'Không tìm thấy người dùng sau khi cập nhật'
-       });
-    }
+    console.log('Updated user:', updatedUser); // Debug log
 
-    res.status(200).json({
-      success: true,
-      message: 'Cập nhật người dùng thành công',
-      data: updatedUser.toJSON()
-    });
-  } catch (error) {
-    console.error('Lỗi chi tiết khi cập nhật người dùng:', error);
-    // Kiểm tra nếu là lỗi xác thực Mongoose
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(val => val.message);
-      return res.status(400).json({
+    if (!updatedUser) {
+      return res.status(404).json({
         success: false,
-        message: 'Lỗi xác thực dữ liệu',
-        errors: messages
+        message: "Không tìm thấy người dùng"
       });
     }
-     if (error.name === 'CastError') {
+
+    res.json({
+      success: true,
+      message: "Cập nhật người dùng thành công",
+      data: updatedUser
+    });
+  } catch (error) {
+    console.error('Update user error:', error); // Debug log
+    if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
-        message: `Lỗi chuyển đổi kiểu dữ liệu cho trường ${error.path}: ${error.message}`,
-        error: error.message
+        message: "Dữ liệu không hợp lệ",
+        errors: Object.values(error.errors).map(err => err.message)
+      });
+    }
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: "ID không hợp lệ"
       });
     }
     res.status(500).json({
       success: false,
-      message: 'Lỗi máy chủ nội bộ khi cập nhật người dùng',
+      message: "Lỗi server",
       error: error.message
     });
   }
@@ -503,7 +511,7 @@ exports.getInstructorProfile = async (req, res) => {
 exports.updateInstructorProfile = async (req, res) => {
   try {
     const instructorId = req.params.id;
-    const { 
+    const {
       name,
       email,
       phone,

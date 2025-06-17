@@ -104,7 +104,7 @@ const UserPage = () => {
       
       console.log('API Response:', response);
       
-      if (response.success) {
+      if (response.success && response.data) {
         console.log('Raw user data from API:', response.data.users);
         // Sắp xếp người dùng theo thứ tự mới nhất
         const sortedUsers = [...response.data.users].sort((a, b) => {
@@ -113,31 +113,27 @@ const UserPage = () => {
 
         // Map và thêm số thứ tự
         const mappedUsers = sortedUsers.map((user, index) => {
-          console.log('Processing user:', user);
-          const mappedUser = {
+          console.log('Processing user:', user); // Debug log
+          return {
             id: user._id,
-            fullname: user.name,
+            fullname: user.name, // Đảm bảo lấy name từ API
             email: user.email,
             avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
             role: user.role_id,
             status: user.status,
             createdAt: user.created_at,
             updatedAt: user.updated_at,
-            phone: user.phone,
-            address: user.address,
-            dob: user.dob,
-            gender: user.gender,
-            approval_status: user.approval_status,
-            email_verified: user.email_verified,
-            description: user.description,
-            coursesCount: user.coursesCount,
+            phone: user.phone || '',
+            address: user.address || '',
+            dob: user.dob || null,
+            gender: user.gender || 'Khác',
+            approval_status: user.approval_status || 'approved',
             number: (page - 1) * pagination.pageSize + index + 1
           };
-          console.log('Mapped user data:', mappedUser);
-          return mappedUser;
         });
 
-        setUsers(mappedUsers);
+        console.log('Mapped users:', mappedUsers); // Debug log
+        setUsers(mappedUsers as User[]);
         setPagination({
           ...pagination,
           current: page,
@@ -197,7 +193,7 @@ const UserPage = () => {
       [UserRole.ADMIN]: { color: "red", label: 'Admin' },
       [UserRole.INSTRUCTOR]: { color: "blue", label: 'Giảng viên' },
       [UserRole.STUDENT]: { color: "green", label: 'Học viên' },
-      [UserRole.MODERATOR]: { color: "orange", label: 'Kiểm duyệt viên' },
+      [UserRole.MODERATOR]: { color: "orange", label: 'Kiểm duyệt' },
     };
     const tag = roleMap[roleName] || { color: "default", label: roleName };
     return (
@@ -214,18 +210,20 @@ const UserPage = () => {
   };
 
   const handleEditUser = (user: User) => {
+    console.log('Editing user:', user); // Debug log
     setEditingUser(user);
     form.setFieldsValue({
-      fullname: user.fullname,
+      fullname: user.fullname || user.name, // Thêm fallback cho name
       email: user.email,
-      role: user.role,
+      role: typeof user.role === 'object' ? user.role.name : user.role,
       status: user.status,
-      phone: user.phone,
-      address: user.address,
+      phone: user.phone || '',
+      address: user.address || '',
       dob: user.dob ? dayjs(user.dob) : null,
-      gender: user.gender,
-      approval_status: user.approval_status,
+      gender: user.gender || 'Khác',
+      approval_status: user.approval_status || 'approved'
     });
+    console.log('Form values after set:', form.getFieldsValue()); // Debug log
     setIsModalVisible(true);
   };
 
@@ -249,7 +247,7 @@ const UserPage = () => {
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
-      console.log('Form values:', values);
+      console.log('Form values before submit:', values); // Debug log
       
       if (editingUser) {
         // Update existing user
@@ -258,36 +256,39 @@ const UserPage = () => {
         // Tìm role_id dựa trên role name
         const selectedRole = roles.find(r => r.name === values.role);
         if (!selectedRole) {
-          message.error('Vai trò không hợp lệ');
+          message.error('Không tìm thấy vai trò');
           return;
         }
 
         const updateData = {
           name: values.fullname,
-          role_id: selectedRole._id, // Sử dụng ID vai trò tìm được
+          role_id: selectedRole._id,
           status: values.status,
-          phone: values.phone || '',
-          address: values.address || '',
-          dob: values.dob ? values.dob.toISOString() : null, // Chuyển Dayjs object sang ISO string
-          gender: values.gender || 'Khác',
-          approval_status: values.approval_status || 'approved',
+          phone: values.phone,
+          address: values.address,
+          dob: values.dob ? values.dob.toISOString() : null,
+          gender: values.gender,
+          approval_status: values.approval_status,
+          email: values.email
         };
-        console.log('Update data:', updateData);
-        await updateUser(editingUser.id.toString(), updateData);
-        message.success("Cập nhật người dùng thành công");
+
+        console.log('Update data being sent:', updateData); // Debug log
+        const response = await updateUser(editingUser.id.toString(), updateData);
+        if (response.success) {
+          message.success("Cập nhật người dùng thành công");
+          setIsModalVisible(false);
+          fetchUsers(pagination.current);
+        } else {
+          message.error(response.message || "Lỗi khi cập nhật người dùng");
+        }
       } else {
         // Add new user
         console.log('Thêm mới người dùng');
-        console.log('Tên người dùng:', values.fullname);
-        console.log('Email:', values.email);
-        console.log('Mật khẩu:', values.password);
-        console.log('Vai trò:', values.role);
-        console.log('Trạng thái:', values.status);
-
+        
         // Tìm role_id dựa trên role name
         const selectedRole = roles.find(r => r.name === values.role);
         if (!selectedRole) {
-          message.error('Vai trò không hợp lệ');
+          message.error('Không tìm thấy vai trò');
           return;
         }
 
@@ -297,18 +298,24 @@ const UserPage = () => {
           name: values.fullname,
           role_id: selectedRole._id,
           status: values.status,
-          phone: values.phone || '',
-          address: values.address || '',
+          phone: values.phone,
+          address: values.address,
           dob: values.dob ? values.dob.toISOString() : null,
-          gender: values.gender || 'Khác',
-          approval_status: values.approval_status || 'approved'
+          gender: values.gender,
+          approval_status: values.approval_status,
+          nickname: values.fullname.toLowerCase().replace(/[^a-z0-9]/g, '-')
         };
-        console.log('Creating new user with data:', userData);
-        await createUser(userData);
-        message.success("Thêm người dùng thành công");
+
+        console.log('Create data being sent:', userData); // Debug log
+        const response = await createUser(userData);
+        if (response.success) {
+          message.success("Thêm người dùng thành công");
+          setIsModalVisible(false);
+          fetchUsers(pagination.current);
+        } else {
+          message.error(response.message || "Lỗi khi thêm người dùng");
+        }
       }
-      setIsModalVisible(false);
-      fetchUsers(pagination.current);
     } catch (error) {
       console.error('Error details:', {
         error: error,
@@ -474,7 +481,7 @@ const UserPage = () => {
       </div>
 
       <Row gutter={[16, 16]} className="mb-6">
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={8}>
           <Card className="shadow-sm hover:shadow-md transition-shadow">
             <Statistic
               title="Tổng số người dùng"
@@ -484,33 +491,23 @@ const UserPage = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={8}>
           <Card className="shadow-sm hover:shadow-md transition-shadow">
             <Statistic
-              title="Đang hoạt động"
-              value={userStats.active}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+             title="Đang hoạt động"
+             value={userStats.active}
+             prefix={<CheckCircleOutlined />}
+             valueStyle={{ color: '#52c41a' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={8}>
           <Card className="shadow-sm hover:shadow-md transition-shadow">
             <Statistic
               title="Không hoạt động"
               value={userStats.inactive}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
-            <Statistic
-              title="Bị cấm"
-              value={userStats.banned}
-              prefix={<CloseCircleOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
             />
           </Card>
         </Col>
@@ -591,7 +588,12 @@ const UserPage = () => {
         <Form
           form={form}
           layout="vertical"
-          initialValues={{ role: UserRole.STUDENT, status: UserStatus.ACTIVE }}
+          initialValues={{ 
+            role: UserRole.STUDENT, 
+            status: UserStatus.ACTIVE,
+            gender: 'Khác',
+            approval_status: 'approved'
+          }}
         >
           <Form.Item
             name="fullname"
@@ -627,44 +629,7 @@ const UserPage = () => {
             label="Vai trò"
             rules={[{ required: true, message: "Vui lòng chọn vai trò" }]}
           >
-            <Select
-              onChange={(value) => {
-                // Cập nhật các trường tùy thuộc vào vai trò
-                if (value === UserRole.ADMIN) {
-                  form.setFieldsValue({
-                    approval_status: 'approved',
-                    phone: '',
-                    address: '',
-                    dob: null,
-                    gender: 'Khác'
-                  });
-                } else if (value === UserRole.MODERATOR) {
-                  form.setFieldsValue({
-                    approval_status: 'pending',
-                    phone: '',
-                    address: '',
-                    dob: null,
-                    gender: 'Khác'
-                  });
-                } else if (value === UserRole.INSTRUCTOR) {
-                  form.setFieldsValue({
-                    approval_status: 'pending',
-                    phone: '',
-                    address: '',
-                    dob: null,
-                    gender: 'Khác'
-                  });
-                } else if (value === UserRole.STUDENT) {
-                  form.setFieldsValue({
-                    approval_status: 'approved',
-                    phone: '',
-                    address: '',
-                    dob: null,
-                    gender: 'Khác'
-                  });
-                }
-              }}
-            >
+            <Select>
               {Object.values(UserRole).map((role) => (
                 <Select.Option key={role} value={role}>
                   {getRoleTag(role)}
@@ -707,13 +672,17 @@ const UserPage = () => {
             name="address"
             label="Địa chỉ"
           >
-            <Input.TextArea placeholder="Nhập địa chỉ" />
+            <Input.TextArea placeholder="Nhập địa chỉ" rows={3} />
           </Form.Item>
           <Form.Item
             name="dob"
             label="Ngày sinh"
           >
-            <DatePicker style={{ width: '100%' }} />
+            <DatePicker 
+              style={{ width: '100%' }} 
+              format="DD/MM/YYYY"
+              placeholder="Chọn ngày sinh"
+            />
           </Form.Item>
           <Form.Item
             name="gender"
