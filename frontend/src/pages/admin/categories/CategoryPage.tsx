@@ -103,8 +103,8 @@ const CategoryPage = () => {
         // Update category stats
         const stats = {
           total: categoriesData.length,
-          active: categoriesData.filter((category: Category) => category.status === 'active').length,
-          inactive: categoriesData.filter((category: Category) => category.status === 'inactive').length,
+          active: categoriesData.filter((category: Category) => category.status === 'active' && category.status !== undefined).length,
+          inactive: categoriesData.filter((category: Category) => category.status === 'inactive' && category.status !== undefined).length,
         };
         setCategoryStats(stats);
       } else {
@@ -198,6 +198,9 @@ const CategoryPage = () => {
 
   const handleAddCategory = () => {
     form.resetFields();
+    form.setFieldsValue({
+      status: 'active'
+    });
     setEditingCategory(null);
     setIsModalVisible(true);
   };
