@@ -47,6 +47,8 @@ const VouchersPage: React.FC = () => {
   const [data, setData] = useState<Voucher[]>([]);
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expired'>('all');
   const [loading, setLoading] = useState(false);
+  const [isDetailModalVisible, setIsDetailModalVisible] = useState<boolean>(false);
+  const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
 
   // Danh sách khóa học giả lập dùng trong Select
   const courses = [
@@ -204,90 +206,86 @@ const VouchersPage: React.FC = () => {
     setCurrentPage(1);
   }, [searchText, filterStatus]);
 
+  const showDetailModal = (record: Voucher) => {
+    setSelectedVoucher(record);
+    setIsDetailModalVisible(true);
+  };
+
   const columns: ColumnsType<Voucher> = [
     {
       title: 'Mã',
       dataIndex: 'code',
       key: 'code',
+      width: 100,
+      align: 'center',
       className: "font-medium text-gray-800",
+      ellipsis: true,
+      render: (code: string, record: Voucher) => (
+        <Button 
+          type="link" 
+          onClick={() => showDetailModal(record)}
+          className="p-0 font-medium text-blue-600 hover:text-blue-800"
+          style={{ fontSize: 14, wordBreak: 'break-all', whiteSpace: 'normal', padding: 0 }}
+        >
+          {code}
+        </Button>
+      ),
     },
     {
       title: 'Áp dụng khóa học',
       dataIndex: 'course',
       key: 'course',
-      className: "text-gray-600",
-      render: (course: string | null) => course || 'Tất cả khóa học'
-    },
-    {
-      title: 'Loại giảm giá',
-      dataIndex: 'type',
-      key: 'type',
+      width: 140,
       align: 'center',
-      render: (type: 'amount' | 'percentage') =>
-        type === 'amount' ? 'Số tiền' : 'Phần trăm',
-      className: "text-gray-600 text-sm"
+      className: "text-gray-600",
+      ellipsis: true,
+      render: (course: string | null) => (
+        <span style={{ fontSize: 13, wordBreak: 'break-word', whiteSpace: 'normal' }}>
+          {course || 'Tất cả khóa học'}
+        </span>
+      )
     },
     {
       title: 'Giá trị giảm',
       dataIndex: 'value',
       key: 'value',
+      width: 110,
       align: 'center',
+      ellipsis: true,
       render: (value: number, record: Voucher) =>
-        record.type === 'percentage'
-          ? `${value}%`
-          : `${value.toLocaleString('vi-VN')} VNĐ`,
+        <span style={{ color: '#1677ff', fontWeight: 600, fontSize: 13 }}>
+          {record.type === 'percentage'
+            ? `${value}%`
+            : `${value.toLocaleString('vi-VN')} VNĐ`}
+        </span>,
       className: "font-semibold text-blue-600"
-    },
-    {
-      title: 'Đã sử dụng / Số lượng',
-      key: 'usage',
-      align: 'center',
-      className: "text-gray-600 text-sm",
-      render: (_: void, record: Voucher) => `${record.used} / ${record.quantity}`,
     },
     {
       title: 'Trạng thái',
       key: 'status',
-      align: 'center',
+      width: 130,
+      align: 'left',
       render: (_: void, record: Voucher) => {
         const isActive = isVoucherActive(record);
-        const statusConfig = isActive 
-          ? { color: 'success' as const, icon: <CheckCircleOutlined />, text: 'Đang hoạt động' }
-          : { color: 'error' as const, icon: <CloseCircleOutlined />, text: 'Đã hết hạn' };
-
         return (
-          <Tag 
-            color={statusConfig.color}
-            icon={statusConfig.icon}
-            className="px-2 py-1 rounded-full text-sm font-medium"
-          >
-            {statusConfig.text}
-          </Tag>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {isActive ? (
+              <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
+            ) : (
+              <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 18 }} />
+            )}
+            <span style={{ fontSize: 13, color: isActive ? '#52c41a' : '#ff4d4f', fontWeight: 500 }}>
+              {isActive ? 'Đang hoạt động' : 'Đã hết hạn'}
+            </span>
+          </div>
         );
       }
-    },
-    {
-      title: 'Ngày tạo',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      align: 'center',
-      className: "text-gray-600 text-sm",
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD')
-    },
-    {
-      title: 'Ngày hết hạn',
-      dataIndex: 'expiresAt',
-      key: 'expiresAt',
-      align: 'center',
-      render: (date: string | null) => (date ? dayjs(date).format('YYYY-MM-DD') : 'Không giới hạn'),
-      className: "text-gray-600 text-sm"
     },
     {
       title: 'Hành động',
       key: 'actions',
       align: 'center',
-      fixed: 'right',
-      width: 120,
+      width: 90,
       render: (_: void, record: Voucher) => (
         <Space size="small">
           <Tooltip title="Chỉnh sửa">
@@ -295,7 +293,7 @@ const VouchersPage: React.FC = () => {
               icon={<EditOutlined />}
               type="text"
               onClick={() => showEditModal(record)}
-              className="tw-text-blue-600 flex items-center"
+              style={{ color: '#1677ff', fontSize: 16 }}
               size="small"
             />
           </Tooltip>
@@ -311,7 +309,7 @@ const VouchersPage: React.FC = () => {
                 icon={<DeleteOutlined />}
                 type="text"
                 danger
-                className="tw-text-red-600 flex items-center"
+                style={{ fontSize: 16 }}
                 size="small"
               />
             </Tooltip>
@@ -417,7 +415,6 @@ const VouchersPage: React.FC = () => {
           columns={columns}
           dataSource={currentData}
           pagination={false}
-          scroll={{ x: 1100 }}
           className="vouchers-table"
           loading={loading}
         />
@@ -539,6 +536,78 @@ const VouchersPage: React.FC = () => {
         </Form>
       </Modal>
 
+      {/* Detail Modal */}
+      <Modal
+        title={<div className="text-xl font-semibold text-gray-800">Chi tiết mã giảm giá</div>}
+        open={isDetailModalVisible}
+        onCancel={() => {
+          setIsDetailModalVisible(false);
+          setSelectedVoucher(null);
+        }}
+        footer={null}
+        width={420}
+        centered
+      >
+        {selectedVoucher && (
+          <div style={{ padding: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+              <span style={{ fontSize: 22, fontWeight: 700, color: '#1677ff', letterSpacing: 1 }}>{selectedVoucher.code}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {isVoucherActive(selectedVoucher) ? (
+                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
+                ) : (
+                  <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 18 }} />
+                )}
+                <span style={{ fontSize: 14, color: isVoucherActive(selectedVoucher) ? '#52c41a' : '#ff4d4f', fontWeight: 500 }}>
+                  {isVoucherActive(selectedVoucher) ? 'Đang hoạt động' : 'Đã hết hạn'}
+                </span>
+              </span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Khóa học áp dụng:</span>
+              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.course || 'Tất cả khóa học'}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Loại giảm giá:</span>
+              <span style={{ marginLeft: 8, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {selectedVoucher.type === 'amount' ? <span>💵 Số tiền</span> : <span>🎯 Phần trăm</span>}
+              </span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Giá trị giảm:</span>
+              <span style={{ marginLeft: 8, fontWeight: 600, color: '#1677ff' }}>
+                {selectedVoucher.type === 'percentage'
+                  ? `${selectedVoucher.value}%`
+                  : `${selectedVoucher.value.toLocaleString('vi-VN')} VNĐ`}
+              </span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Đã sử dụng / Số lượng:</span>
+              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.used} / {selectedVoucher.quantity}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Ngày tạo:</span>
+              <span style={{ marginLeft: 8 }}>{dayjs(selectedVoucher.createdAt).format('YYYY-MM-DD')}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Ngày hết hạn:</span>
+              <span style={{ marginLeft: 8 }}>{selectedVoucher.expiresAt ? dayjs(selectedVoucher.expiresAt).format('YYYY-MM-DD') : 'Không giới hạn'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
+              <Button onClick={() => {
+                setIsDetailModalVisible(false);
+                showEditModal(selectedVoucher);
+              }}>
+                Chỉnh sửa
+              </Button>
+              <Button type="primary" onClick={() => setIsDetailModalVisible(false)}>
+                Đóng
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* Custom styles */}
       <style>
         {`
@@ -546,12 +615,18 @@ const VouchersPage: React.FC = () => {
             background: #fafafa;
             font-weight: 600;
             color: #1f2937;
+            font-size: 13px;
+            padding: 8px 8px;
+            white-space: nowrap;
           }
           .vouchers-table .ant-table-tbody > tr:hover > td {
             background: #f5f7fa;
           }
           .vouchers-table .ant-table-tbody > tr > td {
-            padding: 12px 8px;
+            padding: 8px 8px;
+            font-size: 13px;
+            word-break: break-word;
+            white-space: normal;
           }
           .ant-tag {
             margin: 0;
