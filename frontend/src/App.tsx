@@ -4,7 +4,7 @@ import Homepage from "./pages/Homepage";
 import AdminLayout from "./pages/layout/AdminLayout";
 import ClientLayout from "./pages/layout/ClientLayout";
 import ProfileLayout from "./pages/layout/ProfileLayout";
-import ProfileEdit from "./pages/client/profile/ProfileEdit";
+import ProfileEdit from "./pages/client/Profile/ProfileEdit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CouponManagement from "./pages/admin/Vouchers/VouchersPage";
 import TransactionHistory from "./pages/admin/Transaction/TransactionHistory";
@@ -32,8 +32,7 @@ import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfile
 import ModeratorLayout from "./pages/layout/ModeratorLayout";
 import InstructorLayout from "./pages/layout/InstructorLayout";
 import ChangePassword from "./pages/layout/ChangePassword";
-import Profile from "./pages/client/profile/Profile";
-import CategoryPage from "./pages/admin/categories/CategoryPage";
+import Profile from "./pages/client/Profile/Profile";
 
 const queryClient = new QueryClient();
 
@@ -63,12 +62,10 @@ function App() {
       children: [
         { path: "users", element: <UserPage /> },
         { path: "users/:id", element: <UserDetail /> },
+        { path: "instructors", element: <InstructorList /> },
         { path: "instructor-approval", element: <InstructorPendingListPage /> },
         { path: "users/instructor/:id", element: <InstructorDetail /> },
         { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },
-        { path: "instructors", element: <InstructorList /> },
-        { path: "sectionLesson/CourseManagement", element: <CourseManagement /> },
-        { path: "users/instructor/:id", element: <InstructorDetail /> },
         { path: "content-approval", element: <ContentApprovalPage /> },
         { path: "reports", element: <ReportsPage /> },
         { path: "system/vouchers", element: <VouchersPage /> },
@@ -76,7 +73,7 @@ function App() {
         { path: "statistics", element: <AdminStatistics /> },
         { path: "coupons", element: <CouponManagement /> },
         { path: "history", element: <TransactionHistory /> },
-        { path: "sectionLesson/CourseManagement", element: <CourseManagement /> },
+        
       ],
     },
     {
@@ -87,7 +84,9 @@ function App() {
     {
       path: "/instructor",
       element: <InstructorLayout />,
-      children: [],
+      children: [
+        { path: "sectionLesson/CourseManagement", element: <CourseManagement /> },
+      ],
     },
     { path: "/login", element: <LoginPage /> },
     { path: "/register", element: <RegisterPage /> },
