@@ -39,8 +39,10 @@ app.use(helmet()); // Bảo vệ headers
 app.use(mongoSanitize()); // Ngăn chặn NoSQL injection
 app.use(xss()); // Ngăn chặn XSS attacks
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: '*',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
 })); // CORS
 app.use(cookieParser()); // Parse cookies
 app.use(compression()); // Nén response
