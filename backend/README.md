@@ -196,7 +196,7 @@ PORT=5000
 NODE_ENV=development
 
 # Database
-MONGODB_URI=mongodb://localhost:27017/edupro
+MONGODB_URI=mongodb+srv://edupro:edupro123@cluster0.qjwuxzj.mongodb.net/edupro
 
 # JWT
 JWT_SECRET=your_jwt_secret
