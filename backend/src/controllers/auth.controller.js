@@ -511,7 +511,7 @@ exports.resendVerificationEmail = async (req, res) => {
     await user.save();
 
     try {
-      await sendVerificationEmail(user.email, verificationToken);
+      await sendVerificationEmail(user.email, verificationToken, user.slug);
       res.json({
         success: true,
         message: 'Đã gửi lại email xác thực',

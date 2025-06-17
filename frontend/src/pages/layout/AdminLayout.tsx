@@ -55,7 +55,7 @@ const getRoleName = (user: User): string => {
       return 'instructor';
     }
   }
-  
+
   return 'user';
 };
 
@@ -275,7 +275,7 @@ const AdminLayout = () => {
         title={
           <div style={{ padding: "8px 12px" }}>
             <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullname}</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: {user?.role === 'admin' ? 'Admin' : user?.role === 'instructor' ? 'Giảng viên' : user?.role === 'moderator' ? 'Quản trị viên' : 'Người dùng'}</p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: {user?.role?.name === 'admin' ? 'Admin' : user?.role?.name === 'instructor' ? 'Giảng viên' : user?.role?.name === 'moderator' ? 'Quản trị viên' : 'Người dùng'}</p>
             <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>{user?.email}</p>
           </div>
         }
@@ -324,7 +324,7 @@ const AdminLayout = () => {
         <Header
           className={styles.header}
         >
-        
+
 
           <Dropdown overlay={profileMenu} trigger={["click"]} placement="bottomRight">
             <div
