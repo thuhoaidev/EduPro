@@ -9,9 +9,9 @@ export const config = axios.create({
     baseURL: API_URL,
     headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,PUT,POST,DELETE,PATCH,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        // "Access-Control-Allow-Origin": "*",
+        // "Access-Control-Allow-Methods": "GET,PUT,POST,DELETE,PATCH,OPTIONS",
+        // "Access-Control-Allow-Headers": "Content-Type, Authorization"
     },
     timeout: 10000 // timeout sau 10 giây
 });
