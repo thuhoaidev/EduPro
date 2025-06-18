@@ -53,6 +53,8 @@ export function LoginPage(): React.ReactElement {
           if (errorData?.data?.canResendVerification) {
             setVerificationEmail(errorData.data.email);
             setShowVerificationModal(true);
+          } else if (errorData?.message === "Tài khoản instructor chưa được phê duyệt") {
+            messageApi.error("Tài khoản giảng viên của bạn chưa được duyệt. Vui lòng chờ admin xác nhận.");
           } else {
             messageApi.error(errorData?.message || "Đăng nhập thất bại.");
           }

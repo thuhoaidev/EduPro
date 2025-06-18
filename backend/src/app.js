@@ -40,7 +40,7 @@ app.use(helmet()); // Bảo vệ headers
 app.use(mongoSanitize()); // Ngăn chặn NoSQL injection
 app.use(xss()); // Ngăn chặn XSS attacks
 app.use(cors({
-  origin: ['https://api.edupro.com', 'http://localhost:5000'],
+  origin: ['https://api.edupro.com', 'http://localhost:5000', 'http://localhost:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
