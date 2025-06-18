@@ -116,7 +116,7 @@ const UserPage = () => {
           console.log('Processing user:', user); // Debug log
           return {
             id: user._id,
-            fullname: user.name, // Đảm bảo lấy name từ API
+            fullname: user.fullname || user.name || 'Chưa có tên', // Sử dụng fullname từ backend, fallback về name
             email: user.email,
             avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
             role: user.role_id,
@@ -227,9 +227,9 @@ const UserPage = () => {
     setIsModalVisible(true);
   };
 
-  const handleDeleteUser = async (id: string) => {
+  const handleDeleteUser = async (id: string | number) => {
     try {
-      const response = await deleteUser(id);
+      const response = await deleteUser(id.toString());
       if (response.success) {
         message.success("Xóa người dùng thành công");
         fetchUsers(pagination.current);
@@ -335,7 +335,7 @@ const UserPage = () => {
     fetchUsers(pagination.current || 1, pagination.pageSize || 10);
   };
 
-  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+  const handleRoleChange = async (userId: string | number, newRole: UserRole) => {
     try {
       const user = users.find(u => u.id === userId);
       if (!user) return;
@@ -351,7 +351,7 @@ const UserPage = () => {
         return;
       }
 
-      await updateUser(userId, { role_id: selectedRole._id });
+      await updateUser(userId.toString(), { role_id: selectedRole._id });
       message.success('Cập nhật vai trò thành công');
       fetchUsers(pagination.current);
     } catch (error) {

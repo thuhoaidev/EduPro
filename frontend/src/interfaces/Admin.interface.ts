@@ -16,10 +16,11 @@ export enum UserStatus {
 // API User interface (matches backend response)
 export interface ApiUser {
   _id: string;
-  name: string;
+  name?: string;
+  fullname?: string;
   email: string;
   avatar?: string;
-  role_id: string;
+  role_id: string | Role;
   status: UserStatus;
   created_at: string;
   updated_at: string;
@@ -40,12 +41,12 @@ export interface Role {
 }
 
 export interface User {
-  id: string;
+  id: string | number;
   fullname: string;
   name?: string;
   email: string;
   avatar?: string;
-  role: UserRole | Role;
+  role: string | UserRole | Role;
   status: UserStatus;
   createdAt: string;
   updatedAt: string;
