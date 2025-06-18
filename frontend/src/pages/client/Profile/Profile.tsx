@@ -43,7 +43,7 @@ const Profile = () => {
           return;
         }
 
-        const response = await config.get('/auth/me');
+        const response = await config.get('/users/me');
         
         // Lưu user vào localStorage
         localStorage.setItem('user', JSON.stringify(response.data));
