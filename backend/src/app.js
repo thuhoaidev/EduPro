@@ -21,6 +21,7 @@ const lessonRoutes = require('./routes/lesson.routes');
 const videoRoutes = require('./routes/video.routes');
 const quizRoutes = require('./routes/quiz.routes');
 const voucherRoutes = require('./routes/voucher.routes');
+const userRoutes = require('./routes/user.routes');
 
 // Khởi tạo app
 const app = express();
@@ -78,9 +79,10 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/vouchers', voucherRoutes);
+app.use('/api/users', userRoutes);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error(err.stack);
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({

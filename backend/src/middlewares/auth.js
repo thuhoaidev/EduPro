@@ -26,7 +26,7 @@ exports.auth = async (req, res, next) => {
     console.log('Decoded token:', decoded);
 
     // Tìm user trong database
-    const user = await User.findById(decoded.id).select('+roles');
+    const user = await User.findById(decoded.id).populate('role_id');
 
     if (!user) {
       return res.status(401).json({
@@ -45,9 +45,11 @@ exports.auth = async (req, res, next) => {
 
     // Kiểm tra role_id để xác định roles
     if (user.role_id) {
-      // Nếu role_id là ObjectId của admin role
-      if (user.role_id.toString() === '68484e6282351f68a98e5d9d') {
+      // Kiểm tra role name thay vì hardcode ObjectId
+      if (user.role_id.name === 'admin') {
         roles.push('admin');
+      } else if (user.role_id.name === 'instructor') {
+        roles.push('instructor');
       }
     }
 
@@ -73,6 +75,7 @@ exports.auth = async (req, res, next) => {
       id: user._id,
       roles: roles,
       role_id: user.role_id,
+      originalRoleId: user.role_id,
     });
 
     next();

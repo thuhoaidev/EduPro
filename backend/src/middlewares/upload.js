@@ -1,34 +1,94 @@
 const multer = require('multer');
 const path = require('path');
+const { uploadBufferToCloudinary } = require('../utils/cloudinary');
 
-// Configure storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/avatars/'); // Make sure this directory exists
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Cấu hình multer cho upload file
+const storage = multer.memoryStorage();
 
-// File filter
+// Filter file types
 const fileFilter = (req, file, cb) => {
-  // Accept images only
-  if (!file.originalname.match(/\.(jpg|JPG|jpeg|JPEG|png|PNG|gif|GIF)$/)) {
-    req.fileValidationError = 'Only image files are allowed!';
-    return cb(new Error('Only image files are allowed!'), false);
+  // Chỉ cho phép upload ảnh
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Chỉ cho phép upload file ảnh!'), false);
   }
-  cb(null, true);
 };
 
-// Create multer upload instance
+// Cấu hình multer
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB max file size
-  }
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
 });
 
-module.exports = upload; 
+// Middleware upload avatar
+exports.uploadAvatar = upload.single('avatar');
+
+// Middleware xử lý upload avatar lên Cloudinary
+exports.processAvatarUpload = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return next(); // Không có file upload, tiếp tục
+    }
+
+    // Kiểm tra kích thước file
+    if (req.file.size > 5 * 1024 * 1024) {
+      return res.status(400).json({
+        success: false,
+        message: 'File quá lớn. Kích thước tối đa là 5MB',
+      });
+    }
+
+    // Upload lên Cloudinary
+    const result = await uploadBufferToCloudinary(req.file.buffer, 'avatars');
+
+    // Lưu thông tin file vào request
+    req.uploadedAvatar = {
+      url: result.secure_url,
+      public_id: result.public_id,
+      width: result.width,
+      height: result.height,
+      format: result.format,
+      size: result.bytes,
+    };
+
+    next();
+  } catch (error) {
+    console.error('Lỗi upload avatar:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi upload avatar',
+      error: error.message,
+    });
+  }
+};
+
+// Middleware xóa avatar cũ từ Cloudinary
+exports.deleteOldAvatar = async (req, res, next) => {
+  try {
+    const { deleteFromCloudinary, getPublicIdFromUrl } = require('../utils/cloudinary');
+    
+    // Nếu có avatar mới được upload và user có avatar cũ
+    if (req.uploadedAvatar && req.user && req.user.avatar) {
+      const oldPublicId = getPublicIdFromUrl(req.user.avatar);
+      
+      if (oldPublicId && oldPublicId !== 'default-avatar') {
+        try {
+          await deleteFromCloudinary(oldPublicId);
+          console.log('Đã xóa avatar cũ:', oldPublicId);
+        } catch (deleteError) {
+          console.error('Lỗi xóa avatar cũ:', deleteError);
+          // Không throw error vì đây không phải lỗi nghiêm trọng
+        }
+      }
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Lỗi xóa avatar cũ:', error);
+    next(); // Tiếp tục xử lý dù có lỗi
+  }
+}; 
