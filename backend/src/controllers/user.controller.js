@@ -442,72 +442,6 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// Lấy danh sách giảng viên
-exports.getInstructors = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || '';
-
-    // Tìm role instructor
-    const instructorRole = await Role.findOne({ name: ROLES.INSTRUCTOR });
-    if (!instructorRole) {
-      return res.status(404).json({
-        success: false,
-        message: 'Vai trò giảng viên không tồn tại',
-      });
-    }
-
-    // Xây dựng query cho giảng viên
-    const instructorsQuery = {
-      role_id: instructorRole._id,
-    };
-
-    // Thêm điều kiện tìm kiếm nếu có
-    if (search) {
-      const searchQuery = {
-        $or: [
-          { fullname: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } },
-          { nickname: { $regex: search, $options: 'i' } },
-          { phone: { $regex: search, $options: 'i' } },
-        ],
-      };
-      instructorsQuery.$and = [instructorsQuery, searchQuery];
-    }
-
-    // Thực hiện query với phân trang
-    const instructors = await User.find(instructorsQuery)
-      .populate('role_id')
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .sort({ created_at: -1 });
-
-    // Đếm tổng số giảng viên
-    const total = await User.countDocuments(instructorsQuery);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        instructors: instructors.map(instructor => instructor.toJSON()),
-        pagination: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      },
-    });
-  } catch (error) {
-    console.error('Lỗi lấy danh sách giảng viên:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi lấy danh sách giảng viên',
-      error: error.message,
-    });
-  }
-};
-
 // Cập nhật trạng thái hồ sơ giảng viên
 exports.updateInstructorApproval = async (req, res) => {
   try {
@@ -547,7 +481,7 @@ exports.updateInstructorApproval = async (req, res) => {
     }
 
     // Cập nhật trạng thái duyệt
-    instructor.approval_status = status;
+    instructor.instructor_approval_status = status;
     instructor.instructorInfo.approval_status = status;
     instructor.instructorInfo.approval_date = new Date();
     instructor.instructorInfo.approved_by = req.user._id;
@@ -577,7 +511,7 @@ exports.updateInstructorApproval = async (req, res) => {
         _id: instructor._id,
         email: instructor.email,
         fullname: instructor.fullname,
-        approval_status: instructor.approval_status,
+        instructor_approval_status: instructor.instructor_approval_status,
         role: instructor.role_id.name,
         instructorInfo: instructor.instructorInfo,
       },
@@ -599,21 +533,22 @@ exports.getPendingInstructors = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
 
-    // Tìm role instructor
+    // Tìm role student và instructor
+    const studentRole = await Role.findOne({ name: 'student' });
     const instructorRole = await Role.findOne({ name: 'instructor' });
-    if (!instructorRole) {
+    
+    if (!studentRole || !instructorRole) {
       return res.status(404).json({
         success: false,
-        message: 'Vai trò giảng viên không tồn tại',
+        message: 'Vai trò student hoặc instructor không tồn tại',
       });
     }
 
-    // Xây dựng query cho giảng viên chờ duyệt
+    // Xây dựng query cho người dùng chờ duyệt hồ sơ giảng viên
     const pendingInstructorsQuery = {
-      role_id: instructorRole._id,
       $or: [
-        { approval_status: 'pending' },
-        { approval_status: null },
+        { role_id: studentRole._id, instructor_approval_status: 'pending' },
+        { role_id: instructorRole._id, instructor_approval_status: 'pending' },
       ],
     };
 
@@ -681,11 +616,13 @@ exports.getPendingInstructors = async (req, res) => {
           totalPending: total,
           totalApproved: await User.countDocuments({
             role_id: instructorRole._id,
-            approval_status: 'approved',
+            instructor_approval_status: 'approved',
           }),
           totalRejected: await User.countDocuments({
-            role_id: instructorRole._id,
-            approval_status: 'rejected',
+            $or: [
+              { role_id: studentRole._id, instructor_approval_status: 'rejected' },
+              { role_id: instructorRole._id, instructor_approval_status: 'rejected' },
+            ],
           }),
         },
       },
@@ -705,22 +642,23 @@ exports.getPendingInstructorDetail = async (req, res) => {
   try {
     const instructorId = req.params.id;
 
-    // Tìm role instructor
+    // Tìm role student và instructor
+    const studentRole = await Role.findOne({ name: 'student' });
     const instructorRole = await Role.findOne({ name: 'instructor' });
-    if (!instructorRole) {
+    
+    if (!studentRole || !instructorRole) {
       return res.status(404).json({
         success: false,
-        message: 'Vai trò giảng viên không tồn tại',
+        message: 'Vai trò student hoặc instructor không tồn tại',
       });
     }
 
-    // Tìm giảng viên chờ duyệt
+    // Tìm người dùng chờ duyệt hồ sơ giảng viên
     const instructor = await User.findOne({
       _id: instructorId,
-      role_id: instructorRole._id,
       $or: [
-        { approval_status: 'pending' },
-        { approval_status: null },
+        { role_id: studentRole._id, instructor_approval_status: 'pending' },
+        { role_id: instructorRole._id, instructor_approval_status: 'pending' },
       ],
     }).populate('role_id');
 
@@ -752,7 +690,7 @@ exports.getPendingInstructorDetail = async (req, res) => {
         status: instructorData.status,
       },
       approvalInfo: {
-        approval_status: instructorData.approval_status,
+        instructor_approval_status: instructorData.instructor_approval_status,
         isInstructor: instructorData.isInstructor,
         has_registered_instructor: instructorData.has_registered_instructor,
       },
@@ -918,7 +856,7 @@ exports.submitInstructorProfile = async (req, res) => {
 
     // Cập nhật user
     user.instructorInfo = instructorInfo;
-    user.approval_status = 'pending';
+    user.instructor_approval_status = 'pending';
     await user.save();
 
     res.status(200).json({
@@ -926,7 +864,7 @@ exports.submitInstructorProfile = async (req, res) => {
       message: 'Nộp hồ sơ giảng viên thành công. Hồ sơ đang chờ duyệt.',
       data: {
         instructorInfo: user.instructorInfo,
-        approval_status: user.approval_status,
+        instructor_approval_status: user.instructor_approval_status,
       },
     });
   } catch (error) {
@@ -956,7 +894,7 @@ exports.getMyInstructorProfile = async (req, res) => {
       success: true,
       data: {
         instructorInfo: user.instructorInfo || null,
-        approval_status: user.approval_status,
+        instructor_approval_status: user.instructor_approval_status,
         role: user.role_id.name,
       },
     });
@@ -1038,6 +976,157 @@ exports.updateInstructorProfile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi cập nhật hồ sơ giảng viên',
+      error: error.message,
+    });
+  }
+};
+
+// Đăng ký hồ sơ giảng viên cho student (chỉ cần thông tin chuyên môn)
+exports.registerInstructorProfile = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // Kiểm tra user hiện tại
+    const user = await User.findById(userId).populate('role_id');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+      });
+    }
+
+    // Kiểm tra xem user có phải là sinh viên không
+    const studentRole = await Role.findOne({ name: 'student' });
+    if (!studentRole || user.role_id._id.toString() !== studentRole._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ sinh viên mới có thể đăng ký hồ sơ giảng viên',
+      });
+    }
+
+    // Kiểm tra xem đã có hồ sơ giảng viên chưa
+    if (user.instructorInfo && user.instructorInfo.approval_status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bạn đã đăng ký hồ sơ giảng viên trước đó',
+      });
+    }
+
+    // Lấy thông tin chuyên môn từ request body
+    const {
+      experience_years,
+      experience_details,
+      major_field,
+      demo_video
+    } = req.body;
+
+    // Validation thông tin chuyên môn bắt buộc
+    if (!experience_years || !experience_details || !major_field) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin chuyên môn bắt buộc: kinh nghiệm, mô tả kinh nghiệm, lĩnh vực chuyên môn',
+      });
+    }
+
+    // Xử lý file upload từ middleware
+    const uploadedFiles = req.uploadedInstructorFiles || {};
+    
+    // Kiểm tra file CV - bắt buộc
+    if (!uploadedFiles.cv_file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phải upload file CV',
+      });
+    }
+
+    // Kiểm tra file bằng cấp - bắt buộc
+    if (!uploadedFiles.degrees || uploadedFiles.degrees.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phải upload ít nhất 1 file bằng cấp',
+      });
+    }
+
+    // Xử lý thông tin bằng cấp
+    const processedDegrees = uploadedFiles.degrees.map((degree, index) => ({
+      name: `Bằng cấp ${index + 1}`,
+      file: degree.url,
+      original_name: degree.original_name,
+      uploaded_at: new Date()
+    }));
+
+    // Tìm role instructor
+    const instructorRole = await Role.findOne({ name: 'instructor' });
+    if (!instructorRole) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vai trò giảng viên không tồn tại',
+      });
+    }
+
+    // Tạo thông tin instructor
+    const instructorInfo = {
+      is_approved: false,
+      experience_years: parseInt(experience_years),
+      specializations: [major_field],
+      teaching_experience: {
+        years: parseInt(experience_years),
+        description: experience_details,
+      },
+      certificates: processedDegrees,
+      demo_video: uploadedFiles.demo_video ? uploadedFiles.demo_video.url : (demo_video || null),
+      cv_file: uploadedFiles.cv_file.url,
+      other_documents: [],
+      approval_status: 'pending',
+    };
+
+    // Cập nhật thông tin user (chỉ cập nhật instructorInfo và approval_status)
+    const updateFields = {
+      instructorInfo: instructorInfo,
+      instructor_approval_status: 'pending',
+    };
+
+    // Cập nhật user
+    const updatedUser = await User.findByIdAndUpdate(userId, updateFields, {
+      new: true,
+      runValidators: true,
+    }).populate('role_id');
+
+    res.status(200).json({
+      success: true,
+      message: 'Đăng ký hồ sơ giảng viên thành công. Hồ sơ đang chờ duyệt.',
+      data: {
+        instructorInfo: updatedUser.instructorInfo,
+        instructor_approval_status: updatedUser.instructor_approval_status,
+        user: {
+          _id: updatedUser._id,
+          email: updatedUser.email,
+          fullname: updatedUser.fullname,
+          role: updatedUser.role_id.name,
+          phone: updatedUser.phone,
+          dob: updatedUser.dob,
+          avatar: updatedUser.avatar,
+        },
+        uploadedFiles: {
+          degrees: processedDegrees.length,
+          cv: uploadedFiles.cv_file ? {
+            url: uploadedFiles.cv_file.url,
+            original_name: uploadedFiles.cv_file.original_name,
+            size: uploadedFiles.cv_file.size
+          } : null,
+          demo_video: uploadedFiles.demo_video ? {
+            url: uploadedFiles.demo_video.url,
+            original_name: uploadedFiles.demo_video.original_name,
+            size: uploadedFiles.demo_video.size
+          } : null,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi đăng ký hồ sơ giảng viên:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi đăng ký hồ sơ giảng viên',
       error: error.message,
     });
   }

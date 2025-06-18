@@ -82,6 +82,12 @@ const UserSchema = new mongoose.Schema({
     enum: [null, 'pending', 'approved', 'rejected'],
     default: null,
   },
+  instructor_approval_status: {
+    type: String,
+    enum: [null, 'pending', 'approved', 'rejected'],
+    default: null,
+    description: 'Trạng thái duyệt hồ sơ giảng viên',
+  },
   avatar: {
     type: String,
     default: 'default-avatar.jpg',
@@ -145,7 +151,6 @@ const UserSchema = new mongoose.Schema({
       type: String,
       trim: true,
     }],
-    
     // Kinh nghiệm giảng dạy
     teaching_experience: {
       years: {
@@ -159,42 +164,30 @@ const UserSchema = new mongoose.Schema({
         maxlength: [2000, 'Mô tả kinh nghiệm không được quá 2000 ký tự'],
       },
     },
-    
-    // Bằng cấp & chứng chỉ
+    // Bằng cấp & chứng chỉ (chỉ cần file, không cần năm/ngành/nơi cấp)
     certificates: [{
       name: {
         type: String,
-        required: [true, 'Tên bằng cấp/chứng chỉ là bắt buộc'],
         trim: true,
-      },
-      major: {
-        type: String,
-        required: [true, 'Ngành học là bắt buộc'],
-        trim: true,
-      },
-      issuer: {
-        type: String,
-        required: [true, 'Nơi cấp là bắt buộc'],
-        trim: true,
-      },
-      year: {
-        type: Number,
-        required: [true, 'Năm cấp là bắt buộc'],
-        min: [1900, 'Năm cấp không hợp lệ'],
-        max: [new Date().getFullYear(), 'Năm cấp không thể là tương lai'],
       },
       file: {
         type: String,
         required: [true, 'File scan bằng cấp là bắt buộc'],
       },
+      original_name: {
+        type: String,
+        trim: true,
+      },
+      uploaded_at: {
+        type: Date,
+        default: Date.now,
+      },
     }],
-    
     // Video demo dạy thử
     demo_video: {
       type: String,
       trim: true,
     },
-    
     // CV và hồ sơ khác
     cv_file: {
       type: String,
@@ -216,7 +209,6 @@ const UserSchema = new mongoose.Schema({
         maxlength: [500, 'Mô tả không được quá 500 ký tự'],
       },
     }],
-    
     // Trạng thái duyệt
     approval_status: {
       type: String,

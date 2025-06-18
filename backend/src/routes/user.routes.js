@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth, checkRole } = require('../middlewares/auth');
-const { uploadAvatar, processAvatarUpload, deleteOldAvatar } = require('../middlewares/upload');
+const { uploadAvatar, processAvatarUpload, deleteOldAvatar, uploadInstructorFiles, processInstructorFilesUpload } = require('../middlewares/upload');
 const {
   getCurrentUser,
   updateCurrentUser,
@@ -10,11 +10,11 @@ const {
   createUser,
   updateUser,
   deleteUser,
-  getInstructors,
   updateInstructorApproval,
   getPendingInstructors,
   getPendingInstructorDetail,
   submitInstructorProfile,
+  registerInstructorProfile,
   getMyInstructorProfile,
   updateInstructorProfile,
 } = require('../controllers/user.controller');
@@ -56,9 +56,16 @@ router.put('/me', uploadAvatar, processAvatarUpload, deleteOldAvatar, updateCurr
 
 // Routes cho sinh viên nộp hồ sơ giảng viên (chỉ cần đăng nhập)
 router.post('/instructor-profile/submit', submitInstructorProfile);
+router.post('/instructor-profile/register', uploadInstructorFiles, processInstructorFilesUpload, registerInstructorProfile);
 router.get('/instructor-profile/my', getMyInstructorProfile);
 router.put('/instructor-profile/update', updateInstructorProfile);
 
+// Lấy danh sách hồ sơ giảng viên chờ duyệt (không cần quyền admin)
+router.get('/instructors/pending', getPendingInstructors);
+// Lấy thông tin chi tiết hồ sơ giảng viên chờ duyệt (không cần quyền admin)
+router.get('/instructors/pending/:id', getPendingInstructorDetail);
+// Cập nhật trạng thái hồ sơ giảng viên (không cần quyền admin)
+router.put('/instructors/:id/approval', updateInstructorApproval);
 // Routes cho admin (cần quyền admin)
 router.use(checkRole(['admin']));
 
@@ -76,17 +83,5 @@ router.put('/:id', updateUser);
 
 // Xóa người dùng theo ID
 router.delete('/:id', deleteUser);
-
-// Lấy danh sách giảng viên
-router.get('/instructors/list', getInstructors);
-
-// Lấy danh sách hồ sơ giảng viên chờ duyệt
-router.get('/instructors/pending', getPendingInstructors);
-
-// Lấy thông tin chi tiết hồ sơ giảng viên chờ duyệt
-router.get('/instructors/pending/:id', getPendingInstructorDetail);
-
-// Cập nhật trạng thái hồ sơ giảng viên
-router.put('/instructors/:id/approval', updateInstructorApproval);
 
 module.exports = router; 

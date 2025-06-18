@@ -1,6 +1,6 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const Role = require('../models/Role');
+const { Role } = require('../models/Role');
 
 // Định nghĩa các roles mặc định
 const defaultRoles = [
