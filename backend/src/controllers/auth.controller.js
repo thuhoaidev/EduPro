@@ -117,7 +117,8 @@ exports.register = async (req, res, next) => {
       fullname: normalizedFullname,
       status: 'inactive', // Mặc định là inactive khi chưa xác thực email
       email_verification_token: hashedToken,
-      email_verification_expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+      email_verification_expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      approval_status: role.name === 'student' ? 'approved' : null // Tự động approve cho student
     });
 
     // Ghi log thông tin user trước khi lưu
@@ -337,11 +338,11 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // Chỉ cho phép đăng nhập khi approval_status là 'approved'
-    if (user.approval_status !== 'approved') {
+    // Kiểm tra approval_status chỉ cho instructor
+    if (user.role_id && user.role_id.name === 'instructor' && user.approval_status !== 'approved') {
       return res.status(403).json({
         success: false,
-        message: 'Tài khoản không có quyền đăng nhập',
+        message: 'Tài khoản instructor chưa được phê duyệt',
       });
     }
 
