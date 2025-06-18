@@ -116,7 +116,7 @@ const UserPage = () => {
           console.log('Processing user:', user); // Debug log
           return {
             id: user._id,
-            fullname: user.name, // Đảm bảo lấy name từ API
+            fullname: user.fullname || user.name || 'Chưa có tên', // Sử dụng fullname từ backend, fallback về name
             email: user.email,
             avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
             role: user.role_id,
@@ -187,15 +187,23 @@ const UserPage = () => {
   };
 
   // Helper to get role tag
-  const getRoleTag = (role: UserRole | Role) => {
-    const roleName = typeof role === 'object' ? role.name : role;
+  const getRoleTag = (role: string | UserRole | Role) => {
+    let roleName: string;
+    if (typeof role === 'string') {
+      roleName = role;
+    } else if (typeof role === 'object') {
+      roleName = role.name;
+    } else {
+      roleName = role;
+    }
+    
     const roleMap: Record<UserRole, { color: string; label: string }> = {
       [UserRole.ADMIN]: { color: "red", label: 'Admin' },
       [UserRole.INSTRUCTOR]: { color: "blue", label: 'Giảng viên' },
       [UserRole.STUDENT]: { color: "green", label: 'Học viên' },
       [UserRole.MODERATOR]: { color: "orange", label: 'Kiểm duyệt' },
     };
-    const tag = roleMap[roleName] || { color: "default", label: roleName };
+    const tag = roleMap[roleName as UserRole] || { color: "default", label: roleName };
     return (
       <Tag color={tag.color} className="px-2 py-1 rounded-full text-sm font-medium">
         {tag.label}
@@ -227,9 +235,9 @@ const UserPage = () => {
     setIsModalVisible(true);
   };
 
-  const handleDeleteUser = async (id: string) => {
+  const handleDeleteUser = async (id: string | number) => {
     try {
-      const response = await deleteUser(id);
+      const response = await deleteUser(id.toString());
       if (response.success) {
         message.success("Xóa người dùng thành công");
         fetchUsers(pagination.current);
@@ -261,7 +269,7 @@ const UserPage = () => {
         }
 
         const updateData = {
-          name: values.fullname,
+          fullname: values.fullname,
           role_id: selectedRole._id,
           status: values.status,
           phone: values.phone,
@@ -295,7 +303,7 @@ const UserPage = () => {
         const userData = {
           email: values.email,
           password: values.password,
-          name: values.fullname,
+          fullname: values.fullname,
           role_id: selectedRole._id,
           status: values.status,
           phone: values.phone,
@@ -335,14 +343,22 @@ const UserPage = () => {
     fetchUsers(pagination.current || 1, pagination.pageSize || 10);
   };
 
-  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+  const handleRoleChange = async (userId: string | number, newRole: UserRole) => {
     try {
       const user = users.find(u => u.id === userId);
       if (!user) return;
 
-      // Nếu role là object, lấy name
-      const currentRole = typeof user.role === 'object' ? user.role.name : user.role;
-      if (currentRole === newRole) return;
+      // Lấy tên role hiện tại
+      let currentRoleName: string;
+      if (typeof user.role === 'string') {
+        currentRoleName = user.role;
+      } else if (typeof user.role === 'object') {
+        currentRoleName = user.role.name;
+      } else {
+        currentRoleName = user.role;
+      }
+      
+      if (currentRoleName === newRole) return;
 
       // Tìm role_id dựa trên role name
       const selectedRole = roles.find(r => r.name === newRole);
@@ -351,7 +367,7 @@ const UserPage = () => {
         return;
       }
 
-      await updateUser(userId, { role_id: selectedRole._id });
+      await updateUser(userId.toString(), { role_id: selectedRole._id });
       message.success('Cập nhật vai trò thành công');
       fetchUsers(pagination.current);
     } catch (error) {
@@ -403,17 +419,29 @@ const UserPage = () => {
       title: "Quyền hạn",
       dataIndex: "role",
       align: "center",
-      render: (_: unknown, user: User) => (
-        <Select
-          value={typeof user.role === 'object' ? user.role.name : user.role}
-          onChange={(value) => handleRoleChange(user.id, value)}
-          style={{ width: '120px' }}
-          options={roles.map(role => ({
-            value: role.name,
-            label: getRoleTag(role.name)
-          }))}
-        />
-      ),
+      render: (_: unknown, user: User) => {
+        // Lấy tên role hiện tại
+        let currentRoleName: string;
+        if (typeof user.role === 'string') {
+          currentRoleName = user.role;
+        } else if (typeof user.role === 'object') {
+          currentRoleName = user.role.name;
+        } else {
+          currentRoleName = user.role;
+        }
+        
+        return (
+          <Select
+            value={currentRoleName as UserRole}
+            onChange={(value: UserRole) => handleRoleChange(user.id, value)}
+            style={{ width: '120px' }}
+            options={roles.map(role => ({
+              value: role.name,
+              label: getRoleTag(role.name)
+            }))}
+          />
+        );
+      },
     },
     {
       title: "Trạng thái",

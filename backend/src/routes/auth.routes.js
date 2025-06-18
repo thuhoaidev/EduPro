@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const {requireAuth } = require('../middlewares/auth');
+const {requireAuth, auth} = require('../middlewares/auth');
 const {
   register,
   login,
@@ -27,6 +27,6 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:resetToken', resetPassword);
 
 // Routes cho tất cả user đã đăng nhập
-router.patch('/change-password', requireAuth, changePassword);
+router.patch('/change-password', auth, requireAuth(), changePassword);
 
 module.exports = router; 

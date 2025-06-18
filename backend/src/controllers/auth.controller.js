@@ -644,7 +644,7 @@ exports.changePassword = async (req, res) => {
     }
 
     // Kiểm tra mật khẩu hiện tại
-    const isMatch = await user.comparePassword(currentPassword);
+    const isMatch = await user.matchPassword(currentPassword);
     if (!isMatch) {
       return res.status(401).json({
         success: false,

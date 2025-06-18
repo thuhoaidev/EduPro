@@ -88,8 +88,5 @@ const instructorProfileSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Indexes
-instructorProfileSchema.index({ user: 1 });
-
 const InstructorProfile = mongoose.model('InstructorProfile', instructorProfileSchema);
 module.exports = InstructorProfile;
