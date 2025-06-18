@@ -23,7 +23,7 @@ export const getUserById = async (id: string): Promise<ApiResponse<ApiUser>> => 
 export const createUser = async (userData: {
   email: string;
   password: string;
-  name: string;
+  fullname: string;
   role_id: string;
   status?: UserStatus;
   phone?: string;
