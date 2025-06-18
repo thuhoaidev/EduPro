@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const ApiError = require('../utils/ApiError');
 
 // Middleware xác thực người dùng
 exports.auth = async (req, res, next) => {
@@ -14,7 +13,10 @@ exports.auth = async (req, res, next) => {
     // Lấy token từ header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new ApiError(401, 'Không tìm thấy token xác thực');
+      return res.status(401).json({
+        success: false,
+        message: 'Không tìm thấy token xác thực',
+      });
     }
 
     const token = authHeader.split(' ')[1];
@@ -25,9 +27,12 @@ exports.auth = async (req, res, next) => {
 
     // Tìm user trong database
     const user = await User.findById(decoded.id).select('+roles');
-    
+
     if (!user) {
-      throw new ApiError(401, 'Không tìm thấy người dùng');
+      return res.status(401).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+      });
     }
 
     // Kiểm tra xem user có roles không
@@ -53,32 +58,42 @@ exports.auth = async (req, res, next) => {
 
     // Thêm thông tin role_id vào user
     user.role_id = {
-      name: roles.includes('admin') ? 'admin' : 
-             roles.includes('instructor') ? 'instructor' : 'guest'
+      name: roles.includes('admin') ? 'admin' :
+        roles.includes('instructor') ? 'instructor' : 'guest',
     };
 
     // Gán user vào request
     req.user = {
       ...user.toObject(),
-      roles: roles
+      roles: roles,
     };
 
     // Log thông tin user để debug
     console.log('Authenticated user:', {
       id: user._id,
       roles: roles,
-      role_id: user.role_id
+      role_id: user.role_id,
     });
 
     next();
   } catch (error) {
     console.error('Auth error:', error);
     if (error.name === 'JsonWebTokenError') {
-      next(new ApiError(401, 'Token không hợp lệ'));
+      return res.status(401).json({
+        success: false,
+        message: 'Token không hợp lệ',
+      });
     } else if (error.name === 'TokenExpiredError') {
-      next(new ApiError(401, 'Token đã hết hạn'));
+      return res.status(401).json({
+        success: false,
+        message: 'Token đã hết hạn',
+      });
     } else {
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: 'Lỗi xác thực',
+        error: error.message,
+      });
     }
   }
 };
@@ -134,14 +149,14 @@ exports.checkRole = (requiredRoles) => {
     try {
       const user = req.user;
       const userRoles = user.roles || [];
-      
+
       // Debug log
       console.log('Checking role:', {
         userRoles: userRoles,
         requiredRoles: requiredRoles,
-        hasRole: userRoles.some(role => requiredRoles.includes(role))
+        hasRole: userRoles.some(role => requiredRoles.includes(role)),
       });
-      
+
       // Kiểm tra role
       if (!userRoles.some(role => requiredRoles.includes(role))) {
         return res.status(403).json({
@@ -149,18 +164,18 @@ exports.checkRole = (requiredRoles) => {
           message: 'Không có quyền truy cập',
           debug: {
             userRoles: userRoles,
-            requiredRoles: requiredRoles
-          }
+            requiredRoles: requiredRoles,
+          },
         });
       }
-      
+
       next();
     } catch (error) {
       console.error('Lỗi kiểm tra role:', error);
       res.status(500).json({
         success: false,
         message: 'Lỗi kiểm tra role',
-        error: error.message
+        error: error.message,
       });
     }
   };
@@ -170,38 +185,39 @@ exports.checkRole = (requiredRoles) => {
 exports.requireAuth = (roles = []) => {
   return (req, res, next) => {
     try {
-      console.log('Checking permissions...');
-      console.log('User:', JSON.stringify(req.user, null, 2));
-      console.log('User roles:', req.user?.roles);
-      console.log('Required roles:', roles);
-            console.log('Checking permissions...');
-            console.log('User:', JSON.stringify(req.user, null, 2));
-            console.log('User roles:', req.user?.roles);
-            console.log('Required roles:', roles);
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Vui lòng đăng nhập',
+        });
+      }
 
-            if (!req.user) {
-                throw new ApiError(401, 'Vui lòng đăng nhập');
-            }
-
-            // Kiểm tra xem user có quyền truy cập không
-            if (roles.length > 0) {
-                const userRoles = req.user.roles || ['guest'];  // Sử dụng 'guest' nếu không có roles
-                const hasRequiredRole = roles.some(role => userRoles.includes(role));
-                if (!hasRequiredRole) {
-                    // Log thông tin chi tiết về roles
-                    console.log('User has role_id:', req.user.role_id);
-                    console.log('User has roles:', userRoles);
-                    console.log('Required roles:', roles);
-                    throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
-                }
-            }
-
-            next();
-        } catch (error) {
-            console.error('Permission check error:', error);
-            next(error);
+      // Kiểm tra xem user có quyền truy cập không
+      if (roles.length > 0) {
+        const userRoles = req.user.roles || ['guest']; // Sử dụng 'guest' nếu không có roles
+        const hasRequiredRole = roles.some(role => userRoles.includes(role));
+        if (!hasRequiredRole) {
+          // Log thông tin chi tiết về roles
+          console.log('User has role_id:', req.user.role_id);
+          console.log('User has roles:', userRoles);
+          console.log('Required roles:', roles);
+          return res.status(403).json({
+            success: false,
+            message: 'Không có quyền thực hiện chức năng này',
+          });
         }
-    };
+      }
+
+      next();
+    } catch (error) {
+      console.error('Permission check error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Lỗi kiểm tra quyền',
+        error: error.message,
+      });
+    }
+  };
 };
 
 // Middleware kiểm tra email đã xác thực
