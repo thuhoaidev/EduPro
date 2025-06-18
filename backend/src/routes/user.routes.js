@@ -13,7 +13,6 @@ const {
   updateInstructorApproval,
   getPendingInstructors,
   getPendingInstructorDetail,
-  submitInstructorProfile,
   registerInstructorProfile,
   getMyInstructorProfile,
   updateInstructorProfile,
@@ -55,7 +54,6 @@ router.get('/me', getCurrentUser);
 router.put('/me', uploadAvatar, processAvatarUpload, deleteOldAvatar, updateCurrentUser);
 
 // Routes cho sinh viên nộp hồ sơ giảng viên (chỉ cần đăng nhập)
-router.post('/instructor-profile/submit', submitInstructorProfile);
 router.post('/instructor-profile/register', uploadInstructorFiles, processInstructorFilesUpload, registerInstructorProfile);
 router.get('/instructor-profile/my', getMyInstructorProfile);
 router.put('/instructor-profile/update', updateInstructorProfile);

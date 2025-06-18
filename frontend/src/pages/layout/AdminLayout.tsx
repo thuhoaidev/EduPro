@@ -182,13 +182,8 @@ const AdminLayout = () => {
         },
         {
           key: "/admin/instructors",
-          icon: <TeamOutlined className="text-lg" />,
-          label: renderLabel("Quản lý giảng viên"),
-        },
-        {
-          key: "/admin/instructor-approval",
           icon: <FileSearchOutlined className="text-lg" />,
-          label: renderLabel("Duyệt giảng viên"),
+          label: renderLabel("Hồ sơ giảng viên chờ duyệt"),
         },
       ],
     },
@@ -200,11 +195,6 @@ const AdminLayout = () => {
         </div>
       ),
       children: [
-        {
-          key: "/admin/content-approval",
-          icon: <FileSearchOutlined className="text-lg" />,
-          label: renderLabel("Duyệt khóa học & blog"),
-        },
         {
           key: "/admin/categories",
           icon: <TagsOutlined className="text-lg" />,
