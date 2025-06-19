@@ -373,9 +373,9 @@ const AppHeader = () => {
 
         {/* Right */}
         <Space size="middle" className="h-full flex items-center">
-          <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]">EduPro Business</Button>
-          <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]">Giảng dạy</Button>
-          <Button type="link" className="text-gray-700 font-semibold hidden md:block hover:text-[#1a73e8]">Khóa học của tôi</Button>
+          <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]">Bài viết nổi bật</Button>
+          <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]"></Button>
+          <Button type="link" className="text-gray-700 font-semibold hidden md:block hover:text-[#1a73e8]"></Button>
           <Button type="text" icon={<ShoppingCartOutlined style={{ fontSize: '1.4em', color: '#1a73e8' }} />} />
           <Button type="text" icon={<BellOutlined style={{ fontSize: '1.4em', color: '#1a73e8' }} />} />
 
