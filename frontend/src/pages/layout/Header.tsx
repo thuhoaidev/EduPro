@@ -15,6 +15,9 @@ import {
   LoginOutlined,
   UserAddOutlined,
   ArrowLeftOutlined,
+  EditOutlined,
+  ProfileOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
 
 
@@ -257,7 +260,8 @@ const AppHeader = () => {
               Trang giảng viên
             </a>
           )}
-          <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{
+          {/* Blog menu items for all logged-in users */}
+          <a onClick={() => handleMenuClick('/blog/write')} className="menu-item" style={{
             color: '#000',
             display: 'flex',
             alignItems: 'center',
@@ -265,9 +269,45 @@ const AppHeader = () => {
             borderRadius: 6,
             transition: 'all 0.3s'
           }}>
+            <EditOutlined style={{ marginRight: 8 }} />
+            Viết blog
+          </a>
+          <a onClick={() => handleMenuClick('/blog/mine')} className="menu-item" style={{
+            color: '#000',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px 12px',
+            borderRadius: 6,
+            transition: 'all 0.3s'
+          }}>
+            <ProfileOutlined style={{ marginRight: 8 }} />
+            Bài viết của tôi
+          </a>
+          <a onClick={() => handleMenuClick('/blog/saved')} className="menu-item" style={{
+            color: '#000',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px 12px',
+            borderRadius: 6,
+            transition: 'all 0.3s'
+          }}>
+            <BookOutlined style={{ marginRight: 8 }} />
+            Bài viết đã lưu
+          </a>
+          {/* Settings button above logout */}
+          <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{
+            color: '#000',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px 12px',
+            borderRadius: 6,
+            transition: 'all 0.3s',
+            marginTop: 8
+          }}>
             <SettingOutlined style={{ marginRight: 8 }} />
             Cài đặt
           </a>
+          {/* Logout button at the bottom */}
           <a onClick={handleLogout} className="menu-item-danger" style={{
             color: '#ff4d4f',
             fontWeight: '500',
@@ -276,7 +316,8 @@ const AppHeader = () => {
             alignItems: 'center',
             padding: '8px 12px',
             borderRadius: 6,
-            transition: 'all 0.3s'
+            transition: 'all 0.3s',
+            marginTop: 16
           }}>
             <LogoutOutlined style={{ marginRight: 8 }} />
             Đăng xuất
@@ -373,9 +414,8 @@ const AppHeader = () => {
 
         {/* Right */}
         <Space size="middle" className="h-full flex items-center">
+          <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]">Giảng viên</Button>
           <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]">Bài viết nổi bật</Button>
-          <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]"></Button>
-          <Button type="link" className="text-gray-700 font-semibold hidden md:block hover:text-[#1a73e8]"></Button>
           <Button type="text" icon={<ShoppingCartOutlined style={{ fontSize: '1.4em', color: '#1a73e8' }} />} />
           <Button type="text" icon={<BellOutlined style={{ fontSize: '1.4em', color: '#1a73e8' }} />} />
 
