@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import { refreshAccessToken } from '../services/authService';
 
@@ -7,6 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export const config = axios.create({
     baseURL: API_URL,
+    withCredentials: true, // Thêm để hỗ trợ CORS với credentials
     headers: {
         "Content-Type": "application/json",
         // "Access-Control-Allow-Origin": "*",

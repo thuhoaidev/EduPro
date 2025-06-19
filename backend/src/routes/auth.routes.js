@@ -18,7 +18,7 @@ router.post('/logout', (req, res) => {
   res.clearCookie('token');
   res.status(200).json({
     success: true,
-    message: 'Đăng xuất thành công'
+    message: 'Đăng xuất thành công',
   });
 });
 router.get('/verify-email/:slug/:token', verifyEmail); // Route xác thực email, không cần middleware auth

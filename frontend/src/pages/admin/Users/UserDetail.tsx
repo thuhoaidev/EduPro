@@ -8,7 +8,7 @@ import {
   UserStatus,
   type Role
 } from "../../../interfaces/Admin.interface";
-import axios from 'axios';
+import { getUserById } from "../../../services/userService";
 import dayjs from 'dayjs';
 
 // Dữ liệu mẫu nâng cao
@@ -47,6 +47,7 @@ const mockUsers: User[] = [
     role: UserRole.STUDENT,
     status: UserStatus.BANNED,
     createdAt: "2024-03-10",
+    updatedAt: "2024-03-10",
     phone: "0345 678 910",
     address: "Thanh Hóa, Việt Nam",
   },
@@ -63,20 +64,26 @@ const UserDetail = () => {
       try {
         setLoading(true);
         console.log('Fetching user detail for ID:', id); // Debug log
-        const response = await axios.get(`http://localhost:5000/api/user-management/${id}`);
+        
+        if (!id) {
+          message.error('Không có ID người dùng');
+          return;
+        }
+
+        const response = await getUserById(id);
         console.log('Raw API Response:', response); // Debug log
 
-        if (response.data.success) {
-          const userData = response.data.data;
+        if (response.success && response.data) {
+          const userData = response.data;
           console.log('User data from API:', userData); // Debug log
           
           // Map dữ liệu từ API sang định dạng User
           const mappedUser: User = {
             id: userData._id,
-            fullname: userData.name,
+            fullname: userData.fullname || userData.name || 'Chưa có tên',
             email: userData.email,
             avatar: userData.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
-            role: userData.role_id,
+            role: typeof userData.role_id === 'string' ? userData.role_id : userData.role_id,
             status: userData.status,
             createdAt: userData.created_at,
             updatedAt: userData.updated_at,
@@ -91,18 +98,11 @@ const UserDetail = () => {
           console.log('Mapped user data:', mappedUser); // Debug log
           setUser(mappedUser);
         } else {
-          console.error('API Error:', response.data); // Debug log
-          message.error(response.data.message || 'Không thể lấy thông tin người dùng');
+          console.error('API Error:', response); // Debug log
+          message.error(response.message || 'Không thể lấy thông tin người dùng');
         }
       } catch (error) {
         console.error('Error fetching user detail:', error);
-        if (axios.isAxiosError(error)) {
-          console.error('Axios error details:', {
-            status: error.response?.status,
-            data: error.response?.data,
-            message: error.message
-          });
-        }
         message.error('Lỗi khi tải thông tin người dùng');
       } finally {
         setLoading(false);

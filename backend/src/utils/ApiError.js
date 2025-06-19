@@ -14,7 +14,7 @@ class ApiError extends Error {
         this.statusCode = statusCode;
         this.errors = errors;
         this.isOperational = isOperational;
-        this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
+        // Không set status vì Express sẽ tự động xử lý status code
 
         // Capture stack trace
         Error.captureStackTrace(this, this.constructor);
