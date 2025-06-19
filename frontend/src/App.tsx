@@ -26,13 +26,19 @@ import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
 
 import InstructorRegistrationPage from "./pages/client/auth/instructorRegistrationPage";
-import CourseManagement from "./pages/admin/section-lesson/CourseManagement";
 import InstructorPendingListPage from "./pages/admin/Instructors/InstructorPendingList";
 import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfileDetail";
 import ModeratorLayout from "./pages/layout/ModeratorLayout";
 import InstructorLayout from "./pages/layout/InstructorLayout";
 import ChangePassword from "./pages/layout/ChangePassword";
 import Profile from "./pages/client/Profile/Profile";
+
+import CreateCourse from "./pages/instructor/course/CourseAdd";
+
+
+import CourseManagement from "./pages/admin/section-lesson/CourseManagement";
+import VideoQuizManager from "./pages/admin/section-lesson/VideoQuizManager";
+import MyCourseDashboard from "./pages/admin/section-lesson/MyCourseDashboard";
 
 const queryClient = new QueryClient();
 
@@ -85,7 +91,10 @@ function App() {
       path: "/instructor",
       element: <InstructorLayout />,
       children: [
-        { path: "sectionLesson/CourseManagement", element: <CourseManagement /> },
+        { path: "sections", element: <VideoQuizManager /> },
+        { path: "lessons", element: <CourseManagement /> },
+        { path: "courses/new", element: <CreateCourse /> },
+        { path: "courses", element: <MyCourseDashboard /> },
       ],
     },
     { path: "/login", element: <LoginPage /> },

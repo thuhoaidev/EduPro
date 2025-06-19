@@ -28,38 +28,69 @@ export function LoginPage(): React.ReactElement {
     }
   };
 
-  const onFinish = () => {
-    form.validateFields().then((values) => {
-      mutate({
-        identifier: values.identifier,
-        password: values.password
-      }, {
-        onSuccess: (data: any) => {
-          console.log("Login thành công, response:", data);
-          localStorage.setItem("user", JSON.stringify(data.user));
-          if (data?.token) {
-            localStorage.setItem("token", data.token);
-            messageApi.success("Đăng nhập thành công");
-            setTimeout(() => {
-              navigate("/");
-            }, 1000);
-          } else {
-            messageApi.error("Không nhận được token. Vui lòng thử lại.");
-          }
-        },
+  // const onFinish = () => {
+  //   form.validateFields().then((values) => {
+  //     mutate({
+  //       identifier: values.identifier,
+  //       password: values.password
+  //     }, {
+  //       onSuccess: (data: any) => {
+  //         console.log("Login thành công, response:", data);
+  //         localStorage.setItem("user", JSON.stringify(data.user));
+  //         if (data?.token) {
+  //           localStorage.setItem("token", data.token);
+  //           messageApi.success("Đăng nhập thành công");
+  //           setTimeout(() => {
+  //             navigate("/");
+  //           }, 1000);
+  //         } else {
+  //           messageApi.error("Không nhận được token. Vui lòng thử lại.");
+  //         }
+  //       },
 
-        onError: (error: any) => {
-          const errorData = error?.response?.data;
-          if (errorData?.data?.canResendVerification) {
-            setVerificationEmail(errorData.data.email);
-            setShowVerificationModal(true);
-          } else {
-            messageApi.error(errorData?.message || "Đăng nhập thất bại.");
-          }
-        },
-      });
-    });
-  };
+  //       onError: (error: any) => {
+  //         const errorData = error?.response?.data;
+  //         if (errorData?.data?.canResendVerification) {
+  //           setVerificationEmail(errorData.data.email);
+  //           setShowVerificationModal(true);
+  //         } else {
+  //           messageApi.error(errorData?.message || "Đăng nhập thất bại.");
+  //         }
+  //       },
+  //     });
+  //   });
+  // };
+  const onFinish = () => {
+  mutate({
+    identifier: "admin@gmail.com", // hoặc username nếu bạn dùng nickname
+    password: "123456"
+  }, {
+    onSuccess: (data: any) => {
+      console.log("Login thành công, response:", data);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      if (data?.token) {
+        localStorage.setItem("token", data.token);
+        messageApi.success("Đăng nhập thành công");
+        setTimeout(() => {
+          navigate("/");
+        }, 1000);
+      } else {
+        messageApi.error("Không nhận được token. Vui lòng thử lại.");
+      }
+    },
+
+    onError: (error: any) => {
+      const errorData = error?.response?.data;
+      if (errorData?.data?.canResendVerification) {
+        setVerificationEmail(errorData.data.email);
+        setShowVerificationModal(true);
+      } else {
+        messageApi.error(errorData?.message || "Đăng nhập thất bại.");
+      }
+    },
+  });
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white px-4">

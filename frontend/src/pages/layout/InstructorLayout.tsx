@@ -1,4 +1,3 @@
-// src/layouts/InstructorLayout.tsx
 import {
   HomeOutlined,
   BookOutlined,
@@ -21,7 +20,7 @@ import type { MenuProps } from "antd";
 import React, { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import styles from "../../styles/InstructorLayout.module.css";
-import { config } from "../../api/axios";
+
 
 const { Header, Sider, Content } = Layout;
 
@@ -37,31 +36,6 @@ interface User {
   approval_status?: string;
 }
 
-const getRoleName = (user: User): string => {
-  if (!user) {
-    return 'user';
-  }
-
-  // Kiểm tra approval_status để xác định role
-  if (user.approval_status === 'approved') {
-    if (user.email === 'admin@pro.edu.vn') {
-      return 'admin';
-    }
-    if (user.email === 'nguoikiemduyet@pro.edu.vn') {
-      return 'moderator';
-    }
-    if (user.email.endsWith('@pro.edu.vn')) {
-      return 'instructor';
-    }
-  }
-  
-  return 'user';
-};
-
-const checkRole = (user: User, requiredRole: string): boolean => {
-  return user?.role?.name === requiredRole;
-};
-
 const InstructorLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,9 +45,10 @@ const InstructorLayout = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const token = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
+      const token = localStorage.getItem("token");
+      const storedUser = localStorage.getItem("user");
 
+      // Nếu có user trong localStorage, dùng luôn
       if (storedUser) {
         const userData = JSON.parse(storedUser);
         setUser(userData);
@@ -81,6 +56,7 @@ const InstructorLayout = () => {
         return;
       }
 
+      // Nếu không có token, chuyển về login
       if (!token) {
         setUser(null);
         setLoading(false);
@@ -88,15 +64,18 @@ const InstructorLayout = () => {
       }
 
       try {
-        const response = await config.get('/auth/me', {
+        const response = await config.get("/auth/me", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
         setUser(response.data);
-        localStorage.setItem('user', JSON.stringify(response.data));
+        localStorage.setItem("user", JSON.stringify(response.data));
       } catch (error) {
-        console.error('Lỗi lấy thông tin user:', error);
+        console.error("Lỗi lấy thông tin user:", error);
+        // Xóa token không hợp lệ
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
         setUser(null);
       } finally {
         setLoading(false);
@@ -104,23 +83,48 @@ const InstructorLayout = () => {
     };
 
     fetchUser();
-  }, [navigate]);
+  }, []);
 
+  // Hiển thị loading trong khi fetch user
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        Loading...
+      </div>
+    );
   }
 
+  // Kiểm tra đăng nhập
   if (!user) {
-    navigate('/login');
+    navigate("/login");
     return null;
   }
 
-  // Kiểm tra role
-  if (!checkRole(user, 'instructor')) {
-    message.error('Bạn không có quyền truy cập trang giảng viên');
-    navigate('/');
+  // Kiểm tra quyền truy cập
+  if (user.role?.name !== "instructor") {
+    message.error("Bạn không có quyền truy cập trang giảng viên");
+    navigate("/");
     return null;
   }
+
+  // Kiểm tra trạng thái phê duyệt (tùy chọn)
+  if (user.approval_status && user.approval_status !== "approved") {
+    message.warning("Tài khoản giảng viên của bạn đang chờ phê duyệt");
+    navigate("/");
+    return null;
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    message.success("Đăng xuất thành công");
+    navigate("/login");
+  };
 
   const breadcrumbItems = location.pathname
     .split("/")
@@ -147,21 +151,17 @@ const InstructorLayout = () => {
     return (
       <div className={styles.menuItemLabel}>
         <span>{title}</span>
-        {caption && (
-          <span>{caption}</span>
-        )}
+        {caption && <span>{caption}</span>}
       </div>
     );
   };
 
+  const nav = (key: string) => navigate(key);
+
   const menuItems: MenuProps["items"] = [
     {
       type: "group",
-      label: collapsed ? null : (
-        <div className={styles.menuItemGroupTitle}>
-          Giảng viên
-        </div>
-      ),
+      label: collapsed ? null : <div className={styles.menuItemGroupTitle}>Giảng viên</div>,
       children: [
         {
           key: "/instructor",
@@ -181,7 +181,12 @@ const InstructorLayout = () => {
         {
           key: "/instructor/lessons",
           icon: <VideoCameraOutlined />,
-          label: renderLabel("Quản lý bài học & video"),
+          label: renderLabel("Quản lý chương học và bài học"),
+        },
+        {
+          key: "/instructor/sections",
+          icon: <BookOutlined />,
+          label: renderLabel("Quản lý video và quiz"),
         },
         {
           key: "/instructor/students",
@@ -207,16 +212,27 @@ const InstructorLayout = () => {
       <Menu.ItemGroup
         title={
           <div style={{ padding: "8px 12px" }}>
-            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullname}</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: Giảng viên</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>{user?.email}</p>
+            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user.fullname}</p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>
+              Vai trò: {user.role?.description || "Giảng viên"}
+            </p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>{user.email}</p>
           </div>
         }
-      >
-      </Menu.ItemGroup>
+      />
       <Menu.Divider />
-      <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => nav('/')}>
+      <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => nav("/")}>
         Trang người dùng
+      </Menu.Item>
+      <Menu.Item key="profile" icon={<UserOutlined />} onClick={() => nav("/profile")}>
+        Thông tin cá nhân
+      </Menu.Item>
+      <Menu.Item key="settings" icon={<SettingOutlined />} onClick={() => nav("/settings")}>
+        Cài đặt
+      </Menu.Item>
+      <Menu.Divider />
+      <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout} danger>
+        Đăng xuất
       </Menu.Item>
     </Menu>
   );
@@ -251,21 +267,15 @@ const InstructorLayout = () => {
       </Sider>
 
       <Layout style={{ marginLeft: collapsed ? 80 : 280, transition: "margin-left 0.2s" }}>
-        <Header
-          className={styles.header}
-        >
+        <Header className={styles.header}>
           <Dropdown overlay={profileMenu} trigger={["click"]} placement="bottomRight">
-            <div
-              className={styles.profileDropdown}
-            >
+            <div className={styles.profileDropdown}>
               <SettingOutlined className={styles.profileSettingIcon} />
             </div>
           </Dropdown>
         </Header>
 
-        <Content
-          className={styles.contentArea}
-        >
+        <Content className={styles.contentArea}>
           <Breadcrumb items={finalBreadcrumbItems} className={styles.breadcrumb} />
           <Outlet />
         </Content>
