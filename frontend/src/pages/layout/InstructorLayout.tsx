@@ -54,12 +54,12 @@ const getRoleName = (user: User): string => {
       return 'instructor';
     }
   }
-  
+
   return 'user';
 };
 
 const checkRole = (user: User, requiredRole: string): boolean => {
-  return getRoleName(user) === requiredRole;
+  return user?.role?.name === requiredRole;
 };
 
 const InstructorLayout = () => {
@@ -174,7 +174,7 @@ const InstructorLayout = () => {
           label: renderLabel("Khóa học của tôi"),
         },
         {
-          key: "/instructor/courses/new",
+          key: "/instructor/courses/create",
           icon: <PlusCircleOutlined />,
           label: renderLabel("Tạo khóa học mới"),
         },
@@ -215,7 +215,7 @@ const InstructorLayout = () => {
       >
       </Menu.ItemGroup>
       <Menu.Divider />
-      <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => nav('/')}>
+      <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => navigate('/')}>
         Trang người dùng
       </Menu.Item>
     </Menu>
@@ -237,7 +237,7 @@ const InstructorLayout = () => {
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
-          onClick={({ key }) => nav(key)}
+          onClick={({ key }) => navigate(key)}
           items={menuItems}
           className={styles.customInstructorMenu}
           style={{

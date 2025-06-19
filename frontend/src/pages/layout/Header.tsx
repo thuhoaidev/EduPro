@@ -40,17 +40,18 @@ const AppHeader = () => {
       return 'user';
     }
 
-    // Kiểm tra approval_status để xác định role
-    if (user.approval_status === 'approved') {
-      if (user.email === 'admin@pro.edu.vn') {
-        return 'admin';
-      }
-      if (user.email === 'nguoikiemduyet@pro.edu.vn') {
-        return 'moderator';
-      }
-      if (user.email.endsWith('@pro.edu.vn')) {
-        return 'instructor';
-      }
+    // Kiểm tra role của người dùng
+    if (user.role?.name === 'admin') {
+      return 'admin';
+    }
+    if (user.role?.name === 'moderator') {
+      return 'moderator';
+    }
+    if (user.role?.name === 'instructor') {
+      return 'instructor';
+    }
+    if (user.role?.name === 'student') {
+      return 'student';
     }
     
     return 'user';
@@ -80,6 +81,7 @@ const AppHeader = () => {
 
     // Kiểm tra role trước khi cho phép truy cập
     const roleName = getRoleName(user);
+    console.log('Current role:', roleName); // Log role name
     
     if (path === '/admin' && roleName !== 'admin') {
       message.error('Bạn không có quyền truy cập trang quản trị');
@@ -124,9 +126,26 @@ const AppHeader = () => {
             Authorization: `Bearer ${token}`,
           },
         });
-        console.log('User data from API:', response.data); // Log user data
-        setUser(response.data);
-        localStorage.setItem('user', JSON.stringify(response.data));
+        const userData = response.data;
+        console.log('Raw user data from API:', userData); // Log raw data
+        
+        // Ensure role is properly structured if it exists
+        if (userData.role) {
+          // Keep the original role object structure
+          userData.role.name = userData.role.name || 'user';
+          userData.role.description = userData.role.description || '';
+          userData.role.permissions = userData.role.permissions || [];
+        } else {
+          userData.role = {
+            name: 'user',
+            description: '',
+            permissions: []
+          };
+        }
+        
+        console.log('Processed user data:', userData); // Log processed data
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
         setUser(false);
@@ -197,6 +216,19 @@ const AppHeader = () => {
               }}>
                 <DashboardOutlined style={{ marginRight: 8 }} />
                 Trang quản trị
+              </a>
+            )}
+            {getRoleName(user) === 'student' && (
+              <a onClick={() => navigate('/register-instructor')} className="menu-item" style={{ 
+                color: '#000',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                borderRadius: 6,
+                transition: 'all 0.3s'
+              }}>
+                <UserAddOutlined style={{ marginRight: 8 }} />
+                Đăng ký tài khoản giảng viên
               </a>
             )}
             {getRoleName(user) === 'moderator' && (

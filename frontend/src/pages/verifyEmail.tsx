@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { notification, Spin } from 'antd';
 import axios from "axios";
 
 const VerifyEmail = () => {
-    const { slug, token } = useParams();
-    const location = useLocation();
     const navigate = useNavigate();
+    const { slug, token } = useParams(); // ✅ lấy slug và token từ URL path
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Kiểm tra slug và token từ URL
-        if (!token || !slug) {
+        if (!slug || !token) {
             notification.error({
                 message: 'Không tìm thấy thông tin xác thực',
                 placement: "topRight",
@@ -19,23 +17,20 @@ const VerifyEmail = () => {
             navigate('/login');
             return;
         }
+        console.log("Slug:", slug);
+        console.log("Token:", token);
 
         const verifyEmail = async () => {
             try {
                 setLoading(true);
-                // Sử dụng axios trực tiếp thay vì config để không cần token
                 const response = await axios.get(`http://localhost:5000/api/auth/verify-email/${slug}/${token}`);
                 notification.success({
                     message: response.data.message || "Xác thực Email thành công",
                     placement: "topRight",
                 });
-                // Lưu token mới vào localStorage
-                if (response.data.token) {
-                    localStorage.setItem('token', response.data.token);
-                }
-                // Chuyển hướng đến trang chủ sau khi xác thực thành công
-                navigate('/');
+                navigate('/'); // ✅ sẽ redirect sau khi xác thực
             } catch (error: any) {
+                console.log("erorr", error)
                 notification.error({
                     message: error.response?.data?.message || 'Lỗi xác thực email',
                     placement: "topRight",
@@ -46,7 +41,7 @@ const VerifyEmail = () => {
             }
         };
         verifyEmail();
-    }, [token, location, navigate]);
+    }, [slug, token, navigate]);
 
     if (loading) {
         return (

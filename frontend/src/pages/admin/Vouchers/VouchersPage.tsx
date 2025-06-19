@@ -31,23 +31,24 @@ import {
   FilterOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-
-import type { Coupon } from "../../../interfaces/Admin.interface";
-
+import voucherService from '../../../services/voucher.service';
+import type { Voucher, CreateVoucherData } from '../../../services/voucher.service';
 
 const { Option } = Select;
-
 
 const VouchersPage: React.FC = () => {
   const [searchText, setSearchText] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [rowsPerPage] = useState<number>(8); // Increased default pageSize and removed unused setter
+  const [rowsPerPage] = useState<number>(8);
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
-  const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+  const [editingVoucher, setEditingVoucher] = useState<Voucher | null>(null);
   const [form] = Form.useForm();
-  const [data, setData] = useState<Coupon[]>([]);
+  const [data, setData] = useState<Voucher[]>([]);
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expired'>('all');
+  const [loading, setLoading] = useState(false);
+  const [isDetailModalVisible, setIsDetailModalVisible] = useState<boolean>(false);
+  const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
 
   // Danh sách khóa học giả lập dùng trong Select
   const courses = [
@@ -58,74 +59,41 @@ const VouchersPage: React.FC = () => {
     { id: 'course-4', name: 'Khóa học Thiết kế UI/UX cơ bản' },
   ];
 
-  // Initial mock data with correct structure
-  const initialMockData: Coupon[] = [
-    {
-      key: '1',
-      code: 'GIAM10K',
-      courseApplied: 'Tất cả khóa học',
-      type: 'amount',
-      value: 10000,
-      usedCount: 5,
-      quantity: 100,
-      createdAt: '2025-05-01',
-      expiresAt: '2025-06-30',
-    },
-    {
-      key: '2',
-      code: 'SALE20',
-      courseApplied: 'Khóa học React Nâng cao',
-      type: 'percentage',
-      value: 20,
-      usedCount: 10,
-      quantity: 50,
-      createdAt: '2025-04-15',
-      expiresAt: '2025-05-31',
-    },
-    {
-      key: '3',
-      code: 'FREECOURSE',
-      courseApplied: 'Khóa học Node.js và API',
-      type: 'amount',
-      value: 100,
-      usedCount: 50,
-      quantity: 50,
-      createdAt: '2024-01-01',
-      expiresAt: '2024-02-01', // Expired
-    },
-     {
-      key: '4',
-      code: 'NEWUSER',
-      courseApplied: 'Tất cả khóa học',
-      type: 'percentage',
-      value: 15,
-      usedCount: 0,
-      quantity: 200,
-      createdAt: '2025-05-20',
-      expiresAt: '', // No expiry
-    },
-  ];
-
+  // Fetch data
+  const fetchVouchers = async () => {
+    try {
+      setLoading(true);
+      const response = await voucherService.getAll();
+      if (response.success) {
+        setData(response.data);
+      } else {
+        message.error('Lỗi khi lấy danh sách mã giảm giá');
+      }
+    } catch (error) {
+      console.error('Error fetching vouchers:', error);
+      message.error('Lỗi khi lấy danh sách mã giảm giá');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Simulate fetching data
-    setData(initialMockData);
+    fetchVouchers();
   }, []);
 
-  const isCouponActive = (coupon: Coupon) => {
-    if (!coupon.expiresAt) return true; // No expiry date
-    // Check if expiresAt is a valid date string before parsing
-    const expiryDate = dayjs(coupon.expiresAt);
-    return expiryDate.isValid() ? dayjs().isBefore(expiryDate) : true; // Assume active if date is invalid
+  const isVoucherActive = (voucher: Voucher) => {
+    if (!voucher.expiresAt) return true;
+    const expiryDate = dayjs(voucher.expiresAt);
+    return expiryDate.isValid() ? dayjs().isBefore(expiryDate) : true;
   };
 
   // Lọc theo tìm kiếm và trạng thái
   const filteredData = data.filter((item) => {
     const matchesSearch = 
       item.code.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.courseApplied.toLowerCase().includes(searchText.toLowerCase());
+      (item.course && item.course.toLowerCase().includes(searchText.toLowerCase()));
     
-    const isActive = isCouponActive(item);
+    const isActive = isVoucherActive(item);
     const matchesStatus = 
       filterStatus === 'all' || 
       (filterStatus === 'active' && isActive) ||
@@ -144,7 +112,7 @@ const VouchersPage: React.FC = () => {
   const currentData = sortedData.slice(startIndex, startIndex + rowsPerPage);
 
   const showAddModal = () => {
-    setEditingCoupon(null);
+    setEditingVoucher(null);
     form.resetFields();
     form.setFieldsValue({
       type: 'amount',
@@ -157,181 +125,194 @@ const VouchersPage: React.FC = () => {
     setIsModalVisible(true);
   };
 
-  const showEditModal = (record: Coupon) => {
-    setEditingCoupon(record);
+  const showEditModal = (record: Voucher) => {
+    setEditingVoucher(record);
     form.setFieldsValue({
       code: record.code,
-      courseId: courses.find(c => c.name === record.courseApplied)?.id || 'all',
+      courseId: record.course || 'all',
       type: record.type,
       value: record.value,
       quantity: record.quantity,
-      startDate: dayjs(record.createdAt), // Keep original creation date
+      startDate: dayjs(record.createdAt),
       endDate: record.expiresAt ? dayjs(record.expiresAt) : null,
     });
     setIsModalVisible(true);
   };
 
-  const handleModalOk = () => {
-    form.validateFields()
-      .then(values => {
-        const courseName = courses.find(c => c.id === values.courseId)?.name || 'Tất cả khóa học';
+  const handleModalOk = async () => {
+    try {
+      const values = await form.validateFields();
+      const courseName = courses.find(c => c.id === values.courseId)?.name || 'Tất cả khóa học';
 
-        const newCoupon: Coupon = {
-          key: editingCoupon ? editingCoupon.key : (data.length + 1 + Math.random()).toString(),
-          code: values.code,
-          courseApplied: courseName,
-          type: values.type,
-          value: values.value,
-          usedCount: editingCoupon ? editingCoupon.usedCount : 0, // Keep usedCount for edit
-          quantity: values.quantity,
-          createdAt: editingCoupon ? editingCoupon.createdAt : dayjs().format('YYYY-MM-DD'), // Keep original creation date
-          expiresAt: values.endDate ? values.endDate.format('YYYY-MM-DD') : '',
-        };
+      const voucherData: CreateVoucherData = {
+        code: values.code,
+        course: values.courseId === 'all' ? null : values.courseId,
+        type: values.type,
+        value: values.value,
+        quantity: values.quantity,
+        expiresAt: values.endDate ? values.endDate.format('YYYY-MM-DD') : undefined,
+      };
 
-        if (editingCoupon) {
-          setData(data.map(item => item.key === newCoupon.key ? newCoupon : item));
+      if (editingVoucher) {
+        const response = await voucherService.update(editingVoucher._id, voucherData);
+        if (response.success) {
+          message.success('Cập nhật mã giảm giá thành công');
+          fetchVouchers();
         } else {
-          setData([...data, newCoupon]);
+          message.error('Lỗi khi cập nhật mã giảm giá');
         }
+      } else {
+        const response = await voucherService.create(voucherData);
+        if (response.success) {
+          message.success('Tạo mã giảm giá thành công');
+          fetchVouchers();
+        } else {
+          message.error('Lỗi khi tạo mã giảm giá');
+        }
+      }
 
-        setIsModalVisible(false);
-        setEditingCoupon(null);
-        form.resetFields();
-        message.success(editingCoupon ? 'Cập nhật mã giảm giá thành công' : 'Tạo mã giảm giá thành công');
-      })
-      .catch(err => {
-        console.log('Validate Failed:', err);
-        message.error('Vui lòng kiểm tra lại thông tin');
-      });
+      setIsModalVisible(false);
+      setEditingVoucher(null);
+      form.resetFields();
+    } catch (error) {
+      console.error('Error saving voucher:', error);
+      message.error('Vui lòng kiểm tra lại thông tin');
+    }
   };
 
-  const handleDelete = (key: string) => {
-    setData(data.filter(item => item.key !== key));
-    message.success('Đã xóa mã giảm giá');
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await voucherService.delete(id);
+      if (response.success) {
+        message.success('Đã xóa mã giảm giá');
+        fetchVouchers();
+      } else {
+        message.error('Lỗi khi xóa mã giảm giá');
+      }
+    } catch (error) {
+      console.error('Error deleting voucher:', error);
+      message.error('Lỗi khi xóa mã giảm giá');
+    }
   };
 
-   // Calculate statistics
-   const stats = {
+  // Calculate statistics
+  const stats = {
     total: data.length,
-    active: data.filter(c => isCouponActive(c)).length,
-    expired: data.filter(c => !isCouponActive(c)).length,
+    active: data.filter(c => isVoucherActive(c)).length,
+    expired: data.filter(c => !isVoucherActive(c)).length,
   };
 
-   useEffect(() => {
-    // Reset page to 1 when search or filter changes
+  useEffect(() => {
     setCurrentPage(1);
   }, [searchText, filterStatus]);
 
+  const showDetailModal = (record: Voucher) => {
+    setSelectedVoucher(record);
+    setIsDetailModalVisible(true);
+  };
 
-  const columns: ColumnsType<Coupon> = [
+  const columns: ColumnsType<Voucher> = [
     {
       title: 'Mã',
       dataIndex: 'code',
       key: 'code',
+      width: 100,
+      align: 'center',
       className: "font-medium text-gray-800",
+      ellipsis: true,
+      render: (code: string, record: Voucher) => (
+        <Button 
+          type="link" 
+          onClick={() => showDetailModal(record)}
+          className="p-0 font-medium text-blue-600 hover:text-blue-800"
+          style={{ fontSize: 14, wordBreak: 'break-all', whiteSpace: 'normal', padding: 0 }}
+        >
+          {code}
+        </Button>
+      ),
     },
     {
       title: 'Áp dụng khóa học',
-      dataIndex: 'courseApplied',
-      key: 'courseApplied',
-       className: "text-gray-600",
-    },
-    {
-      title: 'Loại giảm giá',
-      dataIndex: 'type',
-      key: 'type',
+      dataIndex: 'course',
+      key: 'course',
+      width: 140,
       align: 'center',
-      render: (type: 'amount' | 'percentage') =>
-        type === 'amount' ? 'Số tiền' : 'Phần trăm',
-       className: "text-gray-600 text-sm"
+      className: "text-gray-600",
+      ellipsis: true,
+      render: (course: string | null) => (
+        <span style={{ fontSize: 13, wordBreak: 'break-word', whiteSpace: 'normal' }}>
+          {course || 'Tất cả khóa học'}
+        </span>
+      )
     },
     {
       title: 'Giá trị giảm',
       dataIndex: 'value',
       key: 'value',
+      width: 110,
       align: 'center',
-      render: (value: number, record: Coupon) =>
-        record.type === 'percentage'
-          ? `${value}%`
-          : `${value.toLocaleString('vi-VN')} VNĐ`,
-       className: "font-semibold text-blue-600"
-    },
-    {
-      title: 'Đã sử dụng / Số lượng',
-      key: 'usage',
-      align: 'center',
-       className: "text-gray-600 text-sm",
-       render: (_: void, record: Coupon) => `${record.usedCount} / ${record.quantity}`,
+      ellipsis: true,
+      render: (value: number, record: Voucher) =>
+        <span style={{ color: '#1677ff', fontWeight: 600, fontSize: 13 }}>
+          {record.type === 'percentage'
+            ? `${value}%`
+            : `${value.toLocaleString('vi-VN')} VNĐ`}
+        </span>,
+      className: "font-semibold text-blue-600"
     },
     {
       title: 'Trạng thái',
       key: 'status',
-      align: 'center',
-      render: (_: void, record: Coupon) => {
-        const isActive = isCouponActive(record);
-        const statusConfig = isActive 
-          ? { color: 'success' as const, icon: <CheckCircleOutlined />, text: 'Đang hoạt động' }
-          : { color: 'error' as const, icon: <CloseCircleOutlined />, text: 'Đã hết hạn' };
-
+      width: 130,
+      align: 'left',
+      render: (_: void, record: Voucher) => {
+        const isActive = isVoucherActive(record);
         return (
-           <Tag 
-            color={statusConfig.color}
-            icon={statusConfig.icon}
-            className="px-2 py-1 rounded-full text-sm font-medium"
-          >
-            {statusConfig.text}
-          </Tag>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {isActive ? (
+              <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
+            ) : (
+              <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 18 }} />
+            )}
+            <span style={{ fontSize: 13, color: isActive ? '#52c41a' : '#ff4d4f', fontWeight: 500 }}>
+              {isActive ? 'Đang hoạt động' : 'Đã hết hạn'}
+            </span>
+          </div>
         );
       }
-    },
-    {
-      title: 'Ngày tạo',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      align: 'center',
-       className: "text-gray-600 text-sm"
-    },
-    {
-      title: 'Ngày hết hạn',
-      dataIndex: 'expiresAt',
-      key: 'expiresAt',
-      align: 'center',
-      render: (date: string) => (date ? dayjs(date).format('YYYY-MM-DD') : 'Không giới hạn'),
-       className: "text-gray-600 text-sm"
     },
     {
       title: 'Hành động',
       key: 'actions',
       align: 'center',
-      fixed: 'right',
-      width: 120, // Adjusted width
-      render: (_: void, record: Coupon) => (
+      width: 90,
+      render: (_: void, record: Voucher) => (
         <Space size="small">
-           <Tooltip title="Chỉnh sửa">
+          <Tooltip title="Chỉnh sửa">
             <Button
               icon={<EditOutlined />}
               type="text"
               onClick={() => showEditModal(record)}
-              className="tw-text-blue-600 flex items-center"
+              style={{ color: '#1677ff', fontSize: 16 }}
               size="small"
             />
           </Tooltip>
-           <Popconfirm
+          <Popconfirm
             title="Bạn có chắc chắn muốn xóa mã này?"
-            onConfirm={() => handleDelete(record.key)}
+            onConfirm={() => handleDelete(record._id)}
             okText="Có"
             cancelText="Hủy"
-             okButtonProps={{ danger: true }}
+            okButtonProps={{ danger: true }}
           >
-             <Tooltip title="Xóa">
-                <Button
-                  icon={<DeleteOutlined />}
-                  type="text"
-                  danger
-                  className="tw-text-red-600 flex items-center"
-                  size="small"
-                />
-             </Tooltip>
+            <Tooltip title="Xóa">
+              <Button
+                icon={<DeleteOutlined />}
+                type="text"
+                danger
+                style={{ fontSize: 16 }}
+                size="small"
+              />
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),
@@ -346,7 +327,7 @@ const VouchersPage: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-800">Quản lý mã giảm giá</h2>
           <p className="text-gray-500 mt-1">Tạo và quản lý các mã giảm giá cho khóa học</p>
         </div>
-         <Button
+        <Button
           icon={<PlusOutlined />}
           type="primary"
           onClick={showAddModal}
@@ -357,8 +338,8 @@ const VouchersPage: React.FC = () => {
         </Button>
       </div>
 
-       {/* Stats Cards */}
-       <Row gutter={[16, 16]} className="mb-6">
+      {/* Stats Cards */}
+      <Row gutter={[16, 16]} className="mb-6">
         <Col xs={24} sm={8}>
           <Card className="shadow-sm hover:shadow-md transition-shadow">
             <Statistic
@@ -413,36 +394,36 @@ const VouchersPage: React.FC = () => {
             ]}
             suffixIcon={<FilterOutlined />}
           />
-           <Space className="ml-auto">
-              <span className="text-sm text-gray-700">Sắp xếp giá trị:</span>
-              <Select
-                value={sortOrder}
-                onChange={value => setSortOrder(value as 'asc' | 'desc')}
-                style={{ width: 120 }}
-              >
-                <Option value="asc">Tăng dần</Option>
-                <Option value="desc">Giảm dần</Option>
-              </Select>
-            </Space>
+          <Space className="ml-auto">
+            <span className="text-sm text-gray-700">Sắp xếp giá trị:</span>
+            <Select
+              value={sortOrder}
+              onChange={value => setSortOrder(value as 'asc' | 'desc')}
+              style={{ width: 120 }}
+            >
+              <Option value="asc">Tăng dần</Option>
+              <Option value="desc">Giảm dần</Option>
+            </Select>
+          </Space>
         </div>
       </Card>
 
       {/* Table */}
       <Card className="shadow-sm">
         <Table
-          rowKey="key"
-          columns={columns as ColumnsType<Coupon>}
+          rowKey="_id"
+          columns={columns}
           dataSource={currentData}
           pagination={false}
-          scroll={{ x: 1100 }}
           className="vouchers-table"
+          loading={loading}
         />
 
         <div className="text-right mt-4 px-4">
           <Pagination
             current={currentPage}
             pageSize={rowsPerPage}
-            total={filteredData.length} // Use filteredData.length for total
+            total={filteredData.length}
             onChange={page => setCurrentPage(page)}
             showSizeChanger={false}
             showTotal={(total) => `Tổng số ${total} mã giảm giá`}
@@ -451,15 +432,15 @@ const VouchersPage: React.FC = () => {
       </Card>
 
       <Modal
-        title={<div className="text-xl font-semibold text-gray-800">{editingCoupon ? 'Chỉnh sửa mã giảm giá' : 'Tạo mã giảm giá mới'}</div>}
+        title={<div className="text-xl font-semibold text-gray-800">{editingVoucher ? 'Chỉnh sửa mã giảm giá' : 'Tạo mã giảm giá mới'}</div>}
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={() => {
           setIsModalVisible(false);
-          setEditingCoupon(null);
+          setEditingVoucher(null);
           form.resetFields();
         }}
-        okText={editingCoupon ? 'Lưu thay đổi' : 'Tạo mã'}
+        okText={editingVoucher ? 'Lưu thay đổi' : 'Tạo mã'}
         cancelText="Hủy"
         destroyOnClose
         centered
@@ -472,8 +453,6 @@ const VouchersPage: React.FC = () => {
             type: 'amount',
             value: 0,
             quantity: 1,
-            // startDate: dayjs(), // Handled in showAddModal/showEditModal
-            // endDate: null, // Handled in showAddModal/showEditModal
             courseId: 'all',
           }}
         >
@@ -482,7 +461,7 @@ const VouchersPage: React.FC = () => {
             name="code"
             rules={[{ required: true, message: 'Vui lòng nhập mã giảm giá' }]}
           >
-            <Input placeholder="Nhập mã giảm giá" maxLength={20} disabled={!!editingCoupon} />
+            <Input placeholder="Nhập mã giảm giá" maxLength={20} disabled={!!editingVoucher} />
           </Form.Item>
 
           <Form.Item label="Khóa học áp dụng" name="courseId" rules={[{ required: true }]}>
@@ -510,20 +489,20 @@ const VouchersPage: React.FC = () => {
               { type: 'number', min: 0, message: 'Giá trị không thể âm' },
             ]}
           >
-        <InputNumber<number>
-                style={{ width: '100%' }}
-                min={0}
-                placeholder="Nhập giá trị giảm"
-                formatter={(value) => {
+            <InputNumber<number>
+              style={{ width: '100%' }}
+              min={0}
+              placeholder="Nhập giá trị giảm"
+              formatter={(value) => {
                 if (value === null || value === undefined) return '';
                 const type = form.getFieldValue('type');
                 return type === 'percentage' ? `${value}%` : `${value} VNĐ`;
-             }}
-             parser={(value) => {
-               if (!value) return 0;
-               return Number(value.replace('%', '').replace(' VNĐ', '').replace(/,/g, '')); // Handle commas
-            }}
-/>
+              }}
+              parser={(value) => {
+                if (!value) return 0;
+                return Number(value.replace('%', '').replace(' VNĐ', '').replace(/,/g, ''));
+              }}
+            />
           </Form.Item>
 
           <Form.Item
@@ -540,7 +519,7 @@ const VouchersPage: React.FC = () => {
           <Form.Item label="Ngày tạo" name="startDate" rules={[{ required: true }]}>
             <DatePicker
               style={{ width: '100%' }}
-              disabled // Creation date is not editable after creation
+              disabled
               format="YYYY-MM-DD"
               placeholder="Ngày tạo"
             />
@@ -551,25 +530,103 @@ const VouchersPage: React.FC = () => {
               style={{ width: '100%' }} 
               format="YYYY-MM-DD" 
               placeholder="Chọn ngày hết hạn (Không bắt buộc)"
-              disabledDate={current => current && current < dayjs().startOf('day')} // Disable past dates
+              disabledDate={current => current && current < dayjs().startOf('day')}
             />
           </Form.Item>
         </Form>
       </Modal>
 
-       {/* Custom styles */}
-       <style>
+      {/* Detail Modal */}
+      <Modal
+        title={<div className="text-xl font-semibold text-gray-800">Chi tiết mã giảm giá</div>}
+        open={isDetailModalVisible}
+        onCancel={() => {
+          setIsDetailModalVisible(false);
+          setSelectedVoucher(null);
+        }}
+        footer={null}
+        width={420}
+        centered
+      >
+        {selectedVoucher && (
+          <div style={{ padding: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+              <span style={{ fontSize: 22, fontWeight: 700, color: '#1677ff', letterSpacing: 1 }}>{selectedVoucher.code}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {isVoucherActive(selectedVoucher) ? (
+                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
+                ) : (
+                  <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 18 }} />
+                )}
+                <span style={{ fontSize: 14, color: isVoucherActive(selectedVoucher) ? '#52c41a' : '#ff4d4f', fontWeight: 500 }}>
+                  {isVoucherActive(selectedVoucher) ? 'Đang hoạt động' : 'Đã hết hạn'}
+                </span>
+              </span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Khóa học áp dụng:</span>
+              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.course || 'Tất cả khóa học'}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Loại giảm giá:</span>
+              <span style={{ marginLeft: 8, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {selectedVoucher.type === 'amount' ? <span>💵 Số tiền</span> : <span>🎯 Phần trăm</span>}
+              </span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Giá trị giảm:</span>
+              <span style={{ marginLeft: 8, fontWeight: 600, color: '#1677ff' }}>
+                {selectedVoucher.type === 'percentage'
+                  ? `${selectedVoucher.value}%`
+                  : `${selectedVoucher.value.toLocaleString('vi-VN')} VNĐ`}
+              </span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Đã sử dụng / Số lượng:</span>
+              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.used} / {selectedVoucher.quantity}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Ngày tạo:</span>
+              <span style={{ marginLeft: 8 }}>{dayjs(selectedVoucher.createdAt).format('YYYY-MM-DD')}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Ngày hết hạn:</span>
+              <span style={{ marginLeft: 8 }}>{selectedVoucher.expiresAt ? dayjs(selectedVoucher.expiresAt).format('YYYY-MM-DD') : 'Không giới hạn'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
+              <Button onClick={() => {
+                setIsDetailModalVisible(false);
+                showEditModal(selectedVoucher);
+              }}>
+                Chỉnh sửa
+              </Button>
+              <Button type="primary" onClick={() => setIsDetailModalVisible(false)}>
+                Đóng
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Custom styles */}
+      <style>
         {`
           .vouchers-table .ant-table-thead > tr > th {
             background: #fafafa;
             font-weight: 600;
             color: #1f2937;
+            font-size: 13px;
+            padding: 8px 8px;
+            white-space: nowrap;
           }
           .vouchers-table .ant-table-tbody > tr:hover > td {
             background: #f5f7fa;
           }
-           .vouchers-table .ant-table-tbody > tr > td {
-            padding: 12px 8px;
+          .vouchers-table .ant-table-tbody > tr > td {
+            padding: 8px 8px;
+            font-size: 13px;
+            word-break: break-word;
+            white-space: normal;
           }
           .ant-tag {
             margin: 0;

@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const ApiError = require('../utils/ApiError');
 
 // Middleware xác thực người dùng
 exports.auth = async (req, res, next) => {
@@ -14,7 +13,10 @@ exports.auth = async (req, res, next) => {
     // Lấy token từ header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new ApiError(401, 'Không tìm thấy token xác thực');
+      return res.status(401).json({
+        success: false,
+        message: 'Không tìm thấy token xác thực',
+      });
     }
 
     const token = authHeader.split(' ')[1];
@@ -24,34 +26,77 @@ exports.auth = async (req, res, next) => {
     console.log('Decoded token:', decoded);
 
     // Tìm user trong database
-    const user = await User.findById(decoded.id).populate({
-      path: 'role_id',
-      select: 'name',
-      model: 'Role'
-    });
-    
-    console.log('Found user:', JSON.stringify(user, null, 2));
-    
+    const user = await User.findById(decoded.id).populate('role_id');
+
     if (!user) {
-      throw new ApiError(401, 'Không tìm thấy người dùng');
+      return res.status(401).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+      });
     }
 
-    if (!user.role_id) {
-      console.log('User has no role_id');
-      throw new ApiError(403, 'Người dùng không có quyền truy cập');
+    // Kiểm tra xem user có roles không
+    let roles = user.roles || [];
+
+    // Nếu user.isInstructor là true, thêm 'instructor' vào roles
+    if (user.isInstructor) {
+      roles.push('instructor');
     }
+
+    // Kiểm tra role_id để xác định roles
+    if (user.role_id) {
+      // Kiểm tra role name thay vì hardcode ObjectId
+      if (user.role_id.name === 'admin') {
+        roles.push('admin');
+      } else if (user.role_id.name === 'instructor') {
+        roles.push('instructor');
+      }
+    }
+
+    // Nếu không có roles nào, gán là 'guest'
+    if (roles.length === 0) {
+      roles = ['guest'];
+    }
+
+    // Thêm thông tin role_id vào user
+    user.role_id = {
+      name: roles.includes('admin') ? 'admin' :
+        roles.includes('instructor') ? 'instructor' : 'guest',
+    };
 
     // Gán user vào request
-    req.user = user;
+    req.user = {
+      ...user.toObject(),
+      roles: roles,
+    };
+
+    // Log thông tin user để debug
+    console.log('Authenticated user:', {
+      id: user._id,
+      roles: roles,
+      role_id: user.role_id,
+      originalRoleId: user.role_id,
+    });
+
     next();
   } catch (error) {
     console.error('Auth error:', error);
     if (error.name === 'JsonWebTokenError') {
-      next(new ApiError(401, 'Token không hợp lệ'));
+      return res.status(401).json({
+        success: false,
+        message: 'Token không hợp lệ',
+      });
     } else if (error.name === 'TokenExpiredError') {
-      next(new ApiError(401, 'Token đã hết hạn'));
+      return res.status(401).json({
+        success: false,
+        message: 'Token đã hết hạn',
+      });
     } else {
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: 'Lỗi xác thực',
+        error: error.message,
+      });
     }
   }
 };
@@ -102,24 +147,28 @@ exports.checkPermission = (requiredPermission) => {
 };
 
 // Middleware kiểm tra role
-exports.checkRole = (roles) => {
+exports.checkRole = (requiredRoles) => {
   return async (req, res, next) => {
     try {
-      // Lấy thông tin role từ user (đã được populate trong auth middleware)
-      const userRole = req.user.role_id;
+      const user = req.user;
+      const userRoles = user.roles || [];
 
-      // Nếu là guest, chỉ cho phép truy cập các route công khai
-      if (userRole && userRole.name === 'guest' && !roles.includes('guest')) {
-        return res.status(403).json({
-          success: false,
-          message: 'Vui lòng đăng nhập để thực hiện chức năng này',
-        });
-      }
+      // Debug log
+      console.log('Checking role:', {
+        userRoles: userRoles,
+        requiredRoles: requiredRoles,
+        hasRole: userRoles.some(role => requiredRoles.includes(role)),
+      });
 
-      if (!userRole || !roles.includes(userRole.name)) {
+      // Kiểm tra role
+      if (!userRoles.some(role => requiredRoles.includes(role))) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền truy cập',
+          debug: {
+            userRoles: userRoles,
+            requiredRoles: requiredRoles,
+          },
         });
       }
 
@@ -129,6 +178,7 @@ exports.checkRole = (roles) => {
       res.status(500).json({
         success: false,
         message: 'Lỗi kiểm tra role',
+        error: error.message,
       });
     }
   };
@@ -138,30 +188,37 @@ exports.checkRole = (roles) => {
 exports.requireAuth = (roles = []) => {
   return (req, res, next) => {
     try {
-      console.log('Checking permissions...');
-      console.log('User:', JSON.stringify(req.user, null, 2));
-      console.log('User role:', JSON.stringify(req.user?.role_id, null, 2));
-      console.log('Required roles:', roles);
-
       if (!req.user) {
-        throw new ApiError(401, 'Vui lòng đăng nhập');
+        return res.status(401).json({
+          success: false,
+          message: 'Vui lòng đăng nhập',
+        });
       }
 
-      if (!req.user.role_id) {
-        console.log('User has no role_id');
-        throw new ApiError(403, 'Người dùng không có quyền truy cập');
-      }
-
-      if (roles.length > 0 && !roles.includes(req.user.role_id.name)) {
-        console.log('User role name:', req.user.role_id.name);
-        console.log('Is role included:', roles.includes(req.user.role_id.name));
-        throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
+      // Kiểm tra xem user có quyền truy cập không
+      if (roles.length > 0) {
+        const userRoles = req.user.roles || ['guest']; // Sử dụng 'guest' nếu không có roles
+        const hasRequiredRole = roles.some(role => userRoles.includes(role));
+        if (!hasRequiredRole) {
+          // Log thông tin chi tiết về roles
+          console.log('User has role_id:', req.user.role_id);
+          console.log('User has roles:', userRoles);
+          console.log('Required roles:', roles);
+          return res.status(403).json({
+            success: false,
+            message: 'Không có quyền thực hiện chức năng này',
+          });
+        }
       }
 
       next();
     } catch (error) {
       console.error('Permission check error:', error);
-      next(error);
+      return res.status(500).json({
+        success: false,
+        message: 'Lỗi kiểm tra quyền',
+        error: error.message,
+      });
     }
   };
 };

@@ -2,27 +2,56 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 require('dotenv').config();
-const app = require('./src/app');
-
-// Import routes
-const authRoutes = require('./src/routes/auth.routes');
-const roleRoutes = require('./src/routes/role.routes');
 
 const PORT = process.env.PORT || 5000;
 
-// Các middleware cơ bản
-const appMiddleware = express();
-appMiddleware.use(cors());
-appMiddleware.use(express.json());
-appMiddleware.use(express.urlencoded({ extended: true }));
+// Kết nối đến MongoDB
+mongoose
+  .connect(process.env.MONGODB_URI || 'mongodb+srv://edupro:edupro123@cluster0.qjwuxzj.mongodb.net/edupro')
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch((err) => {
+    console.error('Lỗi kết nối MongoDB:', err);
+    process.exit(1);
+  });
 
-// Routes
-appMiddleware.use('/api/auth', authRoutes);
-appMiddleware.use('/api/roles', roleRoutes);
+// Import app từ src/app.js
+const app = require('./src/app');
+
+// Các middleware cơ bản
+app.use(cors({
+    origin: 'http://localhost:5173', // Chỉ cho phép từ frontend
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    exposedHeaders: ['Authorization'],
+    maxAge: 86400 // 24 hours
+}));
+
+// Xử lý preflight request (OPTIONS)
+app.options('*', cors());
+
+// Logging
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+});
 
 // Middleware xử lý lỗi
-appMiddleware.use((err, req, res, next) => {
-  console.error(err.stack);
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  
+  // Kiểm tra nếu là ApiError
+  if (err.statusCode) {
+    return res.status(err.statusCode).json({
+      success: false,
+      message: err.message || 'Có lỗi xảy ra!',
+      errors: err.errors || [],
+    });
+  }
+  
+  // Lỗi khác
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Có lỗi xảy ra!',
@@ -30,27 +59,17 @@ appMiddleware.use((err, req, res, next) => {
 });
 
 // Middleware xử lý 404
-appMiddleware.use((req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Không tìm thấy trang',
   });
 });
 
-// Kết nối đến MongoDB
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log('Đã kết nối đến MongoDB');
-    // Khởi động server sử dụng app từ src/app.js
-    app.listen(PORT, () => {
-      console.log(`Server đang chạy trên port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error('Lỗi kết nối MongoDB:', err);
-    process.exit(1);
-  });
+// Khởi động server
+const server = app.listen(PORT, () => {
+    console.log(`Server đang chạy trên port ${PORT}`);
+});
 
 // Xử lý lỗi chưa được bắt
 process.on('unhandledRejection', (err) => {

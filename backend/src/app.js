@@ -14,13 +14,14 @@ require('dotenv').config();
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const roleRoutes = require('./routes/role.routes');
-const userManagementRoutes = require('./routes/userManagement.routes');
 const courseRoutes = require('./routes/course.routes');
 const categoryRoutes = require('./routes/category.routes');
 const sectionRoutes = require('./routes/section.routes');
 const lessonRoutes = require('./routes/lesson.routes');
 const videoRoutes = require('./routes/video.routes');
 const quizRoutes = require('./routes/quiz.routes');
+const voucherRoutes = require('./routes/voucher.routes');
+const userRoutes = require('./routes/user.routes');
 
 // Khởi tạo app
 const app = express();
@@ -39,8 +40,10 @@ app.use(helmet()); // Bảo vệ headers
 app.use(mongoSanitize()); // Ngăn chặn NoSQL injection
 app.use(xss()); // Ngăn chặn XSS attacks
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: ['https://api.edupro.com', 'http://localhost:5000', 'http://localhost:5173'],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
 })); // CORS
 app.use(cookieParser()); // Parse cookies
 app.use(compression()); // Nén response
@@ -69,16 +72,17 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/roles', roleRoutes);
-app.use('/api/admin/users', userManagementRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/sections', sectionRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/quizzes', quizRoutes);
+app.use('/api/vouchers', voucherRoutes);
+app.use('/api/users', userRoutes);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error(err.stack);
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({

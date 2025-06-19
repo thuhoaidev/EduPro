@@ -1,12 +1,15 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Card, Avatar, Tag, Button, Descriptions, Spin, Divider } from "antd";
+import { Card, Avatar, Tag, Button, Descriptions, Spin, Divider, message } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import {
   type User,
   UserRole,
   UserStatus,
+  type Role
 } from "../../../interfaces/Admin.interface";
+import { getUserById } from "../../../services/userService";
+import dayjs from 'dayjs';
 
 // Dữ liệu mẫu nâng cao
 const mockUsers: User[] = [
@@ -44,6 +47,7 @@ const mockUsers: User[] = [
     role: UserRole.STUDENT,
     status: UserStatus.BANNED,
     createdAt: "2024-03-10",
+    updatedAt: "2024-03-10",
     phone: "0345 678 910",
     address: "Thanh Hóa, Việt Nam",
   },
@@ -56,11 +60,58 @@ const UserDetail = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const found = mockUsers.find((u) => u.id === Number(id));
-    setTimeout(() => {
-      setUser(found || null);
-      setLoading(false);
-    }, 500);
+    const fetchUserDetail = async () => {
+      try {
+        setLoading(true);
+        console.log('Fetching user detail for ID:', id); // Debug log
+        
+        if (!id) {
+          message.error('Không có ID người dùng');
+          return;
+        }
+
+        const response = await getUserById(id);
+        console.log('Raw API Response:', response); // Debug log
+
+        if (response.success && response.data) {
+          const userData = response.data;
+          console.log('User data from API:', userData); // Debug log
+          
+          // Map dữ liệu từ API sang định dạng User
+          const mappedUser: User = {
+            id: userData._id,
+            fullname: userData.fullname || userData.name || 'Chưa có tên',
+            email: userData.email,
+            avatar: userData.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
+            role: typeof userData.role_id === 'string' ? userData.role_id : userData.role_id,
+            status: userData.status,
+            createdAt: userData.created_at,
+            updatedAt: userData.updated_at,
+            phone: userData.phone || '',
+            address: userData.address || '',
+            dob: userData.dob || null,
+            gender: userData.gender || 'Khác',
+            approval_status: userData.approval_status || 'approved',
+            description: userData.description || '',
+            coursesCount: userData.coursesCount || 0
+          };
+          console.log('Mapped user data:', mappedUser); // Debug log
+          setUser(mappedUser);
+        } else {
+          console.error('API Error:', response); // Debug log
+          message.error(response.message || 'Không thể lấy thông tin người dùng');
+        }
+      } catch (error) {
+        console.error('Error fetching user detail:', error);
+        message.error('Lỗi khi tải thông tin người dùng');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchUserDetail();
+    }
   }, [id]);
 
   if (loading) {
@@ -77,21 +128,38 @@ const UserDetail = () => {
     );
   }
 
+  const getRoleColor = (role: UserRole | Role) => {
+    const roleName = typeof role === 'object' ? role.name : role;
+    const colorMap: Record<UserRole, string> = {
+      [UserRole.ADMIN]: "geekblue",
+      [UserRole.INSTRUCTOR]: "purple",
+      [UserRole.STUDENT]: "default",
+      [UserRole.MODERATOR]: "orange"
+    };
+    return colorMap[roleName as UserRole] || "default";
+  };
 
-const roleColor = {
-  admin: "geekblue",
-  instructor: "purple",
-  student: "default",
-  moderator: "orange", 
-}[user.role];
+  const getStatusColor = (status: UserStatus) => {
+    switch (status) {
+      case UserStatus.ACTIVE:
+        return "green";
+      case UserStatus.BANNED:
+        return "red";
+      default:
+        return "orange";
+    }
+  };
 
-
-  const statusColor =
-    user.status === UserStatus.ACTIVE
-      ? "green"
-      : user.status === UserStatus.BANNED
-      ? "red"
-      : "orange";
+  const getRoleName = (role: UserRole | Role) => {
+    const roleName = typeof role === 'object' ? role.name : role;
+    const roleMap: Record<UserRole, string> = {
+      [UserRole.ADMIN]: "Quản trị viên",
+      [UserRole.INSTRUCTOR]: "Giảng viên",
+      [UserRole.STUDENT]: "Học viên",
+      [UserRole.MODERATOR]: "Kiểm duyệt viên"
+    };
+    return roleMap[roleName as UserRole] || roleName;
+  };
 
   return (
     <div className="max-w-4xl mx-auto mt-6">
@@ -114,27 +182,35 @@ const roleColor = {
 
         <Descriptions title="Thông tin cơ bản" column={1} bordered>
           <Descriptions.Item label="Vai trò">
-            <Tag color={roleColor}>{user.role.toUpperCase()}</Tag>
+            <Tag color={getRoleColor(user.role)}>{getRoleName(user.role)}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="Trạng thái">
-            <Tag color={statusColor}>{user.status.toUpperCase()}</Tag>
+            <Tag color={getStatusColor(user.status)}>
+              {user.status === UserStatus.ACTIVE ? "Đang hoạt động" :
+               user.status === UserStatus.INACTIVE ? "Không hoạt động" :
+               user.status === UserStatus.BANNED ? "Bị cấm" : user.status}
+            </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="Số điện thoại">{user.phone || "Không có"}</Descriptions.Item>
-          <Descriptions.Item label="Địa chỉ">{user.address || "Không có"}</Descriptions.Item>
+          <Descriptions.Item label="Số điện thoại">{user.phone || "Chưa cập nhật"}</Descriptions.Item>
+          <Descriptions.Item label="Địa chỉ">{user.address || "Chưa cập nhật"}</Descriptions.Item>
+          <Descriptions.Item label="Ngày sinh">
+            {user.dob ? dayjs(user.dob).format('DD/MM/YYYY') : "Chưa cập nhật"}
+          </Descriptions.Item>
+          <Descriptions.Item label="Giới tính">{user.gender || "Chưa cập nhật"}</Descriptions.Item>
         </Descriptions>
 
         <Divider />
 
         <Descriptions title="Thời gian hoạt động" column={1} bordered>
           <Descriptions.Item label="Ngày tạo">
-            {new Date(user.createdAt).toLocaleDateString()}
+            {dayjs(user.createdAt).format('DD/MM/YYYY HH:mm')}
           </Descriptions.Item>
           <Descriptions.Item label="Cập nhật gần nhất">
-            {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : "Không có"}
+            {user.updatedAt ? dayjs(user.updatedAt).format('DD/MM/YYYY HH:mm') : "Chưa cập nhật"}
           </Descriptions.Item>
         </Descriptions>
 
-        {user.role === UserRole.INSTRUCTOR && (
+        {typeof user.role === 'object' && user.role.name === UserRole.INSTRUCTOR && (
           <>
             <Divider />
             <Descriptions title="Thông tin giảng viên" column={1} bordered>
@@ -142,7 +218,7 @@ const roleColor = {
                 {user.coursesCount || 0}
               </Descriptions.Item>
               <Descriptions.Item label="Mô tả">
-                {user.description || "Không có mô tả"}
+                {user.description || "Chưa có mô tả"}
               </Descriptions.Item>
             </Descriptions>
           </>

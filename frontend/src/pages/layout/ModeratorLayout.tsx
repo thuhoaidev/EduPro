@@ -57,7 +57,7 @@ const getRoleName = (user: User): string => {
 };
 
 const checkRole = (user: User, requiredRole: string): boolean => {
-  return getRoleName(user) === requiredRole;
+  return user?.role?.name === requiredRole;
 };
 
 const ModeratorLayout = () => {
@@ -208,8 +208,15 @@ const ModeratorLayout = () => {
       >
       </Menu.ItemGroup>
       <Menu.Divider />
-      <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => nav('/')}>
+      <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => navigate('/')}>
         Trang người dùng
+      </Menu.Item>
+      <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+      }}>
+        Đăng xuất
       </Menu.Item>
     </Menu>
   );

@@ -1,0 +1,508 @@
+{
+  "info": {
+    "name": "User Avatar & Social Links APIs",
+    "description": "Collection để test API upload avatar và cập nhật social_links",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"quantrivien@gmail.com\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('auth_token', response.data.accessToken);",
+                  "    console.log('Token saved:', response.data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Instructor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"giangvien@gmail.com\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('auth_token', response.data.accessToken);",
+                  "    console.log('Token saved:', response.data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "User Profile",
+      "item": [
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile (Text Only)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullname\": \"Nguyễn Văn A\",\n  \"nickname\": \"nguyenvana\",\n  \"phone\": \"0123456789\",\n  \"dob\": \"1990-01-01\",\n  \"address\": \"Hà Nội, Việt Nam\",\n  \"gender\": \"male\",\n  \"bio\": \"Tôi là một giảng viên có kinh nghiệm trong lĩnh vực công nghệ thông tin.\",\n  \"social_links\": {\n    \"facebook\": \"https://facebook.com/nguyenvana\",\n    \"twitter\": \"https://twitter.com/nguyenvana\",\n    \"linkedin\": \"https://linkedin.com/in/nguyenvana\",\n    \"youtube\": \"https://youtube.com/@nguyenvana\",\n    \"github\": \"https://github.com/nguyenvana\",\n    \"website\": \"https://nguyenvana.com\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile with Avatar Upload",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "fullname",
+                  "value": "Nguyễn Văn A (Updated)",
+                  "type": "text"
+                },
+                {
+                  "key": "nickname",
+                  "value": "nguyenvana_updated",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "0987654321",
+                  "type": "text"
+                },
+                {
+                  "key": "dob",
+                  "value": "1990-01-01",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "TP.HCM, Việt Nam",
+                  "type": "text"
+                },
+                {
+                  "key": "gender",
+                  "value": "male",
+                  "type": "text"
+                },
+                {
+                  "key": "bio",
+                  "value": "Tôi là một giảng viên có kinh nghiệm trong lĩnh vực công nghệ thông tin. Đã có 5 năm kinh nghiệm giảng dạy.",
+                  "type": "text"
+                },
+                {
+                  "key": "social_links",
+                  "value": "{\"facebook\":\"https://facebook.com/nguyenvana\",\"twitter\":\"https://twitter.com/nguyenvana\",\"linkedin\":\"https://linkedin.com/in/nguyenvana\",\"youtube\":\"https://youtube.com/@nguyenvana\",\"github\":\"https://github.com/nguyenvana\",\"website\":\"https://nguyenvana.com\"}",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Update Social Links Only",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"social_links\": {\n    \"facebook\": \"https://facebook.com/newprofile\",\n    \"twitter\": null,\n    \"linkedin\": \"https://linkedin.com/in/newprofile\",\n    \"youtube\": \"https://youtube.com/@newprofile\",\n    \"github\": \"https://github.com/newprofile\",\n    \"website\": \"https://newprofile.dev\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin User Management",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "host": ["{{base_url}}"],
+              "path": ["users", "USER_ID_HERE"]
+            }
+          }
+        },
+        {
+          "name": "Create New User (Text Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"123456\",\n  \"fullname\": \"Nguyễn Thị B\",\n  \"nickname\": \"nguyenthib\",\n  \"phone\": \"0123456789\",\n  \"dob\": \"1995-05-15\",\n  \"address\": \"Đà Nẵng, Việt Nam\",\n  \"gender\": \"female\",\n  \"role_id\": \"ROLE_ID_HERE\",\n  \"status\": \"active\",\n  \"approval_status\": \"approved\",\n  \"bio\": \"Tôi là một người dùng mới được tạo bởi admin.\",\n  \"social_links\": {\n    \"facebook\": \"https://facebook.com/nguyenthib\",\n    \"twitter\": \"https://twitter.com/nguyenthib\",\n    \"linkedin\": \"https://linkedin.com/in/nguyenthib\",\n    \"youtube\": null,\n    \"github\": \"https://github.com/nguyenthib\",\n    \"website\": null\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "Create New User with Avatar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "email",
+                  "value": "newuser2@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "123456",
+                  "type": "text"
+                },
+                {
+                  "key": "fullname",
+                  "value": "Trần Văn C",
+                  "type": "text"
+                },
+                {
+                  "key": "nickname",
+                  "value": "tranvanc",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "0987654321",
+                  "type": "text"
+                },
+                {
+                  "key": "dob",
+                  "value": "1992-08-20",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "Cần Thơ, Việt Nam",
+                  "type": "text"
+                },
+                {
+                  "key": "gender",
+                  "value": "male",
+                  "type": "text"
+                },
+                {
+                  "key": "role_id",
+                  "value": "ROLE_ID_HERE",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "type": "text"
+                },
+                {
+                  "key": "approval_status",
+                  "value": "approved",
+                  "type": "text"
+                },
+                {
+                  "key": "bio",
+                  "value": "Tôi là một người dùng mới được tạo với avatar.",
+                  "type": "text"
+                },
+                {
+                  "key": "social_links",
+                  "value": "{\"facebook\":\"https://facebook.com/tranvanc\",\"twitter\":null,\"linkedin\":\"https://linkedin.com/in/tranvanc\",\"youtube\":\"https://youtube.com/@tranvanc\",\"github\":\"https://github.com/tranvanc\",\"website\":\"https://tranvanc.dev\"}",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullname\": \"Nguyễn Thị B (Updated)\",\n  \"phone\": \"0987654321\",\n  \"address\": \"Hà Nội, Việt Nam\",\n  \"status\": \"active\",\n  \"bio\": \"Thông tin đã được cập nhật bởi admin.\",\n  \"social_links\": {\n    \"facebook\": \"https://facebook.com/nguyenthib_updated\",\n    \"twitter\": \"https://twitter.com/nguyenthib_updated\",\n    \"linkedin\": null,\n    \"youtube\": \"https://youtube.com/@nguyenthib_updated\",\n    \"github\": \"https://github.com/nguyenthib_updated\",\n    \"website\": \"https://nguyenthib.dev\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "host": ["{{base_url}}"],
+              "path": ["users", "USER_ID_HERE"]
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/USER_ID_HERE",
+              "host": ["{{base_url}}"],
+              "path": ["users", "USER_ID_HERE"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test Cases",
+      "item": [
+        {
+          "name": "Test Invalid File Type",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "fullname",
+                  "value": "Test User",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Test Large File Size",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "fullname",
+                  "value": "Test User",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Test Invalid Social Links JSON",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"social_links\": \"invalid json string\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Test Create User Invalid Social Links",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"123456\",\n  \"fullname\": \"Test User\",\n  \"role_id\": \"ROLE_ID_HERE\",\n  \"social_links\": \"invalid json string\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+} 

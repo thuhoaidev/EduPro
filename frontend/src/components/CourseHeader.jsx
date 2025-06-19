@@ -7,7 +7,7 @@ const CourseHeader = ({ sectionsCount, totalLessons, totalDuration, onAddSection
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Quản lý khóa học
+              Quản lý chương học và bài học
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               HTML CSS từ Zero đến Hero

@@ -10,4 +10,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'), // thêm alias @
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
+  }
 })

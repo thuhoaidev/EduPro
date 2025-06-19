@@ -1,0 +1,290 @@
+{
+  "info": {
+    "name": "Pending Instructors Management",
+    "description": "Collection để quản lý hồ sơ giảng viên chờ duyệt",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"quantrivien@gmail.com\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('auth_token', response.data.token);",
+                  "    console.log('Token saved:', response.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pending Instructors Management",
+      "item": [
+        {
+          "name": "Get Pending Instructors List",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/instructors/pending?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["users", "instructors", "pending"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Pending Instructors with Search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/instructors/pending?page=1&limit=10&search=giangvien",
+              "host": ["{{base_url}}"],
+              "path": ["users", "instructors", "pending"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "giangvien"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Pending Instructor Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/instructors/pending/INSTRUCTOR_ID_HERE",
+              "host": ["{{base_url}}"],
+              "path": ["users", "instructors", "pending", "INSTRUCTOR_ID_HERE"]
+            }
+          }
+        },
+        {
+          "name": "Approve Instructor",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/instructors/INSTRUCTOR_ID_HERE/approval",
+              "host": ["{{base_url}}"],
+              "path": ["users", "instructors", "INSTRUCTOR_ID_HERE", "approval"]
+            }
+          }
+        },
+        {
+          "name": "Reject Instructor",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/instructors/INSTRUCTOR_ID_HERE/approval",
+              "host": ["{{base_url}}"],
+              "path": ["users", "instructors", "INSTRUCTOR_ID_HERE", "approval"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "All Instructors Management",
+      "item": [
+        {
+          "name": "Get All Instructors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/instructors/list?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["users", "instructors", "list"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Instructors with Search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/instructors/list?page=1&limit=10&search=test",
+              "host": ["{{base_url}}"],
+              "path": ["users", "instructors", "list"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "test"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test Cases",
+      "item": [
+        {
+          "name": "Test Invalid Instructor ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/instructors/pending/invalid_id",
+              "host": ["{{base_url}}"],
+              "path": ["users", "instructors", "pending", "invalid_id"]
+            }
+          }
+        },
+        {
+          "name": "Test Invalid Approval Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"invalid_status\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/instructors/INSTRUCTOR_ID_HERE/approval",
+              "host": ["{{base_url}}"],
+              "path": ["users", "instructors", "INSTRUCTOR_ID_HERE", "approval"]
+            }
+          }
+        },
+        {
+          "name": "Test Missing Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/instructors/INSTRUCTOR_ID_HERE/approval",
+              "host": ["{{base_url}}"],
+              "path": ["users", "instructors", "INSTRUCTOR_ID_HERE", "approval"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+} 

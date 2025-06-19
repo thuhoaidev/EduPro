@@ -16,6 +16,12 @@ const createCategorySchema = Joi.object({
         .messages({
             'string.base': 'Mô tả phải là chuỗi'
         }),
+    status: Joi.string()
+        .valid('active', 'inactive')
+        .default('active')
+        .messages({
+            'string.valid': 'Trạng thái phải là "active" hoặc "inactive"'
+        }),
     parent: Joi.string()
         .allow(null) // Cho phép null
         .regex(/^[0-9a-fA-F]{24}$/)
@@ -25,7 +31,7 @@ const createCategorySchema = Joi.object({
 });
 
 const updateCategorySchema = createCategorySchema.fork(
-    ['name', 'description', 'parent'],
+    ['name', 'description', 'status', 'parent'],
     schema => schema.optional()
 );
 
