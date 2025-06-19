@@ -182,9 +182,11 @@ const AdminLayout = () => {
         },
         {
           key: "/admin/instructors",
+
           icon: <FileSearchOutlined className="text-lg" />,
           label: renderLabel("Hồ sơ giảng viên chờ duyệt"),
         },
+
       ],
     },
     {

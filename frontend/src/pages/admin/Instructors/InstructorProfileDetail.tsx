@@ -44,8 +44,9 @@ const TeacherProfileDetail = () => {
             const fetchTeacherProfile = async () => {
                   try {
                         setLoading(true);
-                        const response = await config.get(`/admin/instructor-profile/${id}`);
-                        setTeacher(response.data);
+                        const response = await config.get(`/admin/users/instructors/${id}`);
+                        console.log('API response:', response.data);
+                        setTeacher(response.data.data);
                   } catch (error) {
                         console.error('Error fetching teacher profile:', error);
                         message.error('Không thể tải thông tin giảng viên');
@@ -60,10 +61,12 @@ const TeacherProfileDetail = () => {
       const handleUpdateStatus = async (status: 'approved' | 'rejected') => {
             try {
                   setUpdating(true);
-                  await config.patch(`/admin/instructor-profile/${id}/status`, { status });
+                  await config.put(`/admin/users/instructors/${id}/approval`, {
+                        status
+                  });
                   message.success(`Đã ${status === 'approved' ? 'duyệt' : 'từ chối'} hồ sơ`);
-                  // setTeacher(prev => prev ? { ...prev, approval_status: status } : null);
-                  navigate('/admin/instructor-approval');
+                  setTeacher(prev => prev ? { ...prev, approval_status: status } : null);
+                  navigate('/admin/instructors');
             } catch (error) {
                   console.error('Error updating teacher status:', error);
                   message.error('Cập nhật trạng thái thất bại');
@@ -134,6 +137,7 @@ const TeacherProfileDetail = () => {
                                                 <Avatar
                                                       size={120}
                                                       icon={<UserOutlined />}
+                                                      src={teacher.avatar || undefined}
                                                       className="border-4 border-gray-100 shadow-lg"
                                                 />
 
@@ -163,7 +167,7 @@ const TeacherProfileDetail = () => {
 
                                           <div className="flex-1">
                                                 <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                                                      {teacher.name}
+                                                      {teacher.fullname}
                                                 </h1>
                                                 <div className="flex items-center gap-2 text-gray-600 mb-4">
                                                       <EnvironmentOutlined />

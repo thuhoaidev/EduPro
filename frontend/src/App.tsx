@@ -70,8 +70,14 @@ function App() {
         { path: "users/:id", element: <UserDetail /> },
         { path: "instructors", element: <InstructorList /> },
         { path: "instructor-approval", element: <InstructorPendingListPage /> },
+
         { path: "users/instructor/:id", element: <InstructorDetail /> },
         { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },
+
+        // { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },
+        { path: "sectionLesson/CourseManagement", element: <CourseManagement /> },
+        { path: "users/instructor/:id", element: <InstructorProfileDetail /> },
+
         { path: "content-approval", element: <ContentApprovalPage /> },
         { path: "reports", element: <ReportsPage /> },
         { path: "system/vouchers", element: <VouchersPage /> },

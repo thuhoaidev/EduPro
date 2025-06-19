@@ -114,13 +114,13 @@ export default function InstructorPendingListPage() {
     return matchSearch && matchDegree;
   });
 
-  // const degreeList = Array.from(
-  //   new Set(
-  //     data
-  //       .map((item) => item.instructorInfo?.education?.[0]?.degree)
-  //       .filter((degree): degree is string => Boolean(degree))
-  //   )
-  // );
+  const degreeList = Array.from(
+    new Set(
+      data
+        .map((item) => item.instructorInfo?.education?.[0]?.degree)
+        .filter((degree): degree is string => Boolean(degree))
+    )
+  );
 
   const columns: ColumnsType<InstructorApprovalProfile> = [
     {

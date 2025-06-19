@@ -53,7 +53,7 @@ const AppHeader = () => {
     if (user.role?.name === 'student') {
       return 'student';
     }
-    
+
     return 'user';
   };
 
@@ -82,17 +82,17 @@ const AppHeader = () => {
     // Kiểm tra role trước khi cho phép truy cập
     const roleName = getRoleName(user);
     console.log('Current role:', roleName); // Log role name
-    
+
     if (path === '/admin' && roleName !== 'admin') {
       message.error('Bạn không có quyền truy cập trang quản trị');
       return;
     }
-    
+
     if (path === '/moderator' && roleName !== 'moderator') {
       message.error('Bạn không có quyền truy cập trang kiểm duyệt');
       return;
     }
-    
+
     if (path === '/instructor' && roleName !== 'instructor') {
       message.error('Bạn không có quyền truy cập trang giảng viên');
       return;
@@ -128,7 +128,7 @@ const AppHeader = () => {
         });
         const userData = response.data;
         console.log('Raw user data from API:', userData); // Log raw data
-        
+
         // Ensure role is properly structured if it exists
         if (userData.role) {
           // Keep the original role object structure
@@ -142,7 +142,7 @@ const AppHeader = () => {
             permissions: []
           };
         }
-        
+
         console.log('Processed user data:', userData); // Log processed data
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
@@ -205,59 +205,8 @@ const AppHeader = () => {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <>
-            {getRoleName(user) === 'admin' && (
-              <a onClick={() => handleMenuClick('/admin/users')} className="menu-item" style={{ 
-                color: '#000',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '8px 12px',
-                borderRadius: 6,
-                transition: 'all 0.3s'
-              }}>
-                <DashboardOutlined style={{ marginRight: 8 }} />
-                Trang quản trị
-              </a>
-            )}
-            {getRoleName(user) === 'student' && (
-              <a onClick={() => navigate('/register-instructor')} className="menu-item" style={{ 
-                color: '#000',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '8px 12px',
-                borderRadius: 6,
-                transition: 'all 0.3s'
-              }}>
-                <UserAddOutlined style={{ marginRight: 8 }} />
-                Đăng ký tài khoản giảng viên
-              </a>
-            )}
-            {getRoleName(user) === 'moderator' && (
-              <a onClick={() => handleMenuClick('/moderator')} className="menu-item" style={{ 
-                color: '#000',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '8px 12px',
-                borderRadius: 6,
-                transition: 'all 0.3s'
-              }}>
-                <DashboardOutlined style={{ marginRight: 8 }} />
-                Trang kiểm duyệt
-              </a>
-            )}
-            {getRoleName(user) === 'instructor' && (
-              <a onClick={() => handleMenuClick('/instructor')} className="menu-item" style={{ 
-                color: '#000',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '8px 12px',
-                borderRadius: 6,
-                transition: 'all 0.3s'
-              }}>
-                <DashboardOutlined style={{ marginRight: 8 }} />
-                Trang giảng viên
-              </a>
-            )}
-            <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{ 
+          {getRoleName(user) === 'admin' && (
+            <a onClick={() => handleMenuClick('/admin/users')} className="menu-item" style={{
               color: '#000',
               display: 'flex',
               alignItems: 'center',
@@ -265,22 +214,73 @@ const AppHeader = () => {
               borderRadius: 6,
               transition: 'all 0.3s'
             }}>
-              <SettingOutlined style={{ marginRight: 8 }} />
-              Cài đặt
+              <DashboardOutlined style={{ marginRight: 8 }} />
+              Trang quản trị
             </a>
-            <a onClick={handleLogout} className="menu-item-danger" style={{ 
-              color: '#ff4d4f',
-              fontWeight: '500',
-              cursor: 'pointer',
+          )}
+          {getRoleName(user) === 'student' && (
+            <a onClick={() => navigate('/register/instructor')} className="menu-item" style={{
+              color: '#000',
               display: 'flex',
               alignItems: 'center',
               padding: '8px 12px',
               borderRadius: 6,
               transition: 'all 0.3s'
             }}>
-              <LogoutOutlined style={{ marginRight: 8 }} />
-              Đăng xuất
+              <UserAddOutlined style={{ marginRight: 8 }} />
+              Đăng ký tài khoản giảng viên
             </a>
+          )}
+          {getRoleName(user) === 'moderator' && (
+            <a onClick={() => handleMenuClick('/moderator')} className="menu-item" style={{
+              color: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '8px 12px',
+              borderRadius: 6,
+              transition: 'all 0.3s'
+            }}>
+              <DashboardOutlined style={{ marginRight: 8 }} />
+              Trang kiểm duyệt
+            </a>
+          )}
+          {getRoleName(user) === 'instructor' && (
+            <a onClick={() => handleMenuClick('/instructor')} className="menu-item" style={{
+              color: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '8px 12px',
+              borderRadius: 6,
+              transition: 'all 0.3s'
+            }}>
+              <DashboardOutlined style={{ marginRight: 8 }} />
+              Trang giảng viên
+            </a>
+          )}
+          <a onClick={() => handleMenuClick('/profile/edit')} className="menu-item" style={{
+            color: '#000',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px 12px',
+            borderRadius: 6,
+            transition: 'all 0.3s'
+          }}>
+            <SettingOutlined style={{ marginRight: 8 }} />
+            Cài đặt
+          </a>
+          <a onClick={handleLogout} className="menu-item-danger" style={{
+            color: '#ff4d4f',
+            fontWeight: '500',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px 12px',
+            borderRadius: 6,
+            transition: 'all 0.3s'
+          }}>
+            <LogoutOutlined style={{ marginRight: 8 }} />
+            Đăng xuất
+          </a>
         </>
       </div>
     </div>
@@ -383,10 +383,10 @@ const AppHeader = () => {
           {loading ? (
             <Spin size="small" />
           ) : user ? (
-            <Dropdown 
-              overlay={userDropdown as React.ReactElement} 
-              trigger={['click']} 
-              placement="bottomRight" 
+            <Dropdown
+              overlay={userDropdown as React.ReactElement}
+              trigger={['click']}
+              placement="bottomRight"
               arrow
             >
               <img
