@@ -15,11 +15,6 @@ exports.createCourse = async (req, res, next) => {
             throw new ApiError(403, 'Bạn không có quyền tạo khóa học');
         }
 
-        // Kiểm tra file thumbnail
-        if (!req.file || !req.file.buffer) {
-            throw new ApiError(400, 'Vui lòng tải lên ảnh đại diện cho khóa học');
-        }
-
         // Log thông tin user
         console.log('\n=== DEBUG INSTRUCTOR PROFILE ===');
         console.log('User ID:', req.user._id);
@@ -29,43 +24,33 @@ exports.createCourse = async (req, res, next) => {
         if (req.user.roles.includes('admin')) {
             console.log('User is admin, skipping instructor profile check');
         } else {
-            // Kiểm tra thông tin từ user trước
-            if (!req.user.isInstructor || req.user.approvalStatus !== 'approved') {
-                console.log('User is not approved instructor');
-                throw new ApiError(403, 'Tài khoản của bạn chưa được cấp quyền giảng viên. Vui lòng liên hệ quản trị viên.');
-            }
-
+            // Đã bỏ kiểm tra isInstructor và approvalStatus, chỉ cần role instructor
             // Tìm instructor profile
             console.log('Searching instructor profile with user:', req.user._id);
-            const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
-            
+            let instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
             // Nếu không tìm thấy, thử tìm bằng email
             if (!instructorProfile) {
                 console.log('Profile not found with user_id, trying email...');
                 instructorProfile = await InstructorProfile.findOne({ email: req.user.email });
             }
-            
             // Nếu vẫn không tìm thấy, tạo mới profile
             if (!instructorProfile) {
                 console.log('Creating new profile for user...');
-                
                 // Kiểm tra và xóa record với user_id null nếu có
                 const nullProfile = await InstructorProfile.findOne({ user: null });
                 if (nullProfile) {
                     console.log('Found and removing profile with null user_id...');
                     await nullProfile.remove();
                 }
-                
                 instructorProfile = new InstructorProfile({
-                    user: req.user._id, // Sử dụng trường user thay vì userId
+                    user: req.user._id,
                     email: req.user.email,
-                    status: 'approved',  // Đặt status là approved vì user.isInstructor=true
-                    is_approved: true,    // Đặt is_approved là true vì user.isInstructor=true
+                    status: 'approved',
+                    is_approved: true,
                     bio: req.user.bio,
                     fullname: req.user.fullname,
                     avatar: req.user.avatar
                 });
-                
                 try {
                     await instructorProfile.save();
                     console.log('Profile created successfully');
@@ -74,7 +59,6 @@ exports.createCourse = async (req, res, next) => {
                     throw new ApiError(500, 'Lỗi khi tạo hồ sơ giảng viên', saveError);
                 }
             }
-
             // Log kết quả tìm kiếm
             console.log('=== DEBUG PROFILE RESULT ===');
             if (instructorProfile) {
@@ -86,17 +70,14 @@ exports.createCourse = async (req, res, next) => {
             } else {
                 console.log('No instructor profile found');
             }
-
             // Kiểm tra trạng thái profile
             console.log('=== DEBUG PROFILE STATUS CHECK ===');
             console.log('Profile status:', instructorProfile.status);
             console.log('Profile is_approved:', instructorProfile.is_approved);
-            
             if (!instructorProfile) {
                 console.log('Profile not found after all attempts');
                 throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên. Vui lòng tạo hồ sơ giảng viên trước.');
             }
-            
             // Nếu profile có status pending hoặc is_approved=false, cập nhật lại
             if (instructorProfile.status !== 'approved' || !instructorProfile.is_approved) {
                 console.log('Updating profile status to match user status');
@@ -104,7 +85,6 @@ exports.createCourse = async (req, res, next) => {
                 instructorProfile.is_approved = true;
                 await instructorProfile.save();
             }
-
             // Lưu instructor profile vào request để sử dụng sau
             req.instructorProfile = instructorProfile;
             console.log('Instructor profile saved to request');
@@ -124,8 +104,8 @@ exports.createCourse = async (req, res, next) => {
             }
         } else {
             console.log('Không có file thumbnail hoặc file không hợp lệ');
-            // Sử dụng ảnh mặc định nếu không có thumbnail
-            thumbnailUrl = 'default-course-thumbnail.jpg';
+            // Sử dụng ảnh mặc định trên Cloudinary nếu không có thumbnail
+            thumbnailUrl = 'https://res.cloudinary.com/demo/image/upload/v1718799999/default-course-thumbnail.jpg'; // Thay bằng URL thực tế của bạn
         }
 
         // Log thông tin về dữ liệu gửi lên
@@ -215,7 +195,7 @@ exports.updateCourse = async (req, res, next) => {
             console.log('\n=== DEBUG INSTRUCTOR PROFILE ===');
             console.log('User ID từ token:', req.user.id);
             
-            instructorProfile = await InstructorProfile.findOne({ userId: req.user.id });
+            instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
             
             if (!instructorProfile) {
                 console.log('Không tìm thấy hồ sơ giảng viên nào cho user này');
@@ -503,23 +483,7 @@ exports.updateCourseStatus = async (req, res, next) => {
 // Lấy danh sách khóa học
 exports.getCourses = async (req, res, next) => {
     try {
-        // Kiểm tra xem user có phải là giảng viên không
-        if (!req.user) {
-            throw new ApiError(401, 'Vui lòng đăng nhập để truy cập danh sách khóa học');
-        }
-
-        // Log thông tin user để debug
-        console.log('Course controller user:', {
-            id: req.user._id,
-            roles: req.user.roles,
-            role_id: req.user.role_id
-        });
-
-        // Kiểm tra quyền truy cập của user
-        if (!req.user.roles.includes('admin') && !req.user.roles.includes('instructor')) {
-            throw new ApiError(403, 'Bạn không có quyền truy cập danh sách khóa học');
-        }
-
+        // Bỏ kiểm tra đăng nhập và quyền, cho phép public truy cập
         const {
             page = 1,
             limit = 10,
