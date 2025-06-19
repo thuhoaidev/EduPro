@@ -7,45 +7,53 @@ const { uploadBufferToCloudinary, getPublicIdFromUrl, deleteFromCloudinary } = r
 
 // Tạo video mới
 exports.createVideo = async (req, res, next) => {
+  console.log('=== Nhận request upload video ===', req.body, req.file);
   try {
     const { lesson_id, duration } = req.body;
 
     // Kiểm tra lesson tồn tại
     const lesson = await Lesson.findById(lesson_id);
     if (!lesson) {
-      throw new ApiError(404, 'Không tìm thấy bài học');
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài học' });
     }
 
     // Kiểm tra lesson đã có video chưa
     const existingVideo = await Video.findOne({ lesson_id });
     if (existingVideo) {
-      throw new ApiError(400, 'Bài học này đã có video');
+      return res.status(400).json({ success: false, message: 'Bài học này đã có video' });
     }
 
     // Kiểm tra file video
     if (!req.file || !req.file.buffer) {
-      throw new ApiError(400, 'Vui lòng tải lên video');
+      return res.status(400).json({ success: false, message: 'Vui lòng tải lên file video' });
     }
 
     // Upload video lên Cloudinary
     let videoUrl = '';
     let publicId = '';
     try {
+      console.log('Bắt đầu upload lên Cloudinary');
       const uploadResult = await uploadBufferToCloudinary(req.file.buffer, 'videos');
+      console.log('Upload lên Cloudinary xong:', uploadResult);
       videoUrl = uploadResult.secure_url;
       publicId = uploadResult.public_id;
     } catch (uploadError) {
       console.error('Lỗi upload video:', uploadError);
-      throw new ApiError(500, 'Lỗi khi tải lên video: ' + uploadError.message);
+      return res.status(500).json({ success: false, message: 'Lỗi khi tải lên video: ' + uploadError.message });
     }
 
     // Validate dữ liệu
-    const validatedData = await validateSchema(createVideoSchema, {
-      lesson_id,
-      url: videoUrl,
-      duration: parseInt(duration) || 0,
-      public_id: publicId,
-    });
+    let validatedData;
+    try {
+      validatedData = await validateSchema(createVideoSchema, {
+        lesson_id,
+        url: videoUrl,
+        duration: parseInt(duration) || 0,
+        public_id: publicId,
+      });
+    } catch (validationError) {
+      return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ', error: validationError.errors });
+    }
 
     // Tạo video mới
     const video = new Video(validatedData);

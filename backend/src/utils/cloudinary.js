@@ -9,11 +9,11 @@ cloudinary.config({
 });
 
 // Log để debug
-// console.log('Cloudinary Config Check:');
-// console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
-// console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? '***' : 'undefined');
-// console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? '***' : 'undefined');
-// console.log('--- End Cloudinary Config Check ---');
+console.log('Cloudinary Config Check:');
+console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
+console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? '***' : 'undefined');
+console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? '***' : 'undefined');
+console.log('--- End Cloudinary Config Check ---');
 
 /**
  * Upload file từ buffer trực tiếp lên Cloudinary
@@ -23,23 +23,25 @@ cloudinary.config({
  */
 exports.uploadBufferToCloudinary = async (fileBuffer, folder = 'misc') => {
     return new Promise((resolve, reject) => {
+        const options = {
+            folder: `edupor/${folder}`,
+            resource_type: 'auto',
+        };
+        if (folder !== 'videos') {
+            options.transformation = [
+                { width: 1920, height: 1080, crop: 'limit' },
+                { quality: 'auto:good' },
+                { fetch_format: 'auto' },
+            ];
+        }
         const uploadStream = cloudinary.uploader.upload_stream(
-            {
-                folder: `edupor/${folder}`,
-                resource_type: 'auto',
-                transformation: [
-                    { width: 1920, height: 1080, crop: 'limit' },
-                    { quality: 'auto:good' },
-                    { fetch_format: 'auto' },
-                ],
-            },
+            options,
             (error, result) => {
+                console.log('Cloudinary upload callback:', { error, result });
                 if (error) return reject(error);
                 resolve(result);
             },
         );
-
-        // Upload buffer trực tiếp
         uploadStream.end(fileBuffer);
     });
 };
