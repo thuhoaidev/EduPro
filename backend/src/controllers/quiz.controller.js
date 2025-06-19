@@ -2,7 +2,7 @@ const Quiz = require('../models/Quiz');
 const Lesson = require('../models/Lesson');
 const ApiError = require('../utils/ApiError');
 const { validateSchema } = require('../utils/validateSchema');
-const { createQuizSchema, updateQuizSchema } = require('../validations/quiz.validation');
+// const { createQuizSchema, updateQuizSchema } = require('../validations/quiz.validation');
 const Video = require('../models/Video');
 
 // Tạo bài quiz mới
@@ -141,5 +141,54 @@ exports.submitQuiz = async (req, res, next) => {
     } else {
       return res.json({ success: false, message: 'Có đáp án sai.', wrongQuestions });
     }
+  } catch (err) { next(err); }
+};
+
+// Thêm câu hỏi vào quiz
+exports.addQuestion = async (req, res, next) => {
+  try {
+    const { quiz_id } = req.params;
+    const { question, options, correctIndex, position } = req.body;
+    const quiz = await Quiz.findById(quiz_id);
+    if (!quiz) return res.status(404).json({ success: false, message: 'Quiz không tồn tại' });
+    const newQuestion = { question, options, correctIndex };
+    if (typeof position === 'number' && position >= 0 && position <= quiz.questions.length) {
+      quiz.questions.splice(position, 0, newQuestion);
+    } else {
+      quiz.questions.push(newQuestion);
+    }
+    await quiz.save();
+    res.json({ success: true, data: quiz });
+  } catch (err) { next(err); }
+};
+
+// Sửa câu hỏi trong quiz
+exports.updateQuestion = async (req, res, next) => {
+  try {
+    const { quiz_id, question_index } = req.params;
+    const { question, options, correctIndex } = req.body;
+    const quiz = await Quiz.findById(quiz_id);
+    if (!quiz) return res.status(404).json({ success: false, message: 'Quiz không tồn tại' });
+    if (quiz.questions.length <= question_index) {
+      return res.status(404).json({ success: false, message: 'Câu hỏi không tồn tại' });
+    }
+    quiz.questions[question_index] = { question, options, correctIndex };
+    await quiz.save();
+    res.json({ success: true, data: quiz });
+  } catch (err) { next(err); }
+};
+
+// Xóa câu hỏi khỏi quiz
+exports.deleteQuestion = async (req, res, next) => {
+  try {
+    const { quiz_id, question_index } = req.params;
+    const quiz = await Quiz.findById(quiz_id);
+    if (!quiz) return res.status(404).json({ success: false, message: 'Quiz không tồn tại' });
+    if (quiz.questions.length <= question_index) {
+      return res.status(404).json({ success: false, message: 'Câu hỏi không tồn tại' });
+    }
+    quiz.questions.splice(question_index, 1);
+    await quiz.save();
+    res.json({ success: true, message: 'Xóa câu hỏi thành công', data: quiz });
   } catch (err) { next(err); }
 }; 
