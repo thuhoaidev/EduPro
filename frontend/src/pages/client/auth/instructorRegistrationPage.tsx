@@ -90,9 +90,9 @@ export default function InstructorRegistrationPage() {
             } catch (error: any) {
                   console.log("API error:", error.response?.data);
                   message.error(error.response?.data?.message || "Có lỗi xảy ra khi đăng ký.");
-                  setTimeout(() => {
-                        navigate("/");
-                  }, 2000);
+                  // setTimeout(() => {
+                  //       navigate("/");
+                  // }, 2000);
             } finally {
                   setLoading(false);
             }
@@ -120,14 +120,14 @@ export default function InstructorRegistrationPage() {
       }, []);
 
       // Tự động chuyển hướng về trang chủ sau 2 giây nếu đã đăng ký
-      useEffect(() => {
-            if (alreadyRegistered) {
-                  const timer = setTimeout(() => {
-                        navigate("/");
-                  }, 2000);
-                  return () => clearTimeout(timer);
-            }
-      }, [alreadyRegistered, navigate]);
+      // useEffect(() => {
+      //       if (alreadyRegistered) {
+      //             const timer = setTimeout(() => {
+      //                   navigate("/");
+      //             }, 2000);
+      //             return () => clearTimeout(timer);
+      //       }
+      // }, [alreadyRegistered, navigate]);
 
       return (
             <Card style={{ maxWidth: 800, margin: "auto", marginTop: 40, padding: 20 }}>

@@ -25,6 +25,7 @@ router.route('/instructors/:id')
   .get(getInstructorProfile) // Lấy chi tiết hồ sơ giảng viên
   .put(updateInstructorProfile); // Cập nhật hồ sơ giảng viên
 
+  // router.get('/instructors/me', auth, getCurrentInstructor);
 // Cập nhật trạng thái hồ sơ giảng viên
 router.put('/instructors/:id/approval', updateInstructorApproval);
 

@@ -185,11 +185,11 @@ const AdminLayout = () => {
           icon: <TeamOutlined className="text-lg" />,
           label: renderLabel("Quản lý giảng viên"),
         },
-        {
-          key: "/admin/instructor-approval",
-          icon: <FileSearchOutlined className="text-lg" />,
-          label: renderLabel("Duyệt giảng viên"),
-        },
+        // {
+        //   key: "/admin/instructor-approval",
+        //   icon: <FileSearchOutlined className="text-lg" />,
+        //   label: renderLabel("Duyệt giảng viên"),
+        // },
       ],
     },
     {

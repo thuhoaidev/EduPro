@@ -1,141 +1,134 @@
-import { Table, Tag, Avatar, Space, Input, Button, Card, Row, Col, Select, Statistic } from "antd";
+import {
+  Table,
+  Tag,
+  Avatar,
+  Space,
+  Input,
+  Button,
+  Card,
+  Row,
+  Col,
+  Select,
+  Statistic,
+  message,
+  Rate
+} from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useState } from "react";
-import { 
-  UserOutlined, 
-  SearchOutlined, 
+import { useState, useEffect } from "react";
+import {
+  UserOutlined,
+  SearchOutlined,
   TeamOutlined,
+  EyeOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
-  FilterOutlined,
-  EyeOutlined,
-  MailOutlined,
-  PhoneOutlined
+  // CheckCircleOutlined,
+  // ClockCircleOutlined,
+  // CloseCircleOutlined,
+  // FilterOutlined,
+  // EyeOutlined,
+  // MailOutlined,
+  // PhoneOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { InstructorProfile } from "../../../interfaces/Admin.interface";
-
-// Giả lập data có thêm fullname
-const fakeInstructors: (InstructorProfile & { fullname: string; avatar?: string })[] = [
-  {
-    id: 1,
-    user_id: 101,
-    fullname: "Nguyễn Văn A",
-    avatar: "https://i.pravatar.cc/150?img=11",
-    bio: "Giảng viên chuyên về lập trình web",
-    expertise: "Web Development",
-    rating: 4.8,
-    status: "approved",
-    created_at: "2024-01-01T10:00:00Z",
-  },
-  {
-    id: 2,
-    user_id: 102,
-    fullname: "Trần Thị B",
-    avatar: "https://i.pravatar.cc/150?img=12",
-    bio: "Giảng viên về thiết kế đồ họa",
-    expertise: "Graphic Design",
-    rating: 4.5,
-    status: "pending",
-    created_at: "2024-03-15T12:30:00Z",
-  },
-  {
-    id: 3,
-    user_id: 103,
-    fullname: "Lê Văn C",
-    avatar: "https://i.pravatar.cc/150?img=13",
-    bio: "Chuyên gia an ninh mạng",
-    expertise: "Cybersecurity",
-    rating: 4.2,
-    status: "rejected",
-    created_at: "2024-04-20T15:45:00Z",
-  },
-];
+import { config } from "../../../api/axios";
 
 const InstructorList = () => {
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [instructors, setInstructors] = useState<InstructorProfile[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
 
-  const filteredData = fakeInstructors.filter(
-    (ins) =>
-      (statusFilter === "all" || ins.status === statusFilter) &&
-      (ins.expertise.toLowerCase().includes(searchText.toLowerCase()) ||
-      ins.bio.toLowerCase().includes(searchText.toLowerCase()) ||
-      ins.fullname.toLowerCase().includes(searchText.toLowerCase()))
-  );
-
-  // Calculate statistics
-  const stats = {
-    total: fakeInstructors.length,
-    approved: fakeInstructors.filter(ins => ins.status === "approved").length,
-    pending: fakeInstructors.filter(ins => ins.status === "pending").length,
-    rejected: fakeInstructors.filter(ins => ins.status === "rejected").length,
-  };
-
-  const getStatusTag = (status: string) => {
-    const statusMap: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
-      approved: { color: "success", label: "Đã duyệt", icon: <CheckCircleOutlined /> },
-      pending: { color: "warning", label: "Chờ duyệt", icon: <ClockCircleOutlined /> },
-      rejected: { color: "error", label: "Từ chối", icon: <CloseCircleOutlined /> },
+  useEffect(() => {
+    const fetchInstructors = async () => {
+      try {
+        const res = await config.get("/admin/users/instructors");
+        setInstructors(res.data.data.instructors);
+      } catch (error) {
+        console.error("Lỗi khi tải danh sách giảng viên:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const tag = statusMap[status] || { color: "default", label: status, icon: null };
-    return (
-      <Tag 
-        color={tag.color} 
-        icon={tag.icon}
-        className="px-2 py-1 rounded-full text-sm font-medium"
-      >
-        {tag.label}
-      </Tag>
-    );
+    fetchInstructors();
+  }, []);
+
+  const handleChangeStatus = async (id: string, status: string) => {
+    try {
+      await config.put(`/admin/users/instructors/${id}/approval`, {
+        status
+      });
+      message.success(`Đã cập nhật trạng thái giảng viên`);
+      setInstructors((prev) =>
+        prev.map((ins) =>
+          ins._id === id ? { ...ins, approval_status: status } : ins
+        )
+      );
+    } catch (err) {
+      console.error("Lỗi cập nhật trạng thái:", err);
+      message.error("Cập nhật trạng thái thất bại");
+    }
   };
 
-  const columns: ColumnsType<typeof fakeInstructors[0]> = [
+
+
+  const filteredData = instructors.filter((ins) => {
+    const fullname = ins.fullname || "";
+    return (
+      (statusFilter === "all" || ins.approval_status === statusFilter) &&
+      fullname.toLowerCase().includes(searchText.toLowerCase())
+    );
+  });
+
+  const stats = {
+    total: instructors.length,
+    approved: instructors.filter((ins) => ins.approval_status === "approved").length,
+    pending: instructors.filter((ins) => ins.approval_status === "pending").length,
+    rejected: instructors.filter((ins) => ins.approval_status === "rejected").length
+  };
+
+  const columns: ColumnsType<InstructorProfile> = [
     {
-      title: "#",
-      dataIndex: "id",
+      title: "STT",
+      key: "index",
       width: 60,
       align: "center",
+      render: (_text, _record, index) => index + 1
     },
     {
       title: "Giảng viên",
       dataIndex: "fullname",
       render: (_, record) => (
-        <Space direction="horizontal" size="middle" className="py-2">
-          <Avatar 
-            src={record.avatar} 
-            icon={<UserOutlined />} 
+        <Space direction="horizontal" size="middle">
+          <Avatar
+            src={record.avatar || undefined}
+            icon={<UserOutlined />}
             size={48}
-            className="border-2 border-gray-100 shadow-sm"
           />
           <div>
-            <div className="font-semibold text-base hover:text-blue-600 cursor-pointer">
-              {record.fullname}
-            </div>
-            <div className="text-sm text-gray-600 font-medium">{record.expertise}</div>
-            <div className="text-xs text-gray-500 mt-1 line-clamp-2">{record.bio}</div>
-            <Space className="mt-2" size="small">
-              <Button type="text" size="small" icon={<MailOutlined />} />
-              <Button type="text" size="small" icon={<PhoneOutlined />} />
-            </Space>
+            <div className="font-semibold text-base cursor-pointer hover:text-blue-600" onClick={() => navigate(`/admin/users/instructor/${record._id}`)}>{record.fullname}</div>
+            <div className="text-sm text-gray-600">{record.email}</div>
+            <div className="text-xs text-gray-500">{record.nickname}</div>
           </div>
         </Space>
-      ),
+      )
     },
     {
       title: "Đánh giá",
       dataIndex: "rating",
       align: "center",
-      render: (rating) => (
-        <div className="flex flex-col items-center">
-          <span className="font-semibold text-lg text-yellow-500">{rating.toFixed(1)}</span>
-          <div className="text-yellow-500">{"⭐".repeat(Math.floor(rating))}</div>
+      render: (rating: number) => (
+        <div>
+          <Rate disabled defaultValue={Math.round(rating)} allowHalf />
+          <div className="text-xs text-gray-500 mt-1">{rating?.toFixed(1) || "Chưa có"}</div>
         </div>
-      ),
+      )
     },
+
     {
       title: "Ngày tạo",
       dataIndex: "created_at",
@@ -143,151 +136,135 @@ const InstructorList = () => {
       render: (date) => (
         <div className="text-sm">
           <div className="font-medium">{new Date(date).toLocaleDateString()}</div>
-          <div className="text-gray-500 text-xs">
-            {new Date(date).toLocaleTimeString()}
-          </div>
+          <div className="text-gray-500 text-xs">{new Date(date).toLocaleTimeString()}</div>
         </div>
-      ),
+      )
     },
     {
       title: "Trạng thái",
       dataIndex: "status",
       align: "center",
-      render: getStatusTag,
+      render: (status) => {
+        const statusMap = {
+          active: { color: "green", label: "Hoạt động" },
+          inactive: { color: "red", label: "Không hoạt động" }
+        };
+        const tag = statusMap[status] || { color: "default", label: status };
+        return <Tag color={tag.color}>{tag.label}</Tag>;
+      }
     },
     {
-      title: "Thao tác",
-      key: "action",
+      title: "Xét duyệt",
+      dataIndex: "approval_status",
+      align: "center",
+      render: (status, record) => (
+        <Select
+          value={status}
+          style={{ width: 140 }}
+          onChange={(value) => handleChangeStatus(record._id, value)}
+          options={[
+            { value: "approved", label: "✅ Duyệt" },
+            { value: "pending", label: "⏳ Chờ duyệt" },
+            { value: "rejected", label: "❌ Từ chối" }
+          ]}
+        />
+      )
+    },
+    {
+      title: "Chi tiết",
+      key: "details",
       align: "center",
       render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="primary"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/admin/users/instructor/${record.id}`)}
-            className="flex items-center"
-          >
-            Chi tiết
-          </Button>
-        </Space>
-      ),
-    },
+        <Button
+          icon={<EyeOutlined />}
+          onClick={() => navigate(`/admin/users/instructor/${record._id}`)}
+        >
+          Xem chi tiết
+        </Button>
+      )
+    }
   ];
 
   return (
     <div className="p-6">
-      {/* Header Section */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Quản lý giảng viên</h2>
-          <p className="text-gray-500 mt-1">Quản lý và theo dõi thông tin giảng viên</p>
-        </div>
-        <Button type="primary" size="large" icon={<TeamOutlined />}>
-          Thêm giảng viên
-        </Button>
-      </div>
-
-      {/* Stats Cards */}
       <Row gutter={[16, 16]} className="mb-6">
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
+        <Col xs={24} sm={6}>
+          <Card>
             <Statistic
-              title="Tổng số giảng viên"
+              title="Tổng giảng viên"
               value={stats.total}
               prefix={<TeamOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: "#1890ff" }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="Tổng chờ duyệt"
+              value={stats.pending}
+              prefix={<ClockCircleOutlined />}
+              valueStyle={{ color: "#faad14" }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
             <Statistic
               title="Đã duyệt"
               value={stats.approved}
               prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: "#52c41a" }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
+        <Col xs={24} sm={6}>
+          <Card>
             <Statistic
-              title="Chờ duyệt"
-              value={stats.pending}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
-            <Statistic
-              title="Từ chối"
+              title="Đã từ chối"
               value={stats.rejected}
               prefix={<CloseCircleOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
+              valueStyle={{ color: "#ff4d4f" }}
             />
           </Card>
         </Col>
       </Row>
 
-      {/* Filters and Search */}
-      <Card className="mb-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+
+      <Row gutter={[16, 16]} className="mb-4" align="middle">
+        <Col xs={24} sm={16}>
           <Input
-            prefix={<SearchOutlined className="text-gray-400" />}
-            placeholder="Tìm theo tên, lĩnh vực hoặc tiểu sử..."
-            className="max-w-md"
+            prefix={<SearchOutlined />}
+            placeholder="Tìm theo tên giảng viên..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             allowClear
+            style={{ width: "100%" }}
           />
+        </Col>
+        <Col xs={24} sm={8}>
           <Select
             defaultValue="all"
-            style={{ width: 150 }}
+            style={{ width: "100%" }}
             onChange={(value) => setStatusFilter(value)}
             options={[
               { value: "all", label: "Tất cả" },
               { value: "approved", label: "Đã duyệt" },
               { value: "pending", label: "Chờ duyệt" },
-              { value: "rejected", label: "Từ chối" },
+              { value: "rejected", label: "Từ chối" }
             ]}
-            suffixIcon={<FilterOutlined />}
           />
-        </div>
-      </Card>
+        </Col>
+      </Row>
 
-      {/* Table */}
-      <Card className="shadow-sm">
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={filteredData}
-          pagination={{ pageSize: 8 }}
-          className="instructors-table"
-        />
-      </Card>
 
-      {/* Custom styles */}
-      <style>
-        {`
-          .instructors-table .ant-table-thead > tr > th {
-            background: #fafafa;
-            font-weight: 600;
-            color: #1f2937;
-          }
-          .instructors-table .ant-table-tbody > tr:hover > td {
-            background: #f5f7fa;
-          }
-           .instructors-table .ant-table-tbody > tr > td {
-            padding: 12px 8px;
-          }
-          .ant-tag {
-            margin: 0;
-          }
-        `}
-      </style>
+      <Table
+        rowKey="_id"
+        columns={columns}
+        dataSource={filteredData}
+        loading={loading}
+        pagination={{ pageSize: 8 }}
+      />
     </div>
   );
 };

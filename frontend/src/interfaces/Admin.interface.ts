@@ -185,6 +185,7 @@ export interface InstructorDetail {
 export interface InstructorApprovalProfile {
   _id: string;
   name: string;
+  avatar:string;
   email: string;
   approval_status: string;
   instructorInfo?: {
