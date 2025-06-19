@@ -169,12 +169,12 @@ const ModeratorLayout = () => {
         {
           key: "/moderator/comments",
           icon: <CommentOutlined />,
-          label: renderLabel("Duyệt bình luận & đánh giá"),
+          label: renderLabel("Danh sách blog & bình luận"),
         },
         {
           key: "/moderator/reports",
           icon: <WarningOutlined />,
-          label: renderLabel("Xử lý báo cáo"),
+          label: renderLabel("Đánh giá khóa học"),
         },
       ],
     },
