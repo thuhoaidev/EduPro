@@ -164,17 +164,17 @@ const ModeratorLayout = () => {
         {
           key: "/moderator/blogs",
           icon: <FileSearchOutlined />,
-          label: renderLabel("Duyệt bài viết blog"),
+          label: renderLabel("Duyệt Blog"),
         },
         {
           key: "/moderator/comments",
           icon: <CommentOutlined />,
-          label: renderLabel("Danh sách blog & bình luận"),
+          label: renderLabel("Danh sách Bình luận"),
         },
         {
           key: "/moderator/reports",
           icon: <WarningOutlined />,
-          label: renderLabel("Đánh giá khóa học"),
+          label: renderLabel("Báo cáo vi phạm"),
         },
       ],
     },
@@ -189,7 +189,7 @@ const ModeratorLayout = () => {
         {
           key: "/moderator/statistics",
           icon: <BarChartOutlined />,
-          label: renderLabel("Thống kê vi phạm"),
+          label: renderLabel("Thống kê báo cáo"),
         },
       ],
     },
@@ -237,7 +237,7 @@ const ModeratorLayout = () => {
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
-          onClick={({ key }) => nav(key)}
+          onClick={({ key }) => navigate(key)}
           items={menuItems}
           className={styles.customModeratorMenu}
           style={{

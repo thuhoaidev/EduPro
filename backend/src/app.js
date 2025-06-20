@@ -29,7 +29,12 @@ const app = express();
 
 // Kết nối MongoDB
 mongoose
-  .connect(process.env.MONGODB_URI)
+  .connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 30000, // 30s
+    socketTimeoutMS: 30000
+  })
   .then(() => console.log('Đã kết nối với MongoDB'))
   .catch((err) => {
     console.error('Lỗi kết nối MongoDB:', err);

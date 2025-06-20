@@ -2,7 +2,12 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 // Kết nối MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://edupro:edupro123@cluster0.qjwuxzj.mongodb.net/edupro')
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 30000, // 30s
+  socketTimeoutMS: 30000
+})
   .then(() => console.log('Connected to MongoDB for migration'))
   .catch(err => console.error('MongoDB connection error:', err));
 
@@ -70,4 +75,7 @@ async function updateUserSchema() {
 }
 
 // Chạy migration
-updateUserSchema(); 
+updateUserSchema();
+
+const CourseSchema = new mongoose.Schema({ ... });
+CourseSchema.index({ title: 'text', description: 'text' }); 

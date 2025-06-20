@@ -40,6 +40,10 @@ import CourseManagement from "./pages/admin/section-lesson/CourseManagement";
 import VideoQuizManager from "./pages/admin/section-lesson/VideoQuizManager";
 import MyCourseDashboard from "./pages/admin/section-lesson/MyCourseDashboard";
 
+import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
+import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
+import ReportStatistics from "./pages/Moderator/Statistics/ReportStatistics";
+
 const queryClient = new QueryClient();
 
 function App() {
@@ -91,7 +95,12 @@ function App() {
     {
       path: "/moderator",
       element: <ModeratorLayout />,
-      children: [],
+      children: [
+        { path: "blogs", element: <BlogModeration /> },
+        { path: "comments", element: <CommentsModerationPage /> },
+        { path: "reports", element: <ReportsPage /> },
+        { path: "statistics", element: <ReportStatistics /> },
+      ],
     },
     {
       path: "/instructor",

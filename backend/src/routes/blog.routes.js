@@ -28,4 +28,7 @@ router.get('/pending/all', blogController.getAllPendingBlogs);
 // Lấy tất cả blog status: approved
 router.get('/approved/all', blogController.getAllApprovedBlogs);
 
+// New route
+router.get('/comments/all', blogController.getAllComments);
+
 module.exports = router; 

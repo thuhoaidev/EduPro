@@ -5,6 +5,8 @@ require('dotenv').config();
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 30000, // 30s
+  socketTimeoutMS: 45000 // 45s
 });
 
 const db = mongoose.connection;
@@ -16,7 +18,7 @@ db.once('open', async () => {
   try {
     // Lấy danh sách roles
     const roles = await db.collection('roles').find({}).toArray();
-    
+
     console.log('\n=== DANH SÁCH ROLES ===');
     roles.forEach((role, index) => {
       console.log(`${index + 1}. ${role.name.toUpperCase()}:`);

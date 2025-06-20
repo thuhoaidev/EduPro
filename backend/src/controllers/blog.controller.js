@@ -202,7 +202,7 @@ module.exports = {
   // Lấy tất cả blog status: pending
   getAllPendingBlogs: async (req, res) => {
     try {
-      const blogs = await Blog.find({ status: 'pending' });
+      const blogs = await Blog.find({ status: 'pending' }).populate('author', 'fullname');
       res.json({ success: true, data: blogs });
     } catch (error) {
       res.status(500).json({ success: false, message: 'Lỗi lấy danh sách blog pending', error: error.message });
@@ -252,6 +252,19 @@ module.exports = {
       res.json({ success: true, message: `Blog đã được cập nhật trạng thái: ${status}`, data: blog });
     } catch (error) {
       res.status(500).json({ success: false, message: 'Lỗi duyệt blog', error: error.message });
+    }
+  },
+
+  // Lấy tất cả bình luận
+  getAllComments: async (req, res) => {
+    try {
+      const comments = await BlogComment.find({})
+        .populate('author', 'fullname nickname email')
+        .populate('blog', 'title')
+        .sort({ createdAt: -1 });
+      res.json({ success: true, data: comments });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Lỗi lấy danh sách tất cả bình luận', error: error.message });
     }
   },
 }; 

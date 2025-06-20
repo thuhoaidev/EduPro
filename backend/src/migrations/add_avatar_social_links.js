@@ -5,6 +5,8 @@ require('dotenv').config();
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 30000, // 30s
+  socketTimeoutMS: 45000 // 45s
 });
 
 const db = mongoose.connection;

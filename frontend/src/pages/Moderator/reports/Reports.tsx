@@ -9,9 +9,11 @@ import {
   message,
   Popconfirm,
   Modal,
+  Select,
 } from "antd";
-import { SearchOutlined, CheckOutlined, EyeOutlined } from "@ant-design/icons";
+import { SearchOutlined, CheckCircleOutlined, EyeOutlined } from "@ant-design/icons";
 import type { ReportItem, ReportStatus } from "../../../interfaces/Admin.interface";
+import type { ColumnsType } from 'antd/es/table';
 
 const mockReports: ReportItem[] = [
   {
@@ -45,10 +47,13 @@ const statusColor = {
   resolved: "green",
 };
 
+const Option = Select.Option;
+
 const ReportsPage: React.FC = () => {
   const [reports, setReports] = useState<ReportItem[]>(mockReports);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<string>("");
   const pageSize = 5;
 
   // State cho modal chi tiết
@@ -57,8 +62,9 @@ const ReportsPage: React.FC = () => {
 
   const filteredReports = reports.filter(
     (r) =>
-      r.title.toLowerCase().includes(search.toLowerCase()) ||
-      r.reporterName.toLowerCase().includes(search.toLowerCase())
+      (r.title.toLowerCase().includes(search.toLowerCase()) ||
+        r.reporterName.toLowerCase().includes(search.toLowerCase())) &&
+      (statusFilter ? r.status === statusFilter : true)
   );
 
   const paginatedReports = filteredReports.slice(
@@ -83,7 +89,7 @@ const ReportsPage: React.FC = () => {
     setSelectedReport(null);
   };
 
-  const columns = [
+  const columns: ColumnsType<ReportItem> = [
     {
       title: "Tiêu đề",
       dataIndex: "title",
@@ -98,8 +104,9 @@ const ReportsPage: React.FC = () => {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
+      align: 'center',
       render: (status: ReportStatus) => (
-        <Tag color={statusColor[status]}>{status.toUpperCase()}</Tag>
+        <Tag color={statusColor[status]} style={{ margin: 0 }}>{status.toUpperCase()}</Tag>
       ),
     },
     {
@@ -111,8 +118,9 @@ const ReportsPage: React.FC = () => {
     {
       title: "Thao tác",
       key: "actions",
+      align: 'center',
       render: (_: any, record: ReportItem) => (
-        <Space>
+        <Space size="small">
           <Button
             icon={<EyeOutlined />}
             size="small"
@@ -127,7 +135,7 @@ const ReportsPage: React.FC = () => {
               okText="Đồng ý"
               cancelText="Hủy"
             >
-              <Button type="primary" icon={<CheckOutlined />} size="small">
+              <Button type="primary" icon={<CheckCircleOutlined />} size="small">
                 Đã xử lý
               </Button>
             </Popconfirm>
@@ -139,21 +147,36 @@ const ReportsPage: React.FC = () => {
 
   return (
     <div>
-      <Input
-        placeholder="Tìm kiếm tiêu đề hoặc người báo cáo"
-        prefix={<SearchOutlined />}
-        allowClear
-        style={{ width: 300, marginBottom: 16 }}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPage(1);
-        }}
-      />
+      <div className="flex flex-col md:flex-row items-center gap-2 mb-4">
+        <Input
+          placeholder="Tìm kiếm tiêu đề..."
+          value={search}
+          onChange={e => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          style={{ width: 240 }}
+        />
+        <Select
+          placeholder="Lọc theo trạng thái"
+          allowClear
+          value={statusFilter || undefined}
+          onChange={val => {
+            setStatusFilter(val);
+            setPage(1);
+          }}
+          style={{ width: 180 }}
+        >
+          <Option value="pending">Chờ xử lý</Option>
+          <Option value="resolved">Đã xử lý</Option>
+        </Select>
+      </div>
       <Table
         rowKey="id"
         columns={columns}
         dataSource={paginatedReports}
         pagination={false}
+        className="users-table"
       />
       <div style={{ textAlign: "right", marginTop: 16 }}>
         <Pagination
@@ -195,6 +218,23 @@ const ReportsPage: React.FC = () => {
           <p>Không có dữ liệu để hiển thị</p>
         )}
       </Modal>
+
+      <style>{`
+        .users-table .ant-table-thead > tr > th {
+          background: #fafafa;
+          font-weight: 600;
+          color: #1f2937;
+        }
+        .users-table .ant-table-tbody > tr:hover > td {
+          background: #f5f7fa;
+        }
+        .users-table .ant-table-tbody > tr > td {
+          padding: 12px 8px;
+        }
+        .ant-tag {
+          margin: 0;
+        }
+      `}</style>
     </div>
   );
 };
