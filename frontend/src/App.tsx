@@ -4,7 +4,7 @@ import Homepage from "./pages/Homepage";
 import AdminLayout from "./pages/layout/AdminLayout";
 import ClientLayout from "./pages/layout/ClientLayout";
 import ProfileLayout from "./pages/layout/ProfileLayout";
-import ProfileEdit from "./pages/client/profile/ProfileEdit";
+import ProfileEdit from "./pages/client/Profile/ProfileEdit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CouponManagement from "./pages/admin/Vouchers/VouchersPage";
 import TransactionHistory from "./pages/admin/Transaction/TransactionHistory";
@@ -16,8 +16,8 @@ import ContentApprovalPage from "./pages/admin/content-approval/ContentApproval"
 import ReportsPage from "./pages/admin/reports/Reports";
 import { LoginPage } from "./pages/client/auth/login";
 import RegisterPage from "./pages/client/auth/register";
-import ForgotPassword from "./pages/client/auth/forgotPassword";
-import ResetPassword from "./pages/client/auth/resetPassword";
+import ForgotPassword from "./pages/client/auth/ForgotPassword";
+import ResetPassword from "./pages/client/auth/ResetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
 
@@ -27,7 +27,7 @@ import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfile
 import ModeratorLayout from "./pages/layout/ModeratorLayout";
 import InstructorLayout from "./pages/layout/InstructorLayout";
 import ChangePassword from "./pages/layout/ChangePassword";
-import Profile from "./pages/client/profile/Profile";
+import Profile from "./pages/client/Profile/Profile";
 import CategoryPage from "./pages/admin/categories/CategoryPage";
 import BlogWritePage from "./pages/client/blog/BlogWritePage";
 import MyBlogPosts from "./pages/client/blog/MyBlogPosts";
@@ -37,6 +37,7 @@ import VouchersPage from "./pages/client/VouchersPage";
 import CoursesPage from './pages/client/CoursesPage';
 import InstructorsPage from './pages/client/InstructorsPage';
 import BlogPage from './pages/client/BlogPage';
+import CartPage from './pages/client/CartPage';
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ function App() {
         { path: "courses", element: <CoursesPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
+        { path: "cart", element: <CartPage /> },
       ]
     },
     {

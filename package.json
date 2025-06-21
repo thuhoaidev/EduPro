@@ -16,6 +16,7 @@
     "react-intersection-observer": "^9.16.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.6.0",
+    "sonner": "^2.0.5",
     "tailwindcss": "^4.1.7",
     "xss-clean": "^0.1.4"
   }

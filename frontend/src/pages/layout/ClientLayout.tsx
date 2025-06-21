@@ -14,12 +14,13 @@ const ClientLayout = () => {
   const isVouchersPage = location.pathname === '/vouchers';
   const isInstructorsPage = location.pathname === '/instructors';
   const isBlogPage = location.pathname === '/blog';
+  const isCartPage = location.pathname === '/cart';
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <AppHeader />
       <Layout>
-        {!isProfilePage && !isCoursesPage && !isVouchersPage && !isInstructorsPage && !isBlogPage && <AppSidebar />}
+        {!isProfilePage && !isCoursesPage && !isVouchersPage && !isInstructorsPage && !isBlogPage && !isCartPage && <AppSidebar />}
         <Layout className="site-layout">
           <Content style={{ margin: '0', overflow: 'initial' }}>
             {/* Đây là nơi nội dung của các route con sẽ được render */}
