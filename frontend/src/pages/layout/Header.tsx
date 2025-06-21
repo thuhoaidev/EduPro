@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { config } from '../../api/axios';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Layout, Input, Space, Button, Avatar, Dropdown, Spin, message
 } from 'antd';
@@ -416,7 +416,12 @@ const AppHeader = () => {
         <Space size="middle" className="h-full flex items-center">
           <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]">Giảng viên</Button>
           <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]">Bài viết nổi bật</Button>
-          <Button type="text" icon={<ShoppingCartOutlined style={{ fontSize: '1.4em', color: '#1a73e8' }} />} />
+<Link to="/cart">
+      <Button 
+        type="text" 
+        icon={<ShoppingCartOutlined style={{ fontSize: '1.4em', color: '#1a73e8' }} />}
+      />
+    </Link>
           <Button type="text" icon={<BellOutlined style={{ fontSize: '1.4em', color: '#1a73e8' }} />} />
 
           {/* Avatar or Login */}

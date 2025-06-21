@@ -43,6 +43,7 @@ import MyCourseDashboard from "./pages/admin/section-lesson/MyCourseDashboard";
 import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
 import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
 import ReportStatistics from "./pages/Moderator/Statistics/ReportStatistics";
+import CartPage from "./pages/layout/Cart";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ function App() {
         { index: true, element: <Homepage /> },
         { path: "verify-email/:slug/:token", element: <VerifyEmail /> },
         { path: "instructor/earnings", element: <Earnings /> },
+        { path: "/cart", element: <CartPage /> },
       ],
     },
     {
@@ -110,6 +112,7 @@ function App() {
         { path: "lessons", element: <CourseManagement /> },
         { path: "courses/new", element: <CreateCourse /> },
         { path: "courses", element: <MyCourseDashboard /> },
+        { path: "courses/create", element: <CreateCourse /> },
       ],
     },
     { path: "/login", element: <LoginPage /> },

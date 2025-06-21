@@ -1,4 +1,5 @@
-import { Row, Col, Card, Typography, Button, Rate, Tag, Image, Space, Divider, Statistic, Tabs } from "antd"
+import { useState, useEffect } from 'react';
+import { Row, Col, Card, Typography, Button, Rate, Tag, Image, Space, Divider, Statistic, Tabs, Spin, message } from "antd";
 import {
   PlayCircleOutlined,
   BookOutlined,
@@ -7,153 +8,74 @@ import {
   ReadOutlined,
   TrophyOutlined,
   LikeOutlined,
-} from "@ant-design/icons"
-import javascriptBg from "../assets/images/course/javascript.png"
-import htmlCssBg from "../assets/images/course/htmlcsspro.png"
-import wslUbuntuBg from "../assets/images/course/nhapmonit.png"
-import nodeExpressBg from "../assets/images/course/nodejs.png"
-import basicItBg from "../assets/images/course/react.png"
-import "../styles/courseCard.css"
+} from "@ant-design/icons";
+import "../styles/courseCard.css";
+import { courseService, type Course } from '../services/apiService';
 
-const { Title, Text, Paragraph } = Typography
-const { TabPane } = Tabs
+const { Title, Text, Paragraph } = Typography;
+const { TabPane } = Tabs;
 
-export const courses = [
-  {
-    title: "JavaScript Pro",
-    subtitle: "Nâng cao",
-    author: "Dương Đức Phương",
-    rating: 5,
-    reviews: 1,
-    price: "Miễn phí",
-    Image: javascriptBg,
-    type: "Javascript",
-    duration: "15 giờ học",
-    lessons: 30,
-  },
-  {
-    title: "HTML/CSS Chuyên Sâu",
-    subtitle: "Cơ bản đến nâng cao",
-    author: "Dương Đức Phương",
-    rating: 0,
-    reviews: 0,
-    price: "10.000 VND",
-    oldPrice: "20.000 VND",
-    Image: htmlCssBg,
-    type: "HTML/CSS",
-    duration: "12 giờ học",
-    lessons: 25,
-  },
-  {
-    title: "HTML/CSS Cơ Bản",
-    subtitle: "Nhập môn",
-    author: "Dương Đức Phương",
-    rating: 0,
-    reviews: 0,
-    price: "Miễn phí",
-    Image: htmlCssBg,
-    type: "HTML/CSS",
-    duration: "8 giờ học",
-    lessons: 20,
-  },
-  {
-    title: "Nhập Môn IT",
-    subtitle: "WSL Ubuntu",
-    author: "Dương Đức Phương",
-    rating: 5,
-    reviews: 1,
-    price: "Miễn phí",
-    Image: wslUbuntuBg,
-    type: "DevOps",
-    duration: "10 giờ học",
-    lessons: 22,
-  },
-  {
-    title: "React Cơ Bản",
-    subtitle: "Frontend",
-    author: "Dương Đức Phương",
-    rating: 5,
-    reviews: 1,
-    price: "Miễn phí",
-    Image: javascriptBg,
-    type: "Javascript",
-    duration: "18 giờ học",
-    lessons: 35,
-  },
-  {
-    title: "Node.js & Express",
-    subtitle: "Xây dựng Backend",
-    author: "Dương Đức Phương",
-    rating: 0,
-    reviews: 0,
-    price: "438.999 VND",
-    oldPrice: "999.000 VND",
-    Image: nodeExpressBg,
-    type: "Backend",
-    duration: "20 giờ học",
-    lessons: 40,
-  },
-  {
-    title: "Kiến Thức Cơ Bản IT",
-    subtitle: "Cho người mới bắt đầu",
-    author: "Dương Đức Phương",
-    rating: 0,
-    reviews: 0,
-    price: "8.888 VND",
-    oldPrice: "9.999 VND",
-    Image: basicItBg,
-    type: "Basic IT",
-    duration: "6 giờ học",
-    lessons: 15,
-  },
-  {
-    title: "CSS Nâng Cao",
-    subtitle: "Kỹ thuật Styling",
-    author: "Dương Đức Phương",
-    rating: 0,
-    reviews: 0,
-    price: "2.000 VND",
-    Image: htmlCssBg,
-    type: "HTML/CSS",
-    duration: "10 giờ học",
-    lessons: 22,
-  },
-]
-
-// Filter courses by type
-const freeCourses = courses.filter((course) => course.price === "Miễn phí")
-const paidCourses = courses.filter((course) => course.price !== "Miễn phí")
-const popularCourses = [...courses].sort(() => Math.random() - 0.5).slice(0, 4)
-
-// Testimonials data
-const testimonials = [
-  {
-    name: "Nguyễn Văn A",
-    role: "Học viên khóa JavaScript Pro",
-    content:
-      "Khóa học rất chi tiết và dễ hiểu. Giảng viên nhiệt tình và luôn sẵn sàng giải đáp thắc mắc. Tôi đã học được rất nhiều kiến thức mới và áp dụng ngay vào công việc.",
-    rating: 5,
-  },
-  {
-    name: "Trần Thị B",
-    role: "Học viên khóa React Cơ Bản",
-    content:
-      "Tôi đã từng học nhiều khóa học online nhưng khóa học này thực sự khác biệt. Nội dung được trình bày rõ ràng, có nhiều bài tập thực hành giúp tôi nắm vững kiến thức.",
-    rating: 5,
-  },
-  {
-    name: "Lê Văn C",
-    role: "Học viên khóa Nhập Môn IT",
-    content:
-      "Là người mới bắt đầu, tôi cảm thấy rất may mắn khi tìm thấy khóa học này. Giảng viên đã giúp tôi xây dựng nền tảng kiến thức vững chắc để tiếp tục học các khóa nâng cao.",
-    rating: 5,
-  },
-]
+interface Testimonial {
+  name: string;
+  role: string;
+  content: string;
+  rating: number;
+}
 
 const Homepage = () => {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [loading, setLoading] = useState({
+    courses: true,
+    testimonials: true
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch courses
+        const coursesData = await courseService.getAllCourses();
+        setCourses(coursesData);
+        
+        // Fetch testimonials (using the blog comments endpoint)
+        const response = await fetch('http://localhost:5000/api/blogs/68547db672358427a53d9ece/comments');
+        const commentsData = await response.json();
+        
+        const mappedTestimonials = commentsData.data.map((comment: any) => ({
+          name: comment.user?.name || 'Ẩn danh',
+          role: `Học viên khóa ${comment.course?.title || 'EduPro'}`,
+          content: comment.content,
+          rating: comment.rating || 5
+        }));
+        
+        setTestimonials(mappedTestimonials);
+      } catch (err) {
+        message.error('Có lỗi xảy ra khi tải dữ liệu');
+        console.error('Fetch error:', err);
+      } finally {
+        setLoading({ courses: false, testimonials: false });
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Filter courses
+  const freeCourses = courses.filter((course) => course.price === "Miễn phí");
+  const paidCourses = courses.filter((course) => course.price !== "Miễn phí");
+  const popularCourses = [...courses].sort(() => Math.random() - 0.5).slice(0, 4);
+
+  if (loading.courses || loading.testimonials) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Spin size="large" tip="Đang tải dữ liệu..." />
+      </div>
+    );
+  }
+
   return (
     <div className="homepage-container">
-      {/* Hero Section - Enhanced with better styling */}
+      {/* Hero Section */}
       <div
         className="hero-section"
         style={{
@@ -235,7 +157,7 @@ const Homepage = () => {
         </Row>
       </div>
 
-      {/* Stats Section - New addition */}
+      {/* Stats Section */}
       <Row gutter={[24, 24]} style={{ marginBottom: "48px" }}>
         <Col xs={12} md={6}>
           <Card bordered={false} style={{ textAlign: "center", borderRadius: "12px", background: "#f5f7fa" }}>
@@ -283,7 +205,7 @@ const Homepage = () => {
         </Col>
       </Row>
 
-      {/* Courses Section with Tabs - Enhanced with tabs */}
+      {/* Courses Section with Tabs */}
       <div style={{ marginBottom: "48px" }}>
         <div style={{ marginBottom: "24px" }}>
           <Title level={2} style={{ fontSize: "32px", marginBottom: "8px" }}>
@@ -338,7 +260,7 @@ const Homepage = () => {
         </Tabs>
       </div>
 
-      {/* Testimonials Section - New addition */}
+      {/* Testimonials Section */}
       <div
         style={{
           marginBottom: "48px",
@@ -393,7 +315,7 @@ const Homepage = () => {
         </Row>
       </div>
 
-      {/* CTA Section - New addition */}
+      {/* CTA Section */}
       <div
         style={{
           background: "linear-gradient(135deg, #1a73e8 0%, #34a853 100%)",
@@ -415,7 +337,7 @@ const Homepage = () => {
             margin: "0 auto 32px",
           }}
         >
-           Tìm hiểu ngay hôm nay để truy cập vào kho tàng kiến thức và kỹ năng công nghệ mới nhất
+          Tìm hiểu ngay hôm nay để truy cập vào kho tàng kiến thức và kỹ năng công nghệ mới nhất
         </Paragraph>
         <Space size="middle">
           <Button
@@ -435,11 +357,11 @@ const Homepage = () => {
         </Space>
       </div>
     </div>
-  )
-}
+  );
+};
 
 // Enhanced Course Card Component
-const CourseCard = ({ course }) => {
+const CourseCard = ({ course }: { course: Course }) => {
   return (
     <Card
       className="course-card"
@@ -552,7 +474,7 @@ const CourseCard = ({ course }) => {
         </div>
       </div>
     </Card>
-  )
-}
+  );
+};
 
-export default Homepage
+export default Homepage;
