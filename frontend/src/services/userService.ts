@@ -20,38 +20,29 @@ export const getUserById = async (id: string): Promise<ApiResponse<ApiUser>> => 
 };
 
 // Create new user
-export const createUser = async (userData: {
-  email: string;
-  password: string;
-  fullname: string;
-  role_id: string;
-  status?: UserStatus;
-  phone?: string;
-  address?: string;
-  dob?: string | null;
-  gender?: string;
-  approval_status?: string;
-  nickname?: string;
-}): Promise<ApiResponse<ApiUser>> => {
-  const response = await config.post('/users', userData);
-  return response.data;
+export const createUser = async (userData: any): Promise<ApiResponse<ApiUser>> => {
+  if (userData instanceof FormData) {
+    const response = await config.post('/users', userData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  } else {
+    const response = await config.post('/users', userData);
+    return response.data;
+  }
 };
 
 // Update user
-export const updateUser = async (id: string, userData: {
-  name?: string;
-  role_id?: string;
-  status?: UserStatus;
-  email?: string;
-  phone?: string;
-  address?: string;
-  dob?: string | null;
-  gender?: string;
-  approval_status?: string;
-  email_verified?: boolean;
-}): Promise<ApiResponse<ApiUser>> => {
-  const response = await config.put(`/users/${id}`, userData);
-  return response.data;
+export const updateUser = async (id: string, userData: any): Promise<ApiResponse<ApiUser>> => {
+  if (userData instanceof FormData) {
+    const response = await config.put(`/users/${id}`, userData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  } else {
+    const response = await config.put(`/users/${id}`, userData);
+    return response.data;
+  }
 };
 
 // Delete user

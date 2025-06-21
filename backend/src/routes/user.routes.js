@@ -77,7 +77,7 @@ router.get('/:id', getUserById);
 router.post('/', uploadAvatar, processAvatarUpload, createUser);
 
 // Cập nhật thông tin người dùng theo ID
-router.put('/:id', updateUser);
+router.put('/:id', uploadAvatar, processAvatarUpload, updateUser);
 
 // Xóa người dùng theo ID
 router.delete('/:id', deleteUser);

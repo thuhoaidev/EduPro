@@ -18,6 +18,7 @@ import {
   Popconfirm,
   Spin,
   DatePicker,
+  Upload,
 } from "antd";
 import {
   SearchOutlined,
@@ -118,7 +119,9 @@ const UserPage = () => {
             id: user._id,
             fullname: user.fullname || user.name || 'Chưa có tên', // Sử dụng fullname từ backend, fallback về name
             email: user.email,
-            avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
+            avatar: user.avatar && user.avatar.trim() !== ''
+              ? user.avatar
+              : 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
             role: user.role_id,
             status: user.status,
             createdAt: user.created_at,
@@ -218,10 +221,9 @@ const UserPage = () => {
   };
 
   const handleEditUser = (user: User) => {
-    console.log('Editing user:', user); // Debug log
     setEditingUser(user);
     form.setFieldsValue({
-      fullname: user.fullname || user.name, // Thêm fallback cho name
+      fullname: user.fullname || user.name,
       email: user.email,
       role: typeof user.role === 'object' ? user.role.name : user.role,
       status: user.status,
@@ -229,9 +231,18 @@ const UserPage = () => {
       address: user.address || '',
       dob: user.dob ? dayjs(user.dob) : null,
       gender: user.gender || 'Khác',
-      approval_status: user.approval_status || 'approved'
+      approval_status: user.approval_status || 'approved',
+      avatar: user.avatar && user.avatar.trim() !== ''
+        ? [{
+            uid: '-1',
+            name: 'avatar.jpg',
+            status: 'done',
+            url: user.avatar,
+            thumbUrl: user.avatar,
+            originFileObj: undefined
+          }]
+        : []
     });
-    console.log('Form values after set:', form.getFieldsValue()); // Debug log
     setIsModalVisible(true);
   };
 
@@ -255,82 +266,65 @@ const UserPage = () => {
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
-      console.log('Form values before submit:', values); // Debug log
-      
-      if (editingUser) {
-        // Update existing user
-        console.log('Updating user with ID:', editingUser.id);
-        
-        // Tìm role_id dựa trên role name
+      const formData = new FormData();
+
+      // Xử lý các trường dữ liệu và append vào formData
+      Object.keys(values).forEach(key => {
+        // Bỏ qua 'avatar' và 'role' để xử lý riêng
+        if (key === 'avatar' || key === 'role') return;
+
+        const value = values[key];
+        if (value !== undefined && value !== null) {
+          if (key === 'dob' && dayjs.isDayjs(value)) {
+            formData.append('dob', value.toISOString());
+          } else {
+            formData.append(key, value);
+          }
+        }
+      });
+
+      // Xử lý role: chuyển đổi role name thành role_id
+      if (values.role) {
         const selectedRole = roles.find(r => r.name === values.role);
-        if (!selectedRole) {
-          message.error('Không tìm thấy vai trò');
-          return;
-        }
-
-        const updateData = {
-          fullname: values.fullname,
-          role_id: selectedRole._id,
-          status: values.status,
-          phone: values.phone,
-          address: values.address,
-          dob: values.dob ? values.dob.toISOString() : null,
-          gender: values.gender,
-          approval_status: values.approval_status,
-          email: values.email
-        };
-
-        console.log('Update data being sent:', updateData); // Debug log
-        const response = await updateUser(editingUser.id.toString(), updateData);
-        if (response.success) {
-          message.success("Cập nhật người dùng thành công");
-          setIsModalVisible(false);
-          fetchUsers(pagination.current);
+        if (selectedRole) {
+          formData.append('role_id', selectedRole._id);
         } else {
-          message.error(response.message || "Lỗi khi cập nhật người dùng");
-        }
-      } else {
-        // Add new user
-        console.log('Thêm mới người dùng');
-        
-        // Tìm role_id dựa trên role name
-        const selectedRole = roles.find(r => r.name === values.role);
-        if (!selectedRole) {
-          message.error('Không tìm thấy vai trò');
+          message.error('Vai trò đã chọn không hợp lệ');
           return;
-        }
-
-        const userData = {
-          email: values.email,
-          password: values.password,
-          fullname: values.fullname,
-          role_id: selectedRole._id,
-          status: values.status,
-          phone: values.phone,
-          address: values.address,
-          dob: values.dob ? values.dob.toISOString() : null,
-          gender: values.gender,
-          approval_status: values.approval_status,
-          nickname: values.fullname.toLowerCase().replace(/[^a-z0-9]/g, '-')
-        };
-
-        console.log('Create data being sent:', userData); // Debug log
-        const response = await createUser(userData);
-        if (response.success) {
-          message.success("Thêm người dùng thành công");
-          setIsModalVisible(false);
-          fetchUsers(pagination.current);
-        } else {
-          message.error(response.message || "Lỗi khi thêm người dùng");
         }
       }
+
+      // Xử lý avatar: chỉ gửi file nếu có file mới được chọn
+      const avatarFileObj = values.avatar && values.avatar.find((f: any) => f.originFileObj);
+      if (avatarFileObj && avatarFileObj.originFileObj) {
+        formData.append('avatar', avatarFileObj.originFileObj);
+      }
+
+      // Tạo nickname và slug khi thêm người dùng mới
+      if (!editingUser && values.fullname) {
+        const nickname = values.fullname.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        formData.append('nickname', nickname);
+        formData.append('slug', nickname);
+      }
+
+      let response;
+      if (editingUser && editingUser.id) {
+        response = await updateUser(editingUser.id.toString(), formData);
+      } else {
+        response = await createUser(formData);
+      }
+
+      if (response.success) {
+        message.success(editingUser ? "Cập nhật người dùng thành công" : "Thêm người dùng thành công");
+        setIsModalVisible(false);
+        form.resetFields();
+        fetchUsers(pagination.current);
+      } else {
+        message.error(response.message || (editingUser ? "Lỗi khi cập nhật người dùng" : "Lỗi khi thêm người dùng"));
+      }
     } catch (error) {
-      console.error('Error details:', {
-        error: error,
-        formValues: form.getFieldsValue(),
-        editingUser: editingUser
-      });
-      message.error(editingUser ? "Lỗi khi cập nhật người dùng" : "Lỗi khi thêm người dùng");
+      console.error('Lỗi khi submit form:', error);
+      message.error("Đã xảy ra lỗi. Vui lòng thử lại.");
     }
   };
 
@@ -721,6 +715,54 @@ const UserPage = () => {
               <Select.Option value="Nữ">Nữ</Select.Option>
               <Select.Option value="Khác">Khác</Select.Option>
             </Select>
+          </Form.Item>
+          <Form.Item
+            name="avatar"
+            label="Ảnh đại diện"
+            valuePropName="fileList"
+            getValueFromEvent={e => Array.isArray(e) ? e : e && e.fileList}
+          >
+            <Upload
+              name="avatar"
+              listType="picture-card"
+              showUploadList={false}
+              beforeUpload={() => false}
+              accept="image/*"
+              onChange={info => {
+                if (info.file.status === 'removed') {
+                  form.setFieldsValue({ avatar: undefined });
+                } else if (info.file.originFileObj) {
+                  const reader = new FileReader();
+                  reader.onload = e => {
+                    form.setFieldsValue({
+                      avatar: [{
+                        uid: info.file.uid,
+                        name: info.file.name,
+                        status: 'done',
+                        url: e.target?.result,
+                        thumbUrl: e.target?.result,
+                        originFileObj: info.file.originFileObj
+                      }]
+                    });
+                  };
+                  reader.readAsDataURL(info.file.originFileObj);
+                }
+              }}
+            >
+              {form.getFieldValue('avatar') && form.getFieldValue('avatar').length > 0 ? (
+                <img
+                  src={form.getFieldValue('avatar')[0].thumbUrl || form.getFieldValue('avatar')[0].url}
+                  alt="avatar"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <img
+                  src={'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
+                  alt="avatar-default"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              )}
+            </Upload>
           </Form.Item>
         </Form>
       </Modal>

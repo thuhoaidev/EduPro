@@ -315,7 +315,6 @@ exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
-    console.log('Update request body:', updateData); // Debug log
 
     // Kiểm tra user tồn tại
     const existingUser = await User.findById(id);
@@ -348,24 +347,12 @@ exports.updateUser = async (req, res) => {
       }
     }
 
-    // Chuẩn bị dữ liệu cập nhật
-    const dataToUpdate = {
-      fullname: updateData.fullname || existingUser.fullname,
-      email: updateData.email || existingUser.email,
-      role_id: updateData.role_id || existingUser.role_id,
-      status: updateData.status || existingUser.status,
-      phone: updateData.phone || existingUser.phone,
-      address: updateData.address || existingUser.address,
-      dob: updateData.dob || existingUser.dob,
-      gender: updateData.gender || existingUser.gender,
-      approval_status: updateData.approval_status || existingUser.approval_status,
-      nickname: updateData.nickname || existingUser.nickname,
-      bio: updateData.bio || existingUser.bio,
-      social_links: updateData.social_links || existingUser.social_links,
-      avatar: updateData.avatar || existingUser.avatar,
-    };
+    const dataToUpdate = { ...updateData };
 
-    console.log('Data to update:', dataToUpdate); // Debug log
+    // Xử lý avatar nếu có file mới được upload
+    if (req.uploadedAvatar) {
+      dataToUpdate.avatar = req.uploadedAvatar.url;
+    }
 
     // Cập nhật user
     const updatedUser = await User.findByIdAndUpdate(
@@ -373,8 +360,6 @@ exports.updateUser = async (req, res) => {
       { $set: dataToUpdate },
       { new: true, runValidators: true },
     ).populate('role_id');
-
-    console.log('Updated user:', updatedUser); // Debug log
 
     if (!updatedUser) {
       return res.status(404).json({
@@ -389,7 +374,7 @@ exports.updateUser = async (req, res) => {
       data: updatedUser,
     });
   } catch (error) {
-    console.error('Update user error:', error); // Debug log
+    console.error('Update user error:', error);
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
@@ -761,9 +746,9 @@ exports.getPendingInstructorDetail = async (req, res) => {
 
 // Nộp hồ sơ giảng viên (từ role sinh viên)
 exports.submitInstructorProfile = async (req, res) => {
-  try { 
+  try {
     const userId = req.user._id;
-    
+
     // Kiểm tra user hiện tại
     const user = await User.findById(userId).populate('role_id');
     if (!user) {
@@ -817,14 +802,14 @@ exports.submitInstructorProfile = async (req, res) => {
 
     // Xử lý file upload
     const uploadedFiles = req.files || {};
-    
+
     // Xử lý file bằng cấp
     const processedCertificates = [];
     if (uploadedFiles.certificate_files && certificates) {
       for (let i = 0; i < certificates.length; i++) {
         const certificate = certificates[i];
         const certificateFile = uploadedFiles.certificate_files[i];
-        
+
         if (!certificateFile) {
           return res.status(400).json({
             success: false,
@@ -834,7 +819,7 @@ exports.submitInstructorProfile = async (req, res) => {
 
         // Upload file lên Cloudinary
         const cloudinaryResult = await uploadToCloudinary(certificateFile.path, 'instructor-certificates');
-        
+
         processedCertificates.push({
           name: certificate.name,
           major: certificate.major,
@@ -865,7 +850,7 @@ exports.submitInstructorProfile = async (req, res) => {
       for (let i = 0; i < other_documents.length; i++) {
         const doc = other_documents[i];
         const docFile = uploadedFiles.other_documents[i];
-        
+
         if (docFile) {
           const docResult = await uploadToCloudinary(docFile.path, 'instructor-documents');
           processedOtherDocuments.push({
@@ -929,7 +914,7 @@ exports.submitInstructorProfile = async (req, res) => {
 exports.getMyInstructorProfile = async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     const user = await User.findById(userId).populate('role_id');
     if (!user) {
       return res.status(404).json({
@@ -960,7 +945,7 @@ exports.getMyInstructorProfile = async (req, res) => {
 exports.updateInstructorProfile = async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     const user = await User.findById(userId).populate('role_id');
     if (!user) {
       return res.status(404).json({

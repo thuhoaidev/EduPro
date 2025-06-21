@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Card, Avatar, Tag, Button, Descriptions, Spin, Divider, message } from "antd";
+import { Card, Avatar, Tag, Button, Descriptions, Spin, Divider, message, Form, Upload } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import {
   type User,
@@ -58,6 +58,7 @@ const UserDetail = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [form] = Form.useForm();
 
   useEffect(() => {
     const fetchUserDetail = async () => {
@@ -173,7 +174,71 @@ const UserDetail = () => {
 
       <Card bordered className="shadow-lg rounded-xl">
         <div className="flex items-center gap-6 mb-6">
-          <Avatar size={100} src={user.avatar} />
+          <Form form={form} layout="vertical">
+            <Form.Item
+              name="avatar"
+              label="Ảnh đại diện"
+              valuePropName="fileList"
+              getValueFromEvent={e => Array.isArray(e) ? e : e && e.fileList}
+            >
+              <Upload
+                name="avatar"
+                listType="picture-card"
+                showUploadList={false}
+                beforeUpload={() => false}
+                accept="image/*"
+                onChange={info => {
+                  if (info.file.status === 'removed') {
+                    form.setFieldsValue({ avatar: undefined });
+                  } else if (info.file.originFileObj) {
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                      form.setFieldsValue({
+                        avatar: [{
+                          uid: info.file.uid,
+                          name: info.file.name,
+                          status: 'done',
+                          url: e.target?.result,
+                          thumbUrl: e.target?.result,
+                          originFileObj: info.file.originFileObj
+                        }]
+                      });
+                    };
+                    reader.readAsDataURL(info.file.originFileObj);
+                  }
+                }}
+              >
+                {form.getFieldValue('avatar') && form.getFieldValue('avatar').length > 0 ? (
+                  <img
+                    src={form.getFieldValue('avatar')[0].thumbUrl || form.getFieldValue('avatar')[0].url}
+                    alt="avatar"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <img
+                    src={'https://cdn-icons-png.flaticon.com/512/149/149071.png'}
+                    alt="avatar-default"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                )}
+              </Upload>
+            </Form.Item>
+            <Button type="primary" onClick={async () => {
+              try {
+                const values = await form.validateFields();
+                const formData = new FormData();
+                if (values.avatar && values.avatar[0] && values.avatar[0].originFileObj) {
+                  formData.append('avatar', values.avatar[0].originFileObj);
+                  await updateUser(user.id, formData); // Đảm bảo import updateUser từ service
+                  message.success('Cập nhật avatar thành công!');
+                } else {
+                  message.warning('Bạn chưa chọn ảnh mới!');
+                }
+              } catch (err) {
+                message.error('Lỗi khi cập nhật avatar');
+              }
+            }}>Cập nhật avatar</Button>
+          </Form>
           <div>
             <h2 className="text-2xl font-semibold">{user.fullname}</h2>
             <p className="text-gray-500">{user.email}</p>
