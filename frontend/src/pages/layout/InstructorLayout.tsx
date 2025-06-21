@@ -70,41 +70,54 @@ const InstructorLayout = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const token = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
+  const fetchUser = async () => {
+    const token = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
 
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-        setLoading(false);
-        return;
-      }
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      setLoading(false);
+      return;
+    }
 
-      if (!token) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
+    if (!token) {
+      // ⚠️ Chế độ bypass login
+      const fakeUser: User = {
+        fullname: "Giảng Viên Test",
+        email: "test-instructor@pro.edu.vn",
+        role: {
+          name: "instructor",
+          description: "Test instructor role",
+          permissions: [],
+        },
+        approval_status: "approved",
+      };
+      setUser(fakeUser);
+      localStorage.setItem('user', JSON.stringify(fakeUser));
+      setLoading(false);
+      return;
+    }
 
-      try {
-        const response = await config.get('/auth/me', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setUser(response.data);
-        localStorage.setItem('user', JSON.stringify(response.data));
-      } catch (error) {
-        console.error('Lỗi lấy thông tin user:', error);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
+    try {
+      const response = await config.get('/auth/me', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setUser(response.data);
+      localStorage.setItem('user', JSON.stringify(response.data));
+    } catch (error) {
+      console.error('Lỗi lấy thông tin user:', error);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchUser();
-  }, [navigate]);
+  fetchUser();
+}, [navigate]);
+
 
   if (loading) {
     return <div>Loading...</div>;

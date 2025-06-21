@@ -415,7 +415,13 @@ const AppHeader = () => {
         {/* Right */}
         <Space size="middle" className="h-full flex items-center">
           <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]">Giảng viên</Button>
-          <Button type="link" className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]">Bài viết nổi bật</Button>
+          <Button 
+                type="link" 
+                onClick={() => navigate('/featured-posts')}
+                className="text-gray-700 font-semibold hidden lg:block hover:text-[#1a73e8]"
+              >
+                Bài viết nổi bật
+           </Button>
           <Button type="text" icon={<ShoppingCartOutlined style={{ fontSize: '1.4em', color: '#1a73e8' }} />} />
           <Button type="text" icon={<BellOutlined style={{ fontSize: '1.4em', color: '#1a73e8' }} />} />
 
