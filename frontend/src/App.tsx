@@ -34,6 +34,10 @@ import InstructorLayout from "./pages/layout/InstructorLayout";
 import ChangePassword from "./pages/layout/ChangePassword";
 import Profile from "./pages/client/profile/Profile";
 import CategoryPage from "./pages/admin/categories/CategoryPage";
+import BlogWritePage from "./pages/client/blog/BlogWritePage";
+import MyBlogPosts from "./pages/client/blog/MyBlogPosts";
+import SavedBlogPosts from "./pages/client/blog/SavedBlogPosts";
+import FeaturedPostsPage from "./pages/client/blog/FeaturedPostsPage";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +50,10 @@ function App() {
         { index: true, element: <Homepage /> },
         { path: 'verify-email/:slug/:token', element: <VerifyEmail /> },
         { path: 'instructor/earnings', element: <Earnings /> },
+        { path: "blog/write", element: <BlogWritePage /> },//viết blog
+        { path: "blog/mine", element: <MyBlogPosts  /> },
+        { path: "blog/saved", element: <SavedBlogPosts  /> },
+        { path: "/featured-posts", element: <FeaturedPostsPage   /> },
       ]
     },
     {
