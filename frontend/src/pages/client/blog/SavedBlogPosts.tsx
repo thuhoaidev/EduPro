@@ -619,7 +619,7 @@ const SavedBlogPosts = () => {
 
   // Filtering and sorting
   const filteredAndSortedPosts = () => {
-    let filtered = savedPosts.filter(item => {
+    const filtered = savedPosts.filter(item => {
       const matchesSearch = item.post.title.toLowerCase().includes(searchText.toLowerCase()) ||
                            item.post.excerpt.toLowerCase().includes(searchText.toLowerCase()) ||
                            item.post.author.fullname.toLowerCase().includes(searchText.toLowerCase()) ||

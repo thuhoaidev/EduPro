@@ -311,7 +311,7 @@ const BlogWritePage = () => {
     if (!content) return <div className="text-gray-400 text-center py-8">Chưa có nội dung để xem trước</div>;
     
     // Simple markdown-like rendering
-    let htmlContent = content
+    const htmlContent = content
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>')

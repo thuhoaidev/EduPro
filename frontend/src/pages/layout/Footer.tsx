@@ -1,109 +1,153 @@
 import React from 'react';
-import { FaFacebook, FaTwitter, FaInstagram, FaLinkedin, FaYoutube } from 'react-icons/fa';
+import { NavLink } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { FaFacebookF, FaTwitter, FaLinkedinIn, FaYoutube, FaGithub } from 'react-icons/fa';
+
+const FooterLink = ({ to, children }: { to: string, children: React.ReactNode }) => (
+  <motion.li
+    whileHover={{ x: 5 }}
+    transition={{ duration: 0.2 }}
+  >
+    <NavLink to={to} className="text-gray-600 hover:text-[#1677ff] transition-colors duration-300">
+      {children}
+    </NavLink>
+  </motion.li>
+);
+
+const SocialLink = ({ href, icon }: { href: string, icon: React.ReactNode }) => (
+  <motion.a 
+    href={href} 
+    target="_blank" 
+    rel="noopener noreferrer" 
+    className="text-gray-500 hover:text-[#1677ff] transition-colors duration-300"
+    whileHover={{ 
+      scale: 1.2,
+      rotate: 5,
+      transition: { duration: 0.2 }
+    }}
+    whileTap={{ scale: 0.9 }}
+  >
+    {icon}
+  </motion.a>
+);
 
 const AppFooter = () => {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.6,
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const columnVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5 }
+    }
+  };
+
   return (
-    <footer className="bg-gradient-to-b from-[#1a1a1a] to-[#151515] text-gray-400 py-16 px-6 w-full">
-      {/* Newsletter Section */}
-      <div className="max-w-7xl mx-auto mb-12">
-        <div className="bg-[#2a2a2a] rounded-lg p-6 mb-8">
-          <div className="flex flex-col md:flex-row items-center justify-between">
-            <div className="text-center md:text-left mb-4 md:mb-0">
-              <h3 className="text-white text-2xl font-bold mb-2">Đăng ký nhận bản tin</h3>
-              <p className="text-gray-400">Nhận thông tin mới nhất về khóa học và ưu đãi đặc biệt</p>
-            </div>
-            <div className="w-full md:w-1/2">
-              <form className="flex flex-col md:flex-row gap-2">
-                <input
-                  type="email"
-                  placeholder="Nhập email của bạn"
-                  className="flex-1 px-4 py-2 rounded-lg bg-[#3a3a3a] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Đăng ký
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
+    <motion.footer 
+      className="bg-white border-t border-gray-200"
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.3 }}
+      variants={containerVariants}
+    >
+      <div className="max-w-7xl mx-auto py-16 px-6 lg:px-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+          
+          {/* Column 1: About */}
+          <motion.div 
+            className="col-span-2 lg:col-span-1"
+            variants={columnVariants}
+          >
+            <motion.h3 
+              className="text-2xl font-bold text-gray-800 mb-4"
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.2 }}
+            >
+              EduPro
+            </motion.h3>
+            <p className="text-gray-500 text-sm max-w-xs">
+              Nền tảng học tập trực tuyến, trang bị cho bạn những kỹ năng cho tương lai.
+            </p>
+          </motion.div>
 
-      {/* Main Footer Content */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-        {/* Column 1: About */}
-        <div className="space-y-6">
-          <div className="flex items-center mb-4">
-            <span className="text-2xl font-bold bg-gradient-to-r from-[#1a73e8] to-[#34a853] bg-clip-text text-transparent mr-4">EduPro</span>
-            <p className="text-sm text-gray-400">© 2024 EduPro, Inc.</p>
-          </div>
-          <p className="text-gray-400">
-            EduPro là nền tảng học trực tuyến hàng đầu, cung cấp các khóa học chất lượng cao từ các chuyên gia hàng đầu.
+          {/* Column 2: Khóa học */}
+          <motion.div variants={columnVariants}>
+            <h4 className="text-sm font-semibold text-gray-900 tracking-wider uppercase mb-4">Khóa học</h4>
+            <ul className="space-y-3">
+              <FooterLink to="/courses">Tất cả khóa học</FooterLink>
+              <FooterLink to="/courses/web-development">Phát triển Web</FooterLink>
+              <FooterLink to="/courses/mobile-development">Phát triển Mobile</FooterLink>
+              <FooterLink to="/courses/data-science">Khoa học dữ liệu</FooterLink>
+            </ul>
+          </motion.div>
+
+          {/* Column 3: Về EduPro */}
+          <motion.div variants={columnVariants}>
+            <h4 className="text-sm font-semibold text-gray-900 tracking-wider uppercase mb-4">Về EduPro</h4>
+            <ul className="space-y-3">
+              <FooterLink to="/about">Về chúng tôi</FooterLink>
+              <FooterLink to="/blog">Blog</FooterLink>
+              <FooterLink to="/instructors">Giảng viên</FooterLink>
+              <FooterLink to="/contact">Liên hệ</FooterLink>
+            </ul>
+          </motion.div>
+
+          {/* Column 4: Hỗ trợ */}
+          <motion.div variants={columnVariants}>
+            <h4 className="text-sm font-semibold text-gray-900 tracking-wider uppercase mb-4">Hỗ trợ</h4>
+            <ul className="space-y-3">
+              <FooterLink to="/help-center">Trung tâm hỗ trợ</FooterLink>
+              <FooterLink to="/faq">Câu hỏi thường gặp</FooterLink>
+              <FooterLink to="/community">Cộng đồng</FooterLink>
+            </ul>
+          </motion.div>
+
+          {/* Column 5: Pháp lý */}
+          <motion.div variants={columnVariants}>
+            <h4 className="text-sm font-semibold text-gray-900 tracking-wider uppercase mb-4">Pháp lý</h4>
+            <ul className="space-y-3">
+              <FooterLink to="/terms">Điều khoản dịch vụ</FooterLink>
+              <FooterLink to="/privacy">Chính sách bảo mật</FooterLink>
+            </ul>
+          </motion.div>
+        </div>
+
+        <motion.div 
+          className="mt-12 border-t border-gray-200 pt-8 flex flex-col sm:flex-row items-center justify-between"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <p className="text-sm text-gray-500 mb-4 sm:mb-0">
+            © {new Date().getFullYear()} EduPro, Inc. All rights reserved.
           </p>
-          <div className="flex space-x-4">
-            <a href="#" className="text-gray-400 hover:text-white transition-colors">
-              <FaFacebook className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white transition-colors">
-              <FaTwitter className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white transition-colors">
-              <FaInstagram className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white transition-colors">
-              <FaLinkedin className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white transition-colors">
-              <FaYoutube className="w-5 h-5" />
-            </a>
-          </div>
-        </div>
-
-        {/* Column 2: Khám phá */}
-        <div>
-          <h4 className="text-white text-lg font-bold mb-6">Khám phá</h4>
-          <ul className="space-y-3 text-sm">
-            <li><a href="#" className="hover:text-white transition-colors">Tải ứng dụng</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Trở thành giảng viên</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Gói thành viên</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Liên kết</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Trợ giúp</a></li>
-          </ul>
-        </div>
-
-        {/* Column 3: Doanh nghiệp */}
-        <div>
-          <h4 className="text-white text-lg font-bold mb-6">EduPro Business</h4>
-          <ul className="space-y-3 text-sm">
-            <li><a href="#" className="hover:text-white transition-colors">Đào tạo nhân viên</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Giải pháp doanh nghiệp</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Đối tác chiến lược</a></li>
-          </ul>
-        </div>
-
-        {/* Column 4: Pháp lý */}
-        <div>
-          <h4 className="text-white text-lg font-bold mb-6">Pháp lý</h4>
-          <ul className="space-y-3 text-sm">
-            <li><a href="#" className="hover:text-white transition-colors">Điều khoản sử dụng</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Chính sách bảo mật</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Sơ đồ trang web</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Khả năng truy cập</a></li>
-          </ul>
-        </div>
+          <motion.div 
+            className="flex space-x-6"
+            initial={{ opacity: 0, scale: 0.8 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            <SocialLink href="https://twitter.com" icon={<FaTwitter size={20} />} />
+            <SocialLink href="https://facebook.com" icon={<FaFacebookF size={20} />} />
+            <SocialLink href="https://linkedin.com" icon={<FaLinkedinIn size={20} />} />
+            <SocialLink href="https://youtube.com" icon={<FaYoutube size={20} />} />
+            <SocialLink href="https://github.com" icon={<FaGithub size={20} />} />
+          </motion.div>
+        </motion.div>
       </div>
-
-      {/* Bottom Section */}
-      <div className="max-w-7xl mx-auto border-t border-gray-800 pt-8 flex flex-col md:flex-row items-center justify-between text-sm">
-        <p className="text-gray-400 mb-4 md:mb-0">© 2024 EduPro, Inc. All rights reserved.</p>
-        <div className="flex items-center space-x-6">
-          <a href="#" className="text-gray-400 hover:text-white transition-colors">Chính sách cookie</a>
-          <a href="#" className="text-gray-400 hover:text-white transition-colors">Tiếng Việt</a>
-        </div>
-      </div>
-    </footer>
+    </motion.footer>
   );
 };
 

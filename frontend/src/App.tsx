@@ -11,13 +11,9 @@ import TransactionHistory from "./pages/admin/Transaction/TransactionHistory";
 
 import UserPage from "./pages/admin/Users/UserPage";
 import InstructorList from "./pages/admin/Instructors/InstructorList";
-import InstructorDetail from "./pages/admin/Instructors/InstructorDetail";
 import UserDetail from "./pages/admin/Users/UserDetail";
 import ContentApprovalPage from "./pages/admin/content-approval/ContentApproval";
 import ReportsPage from "./pages/admin/reports/Reports";
-import VouchersPage from "./pages/admin/Vouchers/VouchersPage";
-import Notifications from "./pages/admin/Notifications/Notifications";
-import AdminStatistics from "./pages/admin/Statistics/AdminStatistics";
 import { LoginPage } from "./pages/client/auth/login";
 import RegisterPage from "./pages/client/auth/register";
 import ForgotPassword from "./pages/client/auth/forgotPassword";
@@ -27,7 +23,6 @@ import Earnings from "./pages/client/earnings/Earnings";
 
 import InstructorRegistrationPage from "./pages/client/auth/instructorRegistrationPage";
 import CourseManagement from "./pages/admin/section-lesson/CourseManagement";
-import InstructorPendingListPage from "./pages/admin/Instructors/InstructorPendingList";
 import InstructorProfileDetail from "./pages/admin/Instructors/InstructorProfileDetail";
 import ModeratorLayout from "./pages/layout/ModeratorLayout";
 import InstructorLayout from "./pages/layout/InstructorLayout";
@@ -38,6 +33,10 @@ import BlogWritePage from "./pages/client/blog/BlogWritePage";
 import MyBlogPosts from "./pages/client/blog/MyBlogPosts";
 import SavedBlogPosts from "./pages/client/blog/SavedBlogPosts";
 import FeaturedPostsPage from "./pages/client/blog/FeaturedPostsPage";
+import VouchersPage from "./pages/client/VouchersPage";
+import CoursesPage from './pages/client/CoursesPage';
+import InstructorsPage from './pages/client/InstructorsPage';
+import BlogPage from './pages/client/BlogPage';
 
 const queryClient = new QueryClient();
 
@@ -54,6 +53,10 @@ function App() {
         { path: "blog/mine", element: <MyBlogPosts  /> },
         { path: "blog/saved", element: <SavedBlogPosts  /> },
         { path: "/featured-posts", element: <FeaturedPostsPage   /> },
+        { path: "vouchers", element: <VouchersPage /> },
+        { path: "courses", element: <CoursesPage /> },
+        { path: "instructors", element: <InstructorsPage /> },
+        { path: "blog", element: <BlogPage /> },
       ]
     },
     {
@@ -73,16 +76,11 @@ function App() {
         { path: "users/:id", element: <UserDetail /> },
         { path: "categories", element: <CategoryPage /> },
         { path: "instructors", element: <InstructorList /> },
-        // { path: "instructor-approval", element: <InstructorPendingListPage /> },
-        // { path: "instructor-profile/:id", element: <InstructorProfileDetail /> },
         { path: "sectionLesson/CourseManagement", element: <CourseManagement /> },
         { path: "users/instructors/pending/:id", element: <InstructorProfileDetail /> },
         { path: "content-approval", element: <ContentApprovalPage /> },
         { path: "reports", element: <ReportsPage /> },
-        { path: "system/vouchers", element: <VouchersPage /> },
-        { path: "system/notifications", element: <Notifications /> },
-        { path: "statistics", element: <AdminStatistics /> },
-        { path: "coupons", element: <CouponManagement /> },
+        { path: "system/vouchers", element: <CouponManagement /> },
         { path: "history", element: <TransactionHistory /> },
       ],
     },

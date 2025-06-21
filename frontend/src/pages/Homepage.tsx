@@ -1,19 +1,36 @@
 import { useState, useEffect } from 'react';
-import { Row, Col, Card, Typography, Button, Rate, Tag, Image, Space, Divider, Statistic, Tabs, Spin, message } from "antd";
+import { useNavigate } from 'react-router-dom';
+import { Row, Col, Card, Typography, Button, Rate, Tag, Image, Space, Divider, Statistic, Tabs, Spin, message, Badge, Tooltip, Carousel } from "antd";
+import { motion, useAnimation } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
 import {
   PlayCircleOutlined,
   BookOutlined,
-  ClockCircleOutlined,
   UserOutlined,
   ReadOutlined,
   TrophyOutlined,
   LikeOutlined,
+  GiftOutlined,
+  CopyOutlined,
+  ClockCircleOutlined as ClockIcon,
+  LeftOutlined,
+  RightOutlined,
+  ArrowRightOutlined,
+  CodeOutlined,
+  BarChartOutlined,
+  LaptopOutlined,
+  FireOutlined,
+  StarOutlined
 } from "@ant-design/icons";
 import "../styles/courseCard.css";
-import { courseService, type Course } from '../services/apiService';
+import { courseService, type Course as ApiCourse } from '../services/apiService';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
+
+interface Course extends ApiCourse {
+  _id: string;
+}
 
 interface Testimonial {
   name: string;
@@ -22,50 +39,189 @@ interface Testimonial {
   rating: number;
 }
 
+interface Voucher {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  discount: number;
+  discountType: 'percentage' | 'fixed';
+  minAmount: number;
+  maxDiscount?: number;
+  validFrom: string;
+  validTo: string;
+  usageLimit: number;
+  usedCount: number;
+  category: string;
+  isHot?: boolean;
+  isNew?: boolean;
+  isExpired: boolean;
+  daysLeft: number;
+}
+
+const SectionWrapper = ({ children, style = {} }: { children: React.ReactNode, style?: React.CSSProperties }) => {
+  const controls = useAnimation();
+  const [ref, inView] = useInView({
+    triggerOnce: true,
+    threshold: 0.1,
+  });
+
+  useEffect(() => {
+    if (inView) {
+      controls.start('visible');
+    }
+  }, [controls, inView]);
+
+  return (
+    <motion.div
+      ref={ref}
+      animate={controls}
+      initial="hidden"
+      variants={{
+        visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
+        hidden: { opacity: 0, y: 50 },
+      }}
+      style={style}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
 const Homepage = () => {
+  const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState({
     courses: true,
-    testimonials: true
+    testimonials: true,
+    vouchers: true
   });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch courses
-        const coursesData = await courseService.getAllCourses();
+        const coursesData = await courseService.getAllCourses() as Course[];
         setCourses(coursesData);
         
-        // Fetch testimonials (using the blog comments endpoint)
         const response = await fetch('http://localhost:5000/api/blogs/68547db672358427a53d9ece/comments');
         const commentsData = await response.json();
         
-        const mappedTestimonials = commentsData.data.map((comment: any) => ({
+        const mappedTestimonials = commentsData.data.map((comment: { user?: { name: string }, course?: { title: string }, content: string, rating?: number }) => ({
           name: comment.user?.name || 'Ẩn danh',
           role: `Học viên khóa ${comment.course?.title || 'EduPro'}`,
           content: comment.content,
           rating: comment.rating || 5
         }));
-        
         setTestimonials(mappedTestimonials);
+
+        const mockVouchers: Voucher[] = [
+          {
+            id: '1',
+            code: 'WELCOME50',
+            title: 'Giảm 50% cho người mới',
+            description: 'Áp dụng cho tất cả khóa học, tối đa 500K',
+            discount: 50,
+            discountType: 'percentage',
+            minAmount: 100000,
+            maxDiscount: 500000,
+            validFrom: '2024-01-01',
+            validTo: '2024-12-31',
+            usageLimit: 1000,
+            usedCount: 234,
+            category: 'new-user',
+            isHot: true,
+            isNew: true,
+            isExpired: false,
+            daysLeft: 45
+          },
+          {
+            id: '2',
+            code: 'FLASH200K',
+            title: 'Giảm 200K cho khóa học IT',
+            description: 'Áp dụng cho khóa học Công nghệ thông tin',
+            discount: 200000,
+            discountType: 'fixed',
+            minAmount: 500000,
+            validFrom: '2024-01-01',
+            validTo: '2024-06-30',
+            usageLimit: 500,
+            usedCount: 156,
+            category: 'it-courses',
+            isHot: true,
+            isExpired: false,
+            daysLeft: 12
+          },
+          {
+            id: '3',
+            code: 'SUMMER30',
+            title: 'Giảm 30% mùa hè',
+            description: 'Áp dụng cho tất cả khóa học',
+            discount: 30,
+            discountType: 'percentage',
+            minAmount: 200000,
+            maxDiscount: 300000,
+            validFrom: '2024-06-01',
+            validTo: '2024-08-31',
+            usageLimit: 2000,
+            usedCount: 892,
+            category: 'seasonal',
+            isExpired: false,
+            daysLeft: 78
+          },
+        ];
+        setVouchers(mockVouchers);
+
       } catch (err) {
-        message.error('Có lỗi xảy ra khi tải dữ liệu');
-        console.error('Fetch error:', err);
+        if (err instanceof Error) {
+          message.error('Có lỗi xảy ra khi tải dữ liệu: ' + err.message);
+        } else {
+          message.error('Có lỗi xảy ra khi tải dữ liệu.');
+        }
       } finally {
-        setLoading({ courses: false, testimonials: false });
+        setLoading({ courses: false, testimonials: false, vouchers: false });
       }
     };
 
     fetchData();
   }, []);
 
-  // Filter courses
   const freeCourses = courses.filter((course) => course.price === "Miễn phí");
   const paidCourses = courses.filter((course) => course.price !== "Miễn phí");
   const popularCourses = [...courses].sort(() => Math.random() - 0.5).slice(0, 4);
 
-  if (loading.courses || loading.testimonials) {
+  const copyToClipboard = (code: string) => {
+    navigator.clipboard.writeText(code);
+    message.success(`Đã sao chép mã ${code}!`);
+  };
+
+  const getCategoryName = (category: string) => {
+    const categories: { [key: string]: string } = {
+      'new-user': 'Người mới',
+      'it-courses': 'Khóa học IT',
+      'seasonal': 'Theo mùa',
+    };
+    return categories[category] || category;
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors: { [key: string]: string } = {
+      'new-user': 'blue',
+      'it-courses': 'green',
+      'seasonal': 'orange',
+    };
+    return colors[category] || 'default';
+  };
+
+  const formatDiscount = (voucher: Voucher) => {
+    if (voucher.discountType === 'percentage') {
+      return `${voucher.discount}%`;
+    }
+    return `${voucher.discount.toLocaleString()}đ`;
+  };
+
+  if (loading.courses || loading.testimonials || loading.vouchers) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <Spin size="large" tip="Đang tải dữ liệu..." />
@@ -74,406 +230,279 @@ const Homepage = () => {
   }
 
   return (
-    <div className="homepage-container">
+    <div className="homepage-container" style={{ background: '#f8f9fa' }}>
       {/* Hero Section */}
-      <div
-        className="hero-section"
-        style={{
-          background: "linear-gradient(135deg, #1a73e8 0%, #34a853 100%)",
-          borderRadius: "16px",
-          padding: "48px 32px",
-          marginBottom: "48px",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* Decorative elements */}
-        <div
-          style={{
-            position: "absolute",
-            top: "10%",
-            right: "5%",
-            width: "200px",
-            height: "200px",
-            borderRadius: "50%",
-            background: "rgba(255, 255, 255, 0.1)",
-            zIndex: 1,
-          }}
-        ></div>
-        <div
-          style={{
-            position: "absolute",
-            bottom: "15%",
-            right: "15%",
-            width: "120px",
-            height: "120px",
-            borderRadius: "50%",
-            background: "rgba(255, 255, 255, 0.1)",
-            zIndex: 1,
-          }}
-        ></div>
-
-        <Row>
-          <Col xs={24} md={14} lg={12}>
-            <Title level={1} style={{ color: "white", fontSize: "42px", marginBottom: "16px" }}>
-              Học trực tuyến với EduPro
-            </Title>
-            <Paragraph style={{ color: "rgba(255, 255, 255, 0.9)", fontSize: "18px", marginBottom: "32px" }}>
-              Khám phá hàng ngàn khóa học chất lượng cao từ các giảng viên hàng đầu. Nâng cao kỹ năng và mở rộng cơ hội
-              nghề nghiệp của bạn.
-            </Paragraph>
-            <Space size="middle">
-              <Button
-                type="primary"
-                size="large"
-                style={{
-                  background: "white",
-                  borderColor: "white",
-                  color: "#1a73e8",
-                  height: "48px",
-                  fontSize: "16px",
-                  fontWeight: 500,
-                  padding: "0 24px",
-                }}
-              >
-                Bắt đầu học ngay
-              </Button>
-              <Button
-                ghost
-                size="large"
-                style={{
-                  borderColor: "white",
-                  color: "white",
-                  height: "48px",
-                  fontSize: "16px",
-                  fontWeight: 500,
-                  padding: "0 24px",
-                }}
-              >
-                <PlayCircleOutlined /> Xem giới thiệu
-              </Button>
-            </Space>
+      <div style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)", padding: "80px 0", textAlign: 'center', overflow: 'hidden' }}>
+        <Row justify="center">
+          <Col xs={22} md={18} lg={14}>
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }}>
+                <Title level={1} style={{ color: "white", fontSize: "48px", marginBottom: "24px", fontWeight: 'bold' }}>
+                Nền tảng học tập cho tương lai
+                </Title>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.4 }}>
+                <Paragraph style={{ color: "rgba(255, 255, 255, 0.9)", fontSize: "18px", marginBottom: "32px", maxWidth: '700px', margin: '0 auto 32px' }}>
+                Trang bị cho bạn những kỹ năng cần thiết trong thế giới số. Bắt đầu hành trình chinh phục công nghệ cùng EduPro.
+                </Paragraph>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.6 }}>
+                <Space size="large">
+                <Button type="primary" size="large" style={{ height: "52px", fontSize: "16px", padding: "0 32px", background: '#facc15', borderColor: '#facc15', color: '#1e3a8a', fontWeight: 'bold' }}>
+                    Khám phá khóa học
+                </Button>
+                <Button ghost size="large" style={{ height: "52px", fontSize: "16px", padding: "0 32px", borderColor: 'white', color: 'white' }}>
+                    <PlayCircleOutlined /> Giới thiệu
+                </Button>
+                </Space>
+            </motion.div>
           </Col>
         </Row>
       </div>
 
       {/* Stats Section */}
-      <Row gutter={[24, 24]} style={{ marginBottom: "48px" }}>
-        <Col xs={12} md={6}>
-          <Card bordered={false} style={{ textAlign: "center", borderRadius: "12px", background: "#f5f7fa" }}>
-            <Statistic
-              title="Học viên"
-              value={1200}
-              prefix={<UserOutlined />}
-              suffix="+"
-              valueStyle={{ color: "#1a73e8", fontWeight: "bold" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card bordered={false} style={{ textAlign: "center", borderRadius: "12px", background: "#f5f7fa" }}>
-            <Statistic
-              title="Khóa học"
-              value={50}
-              prefix={<ReadOutlined />}
-              suffix="+"
-              valueStyle={{ color: "#1a73e8", fontWeight: "bold" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card bordered={false} style={{ textAlign: "center", borderRadius: "12px", background: "#f5f7fa" }}>
-            <Statistic
-              title="Giảng viên"
-              value={12}
-              prefix={<TrophyOutlined />}
-              suffix="+"
-              valueStyle={{ color: "#1a73e8", fontWeight: "bold" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card bordered={false} style={{ textAlign: "center", borderRadius: "12px", background: "#f5f7fa" }}>
-            <Statistic
-              title="Đánh giá tích cực"
-              value={98}
-              prefix={<LikeOutlined />}
-              suffix="%"
-              valueStyle={{ color: "#1a73e8", fontWeight: "bold" }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Courses Section with Tabs */}
-      <div style={{ marginBottom: "48px" }}>
-        <div style={{ marginBottom: "24px" }}>
-          <Title level={2} style={{ fontSize: "32px", marginBottom: "8px" }}>
-            Khóa học
-          </Title>
-          <Text type="secondary">Khám phá các khóa học phù hợp với bạn</Text>
-        </div>
-
-        <Tabs defaultActiveKey="free" size="large" style={{ marginBottom: "24px" }}>
-          <TabPane tab="Miễn phí" key="free">
-            <Row gutter={[24, 24]}>
-              {freeCourses.map((course, index) => (
-                <Col xs={24} sm={12} md={8} lg={6} key={index}>
-                  <CourseCard course={course} />
-                </Col>
-              ))}
-            </Row>
-            <div style={{ textAlign: "center", marginTop: "32px" }}>
-              <Button type="default" size="large">
-                Xem tất cả khóa học miễn phí
-              </Button>
-            </div>
-          </TabPane>
-          <TabPane tab="Phổ biến" key="popular">
-            <Row gutter={[24, 24]}>
-              {popularCourses.map((course, index) => (
-                <Col xs={24} sm={12} md={8} lg={6} key={index}>
-                  <CourseCard course={course} />
-                </Col>
-              ))}
-            </Row>
-            <div style={{ textAlign: "center", marginTop: "32px" }}>
-              <Button type="default" size="large">
-                Xem tất cả khóa học phổ biến
-              </Button>
-            </div>
-          </TabPane>
-          <TabPane tab="Có phí" key="paid">
-            <Row gutter={[24, 24]}>
-              {paidCourses.map((course, index) => (
-                <Col xs={24} sm={12} md={8} lg={6} key={index}>
-                  <CourseCard course={course} />
-                </Col>
-              ))}
-            </Row>
-            <div style={{ textAlign: "center", marginTop: "32px" }}>
-              <Button type="default" size="large">
-                Xem tất cả khóa học có phí
-              </Button>
-            </div>
-          </TabPane>
-        </Tabs>
-      </div>
-
-      {/* Testimonials Section */}
-      <div
-        style={{
-          marginBottom: "48px",
-          background: "#f5f7fa",
-          padding: "48px 32px",
-          borderRadius: "16px",
-        }}
-      >
-        <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <Title level={2} style={{ fontSize: "32px", marginBottom: "16px" }}>
-            Học viên nói gì về chúng tôi
-          </Title>
-          <Text type="secondary" style={{ fontSize: "16px", maxWidth: "700px", display: "block", margin: "0 auto" }}>
-            Khám phá trải nghiệm học tập từ các học viên đã tham gia khóa học của EduPro
-          </Text>
-        </div>
-
-        <Row gutter={[24, 24]}>
-          {testimonials.map((testimonial, index) => (
-            <Col xs={24} md={8} key={index}>
-              <Card bordered={false} style={{ height: "100%", borderRadius: "12px" }}>
-                <Space direction="vertical" size="middle">
-                  <Rate value={testimonial.rating} disabled />
-                  <Paragraph style={{ fontSize: "16px" }}>"{testimonial.content}"</Paragraph>
-                  <Space align="center">
-                    <div
-                      style={{
-                        width: "48px",
-                        height: "48px",
-                        borderRadius: "50%",
-                        background: "#1a73e8",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "white",
-                        fontSize: "18px",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {testimonial.name.charAt(0)}
-                    </div>
-                    <div>
-                      <Text strong>{testimonial.name}</Text>
-                      <br />
-                      <Text type="secondary">{testimonial.role}</Text>
-                    </div>
-                  </Space>
-                </Space>
-              </Card>
+      <SectionWrapper style={{ padding: "64px 0", background: 'white' }}>
+        <Row gutter={[32, 32]} style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          {[
+            { icon: <UserOutlined />, title: 'Học viên', value: 1200, suffix: '+' },
+            { icon: <ReadOutlined />, title: 'Khóa học', value: 50, suffix: '+' },
+            { icon: <TrophyOutlined />, title: 'Giảng viên', value: 12, suffix: '+' },
+            { icon: <LikeOutlined />, title: 'Đánh giá', value: '4.9/5', suffix: '' }
+          ].map((stat, index) => (
+            <Col xs={12} md={6} key={stat.title}>
+                <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.15 }}
+                >
+                    <Card bordered={false} style={{ textAlign: "center" }}>
+                        <Statistic
+                        title={<Text style={{ fontSize: '16px', color: '#6c757d' }}>{stat.title}</Text>}
+                        value={stat.value}
+                        prefix={<span style={{ color: '#3b82f6', fontSize: '24px', marginRight: '8px' }}>{stat.icon}</span>}
+                        suffix={stat.suffix}
+                        valueStyle={{ color: "#1e3a8a", fontWeight: "bold", fontSize: '36px' }}
+                        />
+                    </Card>
+                </motion.div>
             </Col>
           ))}
         </Row>
-      </div>
+      </SectionWrapper>
+
+      {/* Vouchers Section */}
+      <SectionWrapper style={{ padding: "64px 24px" }}>
+        <div style={{ textAlign: 'center', marginBottom: "48px" }}>
+          <Title level={2} style={{ fontSize: "36px", marginBottom: "12px", color: '#1e3a8a' }}>
+            <GiftOutlined style={{ marginRight: "12px", color: "#ef4444" }} />
+            Ưu đãi hấp dẫn
+          </Title>
+          <Text type="secondary" style={{ fontSize: '16px' }}>Đừng bỏ lỡ các mã giảm giá đặc biệt từ EduPro!</Text>
+        </div>
+
+        <Row gutter={[24, 24]}>
+          {vouchers.map((voucher) => (
+            <Col xs={24} sm={12} lg={8} key={voucher.id} style={{ display: 'flex' }}>
+              <motion.div
+                style={{ width: '100%' }}
+                whileHover={{ y: -8, boxShadow: '0 12px 28px rgba(0,0,0,0.12)' }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card
+                  hoverable
+                  style={{ borderRadius: "16px", overflow: "hidden", border: 'none', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', width: '100%', display: 'flex', flexDirection: 'column', height: '100%' }}
+                  bodyStyle={{ padding: 0, display: 'flex', flexDirection: 'column', flex: 1 }}
+                >
+                  <div style={{ background: "linear-gradient(135deg, #ef4444, #f87171)", padding: '24px', color: 'white', textAlign: 'center' }}>
+                    <Title level={3} style={{ color: 'white', margin: 0, fontWeight: 'bold' }}>{formatDiscount(voucher)}</Title>
+                    <Text style={{ color: 'rgba(255,255,255,0.9)' }}>{voucher.description}</Text>
+                  </div>
+                  <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                        <Text type='secondary'>Mã giảm giá</Text>
+                        <div
+                          style={{ border: '2px dashed #d1d5db', padding: '8px 16px', borderRadius: '8px', margin: '8px auto', display: 'inline-block', cursor: 'pointer' }}
+                          onClick={() => copyToClipboard(voucher.code)}
+                        >
+                          <Text strong style={{ fontSize: '20px', letterSpacing: '2px', color: '#1e3a8a' }}>{voucher.code}</Text>
+                          <Tooltip title="Sao chép mã">
+                            <CopyOutlined style={{ marginLeft: '12px', color: '#6b7280' }} />
+                          </Tooltip>
+                        </div>
+                      </div>
+
+                      <Space direction="vertical" size="small" style={{ width: "100%"}}>
+                        {voucher.minAmount && <Text type="secondary"><Tag color='blue'>Điều kiện</Tag> Đơn hàng từ {voucher.minAmount.toLocaleString()}đ</Text>}
+                        {voucher.maxDiscount && voucher.discountType === 'percentage' && <Text type="secondary"><Tag color='blue'>Tối đa</Tag> Giảm đến {voucher.maxDiscount.toLocaleString()}đ</Text>}
+                        <Text type="secondary"><ClockIcon style={{ marginRight: "4px" }} />Hạn sử dụng: {new Date(voucher.validTo).toLocaleDateString('vi-VN')}</Text>
+                      </Space>
+                    </div>
+
+                    <Button type="primary" block size="large" style={{ background: '#1e3a8a', height: '48px', marginTop: '24px' }}>
+                      Lưu mã
+                    </Button>
+                  </div>
+                  {voucher.isExpired && (
+                    <Badge.Ribbon text="Đã hết hạn" color="red" />
+                  )}
+                </Card>
+              </motion.div>
+            </Col>
+          ))}
+        </Row>
+        <div style={{ textAlign: 'center', marginTop: '48px' }}>
+            <Button 
+                type="primary" 
+                size="large" 
+                onClick={() => navigate('/vouchers')}
+                style={{ background: '#1e3a8a', height: '48px', padding: '0 32px' }}
+            >
+                Khám phá nhiều ưu đãi hơn
+            </Button>
+        </div>
+      </SectionWrapper>
+
+      {/* Courses Section with Tabs */}
+      <SectionWrapper style={{ padding: "64px 24px", background: 'white' }}>
+        <div style={{ textAlign: 'center', marginBottom: "48px" }}>
+          <Title level={2} style={{ fontSize: "36px", marginBottom: "12px", color: '#1e3a8a' }}>Khám phá khóa học</Title>
+          <Text type="secondary" style={{ fontSize: '16px' }}>Chọn lựa khóa học phù hợp nhất với mục tiêu của bạn</Text>
+        </div>
+
+        <Tabs defaultActiveKey="free" size="large" centered>
+          <TabPane tab="Miễn phí" key="free">
+            <Row gutter={[24, 24]}>
+              {freeCourses.map((course) => <Col xs={24} sm={12} md={8} lg={6} key={course._id}><CourseCard course={course} /></Col>)}
+            </Row>
+          </TabPane>
+          <TabPane tab="Phổ biến" key="popular">
+            <Row gutter={[24, 24]}>
+              {popularCourses.map((course) => <Col xs={24} sm={12} md={8} lg={6} key={course._id}><CourseCard course={course} /></Col>)}
+            </Row>
+          </TabPane>
+          <TabPane tab="Có phí" key="paid">
+            <Row gutter={[24, 24]}>
+              {paidCourses.map((course) => <Col xs={24} sm={12} md={8} lg={6} key={course._id}><CourseCard course={course} /></Col>)}
+            </Row>
+          </TabPane>
+        </Tabs>
+        <div style={{ textAlign: "center", marginTop: "48px" }}>
+          <Button type="default" size="large" style={{ height: '48px', padding: '0 32px' }}>
+            Xem tất cả khóa học
+          </Button>
+        </div>
+      </SectionWrapper>
+
+      {/* Testimonials Section */}
+      <SectionWrapper style={{ padding: "80px 24px", background: '#f8f9fa' }}>
+        <div style={{ textAlign: "center", marginBottom: "48px" }}>
+          <Title level={2} style={{ fontSize: "36px", marginBottom: "16px", color: '#1e3a8a' }}>Học viên nói về EduPro</Title>
+          <Text type="secondary" style={{ fontSize: "16px" }}>Những chia sẻ thực tế từ cộng đồng học viên của chúng tôi.</Text>
+        </div>
+
+        <Carousel 
+          autoplay 
+          arrows
+          prevArrow={<LeftOutlined />}
+          nextArrow={<RightOutlined />}
+          dots={{ className: 'testimonial-dots' }}
+          style={{ maxWidth: '900px', margin: '0 auto' }}
+        >
+          {testimonials.map((testimonial, index) => (
+            <div key={index}>
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5 }}
+                >
+                    <Card bordered={false} style={{ margin: '0 16px', padding: '32px', background: 'white', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.05)' }}>
+                        <Space direction="vertical" size="large" style={{ width: '100%', textAlign: 'center' }}>
+                        <Image src={`https://i.pravatar.cc/80?u=${testimonial.name}`} alt={testimonial.name} style={{ borderRadius: '50%', width: '80px', height: '80px' }} />
+                        <Paragraph style={{ fontSize: "18px", fontStyle: 'italic', color: '#495057' }}>"{testimonial.content}"</Paragraph>
+                        <Rate value={testimonial.rating} disabled />
+                        <div>
+                            <Text strong style={{ fontSize: '16px', color: '#1e3a8a' }}>{testimonial.name}</Text>
+                            <br />
+                            <Text type="secondary">{testimonial.role}</Text>
+                        </div>
+                        </Space>
+                    </Card>
+                </motion.div>
+            </div>
+          ))}
+        </Carousel>
+      </SectionWrapper>
 
       {/* CTA Section */}
-      <div
-        style={{
-          background: "linear-gradient(135deg, #1a73e8 0%, #34a853 100%)",
-          borderRadius: "16px",
-          padding: "48px 32px",
-          marginBottom: "48px",
-          textAlign: "center",
-        }}
-      >
-        <Title level={2} style={{ color: "white", fontSize: "32px", marginBottom: "16px" }}>
-          Sẵn sàng bắt đầu hành trình học tập?
+      <SectionWrapper style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)", padding: "80px 24px", textAlign: 'center' }}>
+        <Title level={2} style={{ color: "white", fontSize: "36px", marginBottom: "16px", fontWeight: 'bold' }}>
+          Sẵn sàng nâng tầm sự nghiệp?
         </Title>
-        <Paragraph
-          style={{
-            color: "rgba(255, 255, 255, 0.9)",
-            fontSize: "16px",
-            marginBottom: "32px",
-            maxWidth: "700px",
-            margin: "0 auto 32px",
-          }}
-        >
-          Tìm hiểu ngay hôm nay để truy cập vào kho tàng kiến thức và kỹ năng công nghệ mới nhất
+        <Paragraph style={{ color: "rgba(255, 255, 255, 0.9)", fontSize: "16px", marginBottom: "32px", maxWidth: "700px", margin: "0 auto 32px" }}>
+          Đăng ký ngay hôm nay để nhận ưu đãi đặc biệt và bắt đầu hành trình chinh phục kiến thức mới!
         </Paragraph>
-        <Space size="middle">
-          <Button
-            ghost
-            size="large"
-            style={{
-              borderColor: "white",
-              color: "white",
-              height: "48px",
-              fontSize: "16px",
-              fontWeight: 500,
-              padding: "0 24px",
-            }}
-          >
-            Tìm hiểu thêm
-          </Button>
-        </Space>
-      </div>
+        <Button type="primary" size="large" style={{ height: "52px", fontSize: "16px", padding: "0 32px", background: '#facc15', borderColor: '#facc15', color: '#1e3a8a', fontWeight: 'bold' }}>
+          Đăng ký ngay
+        </Button>
+      </SectionWrapper>
     </div>
   );
 };
 
-// Enhanced Course Card Component
 const CourseCard = ({ course }: { course: Course }) => {
   return (
-    <Card
-      className="course-card"
-      hoverable
-      cover={
-        <div style={{ position: "relative" }}>
-          <Image
-            src={course.Image || "/placeholder.svg"}
-            alt={course.title}
-            preview={false}
-            style={{ height: "180px", objectFit: "cover" }}
-          />
-          {course.price === "Miễn phí" ? (
-            <Tag
-              color="success"
-              style={{
-                position: "absolute",
-                top: "12px",
-                right: "12px",
-                fontSize: "12px",
-                padding: "0 8px",
-                borderRadius: "4px",
-              }}
-            >
-              Miễn phí
-            </Tag>
-          ) : course.oldPrice ? (
-            <Tag
-              color="processing"
-              style={{
-                position: "absolute",
-                top: "12px",
-                right: "12px",
-                fontSize: "12px",
-                padding: "0 8px",
-                borderRadius: "4px",
-              }}
-            >
-              Giảm giá
-            </Tag>
-          ) : null}
-        </div>
-      }
-      bodyStyle={{ padding: "16px" }}
+    <motion.div
+        whileHover={{ y: -8 }}
+        transition={{ duration: 0.3 }}
+        style={{ height: '100%' }}
     >
-      <div className="course-info">
-        <div className="course-meta">
-          <Space direction="vertical" size="small" style={{ width: "100%" }}>
-            <Typography.Title
-              level={4}
-              className="course-title"
-              style={{
-                fontSize: "18px",
-                marginBottom: "4px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {course.title}
-            </Typography.Title>
-            <Typography.Text
-              className="course-subtitle"
-              type="secondary"
-              style={{
-                display: "block",
-                marginBottom: "8px",
-              }}
-            >
-              {course.subtitle}
-            </Typography.Text>
-            <Space size="small" align="center" style={{ marginBottom: "8px" }}>
-              <Rate value={course.rating} disabled allowHalf style={{ fontSize: "14px", color: "#ff9900" }} />
-              <Typography.Text type="secondary" style={{ fontSize: "12px" }}>
-                ({course.reviews} đánh giá)
-              </Typography.Text>
-            </Space>
-            <Space size="middle" align="center" style={{ fontSize: "13px", color: "#666" }}>
-              <Typography.Text>
-                <ClockCircleOutlined style={{ marginRight: "4px" }} /> {course.duration || "15 giờ học"}
-              </Typography.Text>
-              <Typography.Text>
-                <BookOutlined style={{ marginRight: "4px" }} /> {course.lessons || 30} bài học
-              </Typography.Text>
-            </Space>
-          </Space>
-        </div>
-        <Divider style={{ margin: "12px 0" }} />
-        <div
-          className="course-footer"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
+        <Card
+        className="course-card"
+        hoverable
+        style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', height: '100%' }}
+        cover={
+            <div style={{ position: "relative" }}>
+            <Image
+                src={course.Image || "/placeholder.svg"}
+                alt={course.title}
+                preview={false}
+                style={{ height: "180px", objectFit: "cover" }}
+            />
+            {course.price === "Miễn phí" && <Tag color="success" style={{ position: "absolute", top: "12px", right: "12px" }}>Miễn phí</Tag>}
+            {course.oldPrice && <Tag color="processing" style={{ position: "absolute", top: "12px", right: "12px" }}>Giảm giá</Tag>}
+            </div>
+        }
+        bodyStyle={{ padding: "20px" }}
         >
-          <Space size="small" align="center">
-            <Typography.Text strong style={{ fontSize: "16px" }}>
-              {course.price}
-            </Typography.Text>
-            {course.oldPrice && (
-              <Typography.Text type="secondary" delete style={{ fontSize: "12px" }}>
-                {course.oldPrice}
-              </Typography.Text>
-            )}
-          </Space>
-          <Button type="link" style={{ padding: "0", fontSize: "14px" }}>
-            Chi tiết
-          </Button>
-        </div>
-      </div>
-    </Card>
+        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+            <Typography.Title level={5} className="course-title" ellipsis={{ rows: 2 }} style={{ minHeight: '44px', marginBottom: 0 }}>
+            {course.title}
+            </Typography.Title>
+            
+            <Space size="middle" align="center" style={{ fontSize: "13px", color: "#6b7280" }}>
+            <Typography.Text><ClockIcon style={{ marginRight: "4px" }} /> {course.duration || "15 giờ"}</Typography.Text>
+            <Typography.Text><BookOutlined style={{ marginRight: "4px" }} /> {course.lessons || 30} bài</Typography.Text>
+            </Space>
+
+            <Space align="center">
+            <Rate value={course.rating} disabled allowHalf style={{ fontSize: "14px", color: "#f59e0b" }} />
+            <Typography.Text type="secondary" style={{ fontSize: "12px" }}>({course.reviews} đánh giá)</Typography.Text>
+            </Space>
+            
+            <Divider style={{ margin: "8px 0" }} />
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Space size="small" align="baseline">
+                <Typography.Text strong style={{ fontSize: "18px", color: '#1e3a8a' }}>
+                {course.price}
+                </Typography.Text>
+                {course.oldPrice && <Typography.Text type="secondary" delete>{course.oldPrice}</Typography.Text>}
+            </Space>
+            <Button type="primary" style={{ background: '#3b82f6' }}>Chi tiết</Button>
+            </div>
+        </Space>
+        </Card>
+    </motion.div>
   );
 };
 
