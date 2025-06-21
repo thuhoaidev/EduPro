@@ -1,274 +1,174 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
       Card,
-      Button,
-      message,
-      Avatar,
-      Badge,
       Descriptions,
-      Space,
-      Popconfirm,
+      Divider,
+      Typography,
+      Spin,
+      List,
+      Avatar,
       Row,
       Col,
-      Divider,
-      Tag,
-      Tooltip,
-      Spin
-} from 'antd';
-import {
-      ArrowLeftOutlined,
-      UserOutlined,
-      MailOutlined,
-      PhoneOutlined,
-      CalendarOutlined,
-      CheckCircleOutlined,
-      CloseCircleOutlined,
-      ClockCircleOutlined,
-      EnvironmentOutlined,
-      LinkedinOutlined,
-      GithubOutlined,
-      BookOutlined
-} from '@ant-design/icons';
-import { config } from '../../../api/axios';
-import type { InstructorApprovalProfile } from '../../../interfaces/Admin.interface';
+} from "antd";
+import { config } from "../../../api/axios";
 
-const TeacherProfileDetail = () => {
-      const { id } = useParams<{ id: string }>();
-      const navigate = useNavigate();
-      const [teacher, setTeacher] = useState<InstructorApprovalProfile | null>(null);
+const { Title, Text } = Typography;
+
+const PendingInstructorDetail = () => {
+      const { id } = useParams();
+      const [instructor, setInstructor] = useState<any>(null);
       const [loading, setLoading] = useState(true);
-      const [updating, setUpdating] = useState(false);
 
       useEffect(() => {
-            const fetchTeacherProfile = async () => {
+            const fetchDetail = async () => {
                   try {
-                        setLoading(true);
-                        const response = await config.get(`/admin/users/instructors/${id}`);
-                        console.log('API response:', response.data);
-                        setTeacher(response.data.data);
+                        const res = await config.get(`/users/instructors/pending/${id}`);
+                        setInstructor(res.data.data);
                   } catch (error) {
-                        console.error('Error fetching teacher profile:', error);
-                        message.error('Không thể tải thông tin giảng viên');
+                        console.error("Lỗi khi tải chi tiết giảng viên:", error);
                   } finally {
                         setLoading(false);
                   }
             };
 
-            fetchTeacherProfile();
+            if (id) fetchDetail();
       }, [id]);
 
-      const handleUpdateStatus = async (status: 'approved' | 'rejected') => {
-            try {
-                  setUpdating(true);
-                  await config.put(`/admin/users/instructors/${id}/approval`, {
-                        status
-                  });
-                  message.success(`Đã ${status === 'approved' ? 'duyệt' : 'từ chối'} hồ sơ`);
-                  setTeacher(prev => prev ? { ...prev, approval_status: status } : null);
-                  navigate('/admin/instructors');
-            } catch (error) {
-                  console.error('Error updating teacher status:', error);
-                  message.error('Cập nhật trạng thái thất bại');
-            } finally {
-                  setUpdating(false);
-            }
-      };
+      if (loading || !instructor) return <Spin tip="Đang tải..." className="block mx-auto mt-20" />;
 
-      const getStatusConfig = (status: string) => {
-            const config = {
-                  approved: { color: 'success' as const, icon: <CheckCircleOutlined />, text: 'Đã duyệt' },
-                  rejected: { color: 'error' as const, icon: <CloseCircleOutlined />, text: 'Đã từ chối' },
-                  pending: { color: 'warning' as const, icon: <ClockCircleOutlined />, text: 'Chờ duyệt' }
-            };
-            return config[status as keyof typeof config] || config.pending;
-      };
+      const {
+            fullname,
+            email,
+            nickname,
+            avatar,
+            gender,
+            dob,
+            instructorProfile,
+      } = instructor;
 
-      if (loading) {
-            return (
-                  <div className="flex justify-center items-center min-h-[60vh]">
-                        <Spin size="large" />
-                  </div>
-            );
-      }
-
-      if (!teacher) {
-            return (
-                  <div className="flex flex-col items-center justify-center min-h-[60vh]">
-                        <div className="text-2xl font-semibold text-red-500 mb-4">
-                              Không tìm thấy hồ sơ giảng viên
-                        </div>
-                        <Button type="primary" onClick={() => navigate(-1)}>
-                              Quay lại danh sách
-                        </Button>
-                  </div>
-            );
-      }
-
-      const statusConfig = getStatusConfig(teacher.approval_status);
+      const profile = instructorProfile || {};
+      const instructorInfo = profile.instructorInfo || {};
+      const teachingExperience = instructorInfo.teaching_experience || {};
+      const certificates = instructorInfo.certificates || [];
+      const otherDocuments = instructorInfo.other_documents || [];
 
       return (
-            <div className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                        <Button
-                              type="default"
-                              icon={<ArrowLeftOutlined />}
-                              onClick={() => navigate(-1)}
-                              className="flex items-center"
-                        >
-                              Quay lại danh sách
-                        </Button>
-                        <Badge
-                              status={statusConfig.color}
-                              text={
-                                    <span className="text-base font-medium flex items-center gap-2">
-                                          {statusConfig.icon}
-                                          {statusConfig.text}
-                                    </span>
-                              }
-                        />
-                  </div>
+            <div className="p-6 max-w-5xl mx-auto">
+                  <Card bordered={false} className="shadow">
+                        <Row gutter={[24, 24]}>
+                              <Col xs={24} md={6}>
+                                    <Avatar
+                                          size={120}
+                                          src={avatar}
+                                          alt="avatar"
+                                          className="border border-gray-200 shadow-sm"
+                                    />
+                              </Col>
+                              <Col xs={24} md={18}>
+                                    <Title level={3}>👨‍🏫 Hồ sơ giảng viên: {fullname}</Title>
+                                    <Text type="secondary">{email}</Text>
+                              </Col>
+                        </Row>
 
-                  <Row gutter={[24, 24]}>
-                        <Col xs={24}>
-                              <Card className="shadow-sm">
-                                    <div className="flex flex-col md:flex-row gap-6">
-                                          <div className="flex flex-col items-center">
-                                                <Avatar
-                                                      size={120}
-                                                      icon={<UserOutlined />}
-                                                      src={teacher.avatar || undefined}
-                                                      className="border-4 border-gray-100 shadow-lg"
+                        <Divider />
+
+                        <Descriptions bordered column={2} size="middle">
+                              <Descriptions.Item label="Tên đăng nhập">{nickname}</Descriptions.Item>
+                              <Descriptions.Item label="Giới tính">{gender || "Chưa cập nhật"}</Descriptions.Item>
+                              <Descriptions.Item label="Ngày sinh">
+                                    {dob ? new Date(dob).toLocaleDateString() : "Chưa cập nhật"}
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Số điện thoại">{profile.phone || "Chưa cập nhật"}</Descriptions.Item>
+                              <Descriptions.Item label="Địa chỉ">{profile.address || "Chưa cập nhật"}</Descriptions.Item>
+                              <Descriptions.Item label="Chuyên môn">
+                                    {(instructorInfo.specializations || []).join(", ") || "Chưa cập nhật"}
+                              </Descriptions.Item>
+                              <Descriptions.Item label="Số năm kinh nghiệm">
+                                    {instructorInfo.experience_years || 0} năm
+                              </Descriptions.Item>
+                        </Descriptions>
+
+                        <Divider orientation="left">🧑‍🏫 Kinh nghiệm giảng dạy</Divider>
+                        <p>
+                              <strong>Số năm:</strong> {teachingExperience.years || 0} năm
+                        </p>
+                        <p>
+                              <strong>Mô tả:</strong> {teachingExperience.description || "Không có mô tả"}
+                        </p>
+
+                        <Divider orientation="left">📜 Bằng cấp & chứng chỉ</Divider>
+                        {certificates.length === 0 ? (
+                              <Text type="secondary">Không có bằng cấp</Text>
+                        ) : (
+                              <List
+                                    bordered
+                                    dataSource={certificates}
+                                    renderItem={(item: any, index: number) => (
+                                          <List.Item key={index}>
+                                                <List.Item.Meta
+                                                      title={`${item.name} (${item.year})`}
+                                                      description={
+                                                            <>
+                                                                  <div><strong>Ngành:</strong> {item.major}</div>
+                                                                  <div><strong>Nơi cấp:</strong> {item.issuer}</div>
+                                                            </>
+                                                      }
                                                 />
-
-                                                <div className="mt-4 flex gap-2">
-                                                      <Tooltip title="Gửi email">
-                                                            <Button
-                                                                  type="text"
-                                                                  icon={<MailOutlined />}
-                                                                  href={`mailto:${teacher.email}`}
-                                                            />
-                                                      </Tooltip>
-                                                      <Tooltip title="Gọi điện thoại">
-                                                            <Button
-                                                                  type="text"
-                                                                  icon={<PhoneOutlined />}
-                                                                  href={`tel:${teacher.instructorInfo?.phone}`}
-                                                            />
-                                                      </Tooltip>
-                                                      <Tooltip title="LinkedIn">
-                                                            <Button type="text" icon={<LinkedinOutlined />} />
-                                                      </Tooltip>
-                                                      <Tooltip title="GitHub">
-                                                            <Button type="text" icon={<GithubOutlined />} />
-                                                      </Tooltip>
-                                                </div>
-                                          </div>
-
-                                          <div className="flex-1">
-                                                <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                                                      {teacher.fullname}
-                                                </h1>
-                                                <div className="flex items-center gap-2 text-gray-600 mb-4">
-                                                      <EnvironmentOutlined />
-                                                      <span>Hà Nội, Việt Nam</span>
-                                                </div>
-                                                <p className="text-gray-600 text-base leading-relaxed">
-                                                      {teacher.instructorInfo?.bio}
-                                                </p>
-                                          </div>
-                                    </div>
-
-                                    <Divider />
-
-                                    <Descriptions
-                                          column={{ xs: 1, sm: 2 }}
-                                          bordered
-                                          size="small"
-                                          className="bg-white"
-                                    >
-                                          <Descriptions.Item
-                                                label={<span className="flex items-center gap-2"><MailOutlined /> Email</span>}
-                                          >
-                                                <a href={`mailto:${teacher.email}`} className="text-blue-600 hover:text-blue-800">
-                                                      {teacher.email}
-                                                </a>
-                                          </Descriptions.Item>
-                                          <Descriptions.Item
-                                                label={<span className="flex items-center gap-2"><PhoneOutlined /> Số điện thoại</span>}
-                                          >
-                                                <a href={`tel:${teacher.instructorInfo?.phone}`} className="text-blue-600 hover:text-blue-800">
-                                                      {teacher.instructorInfo?.phone}
-                                                </a>
-                                          </Descriptions.Item>
-                                          <Descriptions.Item
-                                                label={<span className="flex items-center gap-2"><UserOutlined /> Giới tính</span>}
-                                          >
-                                                {teacher.instructorInfo?.gender || 'Không rõ'}
-                                          </Descriptions.Item>
-                                          <Descriptions.Item
-                                                label={<span className="flex items-center gap-2"><CalendarOutlined /> ID</span>}
-                                          >
-                                                {teacher._id}
-                                          </Descriptions.Item>
-                                    </Descriptions>
-
-                                    {teacher.approval_status === 'pending' && (
-                                          <div className="mt-6 flex justify-end gap-4">
-                                                <Space>
-                                                      <Popconfirm
-                                                            title="Duyệt hồ sơ"
-                                                            description="Bạn có chắc chắn muốn duyệt hồ sơ này?"
-                                                            onConfirm={() => handleUpdateStatus('approved')}
-                                                            okText="Duyệt"
-                                                            cancelText="Hủy"
-                                                            okButtonProps={{ type: 'primary' }}
-                                                      >
-                                                            <Button
-                                                                  type="primary"
-                                                                  icon={<CheckCircleOutlined />}
-                                                                  className="flex items-center"
-                                                                  loading={updating}
-                                                            >
-                                                                  Duyệt hồ sơ
-                                                            </Button>
-                                                      </Popconfirm>
-
-                                                      <Popconfirm
-                                                            title="Từ chối hồ sơ"
-                                                            description="Bạn có chắc chắn muốn từ chối hồ sơ này?"
-                                                            onConfirm={() => handleUpdateStatus('rejected')}
-                                                            okText="Từ chối"
-                                                            cancelText="Hủy"
-                                                            okButtonProps={{ danger: true }}
-                                                      >
-                                                            <Button
-                                                                  danger
-                                                                  icon={<CloseCircleOutlined />}
-                                                                  className="flex items-center"
-                                                                  loading={updating}
-                                                            >
-                                                                  Từ chối
-                                                            </Button>
-                                                      </Popconfirm>
-                                                </Space>
-                                          </div>
+                                                {item.file && (
+                                                      <a href={item.file} target="_blank" rel="noopener noreferrer">
+                                                            Xem file
+                                                      </a>
+                                                )}
+                                          </List.Item>
                                     )}
-                              </Card>
-                        </Col>
-                  </Row>
+                              />
+                        )}
 
-                  <style>{`
-        .ant-descriptions-item-label {
-          background: #fafafa !important;
-          font-weight: 500;
-        }
-        .ant-timeline-item-content {
-          color: #666;
-        }
-      `}</style>
+                        <Divider orientation="left">📄 CV</Divider>
+                        {instructorInfo.cv_file ? (
+                              <a href={instructorInfo.cv_file} target="_blank" rel="noopener noreferrer">
+                                    Xem CV
+                              </a>
+                        ) : (
+                              <Text type="secondary">Không có CV</Text>
+                        )}
+
+                        <Divider orientation="left">🎥 Video Demo</Divider>
+                        {instructorInfo.demo_video ? (
+                              <video controls width="100%" style={{ maxWidth: 600 }}>
+                                    <source src={instructorInfo.demo_video} />
+                                    Trình duyệt của bạn không hỗ trợ video.
+                              </video>
+                        ) : (
+                              <Text type="secondary">Không có video demo</Text>
+                        )}
+
+                        <Divider orientation="left">📁 Tài liệu khác</Divider>
+                        {otherDocuments.length === 0 ? (
+                              <Text type="secondary">Không có tài liệu khác</Text>
+                        ) : (
+                              <List
+                                    bordered
+                                    dataSource={otherDocuments}
+                                    renderItem={(doc: any, index: number) => (
+                                          <List.Item key={index}>
+                                                <div>
+                                                      <strong>{doc.name}</strong>
+                                                      <div>{doc.description || "Không có mô tả"}</div>
+                                                </div>
+                                                {doc.file && (
+                                                      <a href={doc.file} target="_blank" rel="noopener noreferrer">
+                                                            Xem file
+                                                      </a>
+                                                )}
+                                          </List.Item>
+                                    )}
+                              />
+                        )}
+                  </Card>
             </div>
       );
 };
 
-export default TeacherProfileDetail;
+export default PendingInstructorDetail;

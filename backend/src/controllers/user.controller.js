@@ -599,22 +599,10 @@ exports.getPendingInstructors = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
 
-    // Tìm role instructor
-    const instructorRole = await Role.findOne({ name: 'instructor' });
-    if (!instructorRole) {
-      return res.status(404).json({
-        success: false,
-        message: 'Vai trò giảng viên không tồn tại',
-      });
-    }
-
-    // Xây dựng query cho giảng viên chờ duyệt
+    // Tạo query cơ bản
     const pendingInstructorsQuery = {
-      role_id: instructorRole._id,
-      $or: [
-        { approval_status: 'pending' },
-        { approval_status: null },
-      ],
+      approval_status: 'pending',
+      instructorInfo: { $exists: true },
     };
 
     // Thêm điều kiện tìm kiếm nếu có
@@ -627,17 +615,17 @@ exports.getPendingInstructors = async (req, res) => {
           { phone: { $regex: search, $options: 'i' } },
         ],
       };
-      pendingInstructorsQuery.$and = [pendingInstructorsQuery, searchQuery];
+      pendingInstructorsQuery.$and = [searchQuery];
     }
 
-    // Thực hiện query với phân trang
+    // Lấy danh sách giảng viên chờ duyệt
     const pendingInstructors = await User.find(pendingInstructorsQuery)
       .populate('role_id')
       .skip((page - 1) * limit)
       .limit(limit)
       .sort({ created_at: -1 });
 
-    // Đếm tổng số hồ sơ chờ duyệt
+    // Đếm tổng số
     const total = await User.countDocuments(pendingInstructorsQuery);
 
     // Format dữ liệu trả về
@@ -645,7 +633,6 @@ exports.getPendingInstructors = async (req, res) => {
       const instructorData = instructor.toJSON();
       return {
         ...instructorData,
-        // Thêm thông tin hồ sơ giảng viên
         instructorProfile: {
           bio: instructorData.bio || '',
           social_links: instructorData.social_links || {},
@@ -656,7 +643,6 @@ exports.getPendingInstructors = async (req, res) => {
           gender: instructorData.gender || '',
           instructorInfo: instructorData.instructorInfo || {},
         },
-        // Thông tin đăng ký
         registrationInfo: {
           created_at: instructorData.created_at,
           updated_at: instructorData.updated_at,
@@ -680,12 +666,12 @@ exports.getPendingInstructors = async (req, res) => {
         summary: {
           totalPending: total,
           totalApproved: await User.countDocuments({
-            role_id: instructorRole._id,
             approval_status: 'approved',
+            instructorInfo: { $exists: true },
           }),
           totalRejected: await User.countDocuments({
-            role_id: instructorRole._id,
             approval_status: 'rejected',
+            instructorInfo: { $exists: true },
           }),
         },
       },
@@ -700,24 +686,15 @@ exports.getPendingInstructors = async (req, res) => {
   }
 };
 
+
 // Lấy thông tin chi tiết hồ sơ giảng viên chờ duyệt
 exports.getPendingInstructorDetail = async (req, res) => {
   try {
     const instructorId = req.params.id;
 
-    // Tìm role instructor
-    const instructorRole = await Role.findOne({ name: 'instructor' });
-    if (!instructorRole) {
-      return res.status(404).json({
-        success: false,
-        message: 'Vai trò giảng viên không tồn tại',
-      });
-    }
-
-    // Tìm giảng viên chờ duyệt
+    // Không lọc theo role vì lúc này user chưa phải instructor
     const instructor = await User.findOne({
       _id: instructorId,
-      role_id: instructorRole._id,
       $or: [
         { approval_status: 'pending' },
         { approval_status: null },
@@ -731,10 +708,20 @@ exports.getPendingInstructorDetail = async (req, res) => {
       });
     }
 
-    // Format dữ liệu trả về
-    const instructorData = instructor.toJSON();
+    const instructorData = instructor.toObject(); // toJSON hoặc toObject đều được
     const detailedProfile = {
-      ...instructorData,
+      _id: instructorData._id,
+      fullname: instructorData.fullname,
+      email: instructorData.email,
+      nickname: instructorData.nickname,
+      avatar: instructorData.avatar,
+      dob: instructorData.dob,
+      gender: instructorData.gender,
+      phone: instructorData.phone,
+      address: instructorData.address,
+      approval_status: instructorData.approval_status,
+      isInstructor: instructorData.isInstructor,
+      has_registered_instructor: instructorData.has_registered_instructor,
       instructorProfile: {
         bio: instructorData.bio || '',
         social_links: instructorData.social_links || {},
@@ -743,29 +730,26 @@ exports.getPendingInstructorDetail = async (req, res) => {
         address: instructorData.address || '',
         dob: instructorData.dob || null,
         gender: instructorData.gender || '',
-        instructorInfo: instructorData.instructorInfo || {},
-      },
-      registrationInfo: {
-        created_at: instructorData.created_at,
-        updated_at: instructorData.updated_at,
-        email_verified: instructorData.email_verified,
-        status: instructorData.status,
-      },
-      approvalInfo: {
-        approval_status: instructorData.approval_status,
-        isInstructor: instructorData.isInstructor,
-        has_registered_instructor: instructorData.has_registered_instructor,
+        instructorInfo: {
+          experience_years: instructorData.instructorInfo?.experience_years || 0,
+          specializations: instructorData.instructorInfo?.specializations || [],
+          teaching_experience: instructorData.instructorInfo?.teaching_experience || {},
+          certificates: instructorData.instructorInfo?.certificates || [],
+          cv_file: instructorData.instructorInfo?.cv_file || null,
+          demo_video: instructorData.instructorInfo?.demo_video || null,
+          other_documents: instructorData.instructorInfo?.other_documents || [],
+        },
       },
     };
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Lấy thông tin chi tiết hồ sơ giảng viên thành công',
       data: detailedProfile,
     });
   } catch (error) {
     console.error('Lỗi lấy thông tin chi tiết hồ sơ giảng viên:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Lỗi lấy thông tin chi tiết hồ sơ giảng viên',
       error: error.message,
@@ -773,9 +757,11 @@ exports.getPendingInstructorDetail = async (req, res) => {
   }
 };
 
+
+
 // Nộp hồ sơ giảng viên (từ role sinh viên)
 exports.submitInstructorProfile = async (req, res) => {
-  try {
+  try { 
     const userId = req.user._id;
     
     // Kiểm tra user hiện tại

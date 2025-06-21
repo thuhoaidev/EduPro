@@ -8,10 +8,11 @@ import {
   Card,
   Row,
   Col,
-  Select,
   Statistic,
   message,
-  Rate
+  Rate,
+  Modal,
+  Select
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState, useEffect } from "react";
@@ -22,14 +23,7 @@ import {
   EyeOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  CloseCircleOutlined,
-  // CheckCircleOutlined,
-  // ClockCircleOutlined,
-  // CloseCircleOutlined,
-  // FilterOutlined,
-  // EyeOutlined,
-  // MailOutlined,
-  // PhoneOutlined
+  CloseCircleOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { InstructorProfile } from "../../../interfaces/Admin.interface";
@@ -37,16 +31,27 @@ import { config } from "../../../api/axios";
 
 const InstructorList = () => {
   const [searchText, setSearchText] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [instructors, setInstructors] = useState<InstructorProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
+  const [selectStatusMap, setSelectStatusMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchInstructors = async () => {
       try {
-        const res = await config.get("/admin/users/instructors");
-        setInstructors(res.data.data.instructors);
+        const res = await config.get("/users/instructors/pending");
+
+        console.log("Fetched instructor data:", res.data);
+
+        const pendingInstructors: InstructorProfile[] = res.data.data.pendingInstructors || [];
+
+        setInstructors(pendingInstructors);
+
+        const map: Record<string, string> = {};
+        pendingInstructors.forEach((ins) => {
+          map[ins._id] = ins.approval_status;
+        });
+        setSelectStatusMap(map);
       } catch (error) {
         console.error("Lỗi khi tải danh sách giảng viên:", error);
       } finally {
@@ -57,39 +62,78 @@ const InstructorList = () => {
     fetchInstructors();
   }, []);
 
-  const handleChangeStatus = async (id: string, status: string) => {
-    try {
-      await config.put(`/admin/users/instructors/${id}/approval`, {
-        status
+
+
+  const handleChangeStatus = (id: string, newStatus: string) => {
+    if (newStatus === "rejected") {
+      let rejectionReason = "";
+
+      Modal.confirm({
+        title: "Nhập lý do từ chối",
+        content: (
+          <Input.TextArea
+            rows={4}
+            placeholder="Nhập lý do từ chối..."
+            onChange={(e) => {
+              rejectionReason = e.target.value;
+            }}
+          />
+        ),
+        okText: "Từ chối",
+        cancelText: "Hủy",
+        async onOk() {
+          if (!rejectionReason.trim()) {
+            message.warning("Bạn phải nhập lý do từ chối");
+            return Promise.reject();
+          }
+
+          try {
+            await config.put(`/users/instructors/${id}/approval`, {
+              status: "rejected",
+              rejection_reason: rejectionReason.trim()
+            });
+
+            message.success("Đã từ chối hồ sơ");
+            setInstructors((prev) => prev.filter((ins) => ins._id !== id));
+          } catch (err) {
+            message.error("Từ chối hồ sơ thất bại");
+          }
+        },
+        onCancel() {
+          // 👇 Reset lại select về trạng thái ban đầu nếu hủy
+          setSelectStatusMap((prev) => ({ ...prev, [id]: "pending" }));
+        }
       });
-      message.success(`Đã cập nhật trạng thái giảng viên`);
-      setInstructors((prev) =>
-        prev.map((ins) =>
-          ins._id === id ? { ...ins, approval_status: status } : ins
-        )
-      );
-    } catch (err) {
-      console.error("Lỗi cập nhật trạng thái:", err);
-      message.error("Cập nhật trạng thái thất bại");
+    } else if (newStatus === "approved") {
+      Modal.confirm({
+        title: "Xác nhận duyệt hồ sơ",
+        content: "Bạn có chắc chắn muốn duyệt hồ sơ giảng viên này không?",
+        okText: "Duyệt",
+        cancelText: "Hủy",
+        async onOk() {
+          try {
+            await config.put(`/users/instructors/${id}/approval`, {
+              status: "approved"
+            });
+
+            message.success("Đã duyệt hồ sơ");
+            setInstructors((prev) => prev.filter((ins) => ins._id !== id));
+          } catch (err) {
+            message.error("Duyệt hồ sơ thất bại");
+          }
+        },
+        onCancel() {
+          // 👇 Reset lại select về trạng thái ban đầu nếu hủy
+          setSelectStatusMap((prev) => ({ ...prev, [id]: "pending" }));
+        }
+      });
     }
   };
 
 
-
-  const filteredData = instructors.filter((ins) => {
-    const fullname = ins.fullname || "";
-    return (
-      (statusFilter === "all" || ins.approval_status === statusFilter) &&
-      fullname.toLowerCase().includes(searchText.toLowerCase())
-    );
-  });
-
-  const stats = {
-    total: instructors.length,
-    approved: instructors.filter((ins) => ins.approval_status === "approved").length,
-    pending: instructors.filter((ins) => ins.approval_status === "pending").length,
-    rejected: instructors.filter((ins) => ins.approval_status === "rejected").length
-  };
+  const filteredData = instructors.filter((ins) =>
+    ins.fullname?.toLowerCase().includes(searchText.toLowerCase())
+  );
 
   const columns: ColumnsType<InstructorProfile> = [
     {
@@ -110,7 +154,14 @@ const InstructorList = () => {
             size={48}
           />
           <div>
-            <div className="font-semibold text-base cursor-pointer hover:text-blue-600" onClick={() => navigate(`/admin/users/instructor/${record._id}`)}>{record.fullname}</div>
+            <div
+              className="font-semibold text-base cursor-pointer hover:text-blue-600"
+              onClick={() =>
+                navigate(`/admin/users/instructor/${record._id}`)
+              }
+            >
+              {record.fullname}
+            </div>
             <div className="text-sm text-gray-600">{record.email}</div>
             <div className="text-xs text-gray-500">{record.nickname}</div>
           </div>
@@ -124,19 +175,24 @@ const InstructorList = () => {
       render: (rating: number) => (
         <div>
           <Rate disabled defaultValue={Math.round(rating)} allowHalf />
-          <div className="text-xs text-gray-500 mt-1">{rating?.toFixed(1) || "Chưa có"}</div>
+          <div className="text-xs text-gray-500 mt-1">
+            {rating?.toFixed(1) || "Chưa có"}
+          </div>
         </div>
       )
     },
-
     {
       title: "Ngày tạo",
       dataIndex: "created_at",
       align: "center",
       render: (date) => (
         <div className="text-sm">
-          <div className="font-medium">{new Date(date).toLocaleDateString()}</div>
-          <div className="text-gray-500 text-xs">{new Date(date).toLocaleTimeString()}</div>
+          <div className="font-medium">
+            {new Date(date).toLocaleDateString()}
+          </div>
+          <div className="text-gray-500 text-xs">
+            {new Date(date).toLocaleTimeString()}
+          </div>
         </div>
       )
     },
@@ -149,7 +205,7 @@ const InstructorList = () => {
           active: { color: "green", label: "Hoạt động" },
           inactive: { color: "red", label: "Không hoạt động" }
         };
-        const tag = statusMap[status] || { color: "default", label: status };
+        const tag = statusMap[status as keyof typeof statusMap] || { color: "default", label: status };
         return <Tag color={tag.color}>{tag.label}</Tag>;
       }
     },
@@ -157,17 +213,48 @@ const InstructorList = () => {
       title: "Xét duyệt",
       dataIndex: "approval_status",
       align: "center",
-      render: (status, record) => (
+      render: (_status, record) => (
         <Select
-          value={status}
-          style={{ width: 140 }}
-          onChange={(value) => handleChangeStatus(record._id, value)}
+          value={selectStatusMap[record._id] || "pending"}
+          style={{ width: 160 }}
+          dropdownStyle={{ minWidth: 160 }}
+          onChange={(value) => {
+            setSelectStatusMap((prev) => ({ ...prev, [record._id]: value }));
+            handleChangeStatus(record._id, value);
+          }}
           options={[
-            { value: "approved", label: "✅ Duyệt" },
-            { value: "pending", label: "⏳ Chờ duyệt" },
-            { value: "rejected", label: "❌ Từ chối" }
+            {
+              value: "pending",
+              label: (
+                <span>
+                  <ClockCircleOutlined style={{ marginRight: 6 }} />
+                  Chờ duyệt
+                </span>
+              )
+            },
+            {
+              value: "approved",
+              label: (
+                <span>
+                  <CheckCircleOutlined style={{ color: "#52c41a", marginRight: 6 }} />
+                  Duyệt
+                </span>
+              )
+            },
+            {
+              value: "rejected",
+              label: (
+                <span>
+                  <CloseCircleOutlined style={{ color: "#ff4d4f", marginRight: 6 }} />
+                  Từ chối
+                </span>
+              )
+            }
           ]}
+
         />
+
+
       )
     },
     {
@@ -177,7 +264,9 @@ const InstructorList = () => {
       render: (_, record) => (
         <Button
           icon={<EyeOutlined />}
-          onClick={() => navigate(`/admin/users/instructor/${record._id}`)}
+          onClick={() =>
+            navigate(`/admin/users/instructors/pending/${record._id}`)
+          }
         >
           Xem chi tiết
         </Button>
@@ -188,48 +277,21 @@ const InstructorList = () => {
   return (
     <div className="p-6">
       <Row gutter={[16, 16]} className="mb-6">
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={12} md={8}>
           <Card>
             <Statistic
-              title="Tổng giảng viên"
-              value={stats.total}
-              prefix={<TeamOutlined />}
-              valueStyle={{ color: "#1890ff" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Tổng chờ duyệt"
-              value={stats.pending}
+              title={
+                <span>
+                  👨‍🏫 Giảng viên <span style={{ color: "#faad14" }}>chờ duyệt</span>
+                </span>
+              }
+              value={instructors.length}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: "#faad14" }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Đã duyệt"
-              value={stats.approved}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: "#52c41a" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Đã từ chối"
-              value={stats.rejected}
-              prefix={<CloseCircleOutlined />}
-              valueStyle={{ color: "#ff4d4f" }}
-            />
-          </Card>
-        </Col>
       </Row>
-
 
       <Row gutter={[16, 16]} className="mb-4" align="middle">
         <Col xs={24} sm={16}>
@@ -242,21 +304,7 @@ const InstructorList = () => {
             style={{ width: "100%" }}
           />
         </Col>
-        <Col xs={24} sm={8}>
-          <Select
-            defaultValue="all"
-            style={{ width: "100%" }}
-            onChange={(value) => setStatusFilter(value)}
-            options={[
-              { value: "all", label: "Tất cả" },
-              { value: "approved", label: "Đã duyệt" },
-              { value: "pending", label: "Chờ duyệt" },
-              { value: "rejected", label: "Từ chối" }
-            ]}
-          />
-        </Col>
       </Row>
-
 
       <Table
         rowKey="_id"

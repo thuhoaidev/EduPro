@@ -10,6 +10,7 @@ import {
   WarningOutlined,
   AppstoreOutlined,
   LogoutOutlined,
+  ProfileOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -182,8 +183,8 @@ const AdminLayout = () => {
         },
         {
           key: "/admin/instructors",
-          icon: <TeamOutlined className="text-lg" />,
-          label: renderLabel("Quản lý giảng viên"),
+          icon: <	ProfileOutlined className="text-lg" />,
+          label: renderLabel("Hồ sơ giảng viên chờ duyệt"),
         },
         // {
         //   key: "/admin/instructor-approval",
