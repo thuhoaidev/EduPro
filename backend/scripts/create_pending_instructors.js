@@ -4,7 +4,10 @@ const User = require('../src/models/User');
 const { Role } = require('../src/models/Role');
 
 // Kết nối database
-mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://edupro:edupro123@cluster0.qjwuxzj.mongodb.net/edupro')
+mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://edupro:edupro123@cluster0.qjwuxzj.mongodb.net/edupro', {
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000
+})
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 

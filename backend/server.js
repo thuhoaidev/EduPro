@@ -8,8 +8,6 @@ const PORT = process.env.PORT || 5000;
 // Kết nối đến MongoDB
 mongoose
   .connect(process.env.MONGODB_URI || 'mongodb+srv://edupro:edupro123@cluster0.qjwuxzj.mongodb.net/edupro', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
     serverSelectionTimeoutMS: 30000, // 30s
     socketTimeoutMS: 45000 // 45s
   })

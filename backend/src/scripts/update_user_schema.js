@@ -6,8 +6,8 @@ async function updateSchema() {
   try {
     // Kết nối đến MongoDB
     await mongoose.connect('mongodb://localhost:27017/edu_pro', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000
     });
 
     console.log('Kết nối đến MongoDB thành công!');

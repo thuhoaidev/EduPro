@@ -4,8 +4,8 @@ const { Role } = require('./src/models/Role');
 
 // Kết nối database
 mongoose.connect('mongodb://localhost:27017/edupro', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000
 });
 
 async function updateStudentApproval() {
