@@ -13,7 +13,7 @@ const {
   updateInstructorApproval,
   getPendingInstructors,
   getPendingInstructorDetail,
-  registerInstructorProfile,
+  submitInstructorProfile,
   getMyInstructorProfile,
   updateInstructorProfile,
 } = require('../controllers/user.controller');
@@ -54,7 +54,7 @@ router.get('/me', getCurrentUser);
 router.put('/me', uploadAvatar, processAvatarUpload, deleteOldAvatar, updateCurrentUser);
 
 // Routes cho sinh viên nộp hồ sơ giảng viên (chỉ cần đăng nhập)
-router.post('/instructor-profile/register', uploadInstructorFiles, processInstructorFilesUpload, registerInstructorProfile);
+router.post('/instructor-profile/register', uploadInstructorFiles, processInstructorFilesUpload, submitInstructorProfile);
 router.get('/instructor-profile/my', getMyInstructorProfile);
 router.put('/instructor-profile/update', updateInstructorProfile);
 
