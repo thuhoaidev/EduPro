@@ -1,354 +1,317 @@
-import React, { useState, useEffect } from "react";
 import {
       Form,
       Input,
+      InputNumber,
       Button,
-      DatePicker,
-      Space,
+      Upload,
       Card,
+      Space,
       Typography,
+      Divider,
       message,
-      Select,
-} from "antd";
-import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
-import dayjs, { Dayjs } from "dayjs";
-import { config } from "../../../api/axios";
-import { useNavigate } from "react-router-dom";
-
+      Row,
+      Col,
+} from 'antd';
+import {
+      PlusOutlined,
+      UploadOutlined,
+      DeleteOutlined,
+      FileDoneOutlined,
+      FileAddOutlined,
+      BookOutlined,
+      ProfileOutlined,
+      PaperClipOutlined,
+      FileTextOutlined,
+      ArrowLeftOutlined,
+} from '@ant-design/icons';
+import React, { useState } from 'react';
+import { config } from '../../../api/axios';
+import { useNavigate } from 'react-router-dom';
 const { Title } = Typography;
-const { TextArea } = Input;
 
-interface Education {
-      degree: string;
-      field: string;
-      institution: string;
-      year: number | null;
-      description?: string;
-}
-
-interface Experience {
-      position: string;
-      company: string;
-      startDate: Dayjs | null;
-      endDate: Dayjs | null;
-      description?: string;
-}
-
-interface FormValues {
-      bio: string;
-      expertise: string;
-      gender: "Nam" | "Nữ" | "Khác";
-      education: Education[];
-      experience: Experience[];
-}
-
-export default function InstructorRegistrationPage() {
-      const [loading, setLoading] = useState(false);
+const InstructorRegistrationPage = () => {
       const [form] = Form.useForm();
-      const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+      const [loading, setLoading] = useState(false);
       const navigate = useNavigate();
 
-      const onFinish = async (values: FormValues) => {
-            console.log("value", values)
-            if (alreadyRegistered) {
-                  message.warning("Bạn đã đăng ký làm giảng viên.");
-                  return;
-            }
-            // Định dạng dữ liệu gửi lên backend
-            const formattedValues = {
-                  bio: values.bio,
-                  expertise: values.expertise,
-                  gender: values.gender,
-                  education: values.education
-                        .filter((edu) => edu && typeof edu === "object")
-                        .map((edu) => ({
-                              ...edu,
-                              year: Number(edu.year),
-                        })),
-                  experience: values.experience
-                        .filter((exp) => exp && typeof exp === "object")
-                        .map((exp) => ({
-                              ...exp,
-                              startDate: exp.startDate ? dayjs(exp.startDate).toISOString() : null,
-                              endDate: exp.endDate ? dayjs(exp.endDate).toISOString() : null,
-                        })),
-            };
-            console.log("Formatted values:", formattedValues);
+      const onFinish = async (values: any) => {
+            console.log("🔍 Dữ liệu form trước khi gửi:", values);
 
             try {
                   setLoading(true);
-                  const res = await config.post("/auth/register/instructor", formattedValues);
-                  console.log("Phản hồi từ server:", res.data);
+                  const formData = new FormData();
 
-                  if (res.data.success) {
-                        message.success("Đăng ký thành công! Vui lòng đợi admin duyệt.");
-                        form.resetFields();
-                        setAlreadyRegistered(true);
-                  } else {
-                        message.error("Đăng ký thất bại: " + res.data.message);
+                  // Kinh nghiệm
+                  formData.append('experience_years', values.experience_years);
+
+                  // Chuyên môn
+                  const specializationList = typeof values.specializations === 'string'
+                        ? values.specializations.split(',').map((s: string) => s.trim())
+                        : values.specializations;
+                  specializationList.forEach((spec: string, idx: number) => {
+                        formData.append(`specializations[${idx}]`, spec);
+                  });
+
+                  // Kinh nghiệm giảng dạy
+                  formData.append('teaching_experience.years', values.teaching_experience.years);
+                  formData.append('teaching_experience.description', values.teaching_experience.description);
+
+                  // Bằng cấp (metadata + file)
+                  values.certificates?.forEach((c: any, index: number) => {
+                        formData.append(`certificates[${index}][name]`, c.name);
+                        formData.append(`certificates[${index}][major]`, c.major);
+                        formData.append(`certificates[${index}][issuer]`, c.issuer);
+                        formData.append(`certificates[${index}][year]`, c.year);
+                        formData.append(`certificate_files`, c.file.file.originFileObj); // Giữ nguyên name này để match multer.fields
+                  });
+
+                  // CV (tùy chọn)
+                  if (values.cv_file?.fileList?.[0]) {
+                        formData.append('cv_file', values.cv_file.fileList[0].originFileObj);
                   }
-            } catch (error: any) {
-                  console.log("API error:", error.response?.data);
-                  message.error(error.response?.data?.message || "Có lỗi xảy ra khi đăng ký.");
-                  // setTimeout(() => {
-                  //       navigate("/");
-                  // }, 2000);
+
+                  // Video demo (tùy chọn)
+                  if (values.demo_video?.fileList?.[0]) {
+                        formData.append('demo_video', values.demo_video.fileList[0].originFileObj);
+                  }
+
+                  // Tài liệu khác (metadata + file)
+                  values.other_documents?.forEach((doc: any, index: number) => {
+                        formData.append(`other_documents[${index}][name]`, doc.name);
+                        formData.append(`other_documents[${index}][description]`, doc.description || '');
+                        formData.append(`other_documents`, doc.file.file.originFileObj);
+                  });
+
+                  // Gửi request
+                  const response = await config.post('/users/instructor-profile/submit', formData);
+                  const result = response.data;
+
+                  if (result.success) {
+                        message.success(result.message);
+                        form.resetFields();
+                        navigate('/');
+                  } else {
+                        message.error(result.message);
+                  }
+            } catch (err: any) {
+                  console.error('❌ Error submitting form:', err);
+                  message.error('Đã xảy ra lỗi khi gửi hồ sơ');
             } finally {
                   setLoading(false);
             }
       };
 
-      // Hàm kiểm tra xem người dùng đã đăng ký làm giảng viên chưa
-      const checkAlreadyRegistered = async () => {
-            try {
-                  const res = await config.get("/auth/me/instructor");
-                  console.log("API check instructor status:", res.data);
-                  const hasRegistered = res.data?.has_registered_instructor;
-                  console.log("has_registered_instructor:", hasRegistered);
-
-                  // Sử dụng has_registered_instructor để kiểm tra
-                  if (res.data?.has_registered_instructor) {
-                        setAlreadyRegistered(true);
-                  }
-            } catch (err) {
-                  console.error("Lỗi khi kiểm tra trạng thái giảng viên:", err);
-            }
-      };
-
-      useEffect(() => {
-            checkAlreadyRegistered();
-      }, []);
-
-      // Tự động chuyển hướng về trang chủ sau 2 giây nếu đã đăng ký
-      // useEffect(() => {
-      //       if (alreadyRegistered) {
-      //             const timer = setTimeout(() => {
-      //                   navigate("/");
-      //             }, 2000);
-      //             return () => clearTimeout(timer);
-      //       }
-      // }, [alreadyRegistered, navigate]);
 
       return (
-            <Card style={{ maxWidth: 800, margin: "auto", marginTop: 40, padding: 20 }}>
-                  {!alreadyRegistered && (
-                        <h2 className="text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-green-400 mb-8">
-                              Đăng ký làm giảng viên
-                        </h2>
-                  )}
+            <div className="max-w-5xl mx-auto px-4 py-10">
+                  <Card className="rounded-xl shadow-md border border-gray-100">
+                        <Title level={3} className="text-center">
+                              <FileDoneOutlined className="text-blue-500 mr-2" />
+                              Đăng ký trở thành Giảng viên
+                        </Title>
 
-                  {alreadyRegistered ? (
-                        <div
-                              className="text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-green-400 mb-8"
-                              style={{
-                                    marginBottom: 16,
-                                    color: "red",
-                                    fontWeight: "bold",
-                                    textAlign: "center",
-                                    minHeight: 600,
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                    flexDirection: "column",
-                              }}
-                        >
-                              Bạn đã đăng ký làm giảng viên rồi. Đang chuyển về trang chủ...
-                        </div>
-                  ) : (
-                        <Form
-                              form={form}
-                              layout="vertical"
-                              onFinish={onFinish}
-                              initialValues={{
-                                    education: [{}],
-                                    experience: [{}],
-                              }}
-                        >
-                              <Form.Item
-                                    label="Tiểu sử"
-                                    name="bio"
-                                    rules={[{ required: true, message: "Vui lòng nhập tiểu sử" }]}
-                              >
-                                    <TextArea rows={3} placeholder="Giảng viên có kinh nghiệm..." />
-                              </Form.Item>
+                        <Form layout="vertical" form={form} onFinish={onFinish} scrollToFirstError>
+                              {/* EXPERIENCE */}
+                              <Divider orientation="left">
+                                    <ProfileOutlined className="mr-2 text-blue-500" />
+                                    Kinh nghiệm
+                              </Divider>
+                              <Row gutter={16}>
+                                    <Col span={12}>
+                                          <Form.Item
+                                                name="experience_years"
+                                                label="Số năm kinh nghiệm"
+                                                rules={[{ required: true, message: 'Vui lòng nhập số năm kinh nghiệm' }]}
+                                          >
+                                                <InputNumber min={0} className="w-full" placeholder="VD: 5" />
+                                          </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                          <Form.Item
+                                                name="specializations"
+                                                label="Chuyên môn"
+                                                rules={[{ required: true, message: 'Vui lòng nhập chuyên môn' }]}
+                                          >
+                                                <Input placeholder="VD: Toán, Lập trình, Kỹ năng mềm..." />
+                                          </Form.Item>
+                                    </Col>
+                              </Row>
 
-                              <Form.Item
-                                    label="Chuyên môn"
-                                    name="expertise"
-                                    rules={[{ required: true, message: "Vui lòng nhập chuyên môn" }]}
-                              >
-                                    <TextArea rows={2} placeholder="Lập trình Web, Mobile, AI..." />
-                              </Form.Item>
+                              {/* TEACHING */}
+                              <Divider orientation="left">
+                                    <BookOutlined className="mr-2 text-green-500" />
+                                    Kinh nghiệm giảng dạy
+                              </Divider>
+                              <Row gutter={16}>
+                                    <Col span={8}>
+                                          <Form.Item
+                                                label="Số năm giảng dạy"
+                                                name={['teaching_experience', 'years']}
+                                                rules={[{ required: true, message: 'Vui lòng nhập số năm' }]}
+                                          >
+                                                <InputNumber min={0} className="w-full" />
+                                          </Form.Item>
+                                    </Col>
+                                    <Col span={16}>
+                                          <Form.Item
+                                                label="Mô tả chi tiết"
+                                                name={['teaching_experience', 'description']}
+                                                rules={[{ required: true, message: 'Vui lòng nhập mô tả' }]}
+                                          >
+                                                <Input.TextArea rows={3} />
+                                          </Form.Item>
+                                    </Col>
+                              </Row>
 
-                              <Form.Item
-                                    label="Giới tính"
-                                    name="gender"
-                                    rules={[{ required: true, message: "Vui lòng chọn giới tính" }]}
-                              >
-                                    <Select placeholder="Chọn giới tính">
-                                          <Select.Option value="Nam">Nam</Select.Option>
-                                          <Select.Option value="Nữ">Nữ</Select.Option>
-                                          <Select.Option value="Khác">Khác</Select.Option>
-                                    </Select>
-                              </Form.Item>
-
-                              {/* Education */}
-                              <Form.List name="education">
+                              {/* CERTIFICATES */}
+                              <Divider orientation="left">
+                                    <FileTextOutlined className="mr-2 text-purple-500" />
+                                    Bằng cấp / Chứng chỉ
+                              </Divider>
+                              <Form.List name="certificates" rules={[{ required: true }]}>
                                     {(fields, { add, remove }) => (
-                                          <>
-                                                <Title level={4}>Bằng cấp</Title>
-                                                {fields.map(({ key, name, ...restField }) => (
-                                                      <Space
+                                          <div className="space-y-4">
+                                                {fields.map(({ key, name }) => (
+                                                      <Card
                                                             key={key}
-                                                            align="start"
-                                                            style={{ display: "flex", marginBottom: 8 }}
+                                                            type="inner"
+                                                            title={`Bằng cấp #${key + 1}`}
+                                                            className="shadow-sm rounded-lg border border-gray-100"
+                                                            extra={
+                                                                  <Button
+                                                                        type="text"
+                                                                        icon={<DeleteOutlined />}
+                                                                        danger
+                                                                        onClick={() => remove(name)}
+                                                                  >
+                                                                        Xóa
+                                                                  </Button>
+                                                            }
                                                       >
-                                                            <Form.Item
-                                                                  {...restField}
-                                                                  name={[name, "degree"]}
-                                                                  rules={[{ required: true, message: "Chọn bằng cấp" }]}
-                                                            >
-                                                                  <Select placeholder="Chọn bằng cấp" style={{ width: 130 }}>
-                                                                        <Select.Option value="Cử nhân">Cử nhân</Select.Option>
-                                                                        <Select.Option value="Thạc sĩ">Thạc sĩ</Select.Option>
-                                                                        <Select.Option value="Tiến sĩ">Tiến sĩ</Select.Option>
-                                                                        <Select.Option value="Khác">Khác</Select.Option>
-                                                                  </Select>
-                                                            </Form.Item>
-
-                                                            <Form.Item
-                                                                  {...restField}
-                                                                  name={[name, "field"]}
-                                                                  rules={[{ required: true, message: "Nhập chuyên ngành" }]}
-                                                            >
-                                                                  <Input placeholder="Công nghệ thông tin" />
-                                                            </Form.Item>
-
-                                                            <Form.Item
-                                                                  {...restField}
-                                                                  name={[name, "institution"]}
-                                                                  rules={[{ required: true, message: "Nhập tên trường" }]}
-                                                            >
-                                                                  <Input placeholder="Đại học XYZ" />
-                                                            </Form.Item>
-
-                                                            <Form.Item
-                                                                  {...restField}
-                                                                  name={[name, "year"]}
-                                                                  rules={[{ required: true, message: "Nhập năm tốt nghiệp" }]}
-                                                            >
-                                                                  <Input
-                                                                        type="number"
-                                                                        min={1900}
-                                                                        max={new Date().getFullYear()}
-                                                                        placeholder="2020"
-                                                                        style={{ width: 90 }}
-                                                                  />
-                                                            </Form.Item>
-
-                                                            <Form.Item {...restField} name={[name, "description"]}>
-                                                                  <Input placeholder="Mô tả thêm" />
-                                                            </Form.Item>
-
-                                                            <MinusCircleOutlined
-                                                                  onClick={() => remove(name)}
-                                                                  style={{ color: "red", marginTop: 8 }}
-                                                            />
-                                                      </Space>
+                                                            <Row gutter={16}>
+                                                                  <Col span={12}>
+                                                                        <Form.Item name={[name, 'name']} label="Tên bằng cấp" rules={[{ required: true }]}>
+                                                                              <Input />
+                                                                        </Form.Item>
+                                                                  </Col>
+                                                                  <Col span={12}>
+                                                                        <Form.Item name={[name, 'major']} label="Chuyên ngành" rules={[{ required: true }]}>
+                                                                              <Input />
+                                                                        </Form.Item>
+                                                                  </Col>
+                                                                  <Col span={12}>
+                                                                        <Form.Item name={[name, 'issuer']} label="Nơi cấp" rules={[{ required: true }]}>
+                                                                              <Input />
+                                                                        </Form.Item>
+                                                                  </Col>
+                                                                  <Col span={6}>
+                                                                        <Form.Item name={[name, 'year']} label="Năm cấp" rules={[{ required: true }]}>
+                                                                              <InputNumber min={1900} max={2100} className="w-full" />
+                                                                        </Form.Item>
+                                                                  </Col>
+                                                                  <Col span={6}>
+                                                                        <Form.Item name={[name, 'file']} label="Tệp scan" rules={[{ required: true }]}>
+                                                                              <Upload beforeUpload={() => false} maxCount={1}>
+                                                                                    <Button icon={<UploadOutlined />}>Tải lên</Button>
+                                                                              </Upload>
+                                                                        </Form.Item>
+                                                                  </Col>
+                                                            </Row>
+                                                      </Card>
                                                 ))}
-
-                                                <Form.Item>
-                                                      <Button
-                                                            type="dashed"
-                                                            onClick={() => add()}
-                                                            block
-                                                            icon={<PlusOutlined />}
-                                                      >
-                                                            Thêm bằng cấp
-                                                      </Button>
-                                                </Form.Item>
-                                          </>
+                                                <Button icon={<PlusOutlined />} onClick={() => add()} block>
+                                                      Thêm bằng cấp
+                                                </Button>
+                                          </div>
                                     )}
                               </Form.List>
 
-                              {/* Experience */}
-                              <Form.List name="experience">
+                              {/* OPTIONAL FILES */}
+                              <Divider orientation="left">
+                                    <FileAddOutlined className="mr-2 text-orange-500" />
+                                    Tệp tùy chọn
+                              </Divider>
+                              <Row gutter={16}>
+                                    <Col span={12}>
+                                          <Form.Item name="cv_file" label="CV (PDF)">
+                                                <Upload beforeUpload={() => false} maxCount={1}>
+                                                      <Button icon={<UploadOutlined />}>Tải CV lên</Button>
+                                                </Upload>
+                                          </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                          <Form.Item name="demo_video" label="Video demo giảng dạy">
+                                                <Upload beforeUpload={() => false} maxCount={1}>
+                                                      <Button icon={<UploadOutlined />}>Tải video lên</Button>
+                                                </Upload>
+                                          </Form.Item>
+                                    </Col>
+                              </Row>
+
+                              {/* OTHER DOCUMENTS */}
+                              <Divider orientation="left">
+                                    <PaperClipOutlined className="mr-2 text-red-500" />
+                                    Tài liệu khác
+                              </Divider>
+                              <Form.List name="other_documents">
                                     {(fields, { add, remove }) => (
-                                          <>
-                                                <Title level={4}>Kinh nghiệm làm việc</Title>
-                                                {fields.map(({ key, name, ...restField }) => (
-                                                      <Space
+                                          <div className="space-y-4">
+                                                {fields.map(({ key, name }) => (
+                                                      <Card
                                                             key={key}
-                                                            align="start"
-                                                            style={{ display: "flex", marginBottom: 8 }}
+                                                            type="inner"
+                                                            title={`Tài liệu #${key + 1}`}
+                                                            className="shadow-sm rounded-lg"
+                                                            extra={
+                                                                  <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(name)}>
+                                                                        Xóa
+                                                                  </Button>
+                                                            }
                                                       >
-                                                            <Form.Item
-                                                                  {...restField}
-                                                                  name={[name, "position"]}
-                                                                  rules={[{ required: true, message: "Nhập vị trí công việc" }]}
-                                                            >
-                                                                  <Input placeholder="Giảng viên" />
+                                                            <Form.Item name={[name, 'name']} label="Tên tài liệu" rules={[{ required: true }]}>
+                                                                  <Input />
                                                             </Form.Item>
-
-                                                            <Form.Item
-                                                                  {...restField}
-                                                                  name={[name, "company"]}
-                                                                  rules={[{ required: true, message: "Nhập công ty / trường" }]}
-                                                            >
-                                                                  <Input placeholder="Trường ABC" />
+                                                            <Form.Item name={[name, 'description']} label="Mô tả">
+                                                                  <Input.TextArea rows={2} />
                                                             </Form.Item>
-
-                                                            <Form.Item
-                                                                  {...restField}
-                                                                  name={[name, "startDate"]}
-                                                                  rules={[{ required: true, message: "Chọn ngày bắt đầu" }]}
-                                                            >
-                                                                  <DatePicker placeholder="Ngày bắt đầu" />
+                                                            <Form.Item name={[name, 'file']} label="Tệp đính kèm" rules={[{ required: true }]}>
+                                                                  <Upload beforeUpload={() => false} maxCount={1}>
+                                                                        <Button icon={<UploadOutlined />}>Tải lên</Button>
+                                                                  </Upload>
                                                             </Form.Item>
-
-                                                            <Form.Item {...restField} name={[name, "endDate"]}>
-                                                                  <DatePicker placeholder="Ngày kết thúc (nếu có)" />
-                                                            </Form.Item>
-
-                                                            <Form.Item {...restField} name={[name, "description"]}>
-                                                                  <Input placeholder="Mô tả thêm" />
-                                                            </Form.Item>
-
-                                                            <MinusCircleOutlined
-                                                                  onClick={() => remove(name)}
-                                                                  style={{ color: "red", marginTop: 8 }}
-                                                            />
-                                                      </Space>
+                                                      </Card>
                                                 ))}
-
-                                                <Form.Item>
-                                                      <Button
-                                                            type="dashed"
-                                                            onClick={() => add()}
-                                                            block
-                                                            icon={<PlusOutlined />}
-                                                      >
-                                                            Thêm kinh nghiệm
-                                                      </Button>
-                                                </Form.Item>
-                                          </>
+                                                <Button icon={<PlusOutlined />} onClick={() => add()} block>
+                                                      Thêm tài liệu
+                                                </Button>
+                                          </div>
                                     )}
                               </Form.List>
 
+                              {/* Submit */}
+                              <Divider />
                               <Form.Item>
-                                    <Button
-                                          type="primary"
-                                          htmlType="submit"
-                                          loading={loading}
-                                          disabled={alreadyRegistered}
-                                          block
-                                          size="large"
-                                    >
-                                          Đăng ký
-                                    </Button>
+                                    <Row gutter={16} justify="space-between">
+                                          <Col>
+                                                <Button
+                                                      icon={<ArrowLeftOutlined />}
+                                                      onClick={() => navigate(-1)} // 🔙 quay lại trang trước
+                                                >
+                                                      Quay lại
+                                                </Button>
+                                          </Col>
+                                          <Col>
+                                                <Button type="primary" htmlType="submit" loading={loading} size="large">
+                                                      <FileDoneOutlined className="mr-2" />
+                                                      Nộp hồ sơ giảng viên
+                                                </Button>
+                                          </Col>
+                                    </Row>
                               </Form.Item>
                         </Form>
-                  )}
-            </Card>
+                  </Card>
+            </div>
       );
-}
+};
+
+export default InstructorRegistrationPage;

@@ -10,6 +10,7 @@ import {
   WarningOutlined,
   AppstoreOutlined,
   LogoutOutlined,
+  ProfileOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -182,11 +183,14 @@ const AdminLayout = () => {
         },
         {
           key: "/admin/instructors",
-
-          icon: <FileSearchOutlined className="text-lg" />,
+          icon: <	ProfileOutlined className="text-lg" />,
           label: renderLabel("Hồ sơ giảng viên chờ duyệt"),
         },
-
+        // {
+        //   key: "/admin/instructor-approval",
+        //   icon: <FileSearchOutlined className="text-lg" />,
+        //   label: renderLabel("Duyệt giảng viên"),
+        // },
       ],
     },
     {
@@ -197,6 +201,11 @@ const AdminLayout = () => {
         </div>
       ),
       children: [
+        {
+          key: "/admin/content-approval",
+          icon: <FileSearchOutlined className="text-lg" />,
+          label: renderLabel("Duyệt khóa học & blog"),
+        },
         {
           key: "/admin/categories",
           icon: <TagsOutlined className="text-lg" />,
