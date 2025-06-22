@@ -20,37 +20,32 @@ export const getUserById = async (id: string): Promise<ApiResponse<ApiUser>> => 
 };
 
 // Create new user
-export const createUser = async (userData: {
-  email: string;
-  password: string;
-  fullname: string;
-  role_id: string;
-  status?: UserStatus;
-  phone?: string;
-  address?: string;
-  dob?: string | null;
-  gender?: string;
-  approval_status?: string;
-  nickname?: string;
-}): Promise<ApiResponse<ApiUser>> => {
-  const response = await config.post('/users', userData);
+export const createUser = async (
+  userData: object | FormData
+): Promise<ApiResponse<ApiUser>> => {
+  const headers = userData instanceof FormData 
+    ? { 'Content-Type': 'multipart/form-data' }
+    : {};
+  const response = await config.post('/users', userData, { headers });
   return response.data;
 };
 
 // Update user
-export const updateUser = async (id: string, userData: {
-  name?: string;
-  role_id?: string;
-  status?: UserStatus;
-  email?: string;
-  phone?: string;
-  address?: string;
-  dob?: string | null;
-  gender?: string;
-  approval_status?: string;
-  email_verified?: boolean;
-}): Promise<ApiResponse<ApiUser>> => {
-  const response = await config.put(`/users/${id}`, userData);
+export const updateUser = async (
+  id: string, 
+  userData: object | FormData
+): Promise<ApiResponse<ApiUser>> => {
+  const headers = userData instanceof FormData 
+    ? { 'Content-Type': 'multipart/form-data' }
+    : {};
+  
+  // Using POST with method override for better compatibility with multipart/form-data
+  if (userData instanceof FormData) {
+    const response = await config.post(`/users/${id}?_method=PUT`, userData, { headers });
+    return response.data;
+  }
+
+  const response = await config.put(`/users/${id}`, userData, { headers });
   return response.data;
 };
 

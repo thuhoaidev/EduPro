@@ -9,6 +9,7 @@ const xss = require('xss-clean');
 const cookieParser = require('cookie-parser');
 const compression = require('compression');
 const path = require('path');
+const methodOverride = require('method-override');
 require('dotenv').config();
 
 // Import routes
@@ -52,6 +53,14 @@ app.use(cors({
 app.use(cookieParser()); // Parse cookies
 app.use(compression()); // Nén response
 app.use(express.json()); // Parse JSON body
+app.use(methodOverride(function (req, res) {
+  if (req.query && typeof req.query === 'object' && '_method' in req.query) {
+    // look in urlencoded POST bodies and delete it
+    const method = req.query._method
+    delete req.query._method
+    return method
+  }
+}));
 
 // Rate limiting - chỉ áp dụng trong production
 if (process.env.NODE_ENV === 'production') {
