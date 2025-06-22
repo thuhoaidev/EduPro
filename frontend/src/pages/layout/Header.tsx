@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { config } from '../../api/axios';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Layout, Input, Space, Button, Avatar, Dropdown, Spin, Typography, Badge, Card, List, Tag, Divider
+  Layout, Input, Space, Button, Avatar, Dropdown, Spin, Typography, Badge, Card, List, Tag, Divider, Popover
 } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -696,9 +696,9 @@ const AppHeader = () => {
                 </motion.div>
               ) : user ? (
               <Space size="middle">
-            <Dropdown
-                  overlay={notificationDropdown} 
-              trigger={['click']}
+            <Popover
+                  content={notificationDropdown} 
+              trigger="click"
               placement="bottomRight"
               arrow
                   open={notificationsOpen}
@@ -718,7 +718,7 @@ const AppHeader = () => {
                       />
                     </Badge>
                   </motion.div>
-                </Dropdown>
+                </Popover>
                 <motion.div 
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   whileTap={{ scale: 0.9 }}

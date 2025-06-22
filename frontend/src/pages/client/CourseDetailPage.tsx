@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Collapse, Breadcrumb, Divider } from 'antd';
-import { BookOutlined, ClockCircleOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, HeartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, SafetyCertificateOutlined, RiseOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
+import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb } from 'antd';
+import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, HeartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, SafetyCertificateOutlined, RiseOutlined, DownOutlined } from '@ant-design/icons';
 import { courseService } from '../../services/apiService';
 import type { Course, Section } from '../../services/apiService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
-const { Panel } = Collapse;
 
 // Mock data for reviews
 const mockReviews = [
@@ -20,11 +19,11 @@ const mockReviews = [
 // Animation Variants
 const sectionVariants = {
     hidden: { opacity: 0, y: 40 },
-    visible: (i: number = 1) => ({
-        opacity: 1,
+    visible: { 
+        opacity: 1, 
         y: 0,
-        transition: { duration: 0.5, delay: i * 0.1, ease: 'easeOut' }
-    })
+        transition: { duration: 0.5, ease: "easeOut" }
+    }
 };
 
 const CourseDetailPage: React.FC = () => {
@@ -62,7 +61,7 @@ const CourseDetailPage: React.FC = () => {
         fetchCourseData();
     }, [slug]);
 
-    if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Spin size="large" tip="Đang tải dữ liệu khóa học..." /></div>;
+    if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Spin size="large" /></div>;
     if (error) return <div className="p-8"><Alert message="Lỗi" description={error} type="error" showIcon /></div>;
     if (!course) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Empty description="Không tìm thấy dữ liệu khóa học." /></div>;
 

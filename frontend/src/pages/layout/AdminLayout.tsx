@@ -327,7 +327,7 @@ const AdminLayout = () => {
         >
 
 
-          <Dropdown overlay={profileMenu} trigger={["click"]} placement="bottomRight">
+          <Dropdown menu={{ items: profileMenu }} trigger={["click"]} placement="bottomRight">
             <div
               className={styles.profileDropdown}
             >
