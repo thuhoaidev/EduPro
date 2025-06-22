@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Layout, Row, Col, Typography, Rate, Spin, Alert, Empty, Tag, Avatar } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Layout, Row, Col, Typography, Spin, Alert, Empty } from 'antd';
 import { courseService } from '../../services/apiService';
 import type { Course } from '../../services/apiService';
 import CategoryNav from '../../components/common/CategoryNav';
@@ -35,7 +34,9 @@ const CoursesPage: React.FC = () => {
                     fetchedCourses = await courseService.getAllCourses();
                 }
                 
-                setCourses(fetchedCourses);
+                // Chỉ hiển thị khóa học có status archived
+                const archivedCourses = fetchedCourses.filter(course => course.status === 'archived');
+                setCourses(archivedCourses);
             } catch (err) {
                 setError('Không thể tải danh sách khóa học. Vui lòng thử lại sau.');
                 console.error(err);

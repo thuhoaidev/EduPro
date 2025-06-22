@@ -37,6 +37,9 @@ const uploadInstructorProfile = upload.fields([
   { name: 'other_documents', maxCount: 10 }, // Tối đa 10 file hồ sơ khác
 ]);
 
+// Middleware upload thumbnail cho course
+const uploadThumbnail = upload.single('thumbnail');
+
 // Middleware xử lý lỗi upload
 const handleUploadError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
@@ -74,4 +77,5 @@ module.exports = {
   uploadAvatar,
   uploadInstructorProfile,
   handleUploadError,
+  uploadThumbnail,
 }; 

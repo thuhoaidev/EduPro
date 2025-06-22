@@ -63,8 +63,8 @@ export interface Course {
   };
   rating: number;
   reviews: number;
-  price: string;
-  oldPrice?: string;
+  price: number;
+  oldPrice?: number;
   Image: string;
   type: string;
   duration: string;
@@ -73,6 +73,8 @@ export interface Course {
   isFree: boolean;
   hasDiscount: boolean;
   discountPercent?: number;
+  status: string;
+  language: string;
 }
 
 export interface Section {
@@ -106,12 +108,6 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
   const isFree = finalPrice === 0;
   const hasDiscount = apiCourse.discount > 0;
 
-  // Format giá
-  const formatPrice = (price: number) => {
-    if (price === 0) return 'Miễn phí';
-    return `${price.toLocaleString('vi-VN')} VND`;
-  };
-
   return {
     id: apiCourse._id,
     slug: apiCourse.slug,
@@ -124,8 +120,8 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
     },
     rating: apiCourse.rating || 4.5,
     reviews: apiCourse.reviews || Math.floor(Math.random() * 100) + 10,
-    price: formatPrice(finalPrice),
-    oldPrice: hasDiscount ? formatPrice(apiCourse.price) : undefined,
+    price: finalPrice,
+    oldPrice: hasDiscount ? apiCourse.price : undefined,
     Image: apiCourse.thumbnail || 'https://via.placeholder.com/600x400/4A90E2/FFFFFF?text=Khóa+học',
     type: apiCourse.category?.name || 'Khóa học',
     duration: durationMap[apiCourse.level] || '12 giờ học',
@@ -133,8 +129,60 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
     requirements: apiCourse.requirements || [],
     isFree,
     hasDiscount,
-    discountPercent: hasDiscount ? apiCourse.discount : undefined
+    discountPercent: hasDiscount ? apiCourse.discount : undefined,
+    status: apiCourse.status,
+    language: apiCourse.language
   };
+};
+
+export interface InstructorRegistrationResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user: {
+      _id: string;
+      fullname: string;
+      email: string;
+      status: string;
+      email_verified: boolean;
+      approval_status: string;
+    };
+    instructorInfo: {
+      is_approved: boolean;
+      experience_years: number;
+      specializations: string[];
+      teaching_experience: {
+        years: number;
+        description: string;
+      };
+      certificates: Array<{
+        name: string;
+        file: string;
+        original_name: string;
+        uploaded_at: string;
+        _id: string;
+        id: string;
+      }>;
+      demo_video?: string;
+      cv_file?: string;
+      approval_status: string;
+      other_documents: any[];
+    };
+  };
+}
+
+export const registerInstructor = async (formData: FormData): Promise<InstructorRegistrationResponse> => {
+  try {
+    const response = await apiClient.post('/users/instructor-register', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Lỗi đăng ký giảng viên:', error);
+    throw new Error(error.response?.data?.message || 'Đã xảy ra lỗi khi đăng ký');
+  }
 };
 
 export const courseService = {
@@ -228,58 +276,5 @@ export const courseService = {
       console.error('Lỗi khi lấy khóa học của giảng viên:', error);
       return [];
     }
-  }
-};
-
-// Instructor Registration Response Interfaces
-export interface InstructorRegistrationResponse {
-  success: boolean;
-  message: string;
-  data: {
-    user: {
-      _id: string;
-      fullname: string;
-      email: string;
-      status: string;
-      email_verified: boolean;
-      approval_status: string;
-    };
-    instructorInfo: {
-      is_approved: boolean;
-      experience_years: number;
-      specializations: string[];
-      teaching_experience: {
-        years: number;
-        description: string;
-      };
-      certificates: Array<{
-        name: string;
-        file: string;
-        original_name: string;
-        uploaded_at: string;
-        _id: string;
-        id: string;
-      }>;
-      demo_video?: string;
-      cv_file?: string;
-      approval_status: string;
-      other_documents: any[];
-    };
-  };
+  },
 }
-
-// Instructor Registration API
-export const registerInstructor = async (formData: FormData): Promise<InstructorRegistrationResponse> => {
-  try {
-    const response = await axios.post('/users/instructor-register', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    
-    return response.data;
-  } catch (error: any) {
-    console.error('Lỗi đăng ký giảng viên:', error);
-    throw new Error(error.response?.data?.message || 'Đã xảy ra lỗi khi đăng ký');
-  }
-};

@@ -33,7 +33,7 @@ const CourseDetailPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [contentLoading, setContentLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set([0]));
+    const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
 
     useEffect(() => {
         const fetchCourseData = async () => {
@@ -64,6 +64,11 @@ const CourseDetailPage: React.FC = () => {
     if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Spin size="large" /></div>;
     if (error) return <div className="p-8"><Alert message="Lỗi" description={error} type="error" showIcon /></div>;
     if (!course) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Empty description="Không tìm thấy dữ liệu khóa học." /></div>;
+
+    // Chỉ hiển thị nếu là archived
+    if (course.status !== 'archived') {
+        return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Empty description="Chỉ hiển thị cho khóa học đã lưu trữ (archived)." /></div>;
+    }
 
     const totalLessons = courseContent.reduce((acc, section) => acc + section.lessons.length, 0);
 
@@ -143,72 +148,76 @@ const CourseDetailPage: React.FC = () => {
                                 <AnimatePresence>
                                     {contentLoading ? <div className="text-center p-8"><Spin tip="Đang tải nội dung..."/></div> : courseContent.length > 0 ? (
                                         <div className="divide-y divide-gray-100">
-                                            {courseContent.map((section, idx) => (
-                                                <motion.div
-                                                    key={idx}
-                                                    initial={{ opacity: 0, y: 30 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: 30 }}
-                                                    transition={{ duration: 0.4, delay: idx * 0.08 }}
-                                                    className="py-6"
-                                                >
-                                                    <div 
-                                                        className="flex items-center gap-4 cursor-pointer group"
-                                                        onClick={() => toggleSection(idx)}
+                                            {courseContent.map((section, idx) => {
+                                                const isOpen = expandedSections.has(idx);
+                                                return (
+                                                    <motion.div
+                                                        key={idx}
+                                                        initial={{ opacity: 0, y: 30 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: 30 }}
+                                                        transition={{ duration: 0.4, delay: idx * 0.08 }}
+                                                        className={`mb-4 rounded-2xl border border-gray-200 shadow-sm transition-all duration-300 ${isOpen ? 'bg-gradient-to-br from-cyan-50 via-white to-purple-50 border-cyan-200 shadow-lg' : 'bg-white hover:bg-gray-50'}`}
                                                     >
-                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 flex items-center justify-center text-white text-lg font-bold shadow-md group-hover:scale-110 transition-transform duration-300">
-                                                            {idx + 1}
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <Text strong className="text-lg group-hover:text-cyan-700 transition-colors duration-300">{section.title}</Text>
-                                                            <div className="flex items-center gap-4 mt-2">
-                                                                <span className="text-gray-400 text-sm">({section.lessons.length} bài học)</span>
-                                                                <span className="text-gray-400 text-sm">•</span>
-                                                                <span className="text-gray-400 text-sm">~{Math.ceil(section.lessons.length * 15)} phút</span>
-                                                            </div>
-                                                        </div>
-                                                        <motion.div
-                                                            animate={{ rotate: expandedSections.has(idx) ? 90 : 0 }}
-                                                            transition={{ duration: 0.3 }}
-                                                            className="text-cyan-500 group-hover:text-cyan-600 transition-colors duration-300"
+                                                        <div 
+                                                            className={`flex items-center gap-4 cursor-pointer group px-6 py-5 rounded-2xl transition-all duration-300 ${isOpen ? 'bg-gradient-to-br from-cyan-100/60 to-purple-100/60' : ''}`}
+                                                            onClick={() => toggleSection(idx)}
                                                         >
-                                                            <DownOutlined className="text-lg" />
-                                                        </motion.div>
-                                                    </div>
-                                                    <AnimatePresence>
-                                                        {expandedSections.has(idx) && (
-                                                            <motion.div
-                                                                initial={{ height: 0, opacity: 0 }}
-                                                                animate={{ height: "auto", opacity: 1 }}
-                                                                exit={{ height: 0, opacity: 0 }}
-                                                                transition={{ duration: 0.3, ease: "easeInOut" }}
-                                                                className="overflow-hidden"
-                                                            >
-                                                                <div className="pl-14 mt-6 space-y-3">
-                                                                    {section.lessons.map((lesson, lessonIdx) => (
-                                                                        <motion.div
-                                                                            key={lessonIdx}
-                                                                            initial={{ opacity: 0, x: -20 }}
-                                                                            animate={{ opacity: 1, x: 0 }}
-                                                                            transition={{ duration: 0.3, delay: lessonIdx * 0.05 }}
-                                                                            className="flex justify-between items-center py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                                                                        >
-                                                                            <div className="flex items-center">
-                                                                                <PlayCircleOutlined className="mr-3 text-cyan-400 text-lg" />
-                                                                                <span className="text-gray-700">{lesson.title}</span>
-                                                                            </div>
-                                                                            <div className="flex items-center gap-2">
-                                                                                <LockOutlined className="text-gray-400" />
-                                                                                <span className="text-gray-400 text-sm">~15 phút</span>
-                                                                            </div>
-                                                                        </motion.div>
-                                                                    ))}
+                                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md transition-transform duration-300 ${isOpen ? 'bg-gradient-to-br from-cyan-500 to-purple-500 scale-110' : 'bg-gradient-to-br from-cyan-400 to-purple-400 group-hover:scale-110'}`}>
+                                                                {idx + 1}
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <Text strong className={`text-lg transition-colors duration-300 ${isOpen ? 'text-cyan-700' : 'group-hover:text-cyan-700'}`}>{section.title}</Text>
+                                                                <div className="flex items-center gap-4 mt-2">
+                                                                    <span className="text-gray-400 text-sm">({section.lessons.length} bài học)</span>
+                                                                    <span className="text-gray-400 text-sm">•</span>
+                                                                    <span className="text-gray-400 text-sm">~{Math.ceil(section.lessons.length * 15)} phút</span>
                                                                 </div>
+                                                            </div>
+                                                            <motion.div
+                                                                animate={{ rotate: isOpen ? 90 : 0 }}
+                                                                transition={{ duration: 0.3 }}
+                                                                className={`text-cyan-500 group-hover:text-cyan-600 transition-colors duration-300 ${isOpen ? 'font-bold' : ''}`}
+                                                            >
+                                                                <DownOutlined className="text-xl" />
                                                             </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
-                                                </motion.div>
-                                            ))}
+                                                        </div>
+                                                        <AnimatePresence>
+                                                            {isOpen && (
+                                                                <motion.div
+                                                                    initial={{ height: 0, opacity: 0 }}
+                                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                                    exit={{ height: 0, opacity: 0 }}
+                                                                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                                                    className="overflow-hidden"
+                                                                >
+                                                                    <div className="pl-16 pr-6 pb-6 pt-2 space-y-3">
+                                                                        {section.lessons.map((lesson, lessonIdx) => (
+                                                                            <motion.div
+                                                                                key={lessonIdx}
+                                                                                initial={{ opacity: 0, x: -20 }}
+                                                                                animate={{ opacity: 1, x: 0 }}
+                                                                                transition={{ duration: 0.3, delay: lessonIdx * 0.05 }}
+                                                                                className="flex items-center gap-4 py-3 px-4 rounded-lg bg-white/80 border border-gray-100 hover:border-cyan-200 shadow-sm hover:bg-cyan-50 transition-all duration-200"
+                                                                            >
+                                                                                <div className="flex items-center gap-2 min-w-[40px]">
+                                                                                    <span className="w-7 h-7 flex items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 text-white font-bold text-base shadow">{lessonIdx + 1}</span>
+                                                                                    <PlayCircleOutlined className="text-cyan-400 text-lg ml-2" />
+                                                                                </div>
+                                                                                <span className="flex-1 text-gray-700 font-medium">{lesson.title}</span>
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <LockOutlined className="text-gray-400" />
+                                                                                    <span className="text-gray-400 text-sm">~15 phút</span>
+                                                                                </div>
+                                                                            </motion.div>
+                                                                        ))}
+                                                                    </div>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </motion.div>
+                                                );
+                                            })}
                                         </div>
                                     ) : <Empty description="Nội dung khóa học đang được cập nhật." />}
                                 </AnimatePresence>
@@ -282,32 +291,42 @@ const CourseDetailPage: React.FC = () => {
                                         className="w-full h-48 object-cover rounded-lg shadow-md" 
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg"></div>
-                                    <div className="absolute top-3 right-3">
-                                        <Tag 
-                                            color={course.isFree ? "green" : "cyan"} 
-                                            className="font-semibold px-3 py-1"
-                                        >
-                                            {course.isFree ? "Miễn phí" : "Bestseller"}
-                                        </Tag>
+                                    <div className="absolute top-3 right-3 flex flex-col gap-2 items-end">
+                                        {course.isFree ? (
+                                            <Tag color="green" className="font-semibold px-3 py-1">Miễn phí</Tag>
+                                        ) : (
+                                            <>
+                                                {course.hasDiscount && course.oldPrice && (
+                                                    <Tag color="red" className="font-bold text-xs mt-1">
+                                                        -{Math.round(((course.oldPrice - course.price) / course.oldPrice) * 100)}%
+                                                    </Tag>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
                                 {/* Price Section */}
-                                {!course.isFree && (
+                                {course.isFree ? (
+                                    <div className="mb-6">
+                                        <div className="flex items-baseline gap-2 mb-3">
+                                            <Title level={1} className="!font-extrabold !m-0 !text-green-600">
+                                                Miễn phí
+                                            </Title>
+                                        </div>
+                                    </div>
+                                ) : (
                                     <div className="mb-6">
                                         <div className="flex items-baseline justify-between mb-2">
                                             <Text className="text-gray-500 text-sm font-medium">Giá khóa học</Text>
                                             {course.hasDiscount && course.oldPrice && (
-                                                <Text delete type="secondary" className="!text-lg font-medium">{course.oldPrice}</Text>
+                                                <Text delete type="secondary" className="!text-lg font-medium">{course.oldPrice.toLocaleString('vi-VN')} VND</Text>
                                             )}
                                         </div>
                                         <div className="flex items-baseline gap-2 mb-3">
                                             <Title level={1} className="!font-extrabold !m-0 !text-cyan-600">
-                                                {course.price}
+                                                {course.price.toLocaleString('vi-VN')} VND
                                             </Title>
-                                            {course.hasDiscount && (
-                                                <Tag color="red" className="font-bold text-xs">-{Math.round(((parseFloat(course.oldPrice?.replace(/[^\d]/g, '') || '0') - parseFloat(course.price.replace(/[^\d]/g, ''))) / parseFloat(course.oldPrice?.replace(/[^\d]/g, '') || '1')) * 100)}%</Tag>
-                                            )}
                                         </div>
                                         {course.hasDiscount && (
                                             <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-lg p-3 mb-4">
@@ -355,21 +374,6 @@ const CourseDetailPage: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Guarantee Section */}
-                                {!course.isFree && (
-                                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 mb-6">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center">
-                                                <SafetyCertificateOutlined className="text-white text-lg" />
-                                            </div>
-                                            <Text className="font-semibold text-emerald-800">Đảm bảo hoàn tiền 100%</Text>
-                                        </div>
-                                        <Text className="text-emerald-700 text-sm leading-relaxed">
-                                            Trong vòng 30 ngày nếu bạn không hài lòng với khóa học. Không cần lý do, không cần câu hỏi.
-                                        </Text>
-                                    </div>
-                                )}
-
                                 {/* Course Features */}
                                 <div className="mb-6">
                                     <Title level={4} className="mb-4 text-gray-800">Thông tin khóa học</Title>
@@ -387,7 +391,9 @@ const CourseDetailPage: React.FC = () => {
                                                 <GlobalOutlined className="text-white text-sm" />
                                             </div>
                                             <div>
-                                                <Text className="text-gray-500 text-xs">Tiếng Việt</Text>
+                                                <Text className="text-gray-500 text-xs">
+                                                    {course.language === 'en' ? 'Tiếng Anh' : course.language === 'vi' ? 'Tiếng Việt' : (course.language || 'Không rõ')}
+                                                </Text>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">

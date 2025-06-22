@@ -527,9 +527,23 @@ exports.getCourses = async (req, res, next) => {
         // Đếm tổng số khóa học
         const total = await Course.countDocuments(query);
 
+        const formatCourse = (course) => {
+            const obj = course.toObject();
+            obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
+            obj.discount = obj.discount || 0;
+            obj.instructor = course.instructor ? {
+                bio: course.instructor.bio,
+                expertise: course.instructor.expertise,
+                user: course.instructor.user
+            } : null;
+            return obj;
+        };
+
+        const formattedCourses = courses.map(formatCourse);
+
         res.json({
             success: true,
-            data: courses,
+            data: formattedCourses,
             pagination: {
                 total,
                 page: Number(page),
@@ -565,9 +579,23 @@ exports.getCourseBySlug = async (req, res, next) => {
         course.views = (course.views || 0) + 1;
         await course.save();
 
+        const formatCourse = (course) => {
+            const obj = course.toObject();
+            obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
+            obj.discount = obj.discount || 0;
+            obj.instructor = course.instructor ? {
+                bio: course.instructor.bio,
+                expertise: course.instructor.expertise,
+                user: course.instructor.user
+            } : null;
+            return obj;
+        };
+
+        const formattedCourse = formatCourse(course);
+
         res.json({
             success: true,
-            data: course
+            data: formattedCourse
         });
 
     } catch (error) {
@@ -626,9 +654,23 @@ exports.getCourseById = async (req, res, next) => {
         course.views = (course.views || 0) + 1;
         await course.save();
 
+        const formatCourse = (course) => {
+            const obj = course.toObject();
+            obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
+            obj.discount = obj.discount || 0;
+            obj.instructor = course.instructor ? {
+                bio: course.instructor.bio,
+                expertise: course.instructor.expertise,
+                user: course.instructor.user
+            } : null;
+            return obj;
+        };
+
+        const formattedCourse = formatCourse(course);
+
         res.json({
             success: true,
-            data: course
+            data: formattedCourse
         });
 
     } catch (error) {
@@ -683,14 +725,19 @@ exports.getAllCourses = async (req, res, next) => {
 
         const totalCourses = await Course.countDocuments(filter);
         
-        const formattedCourses = courses.map(course => ({
-            ...course.toObject(),
-            instructor: course.instructor ? { // Ghi đè lại instructor để có cấu trúc mong muốn
+        const formatCourse = (course) => {
+            const obj = course.toObject();
+            obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
+            obj.discount = obj.discount || 0;
+            obj.instructor = course.instructor ? {
                 bio: course.instructor.bio,
                 expertise: course.instructor.expertise,
                 user: course.instructor.user
-            } : null
-        }));
+            } : null;
+            return obj;
+        };
+
+        const formattedCourses = courses.map(formatCourse);
 
         res.status(200).json({
             success: true,
@@ -721,14 +768,19 @@ exports.getCoursesByCategory = async (req, res, next) => {
                 }
             });
 
-        const formattedCourses = courses.map(course => ({
-            ...course.toObject(),
-            instructor: course.instructor ? {
+        const formatCourse = (course) => {
+            const obj = course.toObject();
+            obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
+            obj.discount = obj.discount || 0;
+            obj.instructor = course.instructor ? {
                 bio: course.instructor.bio,
                 expertise: course.instructor.expertise,
                 user: course.instructor.user
-            } : null
-        }));
+            } : null;
+            return obj;
+        };
+
+        const formattedCourses = courses.map(formatCourse);
 
         res.status(200).json({
             success: true,
@@ -757,14 +809,19 @@ exports.searchCourses = async (req, res, next) => {
                 }
             });
 
-        const formattedCourses = courses.map(course => ({
-            ...course.toObject(),
-            instructor: course.instructor ? {
+        const formatCourse = (course) => {
+            const obj = course.toObject();
+            obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
+            obj.discount = obj.discount || 0;
+            obj.instructor = course.instructor ? {
                 bio: course.instructor.bio,
                 expertise: course.instructor.expertise,
                 user: course.instructor.user
-            } : null
-        }));
+            } : null;
+            return obj;
+        };
+
+        const formattedCourses = courses.map(formatCourse);
         
         res.status(200).json({
             success: true,
