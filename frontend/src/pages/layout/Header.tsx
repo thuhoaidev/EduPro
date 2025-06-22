@@ -741,7 +741,7 @@ const AppHeader = () => {
                     transition={{ duration: 0.2 }}
                   >
                     <Avatar 
-                      src={user.avatar && user.avatar !== 'default-avatar.jpg' ? (user.avatar.startsWith('http') ? user.avatar : `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${user.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                      src={user.avatar && user.avatar !== 'default-avatar.jpg' ? `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff` : user.avatar}
                       className="cursor-pointer"
                       size={40}
                     />

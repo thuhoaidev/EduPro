@@ -315,20 +315,66 @@ exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
+    console.log('Update request body:', updateData); // Debug log
 
-    // Nếu có file avatar được tải lên, thêm URL vào dữ liệu cập nhật
-    if (req.uploadedAvatar) {
-      updateData.avatar = req.uploadedAvatar.url;
+    // Kiểm tra user tồn tại
+    const existingUser = await User.findById(id);
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+      });
     }
 
-    // Không cho phép thay đổi mật khẩu qua endpoint này
-    delete updateData.password;
+    // Kiểm tra role tồn tại nếu cập nhật role
+    if (updateData.role_id) {
+      const roleExists = await Role.findById(updateData.role_id);
+      if (!roleExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vai trò không tồn tại',
+        });
+      }
+    }
 
-    // Tìm và cập nhật người dùng
-    const updatedUser = await User.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    }).populate('role_id');
+    // Kiểm tra email trùng lặp nếu có cập nhật email
+    if (updateData.email && updateData.email !== existingUser.email) {
+      const emailExists = await User.findOne({ email: updateData.email });
+      if (emailExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email đã tồn tại',
+        });
+      }
+    }
+
+    // Chuẩn bị dữ liệu cập nhật
+    const dataToUpdate = {
+      fullname: updateData.fullname || existingUser.fullname,
+      email: updateData.email || existingUser.email,
+      role_id: updateData.role_id || existingUser.role_id,
+      status: updateData.status || existingUser.status,
+      phone: updateData.phone || existingUser.phone,
+      address: updateData.address || existingUser.address,
+      dob: updateData.dob || existingUser.dob,
+      gender: updateData.gender || existingUser.gender,
+      approval_status: updateData.approval_status || existingUser.approval_status,
+      nickname: updateData.nickname || existingUser.nickname,
+      bio: updateData.bio || existingUser.bio,
+      social_links: updateData.social_links || existingUser.social_links,
+      avatar: updateData.avatar || existingUser.avatar,
+    };
+
+    console.log('Data to update:', dataToUpdate); // Debug log
+
+    // Cập nhật user
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { $set: dataToUpdate },
+      { new: true, runValidators: true },
+    ).populate('role_id');
+
+    console.log('Updated user:', updatedUser); // Debug log
 
     if (!updatedUser) {
       return res.status(404).json({
@@ -337,16 +383,29 @@ exports.updateUser = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    res.json({
       success: true,
       message: 'Cập nhật người dùng thành công',
-      data: updatedUser.toJSON(),
+      data: updatedUser,
     });
   } catch (error) {
-    console.error('Lỗi khi cập nhật người dùng:', error);
+    console.error('Update user error:', error); // Debug log
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Dữ liệu không hợp lệ',
+        errors: Object.values(error.errors).map(err => err.message),
+      });
+    }
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'ID không hợp lệ',
+      });
+    }
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi cập nhật người dùng',
+      message: 'Lỗi server',
       error: error.message,
     });
   }

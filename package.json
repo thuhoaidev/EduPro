@@ -12,7 +12,6 @@
     "express-rate-limit": "^7.5.0",
     "framer-motion": "^12.18.1",
     "helmet": "^8.1.0",
-    "method-override": "^3.0.0",
     "morgan": "^1.10.0",
     "react-intersection-observer": "^9.16.0",
     "react-redux": "^9.2.0",

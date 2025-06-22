@@ -18,7 +18,6 @@ import {
   Popconfirm,
   Spin,
   DatePicker,
-  Upload,
 } from "antd";
 import {
   SearchOutlined,
@@ -41,7 +40,6 @@ import type { TablePaginationConfig } from 'antd/es/table';
 import axios from 'axios';
 import dayjs from 'dayjs'; // Import dayjs
 import 'dayjs/locale/vi'; // Import Vietnamese locale for dayjs if needed
-import type { UploadFile } from 'antd/es/upload/interface';
 
 dayjs.locale('vi'); // Set default locale to Vietnamese if needed
 
@@ -68,8 +66,6 @@ const UserPage = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<UserStatus | undefined>(undefined);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [avatarUrl, setAvatarUrl] = useState<string>('');
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   // Get roles from backend
   useEffect(() => {
@@ -215,30 +211,15 @@ const UserPage = () => {
     );
   };
 
-  const normFile = (e: any) => {
-    if (Array.isArray(e)) {
-      return e;
-    }
-    return e && e.fileList;
-  };
-
   const handleAddUser = () => {
     setEditingUser(null);
     form.resetFields();
-    setAvatarUrl('');
-    setAvatarFile(null);
     setIsModalVisible(true);
   };
 
   const handleEditUser = (user: User) => {
+    console.log('Editing user:', user); // Debug log
     setEditingUser(user);
-    if (user.avatar) {
-      const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-      const fullAvatarUrl = user.avatar.startsWith('http') ? user.avatar : `${VITE_API_URL}${user.avatar}`;
-      setAvatarUrl(fullAvatarUrl);
-    } else {
-      setAvatarUrl('');
-    }
     form.setFieldsValue({
       fullname: user.fullname || user.name, // Thêm fallback cho name
       email: user.email,
@@ -250,6 +231,7 @@ const UserPage = () => {
       gender: user.gender || 'Khác',
       approval_status: user.approval_status || 'approved'
     });
+    console.log('Form values after set:', form.getFieldsValue()); // Debug log
     setIsModalVisible(true);
   };
 
@@ -273,35 +255,33 @@ const UserPage = () => {
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
-      const formData = new FormData();
-
-      // Append all form values to formData, excluding avatar
-      Object.keys(values).forEach(key => {
-        if (key !== 'avatar' && values[key] !== undefined && values[key] !== null) {
-          if (key === 'dob' && dayjs.isDayjs(values[key])) {
-            formData.append(key, values[key].toISOString());
-          } else {
-            formData.append(key, values[key]);
-          }
-        }
-      });
-      
-      // Append avatar file if a new one was selected
-      if (avatarFile) {
-        formData.append('avatar', avatarFile);
-      }
+      console.log('Form values before submit:', values); // Debug log
       
       if (editingUser) {
-        // Update user
-        const selectedRoleObj = roles.find(r => r.name === values.role);
-        if (!selectedRoleObj) {
+        // Update existing user
+        console.log('Updating user with ID:', editingUser.id);
+        
+        // Tìm role_id dựa trên role name
+        const selectedRole = roles.find(r => r.name === values.role);
+        if (!selectedRole) {
           message.error('Không tìm thấy vai trò');
           return;
         }
-        formData.set('role_id', selectedRoleObj._id);
-        formData.delete('role');
 
-        const response = await updateUser(editingUser.id.toString(), formData);
+        const updateData = {
+          fullname: values.fullname,
+          role_id: selectedRole._id,
+          status: values.status,
+          phone: values.phone,
+          address: values.address,
+          dob: values.dob ? values.dob.toISOString() : null,
+          gender: values.gender,
+          approval_status: values.approval_status,
+          email: values.email
+        };
+
+        console.log('Update data being sent:', updateData); // Debug log
+        const response = await updateUser(editingUser.id.toString(), updateData);
         if (response.success) {
           message.success("Cập nhật người dùng thành công");
           setIsModalVisible(false);
@@ -310,17 +290,32 @@ const UserPage = () => {
           message.error(response.message || "Lỗi khi cập nhật người dùng");
         }
       } else {
-        // Create new user
-        const selectedRoleObj = roles.find(r => r.name === values.role);
-        if (!selectedRoleObj) {
+        // Add new user
+        console.log('Thêm mới người dùng');
+        
+        // Tìm role_id dựa trên role name
+        const selectedRole = roles.find(r => r.name === values.role);
+        if (!selectedRole) {
           message.error('Không tìm thấy vai trò');
           return;
         }
-        formData.set('role_id', selectedRoleObj._id);
-        formData.delete('role');
-        formData.set('nickname', values.fullname.toLowerCase().replace(/[^a-z0-9]/g, '-'));
 
-        const response = await createUser(formData);
+        const userData = {
+          email: values.email,
+          password: values.password,
+          fullname: values.fullname,
+          role_id: selectedRole._id,
+          status: values.status,
+          phone: values.phone,
+          address: values.address,
+          dob: values.dob ? values.dob.toISOString() : null,
+          gender: values.gender,
+          approval_status: values.approval_status,
+          nickname: values.fullname.toLowerCase().replace(/[^a-z0-9]/g, '-')
+        };
+
+        console.log('Create data being sent:', userData); // Debug log
+        const response = await createUser(userData);
         if (response.success) {
           message.success("Thêm người dùng thành công");
           setIsModalVisible(false);
@@ -336,8 +331,6 @@ const UserPage = () => {
         editingUser: editingUser
       });
       message.error(editingUser ? "Lỗi khi cập nhật người dùng" : "Lỗi khi thêm người dùng");
-    } finally {
-      setAvatarFile(null); // Reset avatar file after submission
     }
   };
 
@@ -630,33 +623,6 @@ const UserPage = () => {
             approval_status: 'approved'
           }}
         >
-          <Form.Item
-            name="avatar"
-            label="Ảnh đại diện"
-            valuePropName="fileList"
-            getValueFromEvent={normFile}
-          >
-            <Upload
-              name="avatar"
-              listType="picture-circle"
-              className="avatar-uploader"
-              showUploadList={false}
-              beforeUpload={(file) => {
-                setAvatarFile(file);
-                setAvatarUrl(URL.createObjectURL(file));
-                return false; // Prevent auto-upload by antd
-              }}
-            >
-              {avatarUrl ? (
-                <Avatar src={avatarUrl} size={100} className="border-2 border-gray-100 shadow-sm" />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full w-full">
-                  <UserAddOutlined />
-                  <div style={{ marginTop: 8 }}>Tải lên</div>
-                </div>
-              )}
-            </Upload>
-          </Form.Item>
           <Form.Item
             name="fullname"
             label="Họ và tên"
