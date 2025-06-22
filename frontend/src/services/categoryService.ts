@@ -12,23 +12,20 @@ export interface Pagination {
 export interface CategoryResponse {
   success: boolean;
   message?: string;
-  data: {
-    categories: Category[];
-    pagination: Pagination;
-  };
+  data: Category[];
 }
 
-export const getAllCategories = async (params: {
-  page: number;
-  limit: number;
+export const getAllCategories = async (params?: {
+  page?: number;
+  limit?: number;
   search?: string;
 }): Promise<CategoryResponse> => {
   try {
     const response = await axios.get(API_URL, {
       params: {
-        page: params.page,
-        limit: params.limit,
-        search: params.search,
+        page: params?.page || 1,
+        limit: params?.limit || 100,
+        search: params?.search,
       },
     });
     return response.data;
@@ -37,19 +34,12 @@ export const getAllCategories = async (params: {
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Lỗi khi lấy danh sách danh mục',
-      data: {
-        categories: [],
-        pagination: {
-          page: params.page,
-          limit: params.limit,
-          total: 0,
-        },
-      },
+      data: [],
     };
   }
 };
 
-export const createCategory = async (data: Omit<Category, '_id' | 'created_at' | 'updated_at'>): Promise<CategoryResponse> => {
+export const createCategory = async (data: Omit<Category, '_id' | 'createdAt' | 'updatedAt'>): Promise<CategoryResponse> => {
   try {
     const response = await axios.post(API_URL, data);
     return response.data;
@@ -58,14 +48,7 @@ export const createCategory = async (data: Omit<Category, '_id' | 'created_at' |
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Lỗi khi tạo danh mục',
-      data: {
-        categories: [],
-        pagination: {
-          page: 1,
-          limit: 10,
-          total: 0,
-        },
-      },
+      data: [],
     };
   }
 };
@@ -79,14 +62,7 @@ export const updateCategory = async (id: string, data: Partial<Category>): Promi
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Lỗi khi cập nhật danh mục',
-      data: {
-        categories: [],
-        pagination: {
-          page: 1,
-          limit: 10,
-          total: 0,
-        },
-      },
+      data: [],
     };
   }
 };
@@ -100,14 +76,7 @@ export const deleteCategory = async (id: string): Promise<CategoryResponse> => {
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Lỗi khi xóa danh mục',
-      data: {
-        categories: [],
-        pagination: {
-          page: 1,
-          limit: 10,
-          total: 0,
-        },
-      },
+      data: [],
     };
   }
 };

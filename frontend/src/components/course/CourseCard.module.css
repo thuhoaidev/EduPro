@@ -1,0 +1,149 @@
+.cardWrapper {
+    height: 100%;
+    background-color: white;
+    border-radius: 1rem; /* 16px */
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+.cardLink {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.imageContainer {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%; /* 16:9 Aspect Ratio */
+}
+
+.cardImage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+
+.cardWrapper:hover .cardImage {
+    transform: scale(1.05);
+}
+
+.imageOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to top, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 40%);
+}
+
+.categoryTag {
+    position: absolute !important;
+    top: 0.75rem; /* 12px */
+    left: 0.75rem; /* 12px */
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    color: #0891b2 !important; /* cyan-700 */
+    border: 1px solid #67e8f9 !important; /* cyan-300 */
+    font-weight: 600 !important;
+    border-radius: 9999px !important;
+    padding: 0.25rem 0.75rem !important;
+    font-size: 0.75rem !important; /* 12px */
+}
+
+.contentContainer {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.authorContainer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* 8px */
+    margin-bottom: 0.75rem;
+}
+
+.authorName {
+    font-size: 0.875rem; /* 14px */
+    font-weight: 500;
+    color: #475569; /* slate-600 */
+}
+
+.courseTitle {
+    font-size: 1.125rem; /* 18px */
+    font-weight: 700;
+    line-height: 1.4;
+    color: #1e293b; /* slate-800 */
+    margin: 0 0 1rem 0;
+    flex-grow: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.statsContainer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.ratingContainer {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ratingText {
+    font-weight: 700;
+    color: #f59e0b; /* amber-500 */
+    font-size: 0.9rem;
+}
+
+.ratingStars {
+    font-size: 1rem !important; /* 16px */
+    transform: translateY(-1px);
+}
+
+.reviewsText {
+    font-size: 0.8rem;
+    color: #64748b; /* slate-500 */
+}
+
+.separator {
+    border-top: 1px solid #f1f5f9; /* slate-100 */
+    margin-bottom: 1rem;
+}
+
+.footerContainer {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.price {
+    font-size: 1.5rem; /* 24px */
+    font-weight: 800;
+    color: #0e7490; /* cyan-700 */
+    margin: 0;
+}
+
+.oldPrice {
+    font-size: 1rem; /* 16px */
+    color: #94a3b8; /* slate-400 */
+    text-decoration: line-through;
+    margin: 0;
+} 

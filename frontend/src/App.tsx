@@ -16,7 +16,7 @@ import ContentApprovalPage from "./pages/admin/content-approval/ContentApproval"
 import ReportsPage from "./pages/admin/reports/Reports";
 import LoginPage from "./pages/client/auth/login";
 import RegisterPage from "./pages/client/auth/register";
-import ForgotPassword from "./pages/client/auth/ForgotPassword";
+import ForgotPassword from "./pages/client/auth/forgotPassword";
 import ResetPassword from "./pages/client/auth/ResetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
@@ -38,6 +38,7 @@ import CoursesPage from './pages/client/CoursesPage';
 import InstructorsPage from './pages/client/InstructorsPage';
 import BlogPage from './pages/client/BlogPage';
 import CartPage from './pages/client/CartPage';
+import CourseDetailPage from "./pages/client/CourseDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ function App() {
         { path: "/featured-posts", element: <FeaturedPostsPage   /> },
         { path: "vouchers", element: <VouchersPage /> },
         { path: "courses", element: <CoursesPage /> },
+        { path: "courses/:slug", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
         { path: "cart", element: <CartPage /> },

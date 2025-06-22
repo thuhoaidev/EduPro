@@ -9,10 +9,10 @@ const { Content } = Layout;
 
 const ClientLayout = () => {
   const location = useLocation();
-  const isProfilePage = location.pathname === '/profile';
-  const isCoursesPage = location.pathname === '/courses';
-  const isVouchersPage = location.pathname === '/vouchers';
-  const isInstructorsPage = location.pathname === '/instructors';
+  const isProfilePage = location.pathname.startsWith('/profile');
+  const isCoursesPage = location.pathname.startsWith('/courses');
+  const isVouchersPage = location.pathname.startsWith('/vouchers');
+  const isInstructorsPage = location.pathname.startsWith('/instructors');
   const isBlogPage = location.pathname === '/blog';
   const isCartPage = location.pathname === '/cart';
 

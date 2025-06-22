@@ -2,16 +2,8 @@ const multer = require('multer');
 const path = require('path');
 const ApiError = require('../utils/ApiError');
 
-// Cấu hình storage cho file upload
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Cấu hình storage cho file upload (lưu vào bộ nhớ)
+const storage = multer.memoryStorage();
 
 // Filter file cho phép
 const fileFilter = (req, file, cb) => {
