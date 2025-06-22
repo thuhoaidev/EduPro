@@ -35,7 +35,15 @@ const PendingInstructorDetail = () => {
             if (id) fetchDetail();
       }, [id]);
 
-      if (loading || !instructor) return <Spin tip="Đang tải..." className="block mx-auto mt-20" />;
+      if (loading || !instructor) return (
+            <div style={{ textAlign: 'center', padding: '50px 0' }}>
+                  <Spin size="large" className="block mx-auto mt-20">
+                        <div style={{ padding: '50px 0' }}>
+                              <div>Đang tải...</div>
+                        </div>
+                  </Spin>
+            </div>
+      );
 
       const {
             fullname,
@@ -55,7 +63,7 @@ const PendingInstructorDetail = () => {
 
       return (
             <div className="p-6 max-w-5xl mx-auto">
-                  <Card bordered={false} className="shadow">
+                  <Card variant="borderless" className="shadow">
                         <Row gutter={[24, 24]}>
                               <Col xs={24} md={6}>
                                     <Avatar

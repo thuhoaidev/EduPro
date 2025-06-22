@@ -114,7 +114,7 @@ const MainContent = () => {
                   flexDirection: 'column',
                   justifyContent: 'space-between'
                 }}
-                bodyStyle={{ padding: 0 }}
+                styles={{ body: { padding: 0 } }}
               >
                 <div style={{ padding: '16px 24px', flexGrow: 1 }}>
                     <p style={{ color: '#eee', margin: '0 0 8px 0' }}>{course.subtitle}</p> {/* Đổi vị trí subtitle */}

@@ -6,7 +6,10 @@ type AuthenticatedProps = {
 };
 
 const Authenticated = ({ children, fallback }: AuthenticatedProps) => {
-      const isAuthenticated = true;
+      // Kiểm tra token trong localStorage
+      const token = localStorage.getItem('token');
+      const isAuthenticated = !!token;
+      
       return <>{isAuthenticated ? children : fallback}</>;
 };
 

@@ -46,7 +46,11 @@ const VerifyEmail = () => {
     if (loading) {
         return (
             <div style={{ textAlign: 'center', padding: 40 }}>
-                <Spin size="large" tip="Đang xác thực email..." style={{ fontSize: 64 }} />
+                <Spin size="large" style={{ fontSize: 64 }}>
+                    <div style={{ padding: '50px 0' }}>
+                        <div>Đang xác thực email...</div>
+                    </div>
+                </Spin>
             </div>
         );
     }

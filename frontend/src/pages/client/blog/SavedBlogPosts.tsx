@@ -678,7 +678,7 @@ const SavedBlogPosts = () => {
         key={savedPost.id}
         hoverable
         style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-        bodyStyle={{ padding: 0 }}
+        styles={{ body: { padding: 0 } }}
       >
         <Row gutter={0}>
           <Col xs={24} sm={8}>
@@ -1161,7 +1161,7 @@ const SavedBlogPosts = () => {
           footer={null}
           width={700}
           style={{ top: 20 }}
-          bodyStyle={{ padding: 0, maxHeight: '70vh', overflow: 'hidden' }}
+          styles={{ body: { padding: 0, maxHeight: '70vh', overflow: 'hidden' } }}
         >
           <div style={{ padding: '16px 24px', borderBottom: '1px solid #f0f0f0' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>

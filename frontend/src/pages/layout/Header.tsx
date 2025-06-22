@@ -300,7 +300,7 @@ const AppHeader = () => {
             <Badge count={unreadCount} size="small" />
           </div>
         }
-        bodyStyle={{ padding: 0, maxHeight: 400, overflowY: 'auto' }}
+        styles={{ body: { padding: 0, maxHeight: 400, overflowY: 'auto' } }}
       >
         <AnimatePresence>
           {notifications.length > 0 ? (
@@ -622,7 +622,6 @@ const AppHeader = () => {
                     <GiftOutlined />
                   </span>
                   <span className="nav-text">Mã giảm giá</span>
-                  <span className="nav-badge">3</span>
                 </NavLink>
               </motion.div>
               <motion.div 
@@ -635,7 +634,6 @@ const AppHeader = () => {
                     <ReadOutlined />
                   </span>
                   <span className="nav-text">Khóa học</span>
-                  <span className="nav-badge">12</span>
                 </NavLink>
               </motion.div>
               <motion.div 
@@ -648,7 +646,6 @@ const AppHeader = () => {
                     <TeamOutlined />
                   </span>
                   <span className="nav-text">Giảng viên</span>
-                  <span className="nav-badge">5</span>
                 </NavLink>
               </motion.div>
               <motion.div 
@@ -661,7 +658,6 @@ const AppHeader = () => {
                     <BookOutlined />
                   </span>
                   <span className="nav-text">Blog</span>
-                  <span className="nav-badge">8</span>
                 </NavLink>
               </motion.div>
             </div>

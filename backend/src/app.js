@@ -53,13 +53,17 @@ app.use(cookieParser()); // Parse cookies
 app.use(compression()); // Nén response
 app.use(express.json()); // Parse JSON body
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 phút
-  max: 100, // Giới hạn 100 requests mỗi IP
-  message: 'Quá nhiều requests từ IP này, vui lòng thử lại sau 15 phút',
-});
-app.use('/api', limiter);
+// Rate limiting - chỉ áp dụng trong production
+if (process.env.NODE_ENV === 'production') {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 phút
+    max: 100, // Giới hạn 100 requests mỗi IP
+    message: 'Quá nhiều requests từ IP này, vui lòng thử lại sau 15 phút',
+    standardHeaders: true, // Trả về rate limit info trong headers
+    legacyHeaders: false, // Không trả về headers cũ
+  });
+  app.use('/api', limiter);
+}
 
 // Middleware logging
 if (process.env.NODE_ENV === 'development') {

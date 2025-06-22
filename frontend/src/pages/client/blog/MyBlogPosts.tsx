@@ -206,7 +206,7 @@ const MyBlogPosts = () => {
       key={post.id}
       hoverable
       style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden' }}
-      bodyStyle={{ padding: 0 }}
+      styles={{ body: { padding: 0 } }}
     >
       <Row gutter={0}>
         <Col xs={24} sm={8}>

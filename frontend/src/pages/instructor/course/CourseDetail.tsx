@@ -136,7 +136,15 @@ const CourseDetail: React.FC = () => {
     }
   }, [id]);
 
-  if (loading || !course) return <Spin tip="Đang tải khóa học..." />;
+  if (loading || !course) return (
+    <div style={{ textAlign: 'center', padding: '50px 0' }}>
+      <Spin size="large">
+        <div style={{ padding: '50px 0' }}>
+          <div>Đang tải khóa học...</div>
+        </div>
+      </Spin>
+    </div>
+  );
 
   const totalDuration = course.sections.reduce((sum, section) => {
     return (

@@ -216,7 +216,7 @@ const CartPage: React.FC = () => {
           </Col>
           
           <Col xs={24} lg={8}>
-            <Card title="Tổng thanh toán" bordered={false}>
+            <Card title="Tổng thanh toán" variant="borderless">
               <Space direction="vertical" style={{ width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Text>Tạm tính ({cartItems.length} khóa học):</Text>

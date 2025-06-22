@@ -147,25 +147,25 @@ const ReportStatistics = () => {
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
+          <Card loading={loading} variant="borderless" style={{ textAlign: "center" }}>
             <h3>Tổng lượt báo cáo</h3>
             <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.totalReports}</p>
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
+          <Card loading={loading} variant="borderless" style={{ textAlign: "center" }}>
             <h3>Đã xử lý</h3>
             <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.handledReports}</p>
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
+          <Card loading={loading} variant="borderless" style={{ textAlign: "center" }}>
             <h3>Chưa xử lý</h3>
             <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.pendingReports}</p>
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading} bordered={false} style={{ textAlign: "center" }}>
+          <Card loading={loading} variant="borderless" style={{ textAlign: "center" }}>
             <h3>Báo cáo mới hôm nay</h3>
             <p style={{ fontSize: 24, fontWeight: "bold" }}>{overview.newReportsToday}</p>
           </Card>
@@ -192,11 +192,11 @@ const ReportStatistics = () => {
         />
       </Space>
 
-      <Card title="Biểu đồ lượt báo cáo vi phạm" bordered={false}>
+      <Card title="Biểu đồ lượt báo cáo vi phạm" variant="borderless">
         <Column {...columnConfig} />
       </Card>
 
-      <Card title="Biểu đồ đường lượt báo cáo vi phạm" bordered={false} style={{ marginTop: 24 }}>
+      <Card title="Biểu đồ đường lượt báo cáo vi phạm" variant="borderless" style={{ marginTop: 24 }}>
         <Line {...lineConfig} />
       </Card>
     </div>

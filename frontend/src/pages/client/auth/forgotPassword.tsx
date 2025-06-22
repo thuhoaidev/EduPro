@@ -3,11 +3,12 @@ import { Button, Form, Input } from "antd";
 import { useState } from "react";
 import bgrImage from "../../../assets/images/bgr-login-register.jpg"
 import { motion } from "framer-motion";
-import { MailOutlined, ArrowLeftOutlined } from "@ant-design/icons";
-import { Link } from "react-router-dom";
+import { MailOutlined, ArrowLeftOutlined, LockOutlined, SafetyOutlined, CheckCircleOutlined } from "@ant-design/icons";
+import { Link, useNavigate } from "react-router-dom";
 import AuthNotification from "../../../components/common/AuthNotification";
 
 const ForgotPassword = () => {
+      const navigate = useNavigate();
       const [loading, setLoading] = useState(false);
       const [notification, setNotification] = useState<{
         isVisible: boolean;
@@ -65,34 +66,53 @@ const ForgotPassword = () => {
         }
       };
 
+      const buttonVariants = {
+        hover: { scale: 1.05, x: -5 },
+        tap: { scale: 0.95 }
+      };
+
       return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4 py-8">
+                  {/* Back to Home Button */}
+                  <motion.div
+                    className="absolute top-6 left-6 z-50"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3, duration: 0.5 }}
+                  >
+                    <motion.button
+                      onClick={() => navigate("/")}
+                      className="group flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 text-gray-700 hover:text-cyan-600"
+                      variants={buttonVariants}
+                      whileHover="hover"
+                      whileTap="tap"
+                    >
+                      <motion.div
+                        className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 text-white"
+                        whileHover={{ rotate: -10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ArrowLeftOutlined className="text-xs" />
+                      </motion.div>
+                      <span className="font-medium text-sm">Trang chủ</span>
+                      <motion.div
+                        className="w-2 h-2 rounded-full bg-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                        initial={{ scale: 0 }}
+                        whileHover={{ scale: 1 }}
+                        transition={{ delay: 0.1 }}
+                      />
+                    </motion.button>
+                  </motion.div>
+
                   <motion.div 
                     className="flex bg-white/80 backdrop-blur-sm shadow-2xl rounded-2xl overflow-hidden w-full max-w-6xl min-h-[600px] border border-white/20"
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
                   >
+                        {/* Left Side - Form */}
                         <motion.div 
-                          className="hidden md:flex items-center justify-center w-1/2 p-8 relative overflow-hidden"
-                          variants={itemVariants}
-                        >
-                              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 to-purple-500/20"></div>
-                              <motion.img
-                                src={bgrImage}
-                                alt="Forgot Password Illustration"
-                                className="relative z-10 max-h-[90%] max-w-full object-contain rounded-lg shadow-lg"
-                                whileHover={{ scale: 1.02 }}
-                                transition={{ duration: 0.3 }}
-                              />
-                              <div className="absolute bottom-8 left-8 right-8 text-center text-white/80">
-                                    <h3 className="text-xl font-semibold mb-2">Quên mật khẩu?</h3>
-                                    <p className="text-sm">Đừng lo lắng, chúng tôi sẽ giúp bạn lấy lại mật khẩu</p>
-                              </div>
-                        </motion.div>
-
-                        <motion.div 
-                          className="w-full md:w-1/2 p-8 lg:p-12 flex flex-col justify-center relative"
+                          className="w-full lg:w-1/2 p-8 lg:p-12 flex flex-col justify-center relative"
                           variants={itemVariants}
                         >
                               {/* Background decoration */}
@@ -103,19 +123,6 @@ const ForgotPassword = () => {
                                 variants={itemVariants}
                                 className="relative z-10"
                               >
-                                    <motion.div 
-                                      className="mb-6"
-                                      variants={itemVariants}
-                                    >
-                                          <Link 
-                                            to="/login" 
-                                            className="inline-flex items-center gap-2 text-cyan-600 hover:text-purple-600 transition-colors duration-300 mb-4"
-                                          >
-                                                <ArrowLeftOutlined />
-                                                <span>Quay lại đăng nhập</span>
-                                          </Link>
-                                    </motion.div>
-
                                     <motion.h2 
                                       className="text-4xl font-bold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600"
                                       variants={itemVariants}
@@ -176,6 +183,89 @@ const ForgotPassword = () => {
                                                 </Link>
                                           </motion.div>
                                     </Form>
+                              </motion.div>
+                        </motion.div>
+
+                        {/* Right Side - Features & Info */}
+                        <motion.div 
+                          className="hidden lg:flex flex-col w-1/2 p-8 relative overflow-hidden"
+                          variants={itemVariants}
+                        >
+                              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-purple-500/10"></div>
+                              
+                              {/* Welcome Section */}
+                              <motion.div 
+                                className="relative z-10 flex-1 flex flex-col justify-center"
+                                variants={itemVariants}
+                              >
+                                <motion.h3 
+                                  className="text-3xl font-bold text-gray-800 mb-8 text-center"
+                                  variants={itemVariants}
+                                >
+                                  Đặt lại mật khẩu
+                                </motion.h3>
+                                
+                                <div className="grid grid-cols-1 gap-6">
+                                  <motion.div
+                                    variants={itemVariants}
+                                    whileHover={{ scale: 1.02, x: 5 }}
+                                    className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300"
+                                  >
+                                    <div className="flex items-start gap-4">
+                                      <div className="text-cyan-600 text-2xl flex-shrink-0">
+                                        <MailOutlined />
+                                      </div>
+                                      <div className="flex-1">
+                                        <h4 className="text-gray-800 font-semibold text-lg mb-2">
+                                          Gửi email xác nhận
+                                        </h4>
+                                        <p className="text-gray-600 text-sm leading-relaxed">
+                                          Chúng tôi sẽ gửi liên kết đặt lại mật khẩu đến email đã đăng ký của bạn
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+
+                                  <motion.div
+                                    variants={itemVariants}
+                                    whileHover={{ scale: 1.02, x: 5 }}
+                                    className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300"
+                                  >
+                                    <div className="flex items-start gap-4">
+                                      <div className="text-purple-600 text-2xl flex-shrink-0">
+                                        <SafetyOutlined />
+                                      </div>
+                                      <div className="flex-1">
+                                        <h4 className="text-gray-800 font-semibold text-lg mb-2">
+                                          Bảo mật tuyệt đối
+                                        </h4>
+                                        <p className="text-gray-600 text-sm leading-relaxed">
+                                          Liên kết đặt lại mật khẩu có thời hạn và chỉ có thể sử dụng một lần
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+
+                                  <motion.div
+                                    variants={itemVariants}
+                                    whileHover={{ scale: 1.02, x: 5 }}
+                                    className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300"
+                                  >
+                                    <div className="flex items-start gap-4">
+                                      <div className="text-green-600 text-2xl flex-shrink-0">
+                                        <CheckCircleOutlined />
+                                      </div>
+                                      <div className="flex-1">
+                                        <h4 className="text-gray-800 font-semibold text-lg mb-2">
+                                          Đơn giản và nhanh chóng
+                                        </h4>
+                                        <p className="text-gray-600 text-sm leading-relaxed">
+                                          Chỉ cần vài bước đơn giản để lấy lại quyền truy cập vào tài khoản của bạn
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                </div>
                               </motion.div>
                         </motion.div>
                   </motion.div>

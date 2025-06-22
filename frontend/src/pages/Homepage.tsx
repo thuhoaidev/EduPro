@@ -26,7 +26,6 @@ import "../styles/courseCard.css";
 import { courseService, type Course as ApiCourse } from '../services/apiService';
 
 const { Title, Text, Paragraph } = Typography;
-const { TabPane } = Tabs;
 
 interface Course extends ApiCourse {
   _id: string;
@@ -58,6 +57,10 @@ interface Voucher {
   isExpired: boolean;
   daysLeft: number;
 }
+
+const CustomArrow = ({ currentSlide, slideCount, children, ...rest }) => (
+  <span {...rest}>{children}</span>
+);
 
 const SectionWrapper = ({ children, style = {} }: { children: React.ReactNode, style?: React.CSSProperties }) => {
   const controls = useAnimation();
@@ -224,7 +227,11 @@ const Homepage = () => {
   if (loading.courses || loading.testimonials || loading.vouchers) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" tip="Đang tải dữ liệu..." />
+        <Spin size="large">
+          <div style={{ padding: '50px 0' }}>
+            <div>Đang tải dữ liệu...</div>
+          </div>
+        </Spin>
       </div>
     );
   }
@@ -274,7 +281,7 @@ const Homepage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.15 }}
                 >
-                    <Card bordered={false} style={{ textAlign: "center" }}>
+                    <Card variant="borderless" style={{ textAlign: "center" }}>
                         <Statistic
                         title={<Text style={{ fontSize: '16px', color: '#6c757d' }}>{stat.title}</Text>}
                         value={stat.value}
@@ -309,8 +316,9 @@ const Homepage = () => {
               >
                 <Card
                   hoverable
+                  variant="borderless"
                   style={{ borderRadius: "16px", overflow: "hidden", border: 'none', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', width: '100%', display: 'flex', flexDirection: 'column', height: '100%' }}
-                  bodyStyle={{ padding: 0, display: 'flex', flexDirection: 'column', flex: 1 }}
+                  styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', flex: 1 } }}
                 >
                   <div style={{ background: "linear-gradient(135deg, #ef4444, #f87171)", padding: '24px', color: 'white', textAlign: 'center' }}>
                     <Title level={3} style={{ color: 'white', margin: 0, fontWeight: 'bold' }}>{formatDiscount(voucher)}</Title>
@@ -369,23 +377,40 @@ const Homepage = () => {
           <Text type="secondary" style={{ fontSize: '16px' }}>Chọn lựa khóa học phù hợp nhất với mục tiêu của bạn</Text>
         </div>
 
-        <Tabs defaultActiveKey="free" size="large" centered>
-          <TabPane tab="Miễn phí" key="free">
-            <Row gutter={[24, 24]}>
-              {freeCourses.map((course) => <Col xs={24} sm={12} md={8} lg={6} key={course._id}><CourseCard course={course} /></Col>)}
-            </Row>
-          </TabPane>
-          <TabPane tab="Phổ biến" key="popular">
-            <Row gutter={[24, 24]}>
-              {popularCourses.map((course) => <Col xs={24} sm={12} md={8} lg={6} key={course._id}><CourseCard course={course} /></Col>)}
-            </Row>
-          </TabPane>
-          <TabPane tab="Có phí" key="paid">
-            <Row gutter={[24, 24]}>
-              {paidCourses.map((course) => <Col xs={24} sm={12} md={8} lg={6} key={course._id}><CourseCard course={course} /></Col>)}
-            </Row>
-          </TabPane>
-        </Tabs>
+        <Tabs
+          defaultActiveKey="free"
+          size="large"
+          centered
+          items={[
+            {
+              key: 'free',
+              label: 'Miễn phí',
+              children: (
+                <Row gutter={[24, 24]}>
+                  {freeCourses.map((course) => <Col xs={24} sm={12} md={8} lg={6} key={course._id}><CourseCard course={course} /></Col>)}
+                </Row>
+              )
+            },
+            {
+              key: 'popular',
+              label: 'Phổ biến',
+              children: (
+                <Row gutter={[24, 24]}>
+                  {popularCourses.map((course) => <Col xs={24} sm={12} md={8} lg={6} key={course._id}><CourseCard course={course} /></Col>)}
+                </Row>
+              )
+            },
+            {
+              key: 'paid',
+              label: 'Có phí',
+              children: (
+                <Row gutter={[24, 24]}>
+                  {paidCourses.map((course) => <Col xs={24} sm={12} md={8} lg={6} key={course._id}><CourseCard course={course} /></Col>)}
+                </Row>
+              )
+            }
+          ]}
+        />
         <div style={{ textAlign: "center", marginTop: "48px" }}>
           <Button type="default" size="large" style={{ height: '48px', padding: '0 32px' }}>
             Xem tất cả khóa học
@@ -403,8 +428,8 @@ const Homepage = () => {
         <Carousel 
           autoplay 
           arrows
-          prevArrow={<LeftOutlined />}
-          nextArrow={<RightOutlined />}
+          prevArrow={<CustomArrow><LeftOutlined /></CustomArrow>}
+          nextArrow={<CustomArrow><RightOutlined /></CustomArrow>}
           dots={{ className: 'testimonial-dots' }}
           style={{ maxWidth: '900px', margin: '0 auto' }}
         >
@@ -415,7 +440,7 @@ const Homepage = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.5 }}
                 >
-                    <Card bordered={false} style={{ margin: '0 16px', padding: '32px', background: 'white', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.05)' }}>
+                    <Card variant="borderless" style={{ margin: '0 16px', padding: '32px', background: 'white', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.05)' }}>
                         <Space direction="vertical" size="large" style={{ width: '100%', textAlign: 'center' }}>
                         <Image src={`https://i.pravatar.cc/80?u=${testimonial.name}`} alt={testimonial.name} style={{ borderRadius: '50%', width: '80px', height: '80px' }} />
                         <Paragraph style={{ fontSize: "18px", fontStyle: 'italic', color: '#495057' }}>"{testimonial.content}"</Paragraph>
@@ -459,6 +484,7 @@ const CourseCard = ({ course }: { course: Course }) => {
         <Card
         className="course-card"
         hoverable
+        variant="borderless"
         style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', height: '100%' }}
         cover={
             <div style={{ position: "relative" }}>
@@ -472,7 +498,7 @@ const CourseCard = ({ course }: { course: Course }) => {
             {course.oldPrice && <Tag color="processing" style={{ position: "absolute", top: "12px", right: "12px" }}>Giảm giá</Tag>}
             </div>
         }
-        bodyStyle={{ padding: "20px" }}
+        styles={{ body: { padding: '20px' } }}
         >
         <Space direction="vertical" size="middle" style={{ width: "100%" }}>
             <Typography.Title level={5} className="course-title" ellipsis={{ rows: 2 }} style={{ minHeight: '44px', marginBottom: 0 }}>

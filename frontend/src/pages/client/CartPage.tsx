@@ -295,7 +295,7 @@ const CartPage = () => {
                                                 className={`shadow-lg hover:shadow-xl transition-all duration-300 border-0 overflow-hidden ${
                                                     selectedItems.includes(item.id) ? 'ring-2 ring-blue-500' : ''
                                                 }`}
-                                                bodyStyle={{ padding: 0 }}
+                                                styles={{ body: { padding: 0 } }}
                                             >
                                                 <div className="flex flex-col md:flex-row">
                                                     <div className="relative">
