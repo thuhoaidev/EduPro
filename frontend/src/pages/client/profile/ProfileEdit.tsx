@@ -59,6 +59,7 @@ const ProfileEdit = () => {
           dob: userData.dob ? moment(userData.dob) : undefined,
           gender: userData.gender || undefined,
           bio: userData.bio,
+          nickname: userData.nickname,
         };
         console.log('Form data mapped for setFieldsValue:', formData);
         form.setFieldsValue(formData);
@@ -302,6 +303,22 @@ const ProfileEdit = () => {
                   </motion.div>
                 </Col>
               </Row>
+
+                {/* Nickname field */}
+                <motion.div variants={itemVariants}>
+                <Form.Item
+                  name="nickname"
+                  label={<Text strong className="text-gray-700">Nickname</Text>}
+                >
+                  <Input 
+                    disabled
+                    size="large"
+                    className="!rounded-lg !bg-gray-50"
+                    placeholder="Nickname"
+                  />
+                </Form.Item>
+              </motion.div>
+
 
               <Row gutter={[24, 16]}>
                 <Col xs={24} md={12}>

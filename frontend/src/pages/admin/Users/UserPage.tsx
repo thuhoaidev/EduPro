@@ -18,6 +18,7 @@ import {
   Popconfirm,
   Spin,
   DatePicker,
+  Upload,
 } from "antd";
 import {
   SearchOutlined,
@@ -40,6 +41,8 @@ import type { TablePaginationConfig } from 'antd/es/table';
 import axios from 'axios';
 import dayjs from 'dayjs'; // Import dayjs
 import 'dayjs/locale/vi'; // Import Vietnamese locale for dayjs if needed
+import type { UploadFile } from 'antd/es/upload/interface';
+
 
 dayjs.locale('vi'); // Set default locale to Vietnamese if needed
 
@@ -66,6 +69,7 @@ const UserPage = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<UserStatus | undefined>(undefined);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [avatarFileList, setAvatarFileList] = useState<UploadFile<any>[]>([]);
 
   // Get roles from backend
   useEffect(() => {
@@ -214,12 +218,19 @@ const UserPage = () => {
   const handleAddUser = () => {
     setEditingUser(null);
     form.resetFields();
+    setAvatarFileList([]);
     setIsModalVisible(true);
   };
 
   const handleEditUser = (user: User) => {
     console.log('Editing user:', user); // Debug log
     setEditingUser(user);
+    setAvatarFileList(user.avatar ? [{
+      uid: '-1',
+      name: 'avatar.png',
+      status: 'done',
+      url: user.avatar,
+    }] : []);
     form.setFieldsValue({
       fullname: user.fullname || user.name, // Thêm fallback cho name
       email: user.email,
@@ -256,6 +267,23 @@ const UserPage = () => {
     try {
       const values = await form.validateFields();
       console.log('Form values before submit:', values); // Debug log
+
+      let avatarUrl = editingUser?.avatar;
+      if (avatarFileList.length > 0 && avatarFileList[0].originFileObj) {
+        const formData = new FormData();
+        formData.append('avatar', avatarFileList[0].originFileObj);
+        const token = localStorage.getItem('token');
+        const uploadRes = await axios.post('http://localhost:5000/api/users/upload-avatar', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`,
+          }
+        });
+        if (uploadRes.data.success && uploadRes.data.data?.url) {
+          avatarUrl = uploadRes.data.data.url;
+        }
+      }
+      
       
       if (editingUser) {
         // Update existing user
@@ -277,7 +305,8 @@ const UserPage = () => {
           dob: values.dob ? values.dob.toISOString() : null,
           gender: values.gender,
           approval_status: values.approval_status,
-          email: values.email
+          email: values.email,
+          avatar: avatarUrl,
         };
 
         console.log('Update data being sent:', updateData); // Debug log
@@ -311,7 +340,8 @@ const UserPage = () => {
           dob: values.dob ? values.dob.toISOString() : null,
           gender: values.gender,
           approval_status: values.approval_status,
-          nickname: values.fullname.toLowerCase().replace(/[^a-z0-9]/g, '-')
+          nickname: values.fullname.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          avatar: avatarUrl,
         };
 
         console.log('Create data being sent:', userData); // Debug log
@@ -623,6 +653,39 @@ const UserPage = () => {
             approval_status: 'approved'
           }}
         >
+          <Form.Item label="Ảnh đại diện" name="avatar" valuePropName="fileList" getValueFromEvent={e => Array.isArray(e) ? e : e && e.fileList}>
+            <Upload
+              listType="picture-circle"
+              maxCount={1}
+              fileList={avatarFileList}
+              beforeUpload={() => false}
+              onChange={({ fileList }) => {
+                if (fileList.length > 0 && fileList[0].originFileObj && !fileList[0].thumbUrl) {
+                  const reader = new FileReader();
+                  reader.onload = e => {
+                    const result = e.target && typeof e.target.result === 'string' ? e.target.result : undefined;
+                    const newFileList = [{
+                      ...fileList[0],
+                      thumbUrl: result
+                    }];
+                    setAvatarFileList(newFileList);
+                  };
+                  reader.readAsDataURL(fileList[0].originFileObj);
+                } else {
+                  setAvatarFileList(fileList);
+                }
+              }}
+              showUploadList={false}
+              accept="image/*"
+            >
+              <Avatar
+                src={avatarFileList.length > 0 && (avatarFileList[0].thumbUrl || avatarFileList[0].url) ? (avatarFileList[0].thumbUrl || avatarFileList[0].url) : undefined}
+                icon={<UserOutlined />}
+                size={100}
+                style={{ cursor: 'pointer' }}
+              />
+            </Upload>
+          </Form.Item>
           <Form.Item
             name="fullname"
             label="Họ và tên"

@@ -34,6 +34,7 @@ interface User {
   email: string;
   role?: { name: string };
   isVerified?: boolean;
+  nickname?: string;
 }
 
 interface Notification {
@@ -235,6 +236,11 @@ const AppHeader = () => {
                 />
                 <div>
                   <Text strong>{user.fullname}</Text>
+                  {user.nickname && (
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+                      @{user.nickname}
+                    </Text>
+                  )}
                   <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Xem hồ sơ của bạn</Text>
                 </div>
               </div>
@@ -741,7 +747,7 @@ const AppHeader = () => {
                     transition={{ duration: 0.2 }}
                   >
                     <Avatar 
-                      src={user.avatar && user.avatar !== 'default-avatar.jpg' ? `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff` : user.avatar}
+                    src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
                       className="cursor-pointer"
                       size={40}
                     />
