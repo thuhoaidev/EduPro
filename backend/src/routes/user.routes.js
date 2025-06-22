@@ -82,4 +82,12 @@ router.put('/:id', updateUser);
 // Xóa người dùng theo ID
 router.delete('/:id', deleteUser);
 
+// Thêm route upload avatar cho user
+router.post('/upload-avatar', auth, uploadAvatar, processAvatarUpload, (req, res) => {
+  if (!req.uploadedAvatar) {
+    return res.status(400).json({ success: false, message: 'Không có file ảnh được upload' });
+  }
+  res.json({ success: true, data: { url: req.uploadedAvatar.url } });
+});
+
 module.exports = router; 
