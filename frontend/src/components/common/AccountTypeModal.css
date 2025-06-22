@@ -1,0 +1,113 @@
+.account-type-modal .ant-modal-content {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.account-type-modal .ant-modal-body {
+  padding: 0;
+}
+
+.account-type-modal .ant-modal-close {
+  top: 16px;
+  right: 16px;
+  color: #6b7280;
+  transition: all 0.3s ease;
+}
+
+.account-type-modal .ant-modal-close:hover {
+  color: #374151;
+  transform: scale(1.1);
+}
+
+/* Custom scrollbar for modal content */
+.account-type-modal ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.account-type-modal ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.account-type-modal ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.account-type-modal ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animation for card hover effects */
+.account-type-modal .group:hover .bg-gradient-to-br {
+  background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+}
+
+.account-type-modal .group:nth-child(2):hover .bg-gradient-to-br {
+  background: linear-gradient(135deg, #f3e8ff 0%, #fce7f3 100%);
+}
+
+/* Pulse animation for icons */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.account-type-modal .group:hover .w-12 {
+  animation: pulse 2s infinite;
+}
+
+/* Gradient text animation */
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.account-type-modal .text-transparent {
+  background-size: 200% 200%;
+  animation: gradient 3s ease infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .account-type-modal .ant-modal {
+    margin: 16px;
+    max-width: calc(100vw - 32px);
+  }
+  
+  .account-type-modal .grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .account-type-modal .p-8 {
+    padding: 1.5rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .account-type-modal .ant-modal-content {
+    background: #1f2937;
+    color: #f9fafb;
+  }
+  
+  .account-type-modal .text-gray-800 {
+    color: #f9fafb;
+  }
+  
+  .account-type-modal .text-gray-600 {
+    color: #d1d5db;
+  }
+} 

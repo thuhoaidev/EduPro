@@ -14,7 +14,7 @@ import InstructorList from "./pages/admin/Instructors/InstructorList";
 import UserDetail from "./pages/admin/Users/UserDetail";
 import ContentApprovalPage from "./pages/admin/content-approval/ContentApproval";
 import ReportsPage from "./pages/admin/reports/Reports";
-import { LoginPage } from "./pages/client/auth/login";
+import LoginPage from "./pages/client/auth/login";
 import RegisterPage from "./pages/client/auth/register";
 import ForgotPassword from "./pages/client/auth/ForgotPassword";
 import ResetPassword from "./pages/client/auth/ResetPassword";
