@@ -1,8 +1,6 @@
 const multer = require('multer');
 const path = require('path');
 const ApiError = require('../utils/ApiError');
-const cloudinary = require('../utils/cloudinary');
-const fs = require('fs');
 
 // Cấu hình storage cho file upload (lưu vào bộ nhớ)
 const storage = multer.memoryStorage();
@@ -11,7 +9,7 @@ const storage = multer.memoryStorage();
 const fileFilter = (req, file, cb) => {
   // Cho phép các file PDF, JPG, PNG, MP4, MOV
   const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'video/mp4', 'video/mov', 'video/avi'];
-
+  
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -61,68 +59,19 @@ const handleUploadError = (error, req, res, next) => {
       });
     }
   }
-
+  
   if (error.message.includes('Loại file không được hỗ trợ')) {
     return res.status(400).json({
       success: false,
       message: error.message,
     });
   }
-
+  
   next(error);
 };
-
-const processAvatarUpload = (req, res, next) => {
-  if (!req.file) {
-    return next();
-  }
-
-  // Sử dụng stream để upload file lên Cloudinary, ổn định hơn
-  const uploadStream = cloudinary.uploader.upload_stream(
-    {
-      folder: 'edupor/avatars',
-      resource_type: 'image',
-    },
-    (error, result) => {
-      // Xóa file tạm sau khi upload xong hoặc có lỗi
-      fs.unlink(req.file.path, (unlinkErr) => {
-        if (unlinkErr) console.error("Lỗi xóa file tạm:", unlinkErr);
-      });
-
-      if (error) {
-        console.error('Lỗi upload Cloudinary (stream):', error);
-        return res.status(500).json({
-          success: false,
-          message: 'Lỗi khi upload ảnh. Vui lòng thử lại.',
-          error: error.message,
-        });
-      }
-
-      if (result) {
-        req.uploadedAvatar = {
-          url: result.secure_url,
-          public_id: result.public_id,
-          size: result.bytes,
-        };
-        next();
-      }
-    }
-  );
-
-  // Đẩy file từ buffer vào stream
-  fs.createReadStream(req.file.path).pipe(uploadStream);
-};
-
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-});
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection:', reason);
-});
 
 module.exports = {
   uploadAvatar,
   uploadInstructorProfile,
   handleUploadError,
-  processAvatarUpload,
 }; 

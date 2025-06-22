@@ -13,7 +13,7 @@ export const config = axios.create({
         // "Access-Control-Allow-Methods": "GET,PUT,POST,DELETE,PATCH,OPTIONS",
         // "Access-Control-Allow-Headers": "Content-Type, Authorization"
     },
-    timeout: 60000 // timeout sau 60 giây
+    timeout: 10000 // timeout sau 10 giây
 });
 
 // Xử lý request
@@ -38,10 +38,10 @@ config.interceptors.response.use(
     },
     async (error) => {
         const originalRequest = error.config;
-
+        
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
-
+            
             try {
                 const newToken = await refreshAccessToken();
                 if (newToken) {
@@ -57,7 +57,7 @@ config.interceptors.response.use(
                 window.location.href = '/login';
             }
         }
-
+        
         return Promise.reject(error);
     }
 );
