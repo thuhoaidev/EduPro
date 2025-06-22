@@ -1,13 +1,9 @@
 // src/services/apiService.ts
-import axios, { AxiosError } from 'axios';
+import { config as axios } from '../api/axios';
 import type { AxiosResponse } from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-});
+// Sử dụng axios config đã được cấu hình
+const apiClient = axios;
 
 interface ApiResponse<T> {
   success: boolean;
@@ -232,5 +228,58 @@ export const courseService = {
       console.error('Lỗi khi lấy khóa học của giảng viên:', error);
       return [];
     }
+  }
+};
+
+// Instructor Registration Response Interfaces
+export interface InstructorRegistrationResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user: {
+      _id: string;
+      fullname: string;
+      email: string;
+      status: string;
+      email_verified: boolean;
+      approval_status: string;
+    };
+    instructorInfo: {
+      is_approved: boolean;
+      experience_years: number;
+      specializations: string[];
+      teaching_experience: {
+        years: number;
+        description: string;
+      };
+      certificates: Array<{
+        name: string;
+        file: string;
+        original_name: string;
+        uploaded_at: string;
+        _id: string;
+        id: string;
+      }>;
+      demo_video?: string;
+      cv_file?: string;
+      approval_status: string;
+      other_documents: any[];
+    };
+  };
+}
+
+// Instructor Registration API
+export const registerInstructor = async (formData: FormData): Promise<InstructorRegistrationResponse> => {
+  try {
+    const response = await axios.post('/users/instructor-register', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('Lỗi đăng ký giảng viên:', error);
+    throw new Error(error.response?.data?.message || 'Đã xảy ra lỗi khi đăng ký');
   }
 };

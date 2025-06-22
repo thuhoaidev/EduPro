@@ -16,7 +16,15 @@ const {
   submitInstructorProfile,
   getMyInstructorProfile,
   updateInstructorProfile,
+  registerInstructor,
+  verifyInstructorEmail,
 } = require('../controllers/user.controller');
+
+// Đăng ký giảng viên mới (không cần đăng nhập) - Đặt trước middleware auth
+router.post('/instructor-register', uploadInstructorFiles, processInstructorFilesUpload, registerInstructor);
+
+// Xác minh email cho instructor (không cần đăng nhập)
+router.get('/verify-instructor-email/:token', verifyInstructorEmail);
 
 // Routes cho người dùng hiện tại (cần đăng nhập)
 router.use(auth);

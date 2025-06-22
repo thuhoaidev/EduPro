@@ -1,10 +1,8 @@
-import React, { useState } from "react";
-import { Button, Form, Input, Select, Upload, message } from "antd";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Button, Form, Input, Select, Upload, DatePicker, message } from "antd";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
-  EyeInvisibleOutlined, 
-  EyeTwoTone, 
   UserOutlined, 
   LockOutlined, 
   MailOutlined,
@@ -12,22 +10,65 @@ import {
   BookOutlined,
   UploadOutlined,
   ArrowLeftOutlined,
-  ReadOutlined,
   StarOutlined,
   WalletOutlined,
   PhoneOutlined,
   TrophyOutlined,
-  SafetyCertificateOutlined
+  SafetyCertificateOutlined,
+  CalendarOutlined,
+  EnvironmentOutlined,
+  GlobalOutlined,
+  FileTextOutlined,
+  VideoCameraOutlined,
+  UserAddOutlined
 } from "@ant-design/icons";
 import AuthNotification from "../../../components/common/AuthNotification";
-import bgrImage from "../../../assets/images/bgr-login-register.jpg";
+import { registerInstructor } from "../../../services/apiService";
+import type { InstructorRegistrationResponse } from "../../../services/apiService";
+import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
+interface InstructorRegistrationForm {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+  gender: 'Nam' | 'Nữ' | 'Khác';
+  dateOfBirth: dayjs.Dayjs;
+  address: string;
+  
+  // Education
+  degree: string;
+  institution: string;
+  graduationYear: number | string;
+  major: string;
+  
+  // Professional
+  specializations: string[];
+  teachingExperience: number | string;
+  experienceDescription: string;
+  
+  // Documents
+  avatar: any[];
+  cv: any[];
+  certificates: any[];
+  demoVideo: any[];
+  
+  // Additional
+  bio: string;
+  linkedin?: string;
+  github?: string;
+  website?: string;
+}
+
 export function InstructorRegistrationPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [form] = Form.useForm();
   const [notification, setNotification] = useState<{
     isVisible: boolean;
     type: 'success' | 'error' | 'info' | 'warning';
@@ -40,32 +81,282 @@ export function InstructorRegistrationPage() {
     message: ''
   });
 
-  const onFinish = async (values: any) => {
+  // Xử lý dateOfBirth an toàn
+  const formatDateSafely = (dateValue: any): string => {
+    if (!dateValue) {
+      throw new Error('Vui lòng chọn ngày sinh!');
+    }
+    
+    let dateToFormat = dateValue;
+    
+    // Nếu là string, convert thành dayjs object
+    if (typeof dateValue === 'string') {
+      dateToFormat = dayjs(dateValue);
+    }
+    
+    // Nếu là Date object, convert thành dayjs object
+    if (dateValue instanceof Date) {
+      dateToFormat = dayjs(dateValue);
+    }
+    
+    // Kiểm tra xem có phải dayjs object không
+    if (!dayjs.isDayjs(dateToFormat)) {
+      throw new Error('Ngày sinh không hợp lệ!');
+    }
+    
+    return dateToFormat.format('YYYY-MM-DD');
+  };
+
+  const onFinish = async (values: InstructorRegistrationForm) => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('Form values before validation:', values);
       
+      // Validate form trước khi xử lý
+      await form.validateFields();
+      
+      console.log('Form validation passed');
+      
+      // Lấy dateOfBirth trực tiếp từ form
+      const dateOfBirthFromForm = form.getFieldValue('dateOfBirth');
+      
+      // Debug: Lấy giá trị trực tiếp từ form
+      const degreeFromForm = form.getFieldValue('degree');
+      const institutionFromForm = form.getFieldValue('institution');
+      const graduationYearFromForm = form.getFieldValue('graduationYear');
+      const majorFromForm = form.getFieldValue('major');
+      
+      console.log('Form field values:', {
+        degreeFromForm,
+        institutionFromForm,
+        graduationYearFromForm,
+        majorFromForm
+      });
+      
+      // Tạo FormData để gửi file
+      const formData = new FormData();
+      
+      // Thêm thông tin cá nhân
+      formData.append('fullName', values.fullName);
+      formData.append('email', values.email);
+      formData.append('phone', values.phone);
+      formData.append('password', values.password);
+      formData.append('gender', values.gender);
+      
+      // Xử lý dateOfBirth an toàn
+      try {
+        // Sử dụng giá trị từ form thay vì values
+        const dateValue = dateOfBirthFromForm || values.dateOfBirth;
+        
+        // Kiểm tra và format date
+        if (!dateValue) {
+          throw new Error('Vui lòng chọn ngày sinh!');
+        }
+        
+        let dateToFormat = dateValue;
+        
+        // Nếu là string, convert thành dayjs object
+        if (typeof dateValue === 'string') {
+          dateToFormat = dayjs(dateValue);
+        }
+        
+        // Nếu là Date object, convert thành dayjs object
+        if (dateValue instanceof Date) {
+          dateToFormat = dayjs(dateValue);
+        }
+        
+        // Kiểm tra xem có phải dayjs object không
+        if (!dayjs.isDayjs(dateToFormat)) {
+          throw new Error('Ngày sinh không hợp lệ!');
+        }
+        
+        const formattedDate = dateToFormat.format('YYYY-MM-DD');
+        formData.append('dateOfBirth', formattedDate);
+        
+      } catch (error: any) {
+        console.error('Date formatting error:', error);
+        throw new Error(error.message || 'Vui lòng chọn ngày sinh hợp lệ!');
+      }
+      
+      formData.append('address', values.address);
+      
+      // Thêm thông tin học vấn
+      const degreeValue = values.degree || degreeFromForm;
+      const institutionValue = values.institution || institutionFromForm;
+      const graduationYearValue = values.graduationYear || graduationYearFromForm;
+      const majorValue = values.major || majorFromForm;
+      
+      console.log('Education values:', {
+        degree: degreeValue,
+        degreeType: typeof degreeValue,
+        degreeLength: degreeValue?.length,
+        institution: institutionValue,
+        graduationYear: graduationYearValue,
+        major: majorValue
+      });
+      
+      // Kiểm tra từng field cụ thể với debug chi tiết
+      console.log('Checking degree field:', {
+        value: degreeValue,
+        type: typeof degreeValue,
+        isFalsy: !degreeValue,
+        trimmed: degreeValue?.trim(),
+        trimmedLength: degreeValue?.trim()?.length
+      });
+      
+      if (!degreeValue) {
+        throw new Error('Vui lòng nhập bằng cấp! (Field is empty)');
+      }
+      
+      const trimmedDegree = degreeValue.toString().trim();
+      if (trimmedDegree === '') {
+        throw new Error('Vui lòng nhập bằng cấp! (Field is whitespace only)');
+      }
+      
+      if (!institutionValue || institutionValue.toString().trim() === '') {
+        throw new Error('Vui lòng nhập trường đại học!');
+      }
+      if (!graduationYearValue || graduationYearValue.toString().trim() === '') {
+        throw new Error('Vui lòng nhập năm tốt nghiệp!');
+      }
+      if (!majorValue || majorValue.toString().trim() === '') {
+        throw new Error('Vui lòng nhập chuyên ngành!');
+      }
+      
+      formData.append('degree', trimmedDegree);
+      formData.append('institution', institutionValue.toString().trim());
+      formData.append('graduationYear', graduationYearValue.toString());
+      formData.append('major', majorValue.toString().trim());
+      
+      // Thêm thông tin chuyên môn
+      const specializationsValue = values.specializations || form.getFieldValue('specializations');
+      const teachingExperienceValue = values.teachingExperience || form.getFieldValue('teachingExperience');
+      const experienceDescriptionValue = values.experienceDescription || form.getFieldValue('experienceDescription');
+      
+      console.log('Professional values:', {
+        specializations: specializationsValue,
+        specializationsType: typeof specializationsValue,
+        specializationsIsArray: Array.isArray(specializationsValue),
+        specializationsLength: specializationsValue?.length,
+        teachingExperience: teachingExperienceValue,
+        experienceDescription: experienceDescriptionValue
+      });
+      
+      // Debug chi tiết cho specializations
+      console.log('Checking specializations field:', {
+        value: specializationsValue,
+        type: typeof specializationsValue,
+        isArray: Array.isArray(specializationsValue),
+        length: specializationsValue?.length,
+        isEmpty: !specializationsValue,
+        isEmptyArray: Array.isArray(specializationsValue) && specializationsValue.length === 0
+      });
+      
+      // Kiểm tra từng field cụ thể
+      if (!specializationsValue) {
+        throw new Error('Vui lòng nhập ít nhất 1 lĩnh vực chuyên môn! (Field is null/undefined)');
+      }
+      
+      if (Array.isArray(specializationsValue) && specializationsValue.length === 0) {
+        throw new Error('Vui lòng nhập ít nhất 1 lĩnh vực chuyên môn! (Array is empty)');
+      }
+      
+      if (!teachingExperienceValue || (typeof teachingExperienceValue === 'string' && teachingExperienceValue.trim() === '')) {
+        throw new Error('Vui lòng nhập số năm kinh nghiệm!');
+      }
+      if (!experienceDescriptionValue || (typeof experienceDescriptionValue === 'string' && experienceDescriptionValue.trim() === '')) {
+        throw new Error('Vui lòng mô tả kinh nghiệm!');
+      }
+      
+      if (Array.isArray(specializationsValue)) {
+        specializationsValue.forEach((spec, index) => {
+          console.log(`Specialization ${index}:`, spec, typeof spec);
+          if (typeof spec === 'string' && spec.trim()) {
+            formData.append('specializations', spec.trim());
+          }
+        });
+      } else if (typeof specializationsValue === 'string' && specializationsValue.trim()) {
+        formData.append('specializations', specializationsValue.trim());
+      }
+      
+      formData.append('teachingExperience', teachingExperienceValue.toString());
+      formData.append('experienceDescription', experienceDescriptionValue.toString().trim());
+      
+      // Thêm thông tin bổ sung
+      formData.append('bio', values.bio);
+      if (values.linkedin) formData.append('linkedin', values.linkedin);
+      if (values.github) formData.append('github', values.github);
+      if (values.website) formData.append('website', values.website);
+      
+      // Thêm files
+      if (values.avatar && values.avatar.length > 0) {
+        formData.append('avatar', values.avatar[0].originFileObj);
+      }
+      
+      if (values.cv && values.cv.length > 0) {
+        formData.append('cv', values.cv[0].originFileObj);
+      }
+      
+      if (values.certificates && values.certificates.length > 0) {
+        values.certificates.forEach((cert, index) => {
+          formData.append('certificates', cert.originFileObj);
+        });
+      }
+      
+      if (values.demoVideo && values.demoVideo.length > 0) {
+        formData.append('demoVideo', values.demoVideo[0].originFileObj);
+      }
+      
+      // Gọi API
+      const result: InstructorRegistrationResponse = await registerInstructor(formData);
+      
+      // Kiểm tra response structure mới từ backend
+      if (result.success) {
       setNotification({
         isVisible: true,
         type: 'success',
         title: 'Đăng ký thành công!',
-        message: 'Hồ sơ giảng viên của bạn đã được gửi. Vui lòng chờ admin phê duyệt.'
-      });
+          message: `Hồ sơ giảng viên của bạn đã được gửi thành công. Vui lòng kiểm tra email ${result.data.user.email} để xác minh tài khoản.`
+        });
+        
+        // Hiển thị thông tin chi tiết về quy trình
+        setTimeout(() => {
+          message.info('📧 Vui lòng kiểm tra email và xác minh tài khoản trước khi đăng nhập!');
+        }, 1000);
+        
+        setTimeout(() => {
+          message.info('⏳ Sau khi xác minh email, hồ sơ của bạn sẽ được admin xét duyệt trong 3-5 ngày làm việc.');
+        }, 2000);
       
       setTimeout(() => {
         navigate("/");
-      }, 2500);
-    } catch (error) {
+        }, 4000);
+      } else {
+        throw new Error(result.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
+      }
+    } catch (error: any) {
+      console.error('Lỗi đăng ký:', error);
       setNotification({
         isVisible: true,
         type: 'error',
         title: 'Lỗi đăng ký!',
-        message: 'Đã xảy ra lỗi. Vui lòng thử lại.'
+        message: error.message || 'Đã xảy ra lỗi. Vui lòng thử lại.'
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const nextStep = () => {
+    form.validateFields().then(() => {
+      setCurrentStep(currentStep + 1);
+    }).catch((errorInfo) => {
+      message.error('Vui lòng điền đầy đủ thông tin bắt buộc!');
+    });
+  };
+
+  const prevStep = () => {
+    setCurrentStep(currentStep - 1);
   };
 
   const containerVariants = {
@@ -101,28 +392,491 @@ export function InstructorRegistrationPage() {
     }
   };
 
-  const features = [
-    {
-      icon: <BookOutlined className="text-2xl" />,
-      title: "Tạo khóa học",
-      description: "Thiết kế và xây dựng khóa học chất lượng cao"
-    },
-    {
-      icon: <StarOutlined className="text-2xl" />,
-      title: "Kiếm thu nhập",
-      description: "Thu nhập từ việc bán khóa học và giảng dạy"
-    },
-    {
-      icon: <TeamOutlined className="text-2xl" />,
-      title: "Cộng đồng học viên",
-      description: "Kết nối với hàng nghìn học viên tiềm năng"
-    },
-    {
-      icon: <WalletOutlined className="text-2xl" />,
-      title: "Thanh toán tự động",
-      description: "Hệ thống thanh toán và quản lý doanh thu"
-    }
-  ];
+  const renderStep1 = () => (
+    <>
+      <motion.h3 className="text-2xl font-bold text-gray-800 mb-6 text-center" variants={itemVariants}>
+        Thông tin cá nhân
+      </motion.h3>
+      
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="fullName"
+          rules={[
+            { required: true, message: 'Vui lòng nhập họ và tên!' },
+            { min: 2, message: 'Họ và tên phải có ít nhất 2 ký tự!' },
+          ]}
+        >
+          <Input
+            size="large"
+            placeholder="Họ và tên đầy đủ"
+            prefix={<UserOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="email"
+          rules={[
+            { required: true, message: "Email là bắt buộc" },
+            { type: "email", message: "Email không hợp lệ" },
+          ]}
+        >
+          <Input
+            size="large"
+            placeholder="Email"
+            prefix={<MailOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="phone"
+          rules={[
+            { required: true, message: "Số điện thoại là bắt buộc" },
+            { pattern: /^[0-9+\-\s()]+$/, message: "Số điện thoại không hợp lệ" },
+          ]}
+        >
+          <Input
+            size="large"
+            placeholder="Số điện thoại"
+            prefix={<PhoneOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="gender"
+          rules={[{ required: true, message: "Vui lòng chọn giới tính!" }]}
+        >
+          <Select
+            size="large"
+            placeholder="Chọn giới tính"
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          >
+            <Option value="Nam">Nam</Option>
+            <Option value="Nữ">Nữ</Option>
+            <Option value="Khác">Khác</Option>
+          </Select>
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="dateOfBirth"
+          rules={[
+            { required: true, message: "Vui lòng chọn ngày sinh!" },
+            {
+              validator: (_, value) => {
+                if (!value) {
+                  return Promise.reject(new Error('Vui lòng chọn ngày sinh!'));
+                }
+                
+                let dateToCheck = value;
+                
+                // Convert string to dayjs if needed
+                if (typeof value === 'string') {
+                  dateToCheck = dayjs(value);
+                }
+                
+                // Convert Date object to dayjs if needed
+                if (value instanceof Date) {
+                  dateToCheck = dayjs(value);
+                }
+                
+                if (!dayjs.isDayjs(dateToCheck)) {
+                  return Promise.reject(new Error('Ngày sinh không hợp lệ!'));
+                }
+                
+                if (dateToCheck.isAfter(dayjs())) {
+                  return Promise.reject(new Error('Ngày sinh không thể là ngày trong tương lai!'));
+                }
+                
+                if (dateToCheck.isBefore(dayjs().subtract(100, 'year'))) {
+                  return Promise.reject(new Error('Ngày sinh không hợp lệ!'));
+                }
+                
+                return Promise.resolve();
+              }
+            }
+          ]}
+        >
+          <DatePicker
+            size="large"
+            placeholder="Ngày sinh"
+            className="w-full h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+            format="DD/MM/YYYY"
+            disabledDate={(current) => {
+              // Disable future dates and dates more than 100 years ago
+              return current && (current > dayjs().endOf('day') || current < dayjs().subtract(100, 'year'));
+            }}
+            onChange={(date, dateString) => {
+              console.log('DatePicker onChange - date:', date);
+              console.log('DatePicker onChange - dateString:', dateString);
+              console.log('DatePicker onChange - isDayjs:', dayjs.isDayjs(date));
+            }}
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="address"
+          rules={[{ required: true, message: "Vui lòng nhập địa chỉ!" }]}
+        >
+          <Input
+            size="large"
+            placeholder="Địa chỉ"
+            prefix={<EnvironmentOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="password"
+          rules={[
+            { required: true, message: "Mật khẩu là bắt buộc" },
+            { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },
+          ]}
+        >
+          <Input.Password
+            size="large"
+            placeholder="Mật khẩu"
+            prefix={<LockOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="confirmPassword"
+          dependencies={['password']}
+          rules={[
+            { required: true, message: "Vui lòng xác nhận mật khẩu!" },
+            ({ getFieldValue }) => ({
+              validator(_, value) {
+                if (!value || getFieldValue('password') === value) {
+                  return Promise.resolve();
+                }
+                return Promise.reject(new Error('Mật khẩu xác nhận không khớp!'));
+              },
+            }),
+          ]}
+        >
+          <Input.Password
+            size="large"
+            placeholder="Xác nhận mật khẩu"
+            prefix={<LockOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+    </>
+  );
+
+  const renderStep2 = () => (
+    <>
+      <motion.h3 className="text-2xl font-bold text-gray-800 mb-6 text-center" variants={itemVariants}>
+        Thông tin học vấn & Chuyên môn
+      </motion.h3>
+      
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="degree"
+          rules={[{ required: true, message: "Vui lòng nhập bằng cấp!" }]}
+        >
+          <Input
+            size="large"
+            placeholder="Bằng cấp cao nhất (VD: Cử nhân, Thạc sĩ, Tiến sĩ)"
+            prefix={<FileTextOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="institution"
+          rules={[{ required: true, message: "Vui lòng nhập trường đại học!" }]}
+        >
+          <Input
+            size="large"
+            placeholder="Trường đại học/Cơ sở đào tạo"
+            prefix={<BookOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="major"
+          rules={[{ required: true, message: "Vui lòng nhập chuyên ngành!" }]}
+        >
+          <Input
+            size="large"
+            placeholder="Chuyên ngành"
+            prefix={<BookOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="graduationYear"
+          rules={[
+            { required: true, message: "Vui lòng nhập năm tốt nghiệp!" },
+            {
+              validator: (_, value) => {
+                if (!value) {
+                  return Promise.reject(new Error('Vui lòng nhập năm tốt nghiệp!'));
+                }
+                
+                const year = parseInt(value);
+                const currentYear = new Date().getFullYear();
+                
+                if (isNaN(year)) {
+                  return Promise.reject(new Error('Năm tốt nghiệp phải là số!'));
+                }
+                
+                if (year < 1950 || year > currentYear) {
+                  return Promise.reject(new Error(`Năm tốt nghiệp phải từ 1950 đến ${currentYear}!`));
+                }
+                
+                return Promise.resolve();
+              }
+            }
+          ]}
+        >
+          <Input
+            size="large"
+            placeholder="Năm tốt nghiệp"
+            prefix={<CalendarOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+            type="number"
+            min={1950}
+            max={new Date().getFullYear()}
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="specializations"
+          rules={[{ required: true, message: "Vui lòng nhập lĩnh vực chuyên môn!" }]}
+        >
+          <Select
+            mode="tags"
+            size="large"
+            placeholder="Lĩnh vực chuyên môn (VD: JavaScript, React, Node.js)"
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="teachingExperience"
+          rules={[{ required: true, message: "Vui lòng nhập số năm kinh nghiệm!" }]}
+        >
+          <Input
+            size="large"
+            placeholder="Số năm kinh nghiệm giảng dạy"
+            prefix={<StarOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+            type="number"
+            min={0}
+            max={50}
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="experienceDescription"
+          rules={[{ required: true, message: "Vui lòng mô tả kinh nghiệm!" }]}
+        >
+          <TextArea
+            rows={4}
+            placeholder="Mô tả chi tiết kinh nghiệm giảng dạy, dự án đã thực hiện, thành tựu đạt được..."
+            className="rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm resize-none"
+          />
+        </Form.Item>
+      </motion.div>
+    </>
+  );
+
+  const renderStep3 = () => (
+    <>
+      <motion.h3 className="text-2xl font-bold text-gray-800 mb-6 text-center" variants={itemVariants}>
+        Hồ sơ & Tài liệu
+      </motion.h3>
+      
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="avatar"
+          rules={[{ required: true, message: "Vui lòng tải lên ảnh đại diện!" }]}
+          valuePropName="fileList"
+          getValueFromEvent={(e) => {
+            if (Array.isArray(e)) {
+              return e;
+            }
+            return e?.fileList;
+          }}
+        >
+          <Upload
+            beforeUpload={() => false}
+            maxCount={1}
+            accept="image/*"
+            listType="picture-card"
+          >
+            <div className="flex flex-col items-center">
+              <UserAddOutlined className="text-2xl mb-2" />
+              <div>Tải ảnh đại diện</div>
+            </div>
+          </Upload>
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="cv"
+          rules={[{ required: true, message: "Vui lòng tải lên CV!" }]}
+          valuePropName="fileList"
+          getValueFromEvent={(e) => {
+            if (Array.isArray(e)) {
+              return e;
+            }
+            return e?.fileList;
+          }}
+        >
+          <Upload
+            beforeUpload={() => false}
+            maxCount={1}
+            accept=".pdf,.doc,.docx"
+          >
+            <Button 
+              icon={<UploadOutlined />} 
+              size="large"
+              className="w-full h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+            >
+              Tải lên CV (PDF, DOC)
+            </Button>
+          </Upload>
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="certificates"
+          rules={[{ required: true, message: "Vui lòng tải lên ít nhất 1 chứng chỉ!" }]}
+          valuePropName="fileList"
+          getValueFromEvent={(e) => {
+            if (Array.isArray(e)) {
+              return e;
+            }
+            return e?.fileList;
+          }}
+        >
+          <Upload
+            beforeUpload={() => false}
+            multiple
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+          >
+            <Button 
+              icon={<SafetyCertificateOutlined />} 
+              size="large"
+              className="w-full h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+            >
+              Tải lên chứng chỉ (PDF, DOC, JPG)
+            </Button>
+          </Upload>
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="demoVideo"
+          valuePropName="fileList"
+          getValueFromEvent={(e) => {
+            if (Array.isArray(e)) {
+              return e;
+            }
+            return e?.fileList;
+          }}
+        >
+          <Upload
+            beforeUpload={() => false}
+            maxCount={1}
+            accept="video/*"
+          >
+            <Button 
+              icon={<VideoCameraOutlined />} 
+              size="large"
+              className="w-full h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+            >
+              Tải lên video demo giảng dạy (Tùy chọn)
+            </Button>
+          </Upload>
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item
+          name="bio"
+          rules={[{ required: true, message: "Vui lòng nhập mô tả bản thân!" }]}
+        >
+          <TextArea
+            rows={4}
+            placeholder="Giới thiệu về bản thân, phương pháp giảng dạy, mục tiêu..."
+            className="rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm resize-none"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item name="linkedin">
+          <Input
+            size="large"
+            placeholder="LinkedIn URL (Tùy chọn)"
+            prefix={<GlobalOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item name="github">
+          <Input
+            size="large"
+            placeholder="GitHub URL (Tùy chọn)"
+            prefix={<GlobalOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <Form.Item name="website">
+          <Input
+            size="large"
+            placeholder="Website cá nhân (Tùy chọn)"
+            prefix={<GlobalOutlined className="text-gray-400" />}
+            className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+          />
+        </Form.Item>
+      </motion.div>
+    </>
+  );
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4 py-8 relative">
@@ -189,145 +943,70 @@ export function InstructorRegistrationPage() {
               Trở thành giảng viên và chia sẻ kiến thức của bạn
             </motion.p>
 
+            {/* Progress Steps */}
+            <motion.div className="flex justify-center mb-8" variants={itemVariants}>
+              <div className="flex items-center space-x-4">
+                {[1, 2, 3].map((step) => (
+                  <div key={step} className="flex items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                      step <= currentStep 
+                        ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white' 
+                        : 'bg-gray-200 text-gray-500'
+                    }`}>
+                      {step}
+                    </div>
+                    {step < 3 && (
+                      <div className={`w-12 h-1 mx-2 ${
+                        step < currentStep ? 'bg-gradient-to-r from-cyan-500 to-purple-500' : 'bg-gray-200'
+                      }`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
             <Form
+              form={form}
               layout="vertical"
               onFinish={onFinish}
               className="space-y-6"
             >
-              <motion.div variants={itemVariants}>
-                <Form.Item
-                  name="fullName"
-                  rules={[
-                    { required: true, message: 'Vui lòng nhập họ và tên!' },
-                    { min: 2, message: 'Họ và tên phải có ít nhất 2 ký tự!' },
-                  ]}
-                >
-                  <Input
-                    size="large"
-                    placeholder="Họ và tên đầy đủ"
-                    prefix={<UserOutlined className="text-gray-400" />}
-                    className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
-                  />
-                </Form.Item>
-              </motion.div>
+              {currentStep === 1 && renderStep1()}
+              {currentStep === 2 && renderStep2()}
+              {currentStep === 3 && renderStep3()}
 
-              <motion.div variants={itemVariants}>
-                <Form.Item
-                  name="email"
-                  rules={[
-                    { required: true, message: "Email là bắt buộc" },
-                    { type: "email", message: "Email không hợp lệ" },
-                  ]}
-                >
-                  <Input
+              {/* Navigation Buttons */}
+              <motion.div className="flex gap-4" variants={itemVariants}>
+                {currentStep > 1 && (
+                  <Button
                     size="large"
-                    placeholder="Email"
-                    prefix={<MailOutlined className="text-gray-400" />}
-                    className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
-                  />
-                </Form.Item>
-              </motion.div>
-
-              <motion.div variants={itemVariants}>
-                <Form.Item
-                  name="phone"
-                  rules={[
-                    { required: true, message: "Số điện thoại là bắt buộc" },
-                    { pattern: /^[0-9+\-\s()]+$/, message: "Số điện thoại không hợp lệ" },
-                  ]}
-                >
-                  <Input
-                    size="large"
-                    placeholder="Số điện thoại"
-                    prefix={<PhoneOutlined className="text-gray-400" />}
-                    className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
-                  />
-                </Form.Item>
-              </motion.div>
-
-              <motion.div variants={itemVariants}>
-                <Form.Item
-                  name="password"
-                  rules={[
-                    { required: true, message: "Mật khẩu là bắt buộc" },
-                    { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },
-                  ]}
-                >
-                  <Input.Password
-                    size="large"
-                    placeholder="Mật khẩu"
-                    prefix={<LockOutlined className="text-gray-400" />}
-                    className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
-                  />
-                </Form.Item>
-              </motion.div>
-
-              <motion.div variants={itemVariants}>
-                <Form.Item
-                  name="specialization"
-                  rules={[{ required: true, message: "Vui lòng chọn chuyên ngành!" }]}
-                >
-                  <Select
-                    size="large"
-                    placeholder="Chọn chuyên ngành"
-                    className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
+                    onClick={prevStep}
+                    className="flex-1 h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
                   >
-                    <Option value="programming">Lập trình</Option>
-                    <Option value="design">Thiết kế</Option>
-                    <Option value="marketing">Marketing</Option>
-                    <Option value="business">Kinh doanh</Option>
-                    <Option value="language">Ngoại ngữ</Option>
-                    <Option value="other">Khác</Option>
-                  </Select>
-                </Form.Item>
-              </motion.div>
-
-              <motion.div variants={itemVariants}>
-                <Form.Item
-                  name="experience"
-                  rules={[{ required: true, message: "Vui lòng nhập kinh nghiệm!" }]}
-                >
-                  <TextArea
-                    rows={4}
-                    placeholder="Mô tả kinh nghiệm giảng dạy và chuyên môn của bạn..."
-                    className="rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm resize-none"
-                  />
-                </Form.Item>
-              </motion.div>
-
-              <motion.div variants={itemVariants}>
-                <Form.Item
-                  name="cv"
-                  rules={[{ required: true, message: "Vui lòng tải lên CV!" }]}
-                >
-                  <Upload
-                    beforeUpload={() => false}
-                    maxCount={1}
-                    accept=".pdf,.doc,.docx"
+                    Quay lại
+                  </Button>
+                )}
+                
+                {currentStep < 3 ? (
+                  <Button
+                    type="primary"
+                    size="large"
+                    onClick={nextStep}
+                    className="flex-1 h-12 rounded-lg !bg-gradient-to-r !from-cyan-500 !to-purple-500 !text-white !font-semibold hover:opacity-90 border-none shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
                   >
-                    <Button 
-                      icon={<UploadOutlined />} 
-                      size="large"
-                      className="w-full h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
-                    >
-                      Tải lên CV (PDF, DOC)
+                    Tiếp theo
                     </Button>
-                  </Upload>
-                </Form.Item>
-              </motion.div>
-
-              <motion.div variants={itemVariants}>
-                <Form.Item>
+                ) : (
                   <Button
                     type="primary"
                     size="large"
                     htmlType="submit"
                     loading={loading}
-                    className="w-full h-12 rounded-lg !bg-gradient-to-r !from-cyan-500 !to-purple-500 !text-white !font-semibold hover:opacity-90 border-none shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
+                    className="flex-1 h-12 rounded-lg !bg-gradient-to-r !from-cyan-500 !to-purple-500 !text-white !font-semibold hover:opacity-90 border-none shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
                   >
                     {loading ? "Đang gửi hồ sơ..." : "Gửi Hồ Sơ"}
                   </Button>
-                </Form.Item>
+                )}
               </motion.div>
             </Form>
           </motion.div>

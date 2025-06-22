@@ -92,7 +92,6 @@ interface Comment {
 // API Configuration
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-
 // Utility functions
 const getAuthToken = () => localStorage.getItem('authToken');
 const getCurrentUserId = () => localStorage.getItem('userId') || '60d5ecp74b24c72f5c8e4e3a';
@@ -107,7 +106,7 @@ const apiService = {
 
   // Fetch saved posts
   fetchSavedPosts: async () => {
-    const response = await fetch(`${API_BASE_URL}/blogs/saved-posts`, {
+    const response = await fetch(`${apiUrl}/blogs/saved-posts`, {
       method: 'GET',
       headers: apiService.getHeaders()
     });
@@ -121,7 +120,7 @@ const apiService = {
 
   // Like post
   likePost: async (postId: string) => {
-    const response = await fetch(`${API_BASE_URL}/blogs/${postId}/like`, {
+    const response = await fetch(`${apiUrl}/blogs/${postId}/like`, {
       method: 'POST',
       headers: apiService.getHeaders(),
       body: JSON.stringify({ userId: getCurrentUserId() })
@@ -136,7 +135,7 @@ const apiService = {
 
   // Unlike post
   unlikePost: async (postId: string) => {
-    const response = await fetch(`${API_BASE_URL}/blogs/${postId}/unlike`, {
+    const response = await fetch(`${apiUrl}/blogs/${postId}/unlike`, {
       method: 'DELETE',
       headers: apiService.getHeaders(),
       body: JSON.stringify({ userId: getCurrentUserId() })
@@ -152,7 +151,7 @@ const apiService = {
   // Fetch comments
   fetchComments: async (postId: string, page: number = 1, limit: number = 10) => {
     const response = await fetch(
-      `${API_BASE_URL}/blogs/${postId}/comments?page=${page}&limit=${limit}`,
+      `${apiUrl}/blogs/${postId}/comments?page=${page}&limit=${limit}`,
       {
         method: 'GET',
         headers: apiService.getHeaders()
@@ -168,7 +167,7 @@ const apiService = {
 
   // Add comment
   addComment: async (postId: string, content: string, parentId?: string) => {
-    const response = await fetch(`${API_BASE_URL}/blogs/${postId}/comments`, {
+    const response = await fetch(`${apiUrl}/blogs/${postId}/comments`, {
       method: 'POST',
       headers: apiService.getHeaders(),
       body: JSON.stringify({ 
@@ -187,7 +186,7 @@ const apiService = {
 
   // Unsave post
   unsavePost: async (savedPostId: string) => {
-    const response = await fetch(`${API_BASE_URL}/blogs/saved-posts/${savedPostId}`, {
+    const response = await fetch(`${apiUrl}/blogs/saved-posts/${savedPostId}`, {
       method: 'DELETE',
       headers: apiService.getHeaders()
     });
@@ -201,7 +200,7 @@ const apiService = {
 
   // Get user info
   getCurrentUser: async () => {
-    const response = await fetch(`${API_BASE_URL}/users/me`, {
+    const response = await fetch(`${apiUrl}/users/me`, {
       method: 'GET',
       headers: apiService.getHeaders()
     });
@@ -1005,7 +1004,6 @@ const SavedBlogPosts = () => {
       <Content style={{ padding: '24px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
         {/* Header */}
         <div style={{ 
-          background: '#fff', 
           padding: '32px', 
           borderRadius: 16, 
           marginBottom: 24,

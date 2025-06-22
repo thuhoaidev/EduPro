@@ -25,10 +25,12 @@ const instructorFileFilter = (req, file, cb) => {
     'image/jpeg',
     'image/png',
     'image/gif',
+    'image/webp',
     'video/mp4',
     'video/avi',
     'video/mov',
-    'video/wmv'
+    'video/wmv',
+    'video/webm'
   ];
   
   if (allowedMimeTypes.includes(file.mimetype)) {
@@ -59,11 +61,12 @@ const instructorUpload = multer({
 // Middleware upload avatar
 exports.uploadAvatar = avatarUpload.single('avatar');
 
-// Middleware upload instructor profile files
+// Middleware upload instructor profile files (updated for new form)
 exports.uploadInstructorFiles = instructorUpload.fields([
-  { name: 'cv_file', maxCount: 1 },
-  { name: 'degrees', maxCount: 5 },
-  { name: 'demo_video', maxCount: 1 }
+  { name: 'avatar', maxCount: 1 },
+  { name: 'cv', maxCount: 1 },
+  { name: 'certificates', maxCount: 5 },
+  { name: 'demoVideo', maxCount: 1 }
 ]);
 
 // Middleware xử lý upload avatar lên Cloudinary
@@ -105,7 +108,7 @@ exports.processAvatarUpload = async (req, res, next) => {
   }
 };
 
-// Middleware xử lý upload instructor profile files lên Cloudinary
+// Middleware xử lý upload instructor profile files lên Cloudinary (updated)
 exports.processInstructorFilesUpload = async (req, res, next) => {
   try {
     if (!req.files) {
@@ -114,9 +117,30 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
 
     const uploadedFiles = {};
 
+    // Xử lý Avatar
+    if (req.files.avatar && req.files.avatar[0]) {
+      const avatarFile = req.files.avatar[0];
+      
+      if (avatarFile.size > 5 * 1024 * 1024) {
+        return res.status(400).json({
+          success: false,
+          message: 'File ảnh đại diện quá lớn. Kích thước tối đa là 5MB',
+        });
+      }
+
+      const result = await uploadBufferToCloudinary(avatarFile.buffer, 'instructor-avatars');
+      uploadedFiles.avatar = {
+        url: result.secure_url,
+        public_id: result.public_id,
+        original_name: avatarFile.originalname,
+        size: result.bytes,
+        format: result.format,
+      };
+    }
+
     // Xử lý CV file
-    if (req.files.cv_file && req.files.cv_file[0]) {
-      const cvFile = req.files.cv_file[0];
+    if (req.files.cv && req.files.cv[0]) {
+      const cvFile = req.files.cv[0];
       
       if (cvFile.size > 10 * 1024 * 1024) {
         return res.status(400).json({
@@ -126,7 +150,7 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
       }
 
       const result = await uploadBufferToCloudinary(cvFile.buffer, 'instructor-cv');
-      uploadedFiles.cv_file = {
+      uploadedFiles.cv = {
         url: result.secure_url,
         public_id: result.public_id,
         original_name: cvFile.originalname,
@@ -135,23 +159,23 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
       };
     }
 
-    // Xử lý degrees files
-    if (req.files.degrees && req.files.degrees.length > 0) {
-      uploadedFiles.degrees = [];
+    // Xử lý certificates files
+    if (req.files.certificates && req.files.certificates.length > 0) {
+      uploadedFiles.certificates = [];
       
-      for (const degreeFile of req.files.degrees) {
-        if (degreeFile.size > 10 * 1024 * 1024) {
+      for (const certFile of req.files.certificates) {
+        if (certFile.size > 10 * 1024 * 1024) {
           return res.status(400).json({
             success: false,
-            message: `File degree "${degreeFile.originalname}" quá lớn. Kích thước tối đa là 10MB`,
+            message: `File chứng chỉ "${certFile.originalname}" quá lớn. Kích thước tối đa là 10MB`,
           });
         }
 
-        const result = await uploadBufferToCloudinary(degreeFile.buffer, 'instructor-degrees');
-        uploadedFiles.degrees.push({
+        const result = await uploadBufferToCloudinary(certFile.buffer, 'instructor-certificates');
+        uploadedFiles.certificates.push({
           url: result.secure_url,
           public_id: result.public_id,
-          original_name: degreeFile.originalname,
+          original_name: certFile.originalname,
           size: result.bytes,
           format: result.format,
         });
@@ -159,18 +183,18 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
     }
 
     // Xử lý demo video
-    if (req.files.demo_video && req.files.demo_video[0]) {
-      const videoFile = req.files.demo_video[0];
+    if (req.files.demoVideo && req.files.demoVideo[0]) {
+      const videoFile = req.files.demoVideo[0];
       
-      if (videoFile.size > 10 * 1024 * 1024) {
+      if (videoFile.size > 50 * 1024 * 1024) { // 50MB cho video
         return res.status(400).json({
           success: false,
-          message: 'File demo video quá lớn. Kích thước tối đa là 10MB',
+          message: 'File demo video quá lớn. Kích thước tối đa là 50MB',
         });
       }
 
       const result = await uploadBufferToCloudinary(videoFile.buffer, 'instructor-demo-videos');
-      uploadedFiles.demo_video = {
+      uploadedFiles.demoVideo = {
         url: result.secure_url,
         public_id: result.public_id,
         original_name: videoFile.originalname,
@@ -198,24 +222,18 @@ exports.deleteOldAvatar = async (req, res, next) => {
   try {
     const { deleteFromCloudinary, getPublicIdFromUrl } = require('../utils/cloudinary');
     
-    // Nếu có avatar mới được upload và user có avatar cũ
-    if (req.uploadedAvatar && req.user && req.user.avatar) {
-      const oldPublicId = getPublicIdFromUrl(req.user.avatar);
-      
-      if (oldPublicId && oldPublicId !== 'default-avatar') {
-        try {
-          await deleteFromCloudinary(oldPublicId);
-          console.log('Đã xóa avatar cũ:', oldPublicId);
-        } catch (deleteError) {
-          console.error('Lỗi xóa avatar cũ:', deleteError);
-          // Không throw error vì đây không phải lỗi nghiêm trọng
-        }
+    // Nếu có avatar cũ và có avatar mới được upload
+    if (req.user && req.user.avatar && req.uploadedAvatar) {
+      const oldAvatarPublicId = getPublicIdFromUrl(req.user.avatar);
+      if (oldAvatarPublicId && !oldAvatarPublicId.includes('default-avatar')) {
+        await deleteFromCloudinary(oldAvatarPublicId);
       }
     }
     
     next();
   } catch (error) {
     console.error('Lỗi xóa avatar cũ:', error);
-    next(); // Tiếp tục xử lý dù có lỗi
+    // Không dừng quá trình nếu lỗi xóa avatar cũ
+    next();
   }
 }; 

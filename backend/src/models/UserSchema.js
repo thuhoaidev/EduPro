@@ -136,6 +136,30 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  // Thông tin học vấn
+  education: [{
+    degree: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+    institution: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+    year: {
+      type: Number,
+      required: true,
+      min: [1950, 'Năm tốt nghiệp không hợp lệ'],
+      max: [new Date().getFullYear(), 'Năm tốt nghiệp không thể là tương lai'],
+    },
+    major: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+  }],
   instructorInfo: {
     // Thông tin cơ bản
     is_approved: {

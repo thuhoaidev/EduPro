@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const { Role, ROLES } = require('../models/Role');
+const { sendInstructorVerificationEmail, sendInstructorProfileSubmittedEmail } = require('../utils/sendEmail');
 
 // Lấy thông tin người dùng hiện tại
 exports.getCurrentUser = async (req, res) => {
@@ -226,19 +227,16 @@ exports.createUser = async (req, res) => {
       });
     }
 
-    // Xử lý nickname để tạo slug
-    const normalizedNickname = nickname ? nickname.toLowerCase().replace(/[^a-z0-9]/g, '-') : '';
-
     // Kiểm tra xem slug đã tồn tại chưa
-    let slug = normalizedNickname;
+    let slug = nickname ? nickname.toLowerCase().replace(/[^a-z0-9]/g, '-') : '';
     let counter = 1;
     let userWithSlug;
 
-    if (normalizedNickname) {
+    if (slug) {
       do {
         userWithSlug = await User.findOne({ slug });
         if (userWithSlug) {
-          slug = `${normalizedNickname}-${counter++}`;
+          slug = `${slug}-${counter++}`;
         }
       } while (userWithSlug);
     }
@@ -1037,3 +1035,407 @@ async function uploadToCloudinary(filePath, folder) {
     resource_type: 'auto',
   });
 }
+
+// Đăng ký giảng viên mới (comprehensive form)
+exports.registerInstructor = async (req, res) => {
+  try {
+    // Clean và validate input data
+    const {
+      // Personal info
+      fullName,
+      email,
+      phone,
+      password,
+      gender,
+      dateOfBirth,
+      address,
+      
+      // Education
+      degree,
+      institution,
+      graduationYear,
+      major,
+      
+      // Professional
+      specializations,
+      teachingExperience,
+      experienceDescription,
+      
+      // Additional
+      bio,
+      linkedin,
+      github,
+      website
+    } = req.body;
+
+    // Clean whitespace from string fields
+    const cleanFullName = fullName?.trim();
+    const cleanEmail = email?.trim();
+    const cleanPhone = phone?.trim();
+    const cleanPassword = password?.trim();
+    const cleanGender = gender?.trim();
+    const cleanAddress = address?.trim();
+    const cleanDegree = degree?.trim();
+    const cleanInstitution = institution?.trim();
+    const cleanMajor = major?.trim();
+    const cleanBio = bio?.trim();
+    const cleanLinkedin = linkedin?.trim();
+    const cleanGithub = github?.trim();
+    const cleanWebsite = website?.trim();
+
+    // Map gender values
+    const genderMap = {
+      'nam': 'Nam',
+      'nữ': 'Nữ',
+      'khác': 'Khác',
+      'male': 'Nam',
+      'female': 'Nữ',
+      'other': 'Khác'
+    };
+
+    const mappedGender = genderMap[cleanGender?.toLowerCase()] || cleanGender;
+
+    // Tạo nickname từ fullName
+    const generateNickname = (fullName) => {
+      const nameParts = fullName.trim().split(' ');
+      if (nameParts.length >= 2) {
+        return `${nameParts[nameParts.length - 2]}${nameParts[nameParts.length - 1]}`.toLowerCase();
+      }
+      return fullName.toLowerCase().replace(/\s+/g, '');
+    };
+
+    // Tạo slug từ nickname
+    const generateSlug = (nickname) => {
+      return nickname.toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    };
+
+    const nickname = generateNickname(cleanFullName);
+    let slug = generateSlug(nickname);
+
+    // Kiểm tra slug đã tồn tại chưa
+    let counter = 1;
+    let existingUserWithSlug;
+    do {
+      existingUserWithSlug = await User.findOne({ slug });
+      if (existingUserWithSlug) {
+        slug = `${generateSlug(nickname)}-${counter++}`;
+      }
+    } while (existingUserWithSlug);
+
+    console.log('Received instructor registration data:', {
+      fullName: cleanFullName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      gender: mappedGender,
+      nickname,
+      slug,
+      dateOfBirth,
+      address: cleanAddress,
+      degree: cleanDegree,
+      institution: cleanInstitution,
+      graduationYear,
+      major: cleanMajor,
+      specializations,
+      teachingExperience,
+      experienceDescription,
+      bio: cleanBio
+    });
+
+    // Validation dữ liệu bắt buộc
+    if (!cleanFullName || !cleanEmail || !cleanPhone || !cleanPassword || !mappedGender || !dateOfBirth || !cleanAddress) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin cá nhân bắt buộc',
+        missing: {
+          fullName: !cleanFullName,
+          email: !cleanEmail,
+          phone: !cleanPhone,
+          password: !cleanPassword,
+          gender: !mappedGender,
+          dateOfBirth: !dateOfBirth,
+          address: !cleanAddress
+        },
+        received: {
+          fullName: cleanFullName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          password: cleanPassword ? '***' : '',
+          gender: mappedGender,
+          dateOfBirth,
+          address: cleanAddress
+        }
+      });
+    }
+
+    if (!cleanDegree || !cleanInstitution || !graduationYear || !cleanMajor) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin học vấn bắt buộc',
+        missing: {
+          degree: !cleanDegree,
+          institution: !cleanInstitution,
+          graduationYear: !graduationYear,
+          major: !cleanMajor
+        }
+      });
+    }
+
+    if (!specializations || !teachingExperience || !experienceDescription) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin chuyên môn bắt buộc',
+        missing: {
+          specializations: !specializations,
+          teachingExperience: !teachingExperience,
+          experienceDescription: !experienceDescription
+        }
+      });
+    }
+
+    // Kiểm tra email đã tồn tại chưa
+    const existingUser = await User.findOne({ email: cleanEmail });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email đã được sử dụng',
+      });
+    }
+
+    // Lấy thông tin file đã upload từ middleware
+    const uploadedFiles = req.uploadedInstructorFiles || {};
+    
+    // Xử lý avatar
+    let avatarUrl = 'default-avatar.jpg';
+    if (uploadedFiles.avatar) {
+      avatarUrl = uploadedFiles.avatar.url;
+    }
+
+    // Xử lý CV file
+    let cvFileUrl = null;
+    if (uploadedFiles.cv) {
+      cvFileUrl = uploadedFiles.cv.url;
+    }
+
+    // Xử lý certificates
+    const processedCertificates = [];
+    if (uploadedFiles.certificates && uploadedFiles.certificates.length > 0) {
+      for (const certFile of uploadedFiles.certificates) {
+        processedCertificates.push({
+          name: certFile.original_name,
+          file: certFile.url,
+          original_name: certFile.original_name,
+          uploaded_at: new Date(),
+        });
+      }
+    }
+
+    // Xử lý demo video
+    let demoVideoUrl = null;
+    if (uploadedFiles.demoVideo) {
+      demoVideoUrl = uploadedFiles.demoVideo.url;
+    }
+
+    // Tìm role student (mặc định cho user mới)
+    const studentRole = await Role.findOne({ name: 'student' });
+    if (!studentRole) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vai trò sinh viên không tồn tại',
+      });
+    }
+
+    // Hash password
+    const bcrypt = require('bcryptjs');
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(cleanPassword, saltRounds);
+
+    // Xử lý specializations
+    let processedSpecializations = [];
+    if (Array.isArray(specializations)) {
+      processedSpecializations = specializations.filter(spec => spec && spec.trim());
+    } else if (typeof specializations === 'string') {
+      processedSpecializations = [specializations.trim()];
+    }
+
+    // Xử lý dateOfBirth
+    let processedDateOfBirth;
+    try {
+      processedDateOfBirth = new Date(dateOfBirth);
+      if (isNaN(processedDateOfBirth.getTime())) {
+        throw new Error('Invalid date format');
+      }
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Định dạng ngày sinh không hợp lệ',
+        receivedDate: dateOfBirth
+      });
+    }
+
+    // Tạo user mới
+    const newUser = new User({
+      fullname: cleanFullName,
+      nickname: nickname,
+      slug: slug,
+      email: cleanEmail,
+      phone: cleanPhone,
+      password: hashedPassword,
+      gender: mappedGender,
+      dob: processedDateOfBirth,
+      address: cleanAddress,
+      avatar: avatarUrl,
+      bio: cleanBio || '',
+      social_links: {
+        linkedin: cleanLinkedin || '',
+        github: cleanGithub || '',
+        website: cleanWebsite || '',
+      },
+      role_id: studentRole._id,
+      status: 'inactive', // Chưa xác minh email
+      email_verified: false, // Chưa xác minh email
+      approval_status: 'pending',
+      instructorInfo: {
+        is_approved: false,
+        experience_years: parseInt(teachingExperience) || 0,
+        specializations: processedSpecializations,
+        teaching_experience: {
+          years: parseInt(teachingExperience) || 0,
+          description: experienceDescription,
+        },
+        certificates: processedCertificates,
+        demo_video: demoVideoUrl,
+        cv_file: cvFileUrl,
+        approval_status: 'pending',
+      },
+      // Thêm thông tin học vấn
+      education: [{
+        degree: cleanDegree,
+        institution: cleanInstitution,
+        year: parseInt(graduationYear) || new Date().getFullYear(),
+        major: cleanMajor,
+      }],
+    });
+
+    // Tạo email verification token
+    const verificationToken = newUser.createEmailVerificationToken();
+
+    await newUser.save();
+
+    // Gửi email xác minh
+    try {
+      await sendInstructorVerificationEmail(cleanEmail, cleanFullName, verificationToken);
+      console.log('Verification email sent successfully to:', cleanEmail);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Không dừng quá trình nếu lỗi gửi email
+    }
+
+    console.log('Instructor registration successful:', {
+      userId: newUser._id,
+      email: newUser.email,
+      status: newUser.status,
+      emailVerified: newUser.email_verified
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Đăng ký giảng viên thành công! Vui lòng kiểm tra email để xác minh tài khoản.',
+      data: {
+        user: {
+          _id: newUser._id,
+          fullname: newUser.fullname,
+          email: newUser.email,
+          status: newUser.status,
+          email_verified: newUser.email_verified,
+          approval_status: newUser.approval_status,
+        },
+        instructorInfo: newUser.instructorInfo,
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi đăng ký giảng viên:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi đăng ký giảng viên',
+      error: error.message,
+    });
+  }
+};
+
+// Xác minh email cho instructor registration
+exports.verifyInstructorEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token xác minh không hợp lệ',
+      });
+    }
+
+    // Tìm user với token này
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token xác minh không hợp lệ hoặc đã hết hạn',
+      });
+    }
+
+    // Cập nhật trạng thái user
+    user.email_verified = true;
+    user.status = 'active';
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    user.approval_status = 'pending'; // Chuyển sang chờ admin duyệt
+
+    await user.save();
+
+    // Gửi email thông báo hồ sơ đã được gửi cho admin
+    try {
+      await sendInstructorProfileSubmittedEmail(user.email, user.fullname);
+      console.log('Profile submitted email sent successfully to:', user.email);
+    } catch (emailError) {
+      console.error('Failed to send profile submitted email:', emailError);
+    }
+
+    console.log('Email verification successful:', {
+      userId: user._id,
+      email: user.email,
+      status: user.status,
+      emailVerified: user.email_verified,
+      approvalStatus: user.approval_status
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Xác minh email thành công! Hồ sơ của bạn đã được gửi cho admin xét duyệt.',
+      data: {
+        user: {
+          _id: user._id,
+          fullname: user.fullname,
+          email: user.email,
+          status: user.status,
+          email_verified: user.email_verified,
+          approval_status: user.approval_status,
+        },
+        instructorInfo: user.instructorInfo,
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi xác minh email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi xác minh email',
+      error: error.message,
+    });
+  }
+};
