@@ -17,7 +17,21 @@ const avatarFileFilter = (req, file, cb) => {
 
 // Filter file types cho instructor profile
 const instructorFileFilter = (req, file, cb) => {
-  // Cho phép PDF, DOC, DOCX, ảnh và video
+  // Nếu là trường cv thì chỉ cho phép PDF, DOC, DOCX
+  if (file.fieldname === 'cv') {
+    const allowedCvMimeTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    if (allowedCvMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Chỉ cho phép upload file PDF, DOC, DOCX cho CV!'), false);
+    }
+    return;
+  }
+  // Các trường khác giữ nguyên logic cũ
   const allowedMimeTypes = [
     'application/pdf',
     'application/msword',
@@ -32,7 +46,6 @@ const instructorFileFilter = (req, file, cb) => {
     'video/wmv',
     'video/webm'
   ];
-  
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -111,6 +124,7 @@ exports.processAvatarUpload = async (req, res, next) => {
 // Middleware xử lý upload instructor profile files lên Cloudinary (updated)
 exports.processInstructorFilesUpload = async (req, res, next) => {
   try {
+    console.log('DEBUG - req.files:', req.files); // Log toàn bộ files nhận được từ multer
     if (!req.files) {
       return next(); // Không có file upload, tiếp tục
     }
@@ -120,15 +134,14 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
     // Xử lý Avatar
     if (req.files.avatar && req.files.avatar[0]) {
       const avatarFile = req.files.avatar[0];
-      
       if (avatarFile.size > 5 * 1024 * 1024) {
         return res.status(400).json({
           success: false,
           message: 'File ảnh đại diện quá lớn. Kích thước tối đa là 5MB',
         });
       }
-
       const result = await uploadBufferToCloudinary(avatarFile.buffer, 'instructor-avatars');
+      console.log('DEBUG - Cloudinary avatar upload result:', result);
       uploadedFiles.avatar = {
         url: result.secure_url,
         public_id: result.public_id,
@@ -141,15 +154,14 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
     // Xử lý CV file
     if (req.files.cv && req.files.cv[0]) {
       const cvFile = req.files.cv[0];
-      
       if (cvFile.size > 10 * 1024 * 1024) {
         return res.status(400).json({
           success: false,
           message: 'File CV quá lớn. Kích thước tối đa là 10MB',
         });
       }
-
       const result = await uploadBufferToCloudinary(cvFile.buffer, 'instructor-cv');
+      console.log('DEBUG - Cloudinary CV upload result:', result);
       uploadedFiles.cv = {
         url: result.secure_url,
         public_id: result.public_id,
@@ -162,7 +174,6 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
     // Xử lý certificates files
     if (req.files.certificates && req.files.certificates.length > 0) {
       uploadedFiles.certificates = [];
-      
       for (const certFile of req.files.certificates) {
         if (certFile.size > 10 * 1024 * 1024) {
           return res.status(400).json({
@@ -170,8 +181,8 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
             message: `File chứng chỉ "${certFile.originalname}" quá lớn. Kích thước tối đa là 10MB`,
           });
         }
-
         const result = await uploadBufferToCloudinary(certFile.buffer, 'instructor-certificates');
+        console.log('DEBUG - Cloudinary certificate upload result:', result);
         uploadedFiles.certificates.push({
           url: result.secure_url,
           public_id: result.public_id,
@@ -185,15 +196,14 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
     // Xử lý demo video
     if (req.files.demoVideo && req.files.demoVideo[0]) {
       const videoFile = req.files.demoVideo[0];
-      
       if (videoFile.size > 50 * 1024 * 1024) { // 50MB cho video
         return res.status(400).json({
           success: false,
           message: 'File demo video quá lớn. Kích thước tối đa là 50MB',
         });
       }
-
       const result = await uploadBufferToCloudinary(videoFile.buffer, 'instructor-demo-videos');
+      console.log('DEBUG - Cloudinary demo video upload result:', result);
       uploadedFiles.demoVideo = {
         url: result.secure_url,
         public_id: result.public_id,
@@ -203,15 +213,14 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
       };
     }
 
-    // Lưu thông tin files vào request
     req.uploadedInstructorFiles = uploadedFiles;
-
+    console.log('DEBUG - uploadedInstructorFiles:', uploadedFiles); // Log kết quả cuối cùng
     next();
   } catch (error) {
     console.error('Lỗi upload instructor files:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi upload file',
+      message: 'Lỗi upload instructor files',
       error: error.message,
     });
   }

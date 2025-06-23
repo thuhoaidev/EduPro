@@ -308,7 +308,7 @@ const ProfileEdit = () => {
                 <motion.div variants={itemVariants}>
                 <Form.Item
                   name="nickname"
-                  label={<Text strong className="text-gray-700">Nickname</Text>}
+                  label={<Text strong className="text-gray-700">Tên đăng nhập</Text>}
                 >
                   <Input 
                     disabled

@@ -1,266 +1,211 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Result, Button, Spin, Alert } from 'antd';
+import { Result, Button, Spin, notification } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
-import { config as axios } from '../api/axios';
+import { verifyEmail } from '../services/authService';
+import { useAuth } from '../hooks/Auths/useAuth';
+import styled from 'styled-components';
 
-interface VerificationResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    user: {
-      _id: string;
-      fullname: string;
-      email: string;
-      status: string;
-      email_verified: boolean;
-      approval_status: string;
-    };
-    instructorInfo: any;
-  };
-}
+// Styled components
+const PageContainer = styled.div`
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0f9ff 0%, #f8fafc 50%, #f3e8ff 100%);
+  padding: 20px;
+`;
 
-export default function VerifyEmail() {
+const VerificationCard = styled(motion.div)`
+  background: white;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+  }
+`;
+
+const Title = styled.h1`
+  font-size: 28px;
+  color: #1e293b;
+  margin-bottom: 16px;
+  font-weight: 700;
+`;
+
+const Subtitle = styled.p`
+  font-size: 16px;
+  color: #64748b;
+  margin-bottom: 32px;
+`;
+
+const StyledButton = styled(Button)`
+  background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+  border: none;
+  height: 48px;
+  padding: 0 32px;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.3), 0 4px 6px -2px rgba(139, 92, 246, 0.2);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(6, 182, 212, 0.4), 0 10px 10px -5px rgba(139, 92, 246, 0.3);
+  }
+`;
+
+const SuccessIcon = styled(CheckCircleOutlined)`
+  font-size: 72px;
+  color: #10b981;
+  margin-bottom: 24px;
+`;
+
+const ErrorIcon = styled(CloseCircleOutlined)`
+  font-size: 72px;
+  color: #ef4444;
+  margin-bottom: 24px;
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+`;
+
+const CountdownText = styled.p`
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 16px;
+`;
+
+const VerifyEmail: React.FC = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
-  const [verificationStatus, setVerificationStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('');
-  const [errorDetails, setErrorDetails] = useState('');
+  const { login } = useAuth();
+  const [verifying, setVerifying] = useState(true);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    const verifyEmail = async () => {
-      if (!token) {
-        setVerificationStatus('error');
-        setMessage('Token xác minh không hợp lệ');
-        return;
-      }
-
+    const verifyToken = async () => {
       try {
-        const response = await axios.get<VerificationResponse>(`/api/users/verify-instructor-email/${token}`);
-        
-        if (response.data.success) {
-          setVerificationStatus('success');
-          setMessage(response.data.message);
-        } else {
-          setVerificationStatus('error');
-          setMessage(response.data.message);
+        if (!token) {
+          throw new Error('Token không hợp lệ');
         }
-      } catch (error: any) {
-        setVerificationStatus('error');
-        if (error.response?.data?.message) {
-          setMessage(error.response.data.message);
+
+        const response = await verifyEmail(token);
+        if (response.success) {
+          setSuccess(true);
+          // Tự động đăng nhập sau khi xác thực thành công
+          if (response.data?.token && response.data?.user) {
+            login(response.data.token, response.data.user);
+          }
+          // Bắt đầu đếm ngược để chuyển hướng
+          const timer = setInterval(() => {
+            setCountdown((prev) => {
+              if (prev <= 1) {
+                clearInterval(timer);
+                navigate('/');
+              }
+              return prev - 1;
+            });
+          }, 1000);
+          return () => clearInterval(timer);
         } else {
-          setMessage('Đã xảy ra lỗi khi xác minh email');
+          throw new Error(response.message || 'Xác thực không thành công');
         }
-        setErrorDetails(error.message);
+      } catch (err: any) {
+        setError(err.message || 'Đã có lỗi xảy ra khi xác thực email');
+        notification.error({
+          message: 'Lỗi xác thực',
+          description: err.message || 'Đã có lỗi xảy ra khi xác thực email',
+        });
+      } finally {
+        setVerifying(false);
       }
     };
 
-    verifyEmail();
-  }, [token]);
-
-  const handleGoHome = () => {
-    navigate('/');
-  };
-
-  const handleGoToLogin = () => {
-    navigate('/login');
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5 }
-    }
-  };
+    verifyToken();
+  }, [token, login, navigate]);
 
   const renderContent = () => {
-    switch (verificationStatus) {
-      case 'loading':
-        return (
-          <motion.div variants={itemVariants} className="text-center">
-            <Spin 
-              indicator={<LoadingOutlined style={{ fontSize: 48, color: '#667eea' }} spin />} 
-              size="large"
-            />
-            <div className="mt-6 text-lg text-gray-600">
-              Đang xác minh email...
-            </div>
-            <div className="mt-2 text-sm text-gray-500">
-              Vui lòng chờ trong giây lát
-            </div>
-          </motion.div>
-        );
-
-      case 'success':
-        return (
-          <motion.div variants={itemVariants}>
-            <Result
-              status="success"
-              icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-              title="Xác minh email thành công!"
-              subTitle={message}
-              extra={[
-                <Button 
-                  type="primary" 
-                  key="home"
-                  onClick={handleGoHome}
-                  className="bg-gradient-to-r from-cyan-500 to-purple-500 border-none hover:opacity-90"
-                >
-                  Về trang chủ
-                </Button>,
-                <Button 
-                  key="login"
-                  onClick={handleGoToLogin}
-                  className="border-gray-300 hover:border-cyan-400"
-                >
-                  Đăng nhập
-                </Button>
-              ]}
-            />
-            <motion.div 
-              variants={itemVariants}
-              className="mt-8 max-w-2xl mx-auto"
-            >
-              <Alert
-                message="Quy trình tiếp theo"
-                description={
-                  <div className="mt-2">
-                    <p className="mb-2">🎉 Chúc mừng! Email của bạn đã được xác minh thành công.</p>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
-                      <li>Hồ sơ của bạn đã được gửi cho admin xét duyệt</li>
-                      <li>Admin sẽ xem xét trong vòng 3-5 ngày làm việc</li>
-                      <li>Bạn sẽ nhận được email thông báo kết quả</li>
-                      <li>Nếu được chấp thuận, bạn có thể bắt đầu tạo khóa học</li>
-                    </ul>
-                  </div>
-                }
-                type="info"
-                showIcon
-                className="border-blue-200 bg-blue-50"
-              />
-            </motion.div>
-          </motion.div>
-        );
-
-      case 'error':
-        return (
-          <motion.div variants={itemVariants}>
-            <Result
-              status="error"
-              icon={<CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
-              title="Xác minh email thất bại"
-              subTitle={message}
-              extra={[
-                <Button 
-                  type="primary" 
-                  key="home"
-                  onClick={handleGoHome}
-                  className="bg-gradient-to-r from-cyan-500 to-purple-500 border-none hover:opacity-90"
-                >
-                  Về trang chủ
-                </Button>,
-                <Button 
-                  key="contact"
-                  onClick={() => window.open('mailto:support@edupro.com', '_blank')}
-                  className="border-gray-300 hover:border-cyan-400"
-                >
-                  Liên hệ hỗ trợ
-                </Button>
-              ]}
-            />
-            {errorDetails && (
-              <motion.div variants={itemVariants} className="mt-6 max-w-2xl mx-auto">
-                <Alert
-                  message="Chi tiết lỗi"
-                  description={errorDetails}
-                  type="error"
-                  showIcon
-                  className="border-red-200 bg-red-50"
-                />
-              </motion.div>
-            )}
-            <motion.div variants={itemVariants} className="mt-6 max-w-2xl mx-auto">
-              <Alert
-                message="Cần hỗ trợ?"
-                description={
-                  <div className="mt-2">
-                    <p className="mb-2">Nếu bạn gặp vấn đề, vui lòng:</p>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
-                      <li>Kiểm tra lại link xác minh có đúng không</li>
-                      <li>Đảm bảo link chưa hết hạn (24 giờ)</li>
-                      <li>Liên hệ với chúng tôi qua email: support@edupro.com</li>
-                    </ul>
-                  </div>
-                }
-                type="warning"
-                showIcon
-                className="border-orange-200 bg-orange-50"
-              />
-            </motion.div>
-          </motion.div>
-        );
-
-      default:
-        return null;
+    if (verifying) {
+      return (
+        <LoadingContainer>
+          <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+          <Subtitle>Đang xác thực email của bạn...</Subtitle>
+        </LoadingContainer>
+      );
     }
+
+    if (success) {
+      return (
+        <>
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+          >
+            <SuccessIcon />
+          </motion.div>
+          <Title>Xác thực thành công!</Title>
+          <Subtitle>
+            Email của bạn đã được xác thực. Bạn sẽ được chuyển hướng đến trang chủ trong {countdown} giây.
+          </Subtitle>
+          <StyledButton type="primary" onClick={() => navigate('/')}>
+            Đi đến trang chủ ngay
+          </StyledButton>
+          <CountdownText>
+            Đang chuyển hướng... ({countdown}s)
+          </CountdownText>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 260, damping: 20 }}
+        >
+          <ErrorIcon />
+        </motion.div>
+        <Title>Xác thực thất bại</Title>
+        <Subtitle>{error || 'Đã có lỗi xảy ra trong quá trình xác thực email'}</Subtitle>
+        <StyledButton type="primary" onClick={() => navigate('/login')}>
+          Quay lại đăng nhập
+        </StyledButton>
+      </>
+    );
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4 py-8">
-      <motion.div 
-        className="w-full max-w-4xl"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+    <PageContainer>
+      <VerificationCard
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
       >
-        {/* Header */}
-        <motion.div variants={itemVariants} className="text-center mb-8">
-          <motion.h1 
-            className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600 mb-4"
-            variants={itemVariants}
-          >
-            Xác minh Email
-          </motion.h1>
-          <motion.p 
-            className="text-gray-600 text-lg"
-            variants={itemVariants}
-          >
-            Hoàn tất quá trình đăng ký giảng viên
-          </motion.p>
-        </motion.div>
-
-        {/* Main Content */}
-        <motion.div 
-          className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-2xl p-8 lg:p-12 border border-white/20"
-          variants={itemVariants}
-        >
-          {renderContent()}
-        </motion.div>
-
-        {/* Footer */}
-        <motion.div 
-          className="text-center mt-8 text-gray-500"
-          variants={itemVariants}
-        >
-          <p>© 2024 EduPro Platform. All rights reserved.</p>
-        </motion.div>
-      </motion.div>
-    </div>
+        {renderContent()}
+      </VerificationCard>
+    </PageContainer>
   );
-}
+};
+
+export default VerifyEmail;

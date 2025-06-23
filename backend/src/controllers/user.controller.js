@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const { Role, ROLES } = require('../models/Role');
-const { sendInstructorVerificationEmail, sendInstructorProfileSubmittedEmail } = require('../utils/sendEmail');
+const { sendInstructorVerificationEmail, sendInstructorProfileSubmittedEmail, sendInstructorApprovalResultEmail } = require('../utils/sendEmail');
+const crypto = require('crypto');
 
 // Lấy thông tin người dùng hiện tại
 exports.getCurrentUser = async (req, res) => {
@@ -568,6 +569,13 @@ exports.updateInstructorApproval = async (req, res) => {
     // Lưu thay đổi
     await instructor.save();
 
+    // Gửi email kết quả duyệt hồ sơ
+    try {
+      await sendInstructorApprovalResultEmail(instructor.email, instructor.fullname, status, rejection_reason);
+    } catch (emailError) {
+      console.error('Lỗi gửi email kết quả duyệt hồ sơ:', emailError);
+    }
+
     res.status(200).json({
       success: true,
       message: status === 'approved' ? 'Duyệt hồ sơ giảng viên thành công' : 'Từ chối hồ sơ giảng viên thành công',
@@ -1068,6 +1076,8 @@ exports.registerInstructor = async (req, res) => {
       website
     } = req.body;
 
+    // Thêm log kiểm tra giá trị bio
+    console.log('DEBUG - req.body.bio:', req.body.bio);
     // Clean whitespace from string fields
     const cleanFullName = fullName?.trim();
     const cleanEmail = email?.trim();
@@ -1078,7 +1088,7 @@ exports.registerInstructor = async (req, res) => {
     const cleanDegree = degree?.trim();
     const cleanInstitution = institution?.trim();
     const cleanMajor = major?.trim();
-    const cleanBio = bio?.trim();
+    const cleanBio = typeof req.body.bio === 'string' ? req.body.bio.trim() : '';
     const cleanLinkedin = linkedin?.trim();
     const cleanGithub = github?.trim();
     const cleanWebsite = website?.trim();
@@ -1206,6 +1216,7 @@ exports.registerInstructor = async (req, res) => {
 
     // Lấy thông tin file đã upload từ middleware
     const uploadedFiles = req.uploadedInstructorFiles || {};
+    console.log('DEBUG - uploadedInstructorFiles in registerInstructor:', uploadedFiles); // Log để debug
     
     // Xử lý avatar
     let avatarUrl = 'default-avatar.jpg';
@@ -1275,6 +1286,11 @@ exports.registerInstructor = async (req, res) => {
       });
     }
 
+    // Tạo email verification token (dùng đúng tên trường trong schema)
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const hashedVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    const verificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24h
+
     // Tạo user mới
     const newUser = new User({
       fullname: cleanFullName,
@@ -1286,41 +1302,40 @@ exports.registerInstructor = async (req, res) => {
       gender: mappedGender,
       dob: processedDateOfBirth,
       address: cleanAddress,
-      avatar: avatarUrl,
-      bio: cleanBio || '',
+      avatar: avatarUrl || 'default-avatar.jpg',
+      bio: cleanBio,
       social_links: {
         linkedin: cleanLinkedin || '',
         github: cleanGithub || '',
         website: cleanWebsite || '',
       },
       role_id: studentRole._id,
-      status: 'inactive', // Chưa xác minh email
-      email_verified: false, // Chưa xác minh email
+      status: 'inactive',
+      email_verified: false,
       approval_status: 'pending',
-      instructorInfo: {
-        is_approved: false,
-        experience_years: parseInt(teachingExperience) || 0,
-        specializations: processedSpecializations,
-        teaching_experience: {
-          years: parseInt(teachingExperience) || 0,
-          description: experienceDescription,
-        },
-        certificates: processedCertificates,
-        demo_video: demoVideoUrl,
-        cv_file: cvFileUrl,
-        approval_status: 'pending',
-      },
-      // Thêm thông tin học vấn
+      instructor_approval_status: 'pending',
+      email_verification_token: hashedVerificationToken,
+      email_verification_expires: verificationExpires,
       education: [{
         degree: cleanDegree,
         institution: cleanInstitution,
         year: parseInt(graduationYear) || new Date().getFullYear(),
         major: cleanMajor,
       }],
+      instructorInfo: {
+        is_approved: false,
+        experience_years: parseInt(teachingExperience) || 0,
+        specializations: Array.isArray(specializations) ? specializations : [specializations],
+        teaching_experience: {
+          years: parseInt(teachingExperience) || 0,
+          description: experienceDescription,
+        },
+        certificates: processedCertificates,
+        demo_video: demoVideoUrl || null,
+        cv_file: cvFileUrl || null,
+        approval_status: 'pending',
+      },
     });
-
-    // Tạo email verification token
-    const verificationToken = newUser.createEmailVerificationToken();
 
     await newUser.save();
 
@@ -1379,8 +1394,8 @@ exports.verifyInstructorEmail = async (req, res) => {
 
     // Tìm user với token này
     const user = await User.findOne({
-      emailVerificationToken: token,
-      emailVerificationExpires: { $gt: Date.now() }
+      email_verification_token: token,
+      email_verification_expires: { $gt: Date.now() }
     });
 
     if (!user) {
@@ -1393,8 +1408,8 @@ exports.verifyInstructorEmail = async (req, res) => {
     // Cập nhật trạng thái user
     user.email_verified = true;
     user.status = 'active';
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
+    user.email_verification_token = undefined;
+    user.email_verification_expires = undefined;
     user.approval_status = 'pending'; // Chuyển sang chờ admin duyệt
 
     await user.save();

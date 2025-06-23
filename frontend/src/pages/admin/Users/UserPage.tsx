@@ -175,7 +175,7 @@ const UserPage = () => {
     const statusMap: Record<UserStatus, { color: string; label: string; icon: React.ReactNode }> = {
       [UserStatus.ACTIVE]: { color: "green", label: "Đang hoạt động", icon: <CheckCircleOutlined /> },
       [UserStatus.INACTIVE]: { color: "default", label: "Không hoạt động", icon: <ClockCircleOutlined /> },
-      [UserStatus.BANNED]: { color: "red", label: "Bị cấm", icon: <CloseCircleOutlined /> },
+      [UserStatus.BANNED]: { color: "red", label: "", icon: <CloseCircleOutlined /> },
     };
 
     const tag = statusMap[status] || { color: "default", label: status, icon: null };

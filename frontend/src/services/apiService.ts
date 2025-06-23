@@ -177,6 +177,7 @@ export const registerInstructor = async (formData: FormData): Promise<Instructor
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 60000 // 60 giây
     });
     return response.data;
   } catch (error: any) {

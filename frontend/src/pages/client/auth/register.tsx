@@ -77,7 +77,7 @@ export function RegisterPage() {
                           isVisible: true,
                           type: 'success',
                           title: 'Tạo tài khoản thành công!',
-                          message: 'Tài khoản của bạn đã được tạo thành công! Vui lòng đăng nhập để tiếp tục.'
+                          message: 'Tài khoản của bạn đã được tạo thành công! Vui lòng xác minh email để đăng nhập.'
                         });
                         
                         // Navigate after notification

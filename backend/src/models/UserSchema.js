@@ -82,12 +82,6 @@ const UserSchema = new mongoose.Schema({
     enum: [null, 'pending', 'approved', 'rejected'],
     default: null,
   },
-  instructor_approval_status: {
-    type: String,
-    enum: [null, 'pending', 'approved', 'rejected'],
-    default: null,
-    description: 'Trạng thái duyệt hồ sơ giảng viên',
-  },
   avatar: {
     type: String,
     default: 'default-avatar.jpg',

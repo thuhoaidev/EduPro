@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const courseController = require('../controllers/course.controller');
-const { uploadAvatar, handleUploadError, uploadThumbnail } = require('../middlewares/upload.middleware');
+const { uploadCourseAvatar, handleUploadError } = require('../middlewares/upload.middleware');
 const { auth, requireAuth } = require('../middlewares/auth');
 
 // Routes
-router.post('/', auth, requireAuth(['instructor']), uploadThumbnail, handleUploadError, courseController.createCourse);
-router.put('/:id', auth, requireAuth(['instructor']), uploadThumbnail, handleUploadError, courseController.updateCourse);
+router.post('/', auth, requireAuth(['instructor']), uploadCourseAvatar, handleUploadError, courseController.createCourse);
+router.put('/:id', auth, requireAuth(['instructor']), uploadCourseAvatar, handleUploadError, courseController.updateCourse);
 router.patch('/:id/status', auth, requireAuth(['instructor']), courseController.updateCourseStatus);
 router.delete('/:id', auth, requireAuth(['instructor']), courseController.deleteCourse);
 // Lấy danh sách khóa học

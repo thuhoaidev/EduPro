@@ -251,7 +251,6 @@ const AppHeader = () => {
           ...(getRoleName(user) === 'admin' ? [{ key: '/admin', icon: <DashboardOutlined />, label: 'Bảng điều khiển Admin' }] : []),
           ...(getRoleName(user) === 'moderator' ? [{ key: '/moderator', icon: <DashboardOutlined />, label: 'Khu vực kiểm duyệt' }] : []),
           ...(getRoleName(user) === 'instructor' ? [{ key: '/instructor', icon: <DashboardOutlined />, label: 'Khu vực giảng viên' }] : []),
-          ...(getRoleName(user) === 'student' ? [{ key: '/register/instructor', icon: <TeamOutlined />, label: 'Trở thành giảng viên' }] : []),
           ...(getRoleName(user) !== 'student' ? [{ type: 'divider' as const }] : []),
           {
             type: 'group' as const,

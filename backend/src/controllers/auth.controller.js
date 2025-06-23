@@ -32,13 +32,13 @@ const createToken = (userId) => {
 // Đăng ký tài khoản
 exports.register = async (req, res, next) => {
   try {
-    console.log('Received body:', JSON.stringify(req.body, null, 2)); // Thêm dòng này để debug
+    console.log('Received body:', JSON.stringify(req.body, null, 2));
     // Validate dữ liệu
     await validateSchema(registerSchema, req.body);
 
     const { nickname, email, password, role: requestedRole } = req.body;
     const fullname = req.body.fullName || req.body.fullname;
-    console.log('Received fullname:', fullname); // Debug: Kiểm tra giá trị fullname
+    console.log('Received fullname:', fullname);
 
     // Debug: Kiểm tra các giá trị sau khi destructuring
     console.log('After destructuring:', { nickname, email, password, requestedRole, fullname });
@@ -112,13 +112,13 @@ exports.register = async (req, res, next) => {
       email,
       password,
       nickname,
-      slug: normalizedNickname, // Sử dụng nickname đã chuẩn hóa làm slug ban đầu
+      slug: normalizedNickname,
       role_id: role._id,
       fullname: normalizedFullname,
-      status: 'inactive', // Mặc định là inactive khi chưa xác thực email
+      status: 'inactive',
       email_verification_token: hashedToken,
-      email_verification_expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-      approval_status: role.name === 'student' ? 'approved' : null // Tự động approve cho student
+      email_verification_expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      approval_status: role.name === 'student' ? 'approved' : null
     });
 
     // Ghi log thông tin user trước khi lưu
@@ -145,7 +145,7 @@ exports.register = async (req, res, next) => {
 
       // Gửi email xác thực
       try {
-        await sendVerificationEmail(user.email, verificationToken, user.slug);
+        await sendVerificationEmail(user.email, user.fullname, verificationToken);
       } catch (emailError) {
         console.error('Lỗi gửi email xác thực:', emailError);
         // Không trả về lỗi nếu gửi email thất bại
@@ -186,41 +186,6 @@ exports.register = async (req, res, next) => {
       console.error('Lỗi lưu user:', saveError);
       throw saveError;
     }
-
-    // Tạo token
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    // Tạo response user object
-    const userResponse = {
-      _id: user._id,
-      email: user.email,
-      fullname: user.fullname,
-      role: role.name,
-      isVerified: user.email_verified,
-      approval_status: user.approval_status,
-      createdAt: user.created_at
-    };
-
-    res.status(201).json({
-      success: true,
-      message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.',
-      data: {
-        token,
-        user: userResponse
-      },
-      // Debug: Kiểm tra dữ liệu user
-      debug: {
-        user: {
-          ...userResponse,
-          role_id: role._id,
-          role_name: role.name
-        }
-      }
-    });
   } catch (error) {
     next(error);
   }
@@ -230,47 +195,76 @@ exports.register = async (req, res, next) => {
 // Đăng nhập
 exports.verifyEmail = async (req, res, next) => {
   try {
+    console.log('Params received:', req.params);
     const { slug, token } = req.params;
-    
+
+    // Kiểm tra slug và token
+    if (!slug || !token) {
+      throw new ApiError(400, 'Thiếu thông tin xác thực');
+    }
+
     // Tìm user bằng slug
     const user = await User.findOne({ slug });
     if (!user) {
       throw new ApiError(404, 'Người dùng không tồn tại');
     }
 
-    // Kiểm tra token và xác thực
-    if (!user.emailVerificationToken || !user.emailVerificationExpires || 
-        user.emailVerificationToken !== token || 
-        user.emailVerificationExpires < Date.now()) {
-      throw new ApiError(401, 'Token xác thực không hợp lệ hoặc đã hết hạn');
+    // Hash token nhận được để so sánh
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    console.log('Checking verification:', {
+      hashedToken,
+      storedToken: user.email_verification_token,
+      expires: user.email_verification_expires,
+      currentTime: new Date()
+    });
+
+    // Kiểm tra token và thời hạn
+    if (!user.email_verification_token || 
+        !user.email_verification_expires || 
+        user.email_verification_token !== hashedToken || 
+        user.email_verification_expires < Date.now()) {
+      throw new ApiError(401, 'Link xác thực không hợp lệ hoặc đã hết hạn');
     }
 
-    // Cập nhật trạng thái email đã xác thực và active
+    // Cập nhật trạng thái email đã xác thực
     user.email_verified = true;
     user.status = 'active';
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
+    user.email_verification_token = undefined;
+    user.email_verification_expires = undefined;
+
     await user.save();
 
-    // Tạo token mới
-    const verificationToken = jwt.sign(
+    // Tạo token đăng nhập mới
+    const loginToken = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    // Trả về thông tin user và token
-    const userData = user.toObject();
-    delete userData.password;
-    delete userData.emailVerificationToken;
-    delete userData.emailVerificationExpires;
+    // Lấy thông tin role
+    await user.populate('role_id');
 
+    // Trả về thông tin user và token
     res.status(200).json({
       success: true,
       message: 'Xác thực email thành công',
       data: {
-        user: userData,
-        token: verificationToken
+        token: loginToken,
+        user: {
+          _id: user._id,
+          email: user.email,
+          fullname: user.fullname,
+          nickname: user.nickname,
+          role: user.role_id.name,
+          avatar: user.avatar,
+          status: user.status,
+          approval_status: user.approval_status,
+          isVerified: user.email_verified
+        }
       }
     });
   } catch (error) {
@@ -293,14 +287,12 @@ exports.login = async (req, res, next) => {
       ]
     }).select('+password').populate('role_id');
 
-    if (!user) {
-      throw new ApiError(401, 'Email hoặc nickname không đúng');
-    }
-
-    // Kiểm tra mật khẩu
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) {
-      throw new ApiError(401, 'Email hoặc mật khẩu không đúng');
+    // Nếu không tìm thấy user hoặc mật khẩu không đúng, trả về thông báo chung
+    if (!user || !(await user.matchPassword(password))) {
+      return res.status(401).json({
+        success: false,
+        message: 'Email hoặc mật khẩu không đúng',
+      });
     }
 
     // Kiểm tra xác thực email
@@ -316,35 +308,33 @@ exports.login = async (req, res, next) => {
     }
 
     // Kiểm tra trạng thái tài khoản
-    if (user.status === 'banned') {
+    if (user.status === 'blocked') {
       return res.status(403).json({
         success: false,
         message: 'Tài khoản đã bị khóa',
       });
     }
 
-    // Kiểm tra trạng thái phê duyệt
-    if (user.approval_status === 'pending') {
-      return res.status(403).json({
-        success: false,
-        message: 'Tài khoản chưa được xác minh',
-      });
+    // Kiểm tra trạng thái phê duyệt cho giảng viên
+    if (user.role_id && user.role_id.name === 'instructor') {
+      switch (user.approval_status) {
+        case null:
+        case 'pending':
+          return res.status(403).json({
+            success: false,
+            message: 'Tài khoản giảng viên đang chờ xét duyệt',
+          });
+        case 'rejected':
+          return res.status(403).json({
+            success: false,
+            message: 'Tài khoản giảng viên đã bị từ chối. Vui lòng liên hệ quản trị viên để biết thêm chi tiết.',
+          });
+      }
     }
 
-    if (user.approval_status === 'rejected') {
-      return res.status(403).json({
-        success: false,
-        message: 'Tài khoản xác minh thất bại, vui lòng tạo tài khoản mới',
-      });
-    }
-
-    // Kiểm tra approval_status chỉ cho instructor
-    if (user.role_id && user.role_id.name === 'instructor' && user.approval_status !== 'approved') {
-      return res.status(403).json({
-        success: false,
-        message: 'Tài khoản instructor chưa được phê duyệt',
-      });
-    }
+    // Cập nhật thời gian đăng nhập cuối cùng
+    user.last_login = new Date();
+    await user.save();
 
     // Tạo token
     const token = jwt.sign(
@@ -353,6 +343,7 @@ exports.login = async (req, res, next) => {
       { expiresIn: '24h' }
     );
 
+    // Trả về thông tin user và token
     res.json({
       success: true,
       message: 'Đăng nhập thành công',
@@ -362,164 +353,65 @@ exports.login = async (req, res, next) => {
           _id: user._id,
           email: user.email,
           fullname: user.fullname,
-          role: user.role_id,
+          nickname: user.nickname,
+          role: user.role_id.name,
           avatar: user.avatar,
-          isVerified: user.email_verified,
+          status: user.status,
           approval_status: user.approval_status,
-          createdAt: user.created_at,
-        },
-      },
+          isVerified: user.email_verified
+        }
+      }
     });
   } catch (error) {
     next(error);
   }
 };
 
-// Xác thực email
-exports.verifyEmail = async (req, res) => {
-  try {
-    console.log('Params received:', req.params);
-    const { slug, token } = req.params;
-
-    // Kiểm tra slug và token
-    if (!slug || !token) {
-      console.log('Missing parameters');
-      return res.status(400).json({
-        success: false,
-        message: 'Thiếu thông tin xác thực'
-      });
-    }
-
-    // Tìm user và kiểm tra token
-    try {
-      const hashedToken = crypto
-        .createHash('sha256')
-        .update(token)
-        .digest('hex');
-
-      console.log('Hashed token to find:', hashedToken);
-      console.log('Current time:', Date.now());
-
-      const user = await User.findOne({
-        slug,
-        email_verification_token: hashedToken,
-        email_verification_expires: { $gt: Date.now() }
-      }).lean();
-
-      console.log('Found user:', user);
-      
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      // Kiểm tra xem user đã xác thực email chưa
-      if (user.email_verified) {
-        console.log('Email already verified');
-        return res.status(400).json({
-          success: false,
-          message: 'Email đã được xác thực trước đó',
-        });
-      }
-
-      // Cập nhật trạng thái xác thực và status
-      user.email_verified = true;
-      user.email_verification_token = undefined;
-      user.email_verification_expires = undefined;
-      user.status = 'active';
-      await User.findOneAndUpdate({ slug }, user);
-
-      // Tạo token mới cho user
-      try {
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-          expiresIn: '24h'
-        });
-
-        res.json({
-          success: true,
-          message: 'Xác thực email thành công',
-          token: token,
-          user: {
-            id: user._id,
-            nickname: user.nickname,
-            email: user.email,
-            role: user.role,
-            status: user.status,
-            email_verified: user.email_verified,
-            created_at: user.created_at,
-            updated_at: user.updated_at
-          }
-        });
-      } catch (error) {
-        console.error('Error creating token:', error);
-        res.status(500).json({
-          success: false,
-          message: 'Lỗi tạo token',
-          error: error.message
-        });
-      }
-    } catch (error) {
-      console.error('Error finding user:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Lỗi xác thực email',
-        error: error.message
-      });
-    }
-  } catch (error) {
-    console.error('Lỗi xác thực email:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi xác thực email',
-      error: error.message
-    });
-  }
-};
-
 // Gửi lại email xác thực
-exports.resendVerificationEmail = async (req, res) => {
+exports.resendVerificationEmail = async (req, res, next) => {
   try {
     const { email } = req.body;
 
+    // Tìm user theo email
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy tài khoản với email này',
-      });
+      throw new ApiError(404, 'Email không tồn tại trong hệ thống');
     }
 
+    // Kiểm tra nếu email đã được xác thực
     if (user.email_verified) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email đã được xác thực',
-      });
+      throw new ApiError(400, 'Email này đã được xác thực');
     }
 
-    // Tạo token mới và gửi email
-    const verificationToken = user.createEmailVerificationToken();
+    // Tạo token mới
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(verificationToken)
+      .digest('hex');
+
+    // Cập nhật token và thời hạn mới
+    user.email_verification_token = hashedToken;
+    user.email_verification_expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     await user.save();
 
+    // Gửi email xác thực
     try {
-      await sendVerificationEmail(user.email, verificationToken, user.slug);
-      res.json({
+      await sendVerificationEmail(user.email, user.fullname, verificationToken);
+      res.status(200).json({
         success: true,
-        message: 'Đã gửi lại email xác thực',
+        message: 'Email xác thực đã được gửi lại thành công'
       });
     } catch (error) {
-      console.error('Lỗi gửi email xác thực:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Lỗi gửi email xác thực',
-        error: error.message,
-      });
+      // Nếu gửi email thất bại, xóa token đã tạo
+      user.email_verification_token = undefined;
+      user.email_verification_expires = undefined;
+      await user.save();
+      throw new ApiError(500, 'Không thể gửi email xác thực. Vui lòng thử lại sau.');
     }
   } catch (error) {
-    console.error('Lỗi gửi lại email xác thực:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi gửi lại email xác thực',
-      error: error.message,
-    });
+    next(error);
   }
 };
 

@@ -10,6 +10,7 @@ import {
 } from "../../../interfaces/Admin.interface";
 import { getUserById } from "../../../services/userService";
 import dayjs from 'dayjs';
+import axios from 'axios';
 
 // Dữ liệu mẫu nâng cao
 const mockUsers: User[] = [
@@ -53,6 +54,11 @@ const mockUsers: User[] = [
   },
 ];
 
+const axiosInstance = axios.create({
+  baseURL: 'http://localhost:5000/api',
+  timeout: 60000, // 60 giây
+});
+
 const UserDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -93,7 +99,8 @@ const UserDetail = () => {
             gender: userData.gender || 'Khác',
             approval_status: userData.approval_status || 'approved',
             description: userData.description || '',
-            coursesCount: userData.coursesCount || 0
+            coursesCount: userData.coursesCount || 0,
+            bio: userData.bio || '',
           };
           console.log('Mapped user data:', mappedUser); // Debug log
           setUser(mappedUser);

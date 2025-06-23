@@ -117,194 +117,81 @@ export function InstructorRegistrationPage() {
       
       console.log('Form validation passed');
       
-      // Lấy dateOfBirth trực tiếp từ form
-      const dateOfBirthFromForm = form.getFieldValue('dateOfBirth');
-      
-      // Debug: Lấy giá trị trực tiếp từ form
-      const degreeFromForm = form.getFieldValue('degree');
-      const institutionFromForm = form.getFieldValue('institution');
-      const graduationYearFromForm = form.getFieldValue('graduationYear');
-      const majorFromForm = form.getFieldValue('major');
-      
-      console.log('Form field values:', {
-        degreeFromForm,
-        institutionFromForm,
-        graduationYearFromForm,
-        majorFromForm
-      });
-      
       // Tạo FormData để gửi file
       const formData = new FormData();
-      
+
       // Thêm thông tin cá nhân
-      formData.append('fullName', values.fullName);
-      formData.append('email', values.email);
-      formData.append('phone', values.phone);
-      formData.append('password', values.password);
-      formData.append('gender', values.gender);
-      
+      formData.append('fullName', values.fullName || form.getFieldValue('fullName') || '');
+      formData.append('email', values.email || form.getFieldValue('email') || '');
+      formData.append('phone', values.phone || form.getFieldValue('phone') || '');
+      formData.append('password', values.password || form.getFieldValue('password') || '');
+      formData.append('gender', values.gender || form.getFieldValue('gender') || '');
+
       // Xử lý dateOfBirth an toàn
       try {
-        // Sử dụng giá trị từ form thay vì values
-        const dateValue = dateOfBirthFromForm || values.dateOfBirth;
-        
-        // Kiểm tra và format date
-        if (!dateValue) {
-          throw new Error('Vui lòng chọn ngày sinh!');
-        }
-        
+        const dateValue = form.getFieldValue('dateOfBirth') || values.dateOfBirth;
+        if (!dateValue) throw new Error('Vui lòng chọn ngày sinh!');
         let dateToFormat = dateValue;
-        
-        // Nếu là string, convert thành dayjs object
-        if (typeof dateValue === 'string') {
-          dateToFormat = dayjs(dateValue);
-        }
-        
-        // Nếu là Date object, convert thành dayjs object
-        if (dateValue instanceof Date) {
-          dateToFormat = dayjs(dateValue);
-        }
-        
-        // Kiểm tra xem có phải dayjs object không
-        if (!dayjs.isDayjs(dateToFormat)) {
-          throw new Error('Ngày sinh không hợp lệ!');
-        }
-        
+        if (typeof dateValue === 'string') dateToFormat = dayjs(dateValue);
+        if (dateValue instanceof Date) dateToFormat = dayjs(dateValue);
+        if (!dayjs.isDayjs(dateToFormat)) throw new Error('Ngày sinh không hợp lệ!');
         const formattedDate = dateToFormat.format('YYYY-MM-DD');
         formData.append('dateOfBirth', formattedDate);
-        
       } catch (error: any) {
         console.error('Date formatting error:', error);
         throw new Error(error.message || 'Vui lòng chọn ngày sinh hợp lệ!');
       }
-      
-      formData.append('address', values.address);
-      
+      formData.append('address', values.address || form.getFieldValue('address') || '');
+
       // Thêm thông tin học vấn
-      const degreeValue = values.degree || degreeFromForm;
-      const institutionValue = values.institution || institutionFromForm;
-      const graduationYearValue = values.graduationYear || graduationYearFromForm;
-      const majorValue = values.major || majorFromForm;
-      
-      console.log('Education values:', {
-        degree: degreeValue,
-        degreeType: typeof degreeValue,
-        degreeLength: degreeValue?.length,
-        institution: institutionValue,
-        graduationYear: graduationYearValue,
-        major: majorValue
-      });
-      
-      // Kiểm tra từng field cụ thể với debug chi tiết
-      console.log('Checking degree field:', {
-        value: degreeValue,
-        type: typeof degreeValue,
-        isFalsy: !degreeValue,
-        trimmed: degreeValue?.trim(),
-        trimmedLength: degreeValue?.trim()?.length
-      });
-      
-      if (!degreeValue) {
-        throw new Error('Vui lòng nhập bằng cấp! (Field is empty)');
-      }
-      
-      const trimmedDegree = degreeValue.toString().trim();
-      if (trimmedDegree === '') {
-        throw new Error('Vui lòng nhập bằng cấp! (Field is whitespace only)');
-      }
-      
-      if (!institutionValue || institutionValue.toString().trim() === '') {
-        throw new Error('Vui lòng nhập trường đại học!');
-      }
-      if (!graduationYearValue || graduationYearValue.toString().trim() === '') {
-        throw new Error('Vui lòng nhập năm tốt nghiệp!');
-      }
-      if (!majorValue || majorValue.toString().trim() === '') {
-        throw new Error('Vui lòng nhập chuyên ngành!');
-      }
-      
-      formData.append('degree', trimmedDegree);
+      const degreeValue = values.degree || form.getFieldValue('degree') || '';
+      const institutionValue = values.institution || form.getFieldValue('institution') || '';
+      const graduationYearValue = values.graduationYear || form.getFieldValue('graduationYear') || '';
+      const majorValue = values.major || form.getFieldValue('major') || '';
+      formData.append('degree', degreeValue.toString().trim());
       formData.append('institution', institutionValue.toString().trim());
       formData.append('graduationYear', graduationYearValue.toString());
       formData.append('major', majorValue.toString().trim());
-      
+
       // Thêm thông tin chuyên môn
-      const specializationsValue = values.specializations || form.getFieldValue('specializations');
-      const teachingExperienceValue = values.teachingExperience || form.getFieldValue('teachingExperience');
-      const experienceDescriptionValue = values.experienceDescription || form.getFieldValue('experienceDescription');
-      
-      console.log('Professional values:', {
-        specializations: specializationsValue,
-        specializationsType: typeof specializationsValue,
-        specializationsIsArray: Array.isArray(specializationsValue),
-        specializationsLength: specializationsValue?.length,
-        teachingExperience: teachingExperienceValue,
-        experienceDescription: experienceDescriptionValue
-      });
-      
-      // Debug chi tiết cho specializations
-      console.log('Checking specializations field:', {
-        value: specializationsValue,
-        type: typeof specializationsValue,
-        isArray: Array.isArray(specializationsValue),
-        length: specializationsValue?.length,
-        isEmpty: !specializationsValue,
-        isEmptyArray: Array.isArray(specializationsValue) && specializationsValue.length === 0
-      });
-      
-      // Kiểm tra từng field cụ thể
-      if (!specializationsValue) {
-        throw new Error('Vui lòng nhập ít nhất 1 lĩnh vực chuyên môn! (Field is null/undefined)');
-      }
-      
-      if (Array.isArray(specializationsValue) && specializationsValue.length === 0) {
-        throw new Error('Vui lòng nhập ít nhất 1 lĩnh vực chuyên môn! (Array is empty)');
-      }
-      
-      if (!teachingExperienceValue || (typeof teachingExperienceValue === 'string' && teachingExperienceValue.trim() === '')) {
-        throw new Error('Vui lòng nhập số năm kinh nghiệm!');
-      }
-      if (!experienceDescriptionValue || (typeof experienceDescriptionValue === 'string' && experienceDescriptionValue.trim() === '')) {
-        throw new Error('Vui lòng mô tả kinh nghiệm!');
-      }
-      
+      const specializationsValue = values.specializations || form.getFieldValue('specializations') || [];
       if (Array.isArray(specializationsValue)) {
-        specializationsValue.forEach((spec, index) => {
-          console.log(`Specialization ${index}:`, spec, typeof spec);
+        specializationsValue.forEach((spec, idx) => {
           if (typeof spec === 'string' && spec.trim()) {
-            formData.append('specializations', spec.trim());
+            formData.append(`specializations[${idx}]`, spec.trim());
           }
         });
       } else if (typeof specializationsValue === 'string' && specializationsValue.trim()) {
-        formData.append('specializations', specializationsValue.trim());
+        formData.append('specializations[0]', specializationsValue.trim());
       }
-      
-      formData.append('teachingExperience', teachingExperienceValue.toString());
-      formData.append('experienceDescription', experienceDescriptionValue.toString().trim());
-      
+      formData.append('teachingExperience', (values.teachingExperience || form.getFieldValue('teachingExperience') || '').toString());
+      formData.append('experienceDescription', (values.experienceDescription || form.getFieldValue('experienceDescription') || '').toString().trim());
+
       // Thêm thông tin bổ sung
-      formData.append('bio', values.bio);
-      if (values.linkedin) formData.append('linkedin', values.linkedin);
-      if (values.github) formData.append('github', values.github);
-      if (values.website) formData.append('website', values.website);
-      
+      formData.append('bio', values.bio || form.getFieldValue('bio') || '');
+      if (values.linkedin || form.getFieldValue('linkedin')) formData.append('linkedin', values.linkedin || form.getFieldValue('linkedin'));
+      if (values.github || form.getFieldValue('github')) formData.append('github', values.github || form.getFieldValue('github'));
+      if (values.website || form.getFieldValue('website')) formData.append('website', values.website || form.getFieldValue('website'));
+
       // Thêm files
       if (values.avatar && values.avatar.length > 0) {
         formData.append('avatar', values.avatar[0].originFileObj);
       }
-      
       if (values.cv && values.cv.length > 0) {
         formData.append('cv', values.cv[0].originFileObj);
       }
-      
       if (values.certificates && values.certificates.length > 0) {
-        values.certificates.forEach((cert, index) => {
+        values.certificates.forEach(cert => {
           formData.append('certificates', cert.originFileObj);
         });
       }
-      
       if (values.demoVideo && values.demoVideo.length > 0) {
         formData.append('demoVideo', values.demoVideo[0].originFileObj);
+      }
+
+      // Log lại FormData để kiểm tra
+      for (let pair of formData.entries()) {
+        console.log(pair[0]+ ': ', pair[1]);
       }
       
       // Gọi API

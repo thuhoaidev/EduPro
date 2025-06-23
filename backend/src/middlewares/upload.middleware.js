@@ -37,8 +37,8 @@ const uploadInstructorProfile = upload.fields([
   { name: 'other_documents', maxCount: 10 }, // Tối đa 10 file hồ sơ khác
 ]);
 
-// Middleware upload thumbnail cho course
-const uploadThumbnail = upload.single('thumbnail');
+// Middleware upload avatar cho course (đổi tên từ thumbnail thành avatar)
+const uploadCourseAvatar = upload.single('avatar');
 
 // Middleware xử lý lỗi upload
 const handleUploadError = (error, req, res, next) => {
@@ -58,7 +58,7 @@ const handleUploadError = (error, req, res, next) => {
     if (error.code === 'LIMIT_UNEXPECTED_FILE') {
       return res.status(400).json({
         success: false,
-        message: 'Tên field file không hợp lệ.',
+        message: 'Tên field file không hợp lệ. Vui lòng sử dụng field "avatar" cho ảnh khóa học.',
       });
     }
   }
@@ -77,5 +77,5 @@ module.exports = {
   uploadAvatar,
   uploadInstructorProfile,
   handleUploadError,
-  uploadThumbnail,
+  uploadCourseAvatar,
 }; 
