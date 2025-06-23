@@ -24,7 +24,7 @@ export const refreshAccessToken = async (): Promise<string | null> => {
 // Xác minh email
 export const verifyEmail = async (token: string) => {
   try {
-    const response = await axios.get(`/auth/verify-email/${token}`);
+    const response = await config.get(`/auth/verify-email/${token}`);
     return response.data;
   } catch (error: any) {
     throw new Error(error.response?.data?.message || 'Lỗi xác minh email');

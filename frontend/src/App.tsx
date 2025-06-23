@@ -49,7 +49,7 @@ function App() {
       element: <ClientLayout />,
       children: [
         { index: true, element: <Homepage /> },
-        { path: 'verify-email/:slug/:token', element: <VerifyEmail /> },
+        { path: 'verify-email/:token', element: <VerifyEmail /> },
         { path: 'instructor/earnings', element: <Earnings /> },
         { path: "blog/write", element: <BlogWritePage /> },//viết blog
         { path: "blog/mine", element: <MyBlogPosts  /> },

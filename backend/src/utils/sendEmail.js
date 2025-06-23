@@ -24,7 +24,7 @@ const sendEmail = async (to, subject, html) => {
 // Gửi email xác minh cho instructor registration
 const sendInstructorVerificationEmail = async (email, fullName, verificationToken) => {
   try {
-    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-instructor-email/${verificationToken}`;
+    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email/${verificationToken}`;
     
     const mailOptions = {
       from: `"${process.env.EMAIL_FROM_NAME || 'EduPro Platform'}" <${process.env.EMAIL_FROM}>`,

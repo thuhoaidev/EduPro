@@ -30,11 +30,11 @@ const sendEmail = async (to, subject, html) => {
   }
 };
 
-exports.sendVerificationEmail = async (email, token, slug) => {
+exports.sendVerificationEmail = async (email, fullname, token) => {
   console.log('Sending verification email with token:', token);
   console.log('Frontend URL:', process.env.FRONTEND_URL);
   
-  const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${encodeURIComponent(slug)}/${encodeURIComponent(token)}`;
+  const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${encodeURIComponent(token)}`;
   
   const subject = 'Xác thực email - EduPro';
   const html = `
@@ -198,44 +198,26 @@ exports.sendVerificationEmail = async (email, token, slug) => {
           <div class="subtitle">Hoàn tất đăng ký tài khoản</div>
         </div>
         <div class="content">
-          <div class="greeting">Xin chào!</div>
+          <div class="greeting">Xin chào, ${fullname || 'bạn'}!</div>
           <div class="message">
-            Cảm ơn bạn đã đăng ký tài khoản tại EduPro! Để hoàn tất quá trình đăng ký, vui lòng xác minh địa chỉ email của bạn bằng cách nhấn vào nút bên dưới.
+            Cảm ơn bạn đã đăng ký tài khoản tại <b>EduPro</b>.<br />
+            Vui lòng nhấn vào nút bên dưới để xác thực email và hoàn tất đăng ký:
           </div>
-          <div style="text-align: center;">
-            <a href="${verificationUrl}" class="verification-button">
-              ✅ Xác minh email ngay
-            </a>
-          </div>
+          <a href="${verificationUrl}" class="verification-button">Xác thực email</a>
           <div class="warning">
             <div class="warning-content">
-              <strong>Lưu ý quan trọng:</strong> Link xác minh này sẽ hết hạn sau 24 giờ. Nếu bạn không thể nhấn vào nút trên, hãy copy và paste link sau vào trình duyệt:
-              <br><br>
-              <a href="${verificationUrl}" class="link">${verificationUrl}</a>
+              Nếu bạn không đăng ký tài khoản EduPro, vui lòng bỏ qua email này.
             </div>
-          </div>
-          <div class="steps">
-            <h4>📋 Quy trình tiếp theo:</h4>
-            <ol>
-              <li>Xác minh email (bước hiện tại)</li>
-              <li>Hoàn tất hồ sơ cá nhân</li>
-              <li>Bắt đầu sử dụng các tính năng của EduPro</li>
-            </ol>
-          </div>
-          <div class="message">
-            Sau khi xác minh email thành công, bạn có thể đăng nhập và sử dụng các dịch vụ của EduPro.
           </div>
         </div>
         <div class="footer">
-          <p>Nếu bạn không thực hiện đăng ký này, vui lòng bỏ qua email này.</p>
-          <p>© 2024 EduPro Platform. All rights reserved.</p>
+          &copy; ${new Date().getFullYear()} EduPro. All rights reserved.
         </div>
       </div>
     </body>
     </html>
   `;
-
-  return sendEmail(email, subject, html);
+  await sendEmail(email, subject, html);
 };
 
 exports.sendPasswordResetEmail = async (email, resetUrl) => {

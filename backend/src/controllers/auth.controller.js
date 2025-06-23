@@ -195,18 +195,9 @@ exports.register = async (req, res, next) => {
 // Đăng nhập
 exports.verifyEmail = async (req, res, next) => {
   try {
-    console.log('Params received:', req.params);
-    const { slug, token } = req.params;
-
-    // Kiểm tra slug và token
-    if (!slug || !token) {
+    const { token } = req.params;
+    if (!token) {
       throw new ApiError(400, 'Thiếu thông tin xác thực');
-    }
-
-    // Tìm user bằng slug
-    const user = await User.findOne({ slug });
-    if (!user) {
-      throw new ApiError(404, 'Người dùng không tồn tại');
     }
 
     // Hash token nhận được để so sánh
@@ -215,18 +206,13 @@ exports.verifyEmail = async (req, res, next) => {
       .update(token)
       .digest('hex');
 
-    console.log('Checking verification:', {
-      hashedToken,
-      storedToken: user.email_verification_token,
-      expires: user.email_verification_expires,
-      currentTime: new Date()
+    // Tìm user với token này và còn hạn
+    const user = await User.findOne({
+      email_verification_token: hashedToken,
+      email_verification_expires: { $gt: Date.now() }
     });
 
-    // Kiểm tra token và thời hạn
-    if (!user.email_verification_token || 
-        !user.email_verification_expires || 
-        user.email_verification_token !== hashedToken || 
-        user.email_verification_expires < Date.now()) {
+    if (!user) {
       throw new ApiError(401, 'Link xác thực không hợp lệ hoặc đã hết hạn');
     }
 
@@ -245,10 +231,8 @@ exports.verifyEmail = async (req, res, next) => {
       { expiresIn: '24h' }
     );
 
-    // Lấy thông tin role
     await user.populate('role_id');
 
-    // Trả về thông tin user và token
     res.status(200).json({
       success: true,
       message: 'Xác thực email thành công',
