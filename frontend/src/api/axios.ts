@@ -18,17 +18,13 @@ export const config = axios.create({
 
 // Xử lý request
 config.interceptors.request.use(
-    (req) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            req.headers.Authorization = `Bearer ${token}`;
-        }
-        return req;
-    },
-    (err) => {
-        console.error('Request error:', err);
-        return Promise.reject(err);
+  (req) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      req.headers.Authorization = `Bearer ${token}`;
     }
+    return req;
+  }
 );
 
 // Xử lý response

@@ -1,5 +1,5 @@
 // src/services/apiService.ts
-import { config as axios } from '../api/axios';
+import axios from 'axios';
 import type { AxiosResponse } from 'axios';
 
 // Sử dụng axios config đã được cấu hình

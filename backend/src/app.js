@@ -23,6 +23,8 @@ const quizRoutes = require('./routes/quiz.routes');
 const voucherRoutes = require('./routes/voucher.routes');
 const userRoutes = require('./routes/user.routes');
 const blogRoutes = require('./routes/blog.routes');
+const cartRoutes = require('./routes/cart.routes');
+
 
 // Khởi tạo app
 const app = express();
@@ -89,6 +91,7 @@ app.use('/api/quizzes', quizRoutes);
 app.use('/api/vouchers', voucherRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/blogs', blogRoutes);
+app.use('/api/carts', cartRoutes);
 
 // Error handling middleware
 app.use((err, req, res, _next) => {
