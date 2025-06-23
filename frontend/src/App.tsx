@@ -17,7 +17,7 @@ import ReportsPage from "./pages/admin/reports/Reports";
 import LoginPage from "./pages/client/auth/login";
 import RegisterPage from "./pages/client/auth/register";
 import ForgotPassword from "./pages/client/auth/forgotPassword";
-import ResetPassword from "./pages/client/auth/ResetPassword";
+import ResetPassword from "./pages/client/auth/resetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
 
