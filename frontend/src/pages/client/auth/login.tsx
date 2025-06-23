@@ -32,11 +32,17 @@ export default function LoginPage(): React.ReactElement {
   const onFinish = (values: { identifier: string; password: string }) => {
     setIsLoading(true);
     mutate(values, {
-      onSuccess: (data: { user?: { isEmailVerified?: boolean } }) => {
+      onSuccess: (data: { user?: { isEmailVerified?: boolean }, token?: string }) => {
         if (data?.user?.isEmailVerified === false) {
           setVerificationEmail(values.identifier);
           setShowVerificationModal(true);
         } else {
+          if (data?.token) {
+            localStorage.setItem('token', data.token);
+          }
+          if (data?.user) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+          }
           setNotification({
             isVisible: true,
             type: 'success',

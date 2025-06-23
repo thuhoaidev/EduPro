@@ -183,7 +183,12 @@ const AppHeader = () => {
     const fetchUser = async () => {
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        let userData = JSON.parse(storedUser);
+        if (userData && typeof userData.role === 'string') {
+          userData.role = { name: userData.role };
+          localStorage.setItem('user', JSON.stringify(userData));
+        }
+        setUser(userData);
         setLoading(false);
         return;
       }
