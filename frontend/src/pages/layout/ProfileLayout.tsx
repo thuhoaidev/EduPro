@@ -12,10 +12,22 @@ const ProfileLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Kiểm tra token
+  // Kiểm tra token và user
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) {
+    let user = localStorage.getItem('user');
+    if (user) {
+      try {
+        user = JSON.parse(user);
+        if (user && typeof user.role === 'string') {
+          user.role = { name: user.role };
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+      } catch (e) {
+        user = null;
+      }
+    }
+    if (!token || !user) {
       message.error('Vui lòng đăng nhập để truy cập trang cá nhân');
       navigate('/login');
     }

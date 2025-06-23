@@ -248,10 +248,24 @@ const AppHeader = () => {
             style: { height: 'auto', padding: '12px', cursor: 'pointer' },
           },
           { type: 'divider' as const },
-          ...(getRoleName(user) === 'admin' ? [{ key: '/admin', icon: <DashboardOutlined />, label: 'Bảng điều khiển Admin' }] : []),
-          ...(getRoleName(user) === 'moderator' ? [{ key: '/moderator', icon: <DashboardOutlined />, label: 'Khu vực kiểm duyệt' }] : []),
-          ...(getRoleName(user) === 'instructor' ? [{ key: '/instructor', icon: <DashboardOutlined />, label: 'Khu vực giảng viên' }] : []),
-          ...(getRoleName(user) !== 'student' ? [{ type: 'divider' as const }] : []),
+          ...(getRoleName(user) === 'admin'
+            ? [
+                { key: '/admin', icon: <DashboardOutlined />, label: 'Trang quản trị' },
+                { type: 'divider' as const },
+              ]
+            : []),
+          ...(getRoleName(user) === 'moderator'
+            ? [
+                { key: '/moderator', icon: <DashboardOutlined />, label: 'Khu vực kiểm duyệt' },
+                { type: 'divider' as const },
+              ]
+            : []),
+          ...(getRoleName(user) === 'instructor'
+            ? [
+                { key: '/instructor', icon: <DashboardOutlined />, label: 'Khu vực giảng viên' },
+                { type: 'divider' as const },
+              ]
+            : []),
           {
             type: 'group' as const,
             label: 'Blog cá nhân',
@@ -263,7 +277,13 @@ const AppHeader = () => {
           },
           { type: 'divider' as const },
           { key: 'logout', icon: <LogoutOutlined />, label: <span style={{ color: '#ff4d4f' }}>Đăng xuất</span> },
-        ],
+        ].filter((item, idx, arr) => {
+          // Xóa divider trùng nhau
+          if (item.type === 'divider' && idx > 0 && arr[idx - 1].type === 'divider') return false;
+          // Không cho divider ở đầu hoặc cuối
+          if (item.type === 'divider' && (idx === 0 || idx === arr.length - 1)) return false;
+          return true;
+        }),
         onClick: handleMenuClick,
       }
     : undefined;
