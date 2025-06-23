@@ -81,6 +81,10 @@ const AdminLayout = () => {
 
       if (storedUser) {
         const userData = JSON.parse(storedUser);
+        // Normalize role
+        if (userData && typeof userData.role === 'string') {
+          userData.role = { name: userData.role };
+        }
         setUser(userData);
         setLoading(false);
         return;
@@ -98,8 +102,12 @@ const AdminLayout = () => {
             Authorization: `Bearer ${token}`,
           },
         });
-        setUser(response.data);
-        localStorage.setItem('user', JSON.stringify(response.data));
+        let userData = response.data;
+        if (userData && typeof userData.role === 'string') {
+          userData.role = { name: userData.role };
+        }
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
         setUser(null);
@@ -110,6 +118,17 @@ const AdminLayout = () => {
 
     fetchUser();
   }, [nav]);
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        nav('/login');
+      } else if (!checkRole(user, 'admin')) {
+        message.error('Bạn không có quyền truy cập trang quản trị');
+        nav('/');
+      }
+    }
+  }, [user, loading, nav]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -122,16 +141,7 @@ const AdminLayout = () => {
   if (loading) {
     return <div>Loading...</div>;
   }
-
-  if (!user) {
-    nav('/login');
-    return null;
-  }
-
-  // Kiểm tra role
-  if (!checkRole(user, 'admin')) {
-    message.error('Bạn không có quyền truy cập trang quản trị');
-    nav('/');
+  if (!user || !checkRole(user, 'admin')) {
     return null;
   }
 
