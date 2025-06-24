@@ -221,10 +221,12 @@ const AppHeader = () => {
     };
     
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('user-updated', fetchUser);
     fetchUser();
 
     return () => {
         window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('user-updated', fetchUser);
     }
   }, []);
 

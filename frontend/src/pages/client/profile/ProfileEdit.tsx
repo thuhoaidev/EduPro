@@ -31,6 +31,7 @@ const ProfileEdit = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(true);
   const [avatarUrl, setAvatarUrl] = React.useState<string>('');
+  const [avatarFileList, setAvatarFileList] = React.useState<UploadFile[]>([]);
 
   React.useEffect(() => {
     const fetchUserData = async () => {
@@ -48,6 +49,7 @@ const ProfileEdit = () => {
         // Set avatar URL for display
         if (userData.avatar) {
           setAvatarUrl(userData.avatar);
+          setAvatarFileList([]); // reset fileList nếu có avatar từ backend
         }
 
         // Map backend fields to form fields
@@ -118,6 +120,7 @@ const ProfileEdit = () => {
         // Update localStorage with new user data
         const updatedUser = response.data.data;
         localStorage.setItem('user', JSON.stringify(updatedUser));
+        window.dispatchEvent(new Event('user-updated'));
         navigate('/profile');
       } else {
         message.error(response.data.message || 'Cập nhật thất bại');
@@ -139,15 +142,12 @@ const ProfileEdit = () => {
     return (e as { fileList?: unknown })?.fileList;
   };
 
-  const handleAvatarChange = (info: { file: UploadFile }) => {
-    if (info.file.status === 'done') {
-      message.success(`${info.file.name} đã được tải lên`);
-      // Update avatar display
-      if (info.file.response?.data?.avatarInfo?.url) {
-        setAvatarUrl(info.file.response.data.avatarInfo.url);
-      }
-    } else if (info.file.status === 'error') {
-      message.error(`${info.file.name} tải lên thất bại`);
+  const handleAvatarChange = (info: { file: UploadFile; fileList: UploadFile[] }) => {
+    setAvatarFileList(info.fileList);
+    // Lấy file cuối cùng trong fileList (nếu có)
+    const latestFile = info.fileList.length > 0 ? info.fileList[info.fileList.length - 1] : null;
+    if (latestFile && latestFile.originFileObj) {
+      setAvatarUrl(URL.createObjectURL(latestFile.originFileObj));
     }
   };
 
@@ -226,6 +226,7 @@ const ProfileEdit = () => {
                       showUploadList={false}
                       beforeUpload={() => false}
                       onChange={handleAvatarChange}
+                      fileList={avatarFileList}
                     >
                       {avatarUrl ? (
                         <div className="relative">
