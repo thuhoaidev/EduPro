@@ -39,6 +39,7 @@ import InstructorsPage from './pages/client/InstructorsPage';
 import BlogPage from './pages/client/BlogPage';
 import CartPage from './pages/client/CartPage';
 import CourseDetailPage from "./pages/client/CourseDetailPage";
+import Dashboard from './pages/admin/Dashboard/Dashboard';
 
 const queryClient = new QueryClient();
 
@@ -76,6 +77,7 @@ function App() {
       path: "/admin",
       element: <AdminLayout />,
       children: [
+        { path: "", element: <Dashboard /> },
         { path: "users", element: <UserPage /> },
         { path: "users/:id", element: <UserDetail /> },
         { path: "categories", element: <CategoryPage /> },
