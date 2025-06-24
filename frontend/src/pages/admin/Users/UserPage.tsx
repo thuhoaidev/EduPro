@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import type { MouseEvent } from "react";
 import {
   Table,
   Input,
@@ -16,9 +15,9 @@ import {
   Modal,
   Form,
   Popconfirm,
-  Spin,
   DatePicker,
   Upload,
+  Tooltip,
 } from "antd";
 import {
   SearchOutlined,
@@ -29,20 +28,26 @@ import {
   UserOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
+  TeamOutlined,
+  UserSwitchOutlined,
+  CalendarOutlined,
+  PhoneOutlined,
+  HomeOutlined,
+  GiftOutlined,
+  ManOutlined,
 } from "@ant-design/icons";
 import {
   UserRole,
   UserStatus,
   type User,
 } from "../../../interfaces/Admin.interface";
-import type { ColumnsType } from "antd/es/table";
 import { getAllUsers, createUser, updateUser, deleteUser } from "../../../services/userService";
 import type { TablePaginationConfig } from 'antd/es/table';
 import axios from 'axios';
 import dayjs from 'dayjs'; // Import dayjs
 import 'dayjs/locale/vi'; // Import Vietnamese locale for dayjs if needed
 import type { UploadFile } from 'antd/es/upload/interface';
-
+import styles from './UserPage.module.css';
 
 dayjs.locale('vi'); // Set default locale to Vietnamese if needed
 
@@ -51,11 +56,122 @@ interface Role {
   name: UserRole;
 }
 
+const { RangePicker } = DatePicker;
+
+// --- Helper Components ---
+
+interface StatCardsProps {
+  userStats: {
+    total: number;
+    active: number;
+    inactive: number;
+  };
+}
+
+const StatCards = ({ userStats }: StatCardsProps) => (
+  <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
+    <Col xs={24} sm={12} md={8}>
+      <Card className={styles.statsCard}>
+        <Statistic
+          title="Tổng số người dùng"
+          value={userStats.total}
+          prefix={<TeamOutlined className={styles.statIcon} />}
+        />
+      </Card>
+    </Col>
+    <Col xs={24} sm={12} md={8}>
+      <Card className={styles.statsCard}>
+        <Statistic
+          title="Đang hoạt động"
+          value={userStats.active}
+          prefix={<UserSwitchOutlined className={styles.statIcon} style={{ color: '#52c41a' }} />}
+        />
+      </Card>
+    </Col>
+    <Col xs={24} sm={12} md={8}>
+      <Card className={styles.statsCard}>
+        <Statistic
+          title="Không hoạt động"
+          value={userStats.inactive}
+          prefix={<CloseCircleOutlined className={styles.statIcon} style={{ color: '#ff4d4f' }} />}
+        />
+      </Card>
+    </Col>
+  </Row>
+);
+
+interface FilterSectionProps {
+  searchInput: string;
+  setSearchInput: (value: string) => void;
+  setSearch: (value: string) => void;
+  selectedRole: UserRole | undefined;
+  setSelectedRole: (role: UserRole | undefined) => void;
+  selectedStatus: UserStatus | undefined;
+  setSelectedStatus: (status: UserStatus | undefined) => void;
+  setDateRange: (dates: any) => void;
+}
+
+const FilterSection = ({
+  searchInput,
+  setSearchInput,
+  setSearch,
+  selectedRole,
+  setSelectedRole,
+  selectedStatus,
+  setSelectedStatus,
+  setDateRange,
+}: FilterSectionProps) => (
+  <div className={styles.filterGroup}>
+    <Input
+      placeholder="Tìm kiếm theo tên, email..."
+      prefix={<SearchOutlined />}
+      value={searchInput}
+      onChange={(e) => setSearchInput(e.target.value)}
+      onPressEnter={() => setSearch(searchInput)}
+      className={styles.filterInput}
+      allowClear
+    />
+    <Select
+      placeholder="Lọc theo vai trò"
+      value={selectedRole}
+      onChange={setSelectedRole}
+      className={styles.filterSelect}
+      allowClear
+    >
+      {Object.values(UserRole).map((role) => (
+        <Select.Option key={role} value={role}>
+          {role === UserRole.ADMIN ? 'Admin' :
+           role === UserRole.INSTRUCTOR ? 'Giảng viên' :
+           role === UserRole.STUDENT ? 'Học viên' :
+           role === UserRole.MODERATOR ? 'Kiểm duyệt' : role}
+        </Select.Option>
+      ))}
+    </Select>
+    <Select
+      placeholder="Lọc theo trạng thái"
+      value={selectedStatus}
+      onChange={setSelectedStatus}
+      className={styles.filterSelect}
+      allowClear
+    >
+      <Select.Option value={UserStatus.ACTIVE}>Hoạt động</Select.Option>
+      <Select.Option value={UserStatus.INACTIVE}>Không hoạt động</Select.Option>
+    </Select>
+    <RangePicker
+      placeholder={['Từ ngày', 'Đến ngày']}
+      onChange={(dates) => setDateRange(dates)}
+      className={styles.filterDateRange}
+      format="DD/MM/YYYY"
+    />
+  </div>
+);
+
 const UserPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [form] = Form.useForm();
+  const [userForm] = Form.useForm();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isDetailsModalVisible, setIsDetailsModalVisible] = useState(false);
@@ -68,8 +184,14 @@ const UserPage = () => {
 
   const [selectedRole, setSelectedRole] = useState<UserRole | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<UserStatus | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [avatarFileList, setAvatarFileList] = useState<UploadFile<any>[]>([]);
+  const [avatarFileList, setAvatarFileList] = useState<UploadFile[]>([]);
+  const [userStats, setUserStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+  });
 
   // Get roles from backend
   useEffect(() => {
@@ -86,41 +208,39 @@ const UserPage = () => {
     fetchRoles();
   }, []);
 
+  // Calculate user statistics
+  const calculateUserStats = (users: User[], totalUsers: number) => {
+    setUserStats({
+      total: totalUsers,
+      active: users.filter(user => user.status === UserStatus.ACTIVE).length,
+      inactive: users.filter(user => user.status === UserStatus.INACTIVE).length,
+    });
+  };
+
   // Fetch users
   const fetchUsers = async (page = 1, limit = 10) => {
     try {
       setLoading(true);
-      console.log('Calling getAllUsers with params:', {
-        page,
-        limit,
-        search,
-        role: selectedRole,
-        status: selectedStatus
-      });
-      
-      const response = await getAllUsers({
+      const params = {
         page,
         limit,
         search,
         role: selectedRole,
         status: selectedStatus,
-      });
+        startDate: dateRange?.[0]?.format('YYYY-MM-DD'),
+        endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
+      };
       
-      console.log('API Response:', response);
+      const response = await getAllUsers(params);
       
       if (response.success && response.data) {
-        console.log('Raw user data from API:', response.data.users);
-        // Sắp xếp người dùng theo thứ tự mới nhất
         const sortedUsers = [...response.data.users].sort((a, b) => {
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
 
-        // Map và thêm số thứ tự
-        const mappedUsers = sortedUsers.map((user, index) => {
-          console.log('Processing user:', user); // Debug log
-          return {
+        const mappedUsers = sortedUsers.map((user, index) => ({
             id: user._id,
-            fullname: user.fullname || user.name || 'Chưa có tên', // Sử dụng fullname từ backend, fallback về name
+          fullname: user.fullname || user.name || 'Chưa có tên',
             email: user.email,
             avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
             role: user.role_id,
@@ -133,22 +253,21 @@ const UserPage = () => {
             gender: user.gender || 'Khác',
             approval_status: user.approval_status || 'approved',
             number: (page - 1) * pagination.pageSize + index + 1
-          };
-        });
+        }));
 
-        console.log('Mapped users:', mappedUsers); // Debug log
+        const newTotal = response.data.pagination.total;
+
         setUsers(mappedUsers as User[]);
         setPagination({
           ...pagination,
           current: page,
-          total: response.data.pagination.total,
+          total: newTotal,
         });
+        calculateUserStats(mappedUsers as User[], newTotal);
       } else {
-        console.error('API Error:', response.message);
         message.error(response.message || "Lỗi khi tải danh sách người dùng");
       }
     } catch (error) {
-      console.error('Network Error:', error);
       if (error instanceof Error) {
         message.error(error.message || "Lỗi khi tải danh sách người dùng");
       } else {
@@ -159,23 +278,16 @@ const UserPage = () => {
     }
   };
 
+  // Fetch users when search or filters change
   useEffect(() => {
     fetchUsers();
-  }, [search, selectedRole, selectedStatus]);
-
-  const userStats = {
-    total: pagination.total,
-    active: users.filter(user => user.status === UserStatus.ACTIVE).length,
-    inactive: users.filter(user => user.status === UserStatus.INACTIVE).length,
-    banned: users.filter(user => user.status === UserStatus.BANNED).length,
-  };
+  }, [search, selectedRole, selectedStatus, dateRange]);
 
   // Helper to get status tag
   const getStatusTag = (status: UserStatus) => {
     const statusMap: Record<UserStatus, { color: string; label: string; icon: React.ReactNode }> = {
-      [UserStatus.ACTIVE]: { color: "green", label: "Đang hoạt động", icon: <CheckCircleOutlined /> },
+      [UserStatus.ACTIVE]: { color: "success", label: "Hoạt động", icon: <CheckCircleOutlined /> },
       [UserStatus.INACTIVE]: { color: "default", label: "Không hoạt động", icon: <ClockCircleOutlined /> },
-      [UserStatus.BANNED]: { color: "red", label: "", icon: <CloseCircleOutlined /> },
     };
 
     const tag = statusMap[status] || { color: "default", label: status, icon: null };
@@ -183,7 +295,7 @@ const UserPage = () => {
       <Tag
         color={tag.color}
         icon={tag.icon}
-        className="px-2 py-1 rounded-full text-sm font-medium"
+        className={styles.statusTag}
       >
         {tag.label}
       </Tag>
@@ -194,11 +306,12 @@ const UserPage = () => {
   const getRoleTag = (role: string | UserRole | Role) => {
     let roleName: string;
     if (typeof role === 'string') {
-      roleName = role;
-    } else if (typeof role === 'object') {
+      const foundRole = roles.find(r => r._id === role);
+      roleName = foundRole ? foundRole.name : 'Unknown';
+    } else if (typeof role === 'object' && role !== null && 'name' in role) {
       roleName = role.name;
     } else {
-      roleName = role;
+      roleName = String(role);
     }
     
     const roleMap: Record<UserRole, { color: string; label: string }> = {
@@ -217,13 +330,12 @@ const UserPage = () => {
 
   const handleAddUser = () => {
     setEditingUser(null);
-    form.resetFields();
+    userForm.resetFields();
     setAvatarFileList([]);
     setIsModalVisible(true);
   };
 
   const handleEditUser = (user: User) => {
-    console.log('Editing user:', user); // Debug log
     setEditingUser(user);
     setAvatarFileList(user.avatar ? [{
       uid: '-1',
@@ -231,10 +343,21 @@ const UserPage = () => {
       status: 'done',
       url: user.avatar,
     }] : []);
-    form.setFieldsValue({
-      fullname: user.fullname || user.name, // Thêm fallback cho name
+
+    let roleName: string;
+    if (typeof user.role === 'string') {
+        const foundRole = roles.find(r => r._id === user.role);
+        roleName = foundRole ? foundRole.name : '';
+    } else if (typeof user.role === 'object' && user.role !== null) {
+        roleName = user.role.name;
+    } else {
+        roleName = '';
+    }
+
+    userForm.setFieldsValue({
+      fullname: user.fullname || user.name,
       email: user.email,
-      role: typeof user.role === 'object' ? user.role.name : user.role,
+      role: roleName,
       status: user.status,
       phone: user.phone || '',
       address: user.address || '',
@@ -242,7 +365,6 @@ const UserPage = () => {
       gender: user.gender || 'Khác',
       approval_status: user.approval_status || 'approved'
     });
-    console.log('Form values after set:', form.getFieldsValue()); // Debug log
     setIsModalVisible(true);
   };
 
@@ -251,116 +373,78 @@ const UserPage = () => {
       const response = await deleteUser(id.toString());
       if (response.success) {
         message.success("Xóa người dùng thành công");
-        fetchUsers(pagination.current);
+        fetchUsers();
       } else {
         message.error(response.message || "Lỗi khi xóa người dùng");
       }
     } catch (error) {
-      if (error instanceof Error) {
-        console.error("Error deleting user:", error.message);
         message.error("Lỗi khi xóa người dùng");
-      }
     }
   };
 
   const handleModalOk = async () => {
     try {
-      const values = await form.validateFields();
-      console.log('Form values before submit:', values); // Debug log
-
-      let avatarUrl = editingUser?.avatar;
-      if (avatarFileList.length > 0 && avatarFileList[0].originFileObj) {
-        const formData = new FormData();
-        formData.append('avatar', avatarFileList[0].originFileObj);
-        const token = localStorage.getItem('token');
-        const uploadRes = await axios.post('http://localhost:5000/api/users/upload-avatar', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${token}`,
-          }
-        });
-        if (uploadRes.data.success && uploadRes.data.data?.url) {
-          avatarUrl = uploadRes.data.data.url;
-        }
-      }
-      
-      
-      if (editingUser) {
-        // Update existing user
-        console.log('Updating user with ID:', editingUser.id);
-        
-        // Tìm role_id dựa trên role name
-        const selectedRole = roles.find(r => r.name === values.role);
-        if (!selectedRole) {
-          message.error('Không tìm thấy vai trò');
+      const values = await userForm.validateFields();
+      // Always get roleId from roles list
+      const roleId = roles.find(r => r.name === values.role)?._id;
+      if (!roleId) {
+        message.error("Vai trò không hợp lệ!");
           return;
         }
-
-        const updateData = {
-          fullname: values.fullname,
-          role_id: selectedRole._id,
-          status: values.status,
-          phone: values.phone,
-          address: values.address,
-          dob: values.dob ? values.dob.toISOString() : null,
-          gender: values.gender,
-          approval_status: values.approval_status,
-          email: values.email,
-          avatar: avatarUrl,
+      // Build payload
+      type UserPayload = {
+        fullname: string;
+        email: string;
+        status?: UserStatus;
+        phone?: string;
+        address?: string;
+        dob?: string | null;
+        gender?: string;
+        approval_status?: string;
+        role_id: string;
+        password?: string;
+      };
+      let payload: Omit<UserPayload, 'password'> | UserPayload;
+      if (!editingUser) {
+        payload = {
+          ...{
+            fullname: values.fullname,
+            email: values.email,
+            status: values.status,
+            phone: values.phone,
+            address: values.address,
+            dob: values.dob ? values.dob.toISOString() : null,
+            gender: values.gender,
+            approval_status: values.approval_status,
+            role_id: roleId,
+          },
+          password: values.password as string,
         };
-
-        console.log('Update data being sent:', updateData); // Debug log
-        const response = await updateUser(editingUser.id.toString(), updateData);
-        if (response.success) {
-          message.success("Cập nhật người dùng thành công");
-          setIsModalVisible(false);
-          fetchUsers(pagination.current);
-        } else {
-          message.error(response.message || "Lỗi khi cập nhật người dùng");
-        }
       } else {
-        // Add new user
-        console.log('Thêm mới người dùng');
-        
-        // Tìm role_id dựa trên role name
-        const selectedRole = roles.find(r => r.name === values.role);
-        if (!selectedRole) {
-          message.error('Không tìm thấy vai trò');
-          return;
-        }
-
-        const userData = {
-          email: values.email,
-          password: values.password,
+        payload = {
           fullname: values.fullname,
-          role_id: selectedRole._id,
+          email: values.email,
           status: values.status,
           phone: values.phone,
           address: values.address,
           dob: values.dob ? values.dob.toISOString() : null,
           gender: values.gender,
           approval_status: values.approval_status,
-          nickname: values.fullname.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-          avatar: avatarUrl,
+          role_id: roleId,
         };
-
-        console.log('Create data being sent:', userData); // Debug log
-        const response = await createUser(userData);
-        if (response.success) {
-          message.success("Thêm người dùng thành công");
-          setIsModalVisible(false);
-          fetchUsers(pagination.current);
-        } else {
-          message.error(response.message || "Lỗi khi thêm người dùng");
-        }
       }
-    } catch (error) {
-      console.error('Error details:', {
-        error: error,
-        formValues: form.getFieldsValue(),
-        editingUser: editingUser
-      });
-      message.error(editingUser ? "Lỗi khi cập nhật người dùng" : "Lỗi khi thêm người dùng");
+      if (editingUser) {
+        await updateUser(editingUser.id.toString(), payload);
+        message.success("Cập nhật người dùng thành công");
+      } else {
+        await createUser(payload as UserPayload);
+        message.success("Thêm người dùng thành công");
+      }
+      setIsModalVisible(false);
+      fetchUsers();
+    } catch (error: any) {
+      console.log('Failed:', error);
+      message.error(error?.response?.data?.message || "Thao tác thất bại. Vui lòng thử lại.");
     }
   };
 
@@ -373,164 +457,8 @@ const UserPage = () => {
     fetchUsers(pagination.current || 1, pagination.pageSize || 10);
   };
 
-  const handleRoleChange = async (userId: string | number, newRole: UserRole) => {
-    try {
-      const user = users.find(u => u.id === userId);
-      if (!user) return;
-
-      // Lấy tên role hiện tại
-      let currentRoleName: string;
-      if (typeof user.role === 'string') {
-        currentRoleName = user.role;
-      } else if (typeof user.role === 'object') {
-        currentRoleName = user.role.name;
-      } else {
-        currentRoleName = user.role;
-      }
-      
-      if (currentRoleName === newRole) return;
-
-      // Tìm role_id dựa trên role name
-      const selectedRole = roles.find(r => r.name === newRole);
-      if (!selectedRole) {
-        message.error('Vai trò không hợp lệ');
-        return;
-      }
-
-      await updateUser(userId.toString(), { role_id: selectedRole._id });
-      message.success('Cập nhật vai trò thành công');
-      fetchUsers(pagination.current);
-    } catch (error) {
-      message.error('Lỗi khi cập nhật vai trò');
-    }
-  };
-
-  const columns: ColumnsType<User> = [
-    {
-      title: "#",
-      dataIndex: "number",
-      width: 60,
-      align: "center",
-      render: (number: number) => (
-        <div className="font-medium text-center">{number}</div>
-      ),
-    },
-    {
-      title: "Người dùng",
-      dataIndex: "fullname",
-      render: (_: unknown, user: User) => (
-        <Space direction="horizontal" size="middle" className="py-2">
-          <Avatar
-            src={user.avatar}
-            icon={<UserOutlined />}
-            size={48}
-            className="border-2 border-gray-100 shadow-sm cursor-pointer hover:opacity-80"
-            onClick={(e?: MouseEvent<HTMLElement>) => {
-              e?.stopPropagation();
-              handleViewDetails(user);
-            }}
-          />
-          <div>
-            <div 
-              className="font-semibold text-base text-blue-600 hover:text-blue-800 cursor-pointer"
-              onClick={(e: MouseEvent<HTMLElement>) => {
-                e.stopPropagation();
-                handleViewDetails(user);
-              }}
-            >
-              {user.fullname}
-            </div>
-            <div className="text-sm text-gray-600 font-medium">{user.email}</div>
-          </div>
-        </Space>
-      ),
-    },
-    {
-      title: "Quyền hạn",
-      dataIndex: "role",
-      align: "center",
-      render: (_: unknown, user: User) => {
-        // Lấy tên role hiện tại
-        let currentRoleName: string;
-        if (typeof user.role === 'string') {
-          currentRoleName = user.role;
-        } else if (typeof user.role === 'object') {
-          currentRoleName = user.role.name;
-        } else {
-          currentRoleName = user.role;
-        }
-        
-        return (
-          <Select
-            value={currentRoleName as UserRole}
-            onChange={(value: UserRole) => handleRoleChange(user.id, value)}
-            style={{ width: '120px' }}
-            options={roles.map(role => ({
-              value: role.name,
-              label: getRoleTag(role.name)
-            }))}
-          />
-        );
-      },
-    },
-    {
-      title: "Trạng thái",
-      dataIndex: "status",
-      align: "center",
-      render: (_: unknown, user: User) => getStatusTag(user.status),
-    },
-    {
-      title: "Ngày tạo",
-      dataIndex: "createdAt",
-      align: "center",
-      render: (date: string) => (
-        <div className="text-sm">
-          <div className="font-medium">{new Date(date).toLocaleDateString("vi-VN")}</div>
-        </div>
-      ),
-    },
-    {
-      title: "Thao tác",
-      key: "action",
-      align: "center",
-      render: (_: unknown, user: User) => (
-        <Space size="small">
-          <Button
-            type="primary"
-            icon={<EditOutlined />}
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEditUser(user);
-            }}
-            className="flex items-center"
-          />
-          <Popconfirm
-            title="Xóa người dùng"
-            description="Bạn có chắc chắn muốn xóa người dùng này?"
-            onConfirm={(e) => {
-              e?.stopPropagation();
-              handleDeleteUser(user.id);
-            }}
-            okText="Xóa"
-            cancelText="Hủy"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              danger
-              icon={<DeleteOutlined />}
-              size="small"
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center"
-            />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
   return (
-    <div className="p-6">
+    <div className={styles.userPageContainer}>
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Quản lý người dùng</h2>
@@ -538,253 +466,225 @@ const UserPage = () => {
         </div>
       </div>
 
-      <Row gutter={[16, 16]} className="mb-6">
-        <Col xs={24} sm={8}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
-            <Statistic
-              title="Tổng số người dùng"
-              value={userStats.total}
-              prefix={<UserOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
-            <Statistic
-             title="Đang hoạt động"
-             value={userStats.active}
-             prefix={<CheckCircleOutlined />}
-             valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
-            <Statistic
-              title="Không hoạt động"
-              value={userStats.inactive}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <StatCards userStats={userStats} />
+      <FilterSection
+        searchInput={searchInput}
+        setSearchInput={setSearchInput}
+        setSearch={setSearch}
+        selectedRole={selectedRole}
+        setSelectedRole={setSelectedRole}
+        selectedStatus={selectedStatus}
+        setSelectedStatus={setSelectedStatus}
+        setDateRange={setDateRange}
+      />
 
-      <Card className="mb-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <Input
-            placeholder="Tìm kiếm tên hoặc email"
-            allowClear
-            prefix={<SearchOutlined />}
-            onChange={(e) => {
-              setSearch(e.target.value);
-            }}
-            style={{ width: 300 }}
-          />
-
-          <Select
-            placeholder="Lọc theo vai trò"
-            allowClear
-            style={{ width: 200 }}
-            onChange={(value: UserRole | undefined) => {
-              setSelectedRole(value);
-            }}
-            options={[
-              { value: UserRole.ADMIN, label: 'Quản trị viên' },
-              { value: UserRole.MODERATOR, label: 'Kiểm duyệt viên' },
-              { value: UserRole.INSTRUCTOR, label: 'Giảng viên' },
-              { value: UserRole.STUDENT, label: 'Học viên' },
-            ]}
-          />
-
-          <Select
-            placeholder="Lọc theo trạng thái"
-            allowClear
-            style={{ width: 200 }}
-            onChange={(value: UserStatus | undefined) => {
-              setSelectedStatus(value);
-            }}
-            options={[
-              { value: UserStatus.ACTIVE, label: 'Đang hoạt động' },
-              { value: UserStatus.INACTIVE, label: 'Không hoạt động' },
-              { value: UserStatus.BANNED, label: 'Bị cấm' },
-            ]}
-          />
+      <Card className={styles.userTableCard}>
+        <Table
+          rowKey="id"
+          dataSource={users}
+          loading={loading}
+          pagination={pagination}
+          onChange={handleTableChange}
+          className={styles.userTable}
+          scroll={{ x: true }}
+          title={() => (
+            <div className={styles.tableHeader}>
+              <h4 className={styles.tableTitle}>Danh sách người dùng</h4>
+              <Button
+                type="primary"
+                icon={<UserAddOutlined />}
+                onClick={handleAddUser}
+                className={styles.addUserBtn}
+              >
+                Thêm người dùng
+              </Button>
+            </div>
+          )}
+          onRow={(record) => {
+            return {
+              onClick: () => {
+                handleViewDetails(record);
+              },
+            };
+          }}
+          columns={[
+            {
+              title: '#',
+              dataIndex: 'number',
+              width: 70,
+            },
+            {
+              title: 'Người dùng',
+              dataIndex: 'fullname',
+              render: (_, record) => (
+                <div className={styles.avatarCell}>
+                  <Avatar src={record.avatar} icon={<UserOutlined />} />
+          <div>
+                    <div className={styles.userName}>{record.fullname}</div>
+                    <div className={styles.userEmail}>{record.email}</div>
+            </div>
+          </div>
+      ),
+    },
+    {
+              title: 'Vai trò',
+              dataIndex: 'role',
+              render: (role) => getRoleTag(role),
+              width: 120,
+            },
+            {
+              title: 'Trạng thái',
+              dataIndex: 'status',
+              render: (status) => getStatusTag(status),
+              width: 150,
+            },
+            {
+              title: 'Ngày tạo',
+              dataIndex: 'createdAt',
+              render: (date) => dayjs(date).format('DD/MM/YYYY HH:mm'),
+              width: 150,
+            },
+            {
+              title: 'Thao tác',
+              key: 'action',
+              width: 120,
+              render: (_, record) => (
+                <Space className={styles.actionBtns}>
+                  <Tooltip title="Chỉnh sửa">
           <Button
-            type="primary"
-            icon={<UserAddOutlined />}
-            onClick={handleAddUser}
-          >
-            Thêm người dùng
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="shadow-sm">
-        <Spin spinning={loading}>
-          <Table
-            rowKey="id"
-            columns={columns}
-            dataSource={users}
-            pagination={pagination}
-            onChange={handleTableChange}
-            className="users-table"
+                      type="text"
+            icon={<EditOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+                        handleEditUser(record);
+            }}
+                      className={styles.actionBtn}
           />
-        </Spin>
+                  </Tooltip>
+                  <Tooltip title="Xóa">
+          <Popconfirm
+                      title="Bạn có chắc chắn muốn xóa người dùng này?"
+            onConfirm={(e) => {
+              e?.stopPropagation();
+                        handleDeleteUser(record.id);
+            }}
+                      onCancel={(e) => e?.stopPropagation()}
+            okText="Xóa"
+            cancelText="Hủy"
+          >
+            <Button
+                        type="text"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={(e) => e.stopPropagation()}
+                        className={styles.actionBtn}
+            />
+          </Popconfirm>
+                  </Tooltip>
+        </Space>
+      ),
+    },
+          ]}
+        />
       </Card>
 
       <Modal
-        title={editingUser ? "Sửa người dùng" : "Thêm người dùng mới"}
+        title={editingUser ? "Chỉnh sửa người dùng" : "Thêm người dùng"}
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={() => setIsModalVisible(false)}
-        okText={editingUser ? "Cập nhật" : "Thêm mới"}
+        okText={editingUser ? "Lưu thay đổi" : "Thêm"}
         cancelText="Hủy"
-        width={600}
+        destroyOnHidden
+        className={styles.userModal}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ 
-            role: UserRole.STUDENT, 
-            status: UserStatus.ACTIVE,
-            gender: 'Khác',
-            approval_status: 'approved'
-          }}
-        >
-          <Form.Item label="Ảnh đại diện" name="avatar" valuePropName="fileList" getValueFromEvent={e => Array.isArray(e) ? e : e && e.fileList}>
-            <Upload
-              listType="picture-circle"
-              maxCount={1}
-              fileList={avatarFileList}
-              beforeUpload={() => false}
-              onChange={({ fileList }) => {
-                if (fileList.length > 0 && fileList[0].originFileObj && !fileList[0].thumbUrl) {
-                  const reader = new FileReader();
-                  reader.onload = e => {
-                    const result = e.target && typeof e.target.result === 'string' ? e.target.result : undefined;
-                    const newFileList = [{
-                      ...fileList[0],
-                      thumbUrl: result
-                    }];
-                    setAvatarFileList(newFileList);
-                  };
-                  reader.readAsDataURL(fileList[0].originFileObj);
-                } else {
-                  setAvatarFileList(fileList);
-                }
-              }}
-              showUploadList={false}
-              accept="image/*"
-            >
-              <Avatar
-                src={avatarFileList.length > 0 && (avatarFileList[0].thumbUrl || avatarFileList[0].url) ? (avatarFileList[0].thumbUrl || avatarFileList[0].url) : undefined}
-                icon={<UserOutlined />}
-                size={100}
-                style={{ cursor: 'pointer' }}
-              />
-            </Upload>
-          </Form.Item>
+        <Form form={userForm} layout="vertical" className={styles.userForm}>
+          <div className={styles.formGrid}>
+            <div className={styles.formLeftCol}>
           <Form.Item
             name="fullname"
             label="Họ và tên"
-            rules={[{ required: true, message: "Vui lòng nhập họ và tên" }]}
+                rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
+                className={styles.formItem}
           >
-            <Input placeholder="Nhập họ và tên" />
+                <Input className={styles.input} />
           </Form.Item>
           <Form.Item
             name="email"
             label="Email"
-            rules={[
-              { required: true, message: "Vui lòng nhập email" },
-              { type: "email", message: "Email không hợp lệ" },
-            ]}
-          >
-            <Input placeholder="Nhập email" />
+                rules={[{ required: true, type: 'email', message: 'Vui lòng nhập email hợp lệ!' }]}
+                className={styles.formItem}
+              >
+                <Input className={styles.input} />
           </Form.Item>
           {!editingUser && (
             <Form.Item
               name="password"
               label="Mật khẩu"
-              rules={[
-                { required: true, message: "Vui lòng nhập mật khẩu" },
-                { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },
-              ]}
-            >
-              <Input.Password placeholder="Nhập mật khẩu" />
+                  rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
+                  className={styles.formItem}
+                >
+                  <Input.Password className={styles.input} />
             </Form.Item>
           )}
-          <Form.Item
-            name="role"
-            label="Vai trò"
-            rules={[{ required: true, message: "Vui lòng chọn vai trò" }]}
-          >
-            <Select>
-              {Object.values(UserRole).map((role) => (
-                <Select.Option key={role} value={role}>
-                  {getRoleTag(role)}
-                </Select.Option>
-              ))}
+              <Form.Item name="role" label="Vai trò" rules={[{ required: true, message: 'Vui lòng chọn vai trò!' }]} className={styles.formItem}>
+                <Select className={styles.input}>
+                  {roles.map(r => <Select.Option key={r._id} value={r.name}>{r.name}</Select.Option>)}
             </Select>
           </Form.Item>
-          <Form.Item
-            name="status"
-            label="Trạng thái"
-            rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}
-          >
-            <Select>
-              {Object.values(UserStatus).map((status) => (
-                <Select.Option key={status} value={status}>
-                  {getStatusTag(status)}
-                </Select.Option>
-              ))}
+              <Form.Item name="status" label="Trạng thái" rules={[{ required: true, message: 'Vui lòng chọn trạng thái!' }]} className={styles.formItem}>
+                <Select className={styles.input}>
+                  <Select.Option value={UserStatus.ACTIVE}>Hoạt động</Select.Option>
+                  <Select.Option value={UserStatus.INACTIVE}>Không hoạt động</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item
-            name="approval_status"
-            label="Trạng thái phê duyệt"
-            rules={[{ required: true, message: "Vui lòng chọn trạng thái phê duyệt" }]}
-          >
-            <Select>
-              <Select.Option value="approved">Đã phê duyệt</Select.Option>
-              <Select.Option value="pending">Đang chờ phê duyệt</Select.Option>
-              <Select.Option value="rejected">Bị từ chối</Select.Option>
-            </Select>
+            </div>
+            <div className={styles.formRightCol}>
+              <Form.Item name="avatar" label="Ảnh đại diện" className={styles.formItem}>
+                <div className={styles.avatarUploadWrapper}>
+                  <Upload
+                    listType="picture-card"
+                    fileList={avatarFileList}
+                    onPreview={async file => {
+                      let src = file.url as string;
+                      if (!src) {
+                        src = await new Promise(resolve => {
+                          const reader = new FileReader();
+                          reader.readAsDataURL(file.originFileObj as any);
+                          reader.onload = () => resolve(reader.result as string);
+                        });
+                      }
+                      const image = new Image();
+                      image.src = src;
+                      const imgWindow = window.open(src);
+                      imgWindow?.document.write(image.outerHTML);
+                    }}
+                    onChange={({ fileList }) => setAvatarFileList(fileList)}
+                    beforeUpload={() => false}
+                    className={styles.avatarUpload}
+                  >
+                    {avatarFileList.length < 1 && '+ Tải lên'}
+                  </Upload>
+                </div>
           </Form.Item>
-          <Form.Item
-            name="phone"
-            label="Số điện thoại"
-            rules={[{ pattern: /^\d{10}$/, message: "Số điện thoại phải có 10 chữ số" }]}
-          >
-            <Input placeholder="Nhập số điện thoại" />
+              <Form.Item name="phone" label="Số điện thoại" className={styles.formItem}>
+                <Input className={styles.input} />
           </Form.Item>
-          <Form.Item
-            name="address"
-            label="Địa chỉ"
-          >
-            <Input.TextArea placeholder="Nhập địa chỉ" rows={3} />
+              <Form.Item name="address" label="Địa chỉ" className={styles.formItem}>
+                <Input className={styles.input} />
           </Form.Item>
-          <Form.Item
-            name="dob"
-            label="Ngày sinh"
-          >
-            <DatePicker 
-              style={{ width: '100%' }} 
-              format="DD/MM/YYYY"
-              placeholder="Chọn ngày sinh"
-            />
+              <Form.Item name="dob" label="Ngày sinh" className={styles.formItem}>
+                <DatePicker className={styles.input} format="DD/MM/YYYY" style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item
-            name="gender"
-            label="Giới tính"
-          >
-            <Select>
+              <Form.Item name="gender" label="Giới tính" className={styles.formItem}>
+                <Select className={styles.input}>
               <Select.Option value="Nam">Nam</Select.Option>
               <Select.Option value="Nữ">Nữ</Select.Option>
               <Select.Option value="Khác">Khác</Select.Option>
             </Select>
           </Form.Item>
+            </div>
+          </div>
         </Form>
       </Modal>
 
@@ -793,189 +693,49 @@ const UserPage = () => {
         open={isDetailsModalVisible}
         onCancel={() => setIsDetailsModalVisible(false)}
         footer={null}
-        width={800}
+        width={600}
+        destroyOnHidden
+        className={styles.userDetailModal}
       >
         {viewingUser && (
-          <div className="p-4">
-            {/* Header with avatar and basic info */}
-            <div className="flex items-center mb-8 pb-6 border-b border-gray-100">
-              <Avatar 
-                src={viewingUser.avatar !== 'default-avatar.png' ? viewingUser.avatar : undefined} 
-                icon={<UserOutlined />} 
-                size={80} 
-                className="mr-6 border-2 border-gray-100 shadow-sm"
-              />
-              <div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">{viewingUser.fullname}</h3>
-                <div className="flex items-center gap-4">
-                  <div className="text-gray-600 flex items-center">
-                    <span className="mr-2">Email:</span>
-                    <span className="font-medium">{viewingUser.email}</span>
+          <div className={styles.userDetailWrapper}>
+            <div className={styles.userDetailHeaderBox}>
+              <Avatar size={96} src={viewingUser.avatar} className={styles.userDetailAvatar} />
+              <div className={styles.userDetailHeaderInfo}>
+                <div className={styles.userDetailName}>{viewingUser.fullname}</div>
+                <div className={styles.userDetailEmail}>{viewingUser.email}</div>
+                <div className={styles.userDetailRoleTag}>{getRoleTag(viewingUser.role)}</div>
                   </div>
-                  <div className="text-gray-600 flex items-center">
-                    <span className="mr-2">Vai trò:</span>
-                    {getRoleTag(viewingUser.role)}
                   </div>
+            <div className={styles.userDetailCard}>
+              <div className={styles.userDetailRow}>
+                <span className={styles.userDetailLabel}><CalendarOutlined /> Ngày tạo:</span>
+                <span>{dayjs(viewingUser.createdAt).format('DD/MM/YYYY HH:mm')}</span>
                 </div>
-              </div>
-            </div>
-
-            {/* Main content */}
-            <div className="grid grid-cols-2 gap-6">
-              {/* Left column */}
-              <div className="space-y-6">
-                {/* Basic Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin cơ bản</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Trạng thái:</span>
+              <div className={styles.userDetailRow}>
+                <span className={styles.userDetailLabel}><UserOutlined /> Trạng thái:</span>
                       <span>{getStatusTag(viewingUser.status)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Ngày tạo:</span>
-                      <span className="font-medium">
-                        {new Date(viewingUser.createdAt).toLocaleDateString("vi-VN", {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </span>
+              <div className={styles.userDetailRow}>
+                <span className={styles.userDetailLabel}><PhoneOutlined /> Số điện thoại:</span>
+                <span>{viewingUser.phone || 'Chưa cập nhật'}</span>
                     </div>
-                    {viewingUser.updatedAt && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Cập nhật lần cuối:</span>
-                        <span className="font-medium">
-                          {new Date(viewingUser.updatedAt).toLocaleDateString("vi-VN", {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </span>
+              <div className={styles.userDetailRow}>
+                <span className={styles.userDetailLabel}><HomeOutlined /> Địa chỉ:</span>
+                <span>{viewingUser.address || 'Chưa cập nhật'}</span>
                       </div>
-                    )}
+              <div className={styles.userDetailRow}>
+                <span className={styles.userDetailLabel}><GiftOutlined /> Ngày sinh:</span>
+                <span>{viewingUser.dob ? dayjs(viewingUser.dob).format('DD/MM/YYYY') : 'Chưa cập nhật'}</span>
                   </div>
+              <div className={styles.userDetailRow}>
+                <span className={styles.userDetailLabel}><ManOutlined /> Giới tính:</span>
+                <span>{viewingUser.gender || 'Chưa cập nhật'}</span>
                 </div>
-
-                {/* Contact Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin liên hệ</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Số điện thoại:</span>
-                      <span className="font-medium">{viewingUser.phone || 'Chưa cập nhật'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Địa chỉ:</span>
-                      <span className="font-medium">{viewingUser.address || 'Chưa cập nhật'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Personal Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin cá nhân</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Giới tính:</span>
-                      <span className="font-medium">{viewingUser.gender || 'Chưa cập nhật'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Ngày sinh:</span>
-                      <span className="font-medium">
-                        {viewingUser.dob ? new Date(viewingUser.dob).toLocaleDateString("vi-VN", {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        }) : 'Chưa cập nhật'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right column */}
-              <div className="space-y-6">
-                {/* Role and Status Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin tài khoản</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Vai trò:</span>
-                      <span>{getRoleTag(viewingUser.role)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Trạng thái:</span>
-                      <span>{getStatusTag(viewingUser.status)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Trạng thái phê duyệt:</span>
-                      <span className="font-medium">
-                        {viewingUser.approval_status === 'approved' ? 'Đã phê duyệt' :
-                         viewingUser.approval_status === 'pending' ? 'Đang chờ phê duyệt' :
-                         viewingUser.approval_status === 'rejected' ? 'Bị từ chối' : 'Chưa cập nhật'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Activity Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin hoạt động</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Số khóa học:</span>
-                      <span className="font-medium">{viewingUser.coursesCount !== undefined && viewingUser.coursesCount !== null ? viewingUser.coursesCount : 'Chưa cập nhật'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Mô tả:</span>
-                      <span className="font-medium">{viewingUser.description || 'Chưa cập nhật'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Additional Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin bổ sung</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Avatar:</span>
-                      <span className="font-medium">
-                        {viewingUser.avatar && viewingUser.avatar !== 'default-avatar.png' ? 'Đã cập nhật' : 'Chưa cập nhật'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Xác thực email:</span>
-                      <span className="font-medium">
-                        {viewingUser.email_verified !== undefined ? (viewingUser.email_verified ? 'Đã xác thực' : 'Chưa xác thực') : 'Chưa cập nhật'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         )}
       </Modal>
-
-      <style>
-        {`
-          .users-table .ant-table-thead > tr > th {
-            background: #fafafa;
-            font-weight: 600;
-            color: #1f2937;
-          }
-          .users-table .ant-table-tbody > tr:hover > td {
-            background: #f5f7fa;
-          }
-           .users-table .ant-table-tbody > tr > td {
-            padding: 12px 8px;
-          }
-          .ant-tag {
-            margin: 0;
-          }
-        `}
-      </style>
     </div>
   );
 };

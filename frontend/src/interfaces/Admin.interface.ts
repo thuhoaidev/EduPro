@@ -9,8 +9,7 @@ export enum UserRole {
 
 export enum UserStatus {
   ACTIVE = "active",
-  INACTIVE = "inactive",
-  BANNED = "banned"
+  INACTIVE = "inactive"
 }
 
 // API User interface (matches backend response)
@@ -65,6 +64,10 @@ export interface UserQueryParams {
   q?: string;
   page?: number;
   limit?: number;
+  role?: UserRole;
+  status?: UserStatus;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface UpdateUserRolePayload {
