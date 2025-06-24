@@ -5,12 +5,18 @@ import {
   FileSearchOutlined,
   TagsOutlined,
   HistoryOutlined,
-  SettingOutlined,
   BarChartOutlined,
   WarningOutlined,
-  AppstoreOutlined,
   LogoutOutlined,
   ProfileOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  BellOutlined,
+  SettingOutlined,
+  BookOutlined,
+  GiftOutlined,
+  DollarCircleOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -18,12 +24,17 @@ import {
   Dropdown,
   Breadcrumb,
   message,
+  Avatar,
+  Badge,
+  Tooltip,
+  Button,
 } from "antd";
 import type { MenuProps } from "antd";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import styles from "../../styles/AdminLayout.module.css";
 import { config } from "../../api/axios";
+import { motion, AnimatePresence } from "framer-motion";
 
 const { Header, Sider, Content } = Layout;
 
@@ -36,52 +47,28 @@ interface User {
     description: string;
     permissions: string[];
   };
-  approval_status?: string;
 }
 
-const getRoleName = (user: User): string => {
-  if (!user) {
-    return 'user';
-  }
-
-  // Kiểm tra approval_status để xác định vai trò
-  if (user.approval_status === 'approved') {
-    if (user.email === 'admin@pro.edu.vn') {
-      return 'admin';
-    }
-    if (user.email === 'nguoikiemduyet@pro.edu.vn') {
-      return 'moderator';
-    }
-    if (user.email.endsWith('@pro.edu.vn')) {
-      return 'instructor';
-    }
-  }
-
-  return 'user';
-};
-
-const checkRole = (user: User, requiredRole: string): boolean => {
+const checkRole = (user: User | null, requiredRole: string): boolean => {
   return user?.role?.name === requiredRole;
 };
 
 const AdminLayout = () => {
-  const nav = useNavigate();
-  const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
-    nav(key);
-  };
+  const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // --- Fetch User Data (FIXED) ---
   useEffect(() => {
     const fetchUser = async () => {
+      setLoading(true);
       const token = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
 
       if (storedUser) {
         const userData = JSON.parse(storedUser);
-        // Normalize role
         if (userData && typeof userData.role === 'string') {
           userData.role = { name: userData.role };
         }
@@ -93,15 +80,13 @@ const AdminLayout = () => {
       if (!token) {
         setUser(null);
         setLoading(false);
+        navigate('/login');
         return;
       }
 
       try {
-        const response = await config.get('/auth/me', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        // Reverted to /auth/me and response.data
+        const response = await config.get('/auth/me');
         let userData = response.data;
         if (userData && typeof userData.role === 'string') {
           userData.role = { name: userData.role };
@@ -110,247 +95,192 @@ const AdminLayout = () => {
         localStorage.setItem('user', JSON.stringify(userData));
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
         setUser(null);
+        navigate("/login");
       } finally {
         setLoading(false);
       }
     };
-
     fetchUser();
-  }, [nav]);
+  }, [navigate]);
 
+  // --- Role Check ---
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        nav('/login');
-      } else if (!checkRole(user, 'admin')) {
-        message.error('Bạn không có quyền truy cập trang quản trị');
-        nav('/');
-      }
+    if (!loading && !checkRole(user, "admin")) {
+      message.error("Bạn không có quyền truy cập trang quản trị");
+      navigate("/");
     }
-  }, [user, loading, nav]);
+  }, [user, loading, navigate]);
 
+  // --- Logout ---
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setUser(null);
-    message.success('Đăng xuất thành công!');
-    nav('/login');
+    message.success("Đăng xuất thành công!");
+    navigate("/login");
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-  if (!user || !checkRole(user, 'admin')) {
-    return null;
-  }
+  // --- Menu Items ---
+  const menuItems: MenuProps["items"] = useMemo(
+    () => [
+      {
+        key: "/admin",
+        icon: <HomeOutlined />,
+        label: "Tổng quan",
+      },
+      {
+        label: "QUẢN LÝ",
+        type: "group",
+        children: [
+          { key: "/admin/users", icon: <UserOutlined />, label: "Người dùng" },
+          { key: "/admin/instructors", icon: <TeamOutlined />, label: "Giảng viên" },
+          { key: "/admin/categories", icon: <TagsOutlined />, label: "Danh mục" },
+          { key: "/admin/courses", icon: <BookOutlined />, label: "Khóa học" },
+        ],
+      },
+      {
+        label: "KIỂM DUYỆT",
+        type: "group",
+        children: [
+          { key: "/admin/content-approval", icon: <SafetyCertificateOutlined />, label: "Nội dung" },
+          { key: "/admin/reports", icon: <WarningOutlined />, label: "Báo cáo" },
+        ],
+      },
+      {
+        label: "KINH DOANH",
+        type: "group",
+        children: [
+          { key: "/admin/transactions", icon: <DollarCircleOutlined />, label: "Giao dịch" },
+          { key: "/admin/vouchers", icon: <GiftOutlined />, label: "Mã giảm giá" },
+          { key: "/admin/statistics", icon: <BarChartOutlined />, label: "Thống kê" },
+        ],
+      },
+      {
+        label: "HỆ THỐNG",
+        type: "group",
+        children: [{ key: "/admin/settings", icon: <SettingOutlined />, label: "Cài đặt" }],
+      },
+    ],
+    []
+  );
 
-  const breadcrumbItems = location.pathname
-    .split("/")
-    .filter((i) => i)
-    .map((path, index, array) => {
-      const url = `/${array.slice(0, index + 1).join("/")}`;
-      const name = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, " ");
-      return {
-        key: `breadcrumb-${url.replace('/', '-')}`,
-        title: <a href={url}>{name}</a>,
-      };
-    });
+  // --- Breadcrumb ---
+  const breadcrumbNameMap: { [key: string]: string } = {
+    '/admin': 'Tổng quan',
+    '/admin/users': 'Quản lý người dùng',
+    '/admin/instructors': 'Quản lý giảng viên',
+    '/admin/categories': 'Quản lý danh mục',
+    // Thêm các path khác ở đây
+  };
+
+  const pathSnippets = location.pathname.split("/").filter((i) => i);
+  const breadcrumbItems = pathSnippets.map((_, index) => {
+    const url = `/${pathSnippets.slice(0, index + 1).join("/")}`;
+    return {
+      key: url,
+      title: <Link to={url}>{breadcrumbNameMap[url] || url.split('/').pop()}</Link>,
+    };
+  });
 
   const finalBreadcrumbItems = [
-    {
-      key: "/admin",
-      title: <HomeOutlined />,
-    },
+    { key: 'home', title: <Link to="/admin"><HomeOutlined /></Link> },
     ...breadcrumbItems,
   ];
 
-  const renderLabel = (title: string, caption?: string) => {
-    if (collapsed) return null;
-    return (
-      <div className={styles.menuItemLabel}>
-        <span>{title}</span>
-        {caption && (
-          <span>{caption}</span>
-        )}
-      </div>
-    );
-  };
-
-  const menuItems: MenuProps["items"] = [
+  // --- Dropdown Menu ---
+  const userMenuItems: MenuProps["items"] = [
     {
-      type: "group",
-      label: collapsed ? null : (
-        <div>
-          Người dùng
-        </div>
-      ),
-      children: [
-        {
-          key: "/admin/users",
-          icon: <UserOutlined className="text-lg" />,
-          label: renderLabel("Quản lý người dùng"),
-        },
-        {
-          key: "/admin/instructors",
-          icon: <	ProfileOutlined className="text-lg" />,
-          label: renderLabel("Hồ sơ giảng viên chờ duyệt"),
-        },
-        // {
-        //   key: "/admin/instructor-approval",
-        //   icon: <FileSearchOutlined className="text-lg" />,
-        //   label: renderLabel("Duyệt giảng viên"),
-        // },
-      ],
+      key: "home",
+      icon: <HomeOutlined />,
+      label: "Quay lại trang chủ",
+      onClick: () => navigate("/"),
     },
+    { type: "divider" },
     {
-      type: "group",
-      label: collapsed ? null : (
-        <div>
-          Nội dung
-        </div>
-      ),
-      children: [
-        {
-          key: "/admin/content-approval",
-          icon: <FileSearchOutlined className="text-lg" />,
-          label: renderLabel("Duyệt khóa học & blog"),
-        },
-        {
-          key: "/admin/categories",
-          icon: <TagsOutlined className="text-lg" />,
-          label: renderLabel("Quản lý danh mục"),
-        },
-      ],
-    },
-    {
-      type: "group",
-      label: collapsed ? null : (
-        <div>
-          Báo cáo
-        </div>
-      ),
-      children: [
-        {
-          key: "/admin/reports",
-          icon: <WarningOutlined className="text-lg" />,
-          label: renderLabel("Quản lý báo cáo"),
-        },
-      ],
-    },
-    {
-      type: "group",
-      label: collapsed ? null : (
-        <div>
-          Hệ thống
-        </div>
-      ),
-      children: [
-        {
-          key: "/admin/system/vouchers",
-          icon: <TagsOutlined className="text-lg" />,
-          label: renderLabel("Mã giảm giá"),
-        },
-        {
-          key: "/admin/system/payments",
-          icon: <HistoryOutlined className="text-lg" />,
-          label: renderLabel("Thanh toán"),
-        },
-        {
-          key: "/admin/system/notifications",
-          icon: <AppstoreOutlined className="text-lg" />,
-          label: renderLabel("Thông báo hệ thống"),
-        },
-      ],
-    },
-    {
-      type: "group",
-      label: collapsed ? null : (
-        <div>
-          Thống kê
-        </div>
-      ),
-      children: [
-        {
-          key: "/admin/statistics",
-          icon: <BarChartOutlined className="text-lg" />,
-          label: renderLabel("Thống kê & báo cáo"),
-        },
-      ],
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "Đăng xuất",
+      onClick: handleLogout,
+      danger: true,
     },
   ];
 
-  const profileMenu = (
-    <Menu>
-      <Menu.ItemGroup
-        title={
-          <div style={{ padding: "8px 12px" }}>
-            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullname}</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: {user?.role?.name === 'admin' ? 'Admin' : user?.role?.name === 'instructor' ? 'Giảng viên' : user?.role?.name === 'moderator' ? 'Quản trị viên' : 'Người dùng'}</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>{user?.email}</p>
-          </div>
-        }
-      >
-      </Menu.ItemGroup>
-      <Menu.Divider />
-      <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => nav('/')}>
-        Trang người dùng
-      </Menu.Item>
-      <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout}>
-        Đăng xuất
-      </Menu.Item>
-    </Menu>
-  );
+  // --- Render ---
+  if (loading) {
+    return <div className={styles.loadingScreen}>Loading...</div>;
+  }
+  if (!user || !checkRole(user, "admin")) {
+    return null;
+  }
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
+    <Layout className={styles.adminLayout}>
       <Sider
+        trigger={null}
         collapsible
         collapsed={collapsed}
-        onCollapse={setCollapsed}
-        width={280}
-        collapsedWidth={80}
-        className={`${styles.sider}`}
+        width={240}
+        className={styles.sider}
+        theme="light"
       >
-        <div className={styles.logo}>
-          {collapsed ? "AD" : "Admin Panel"}
-        </div>
-
+        <motion.div
+          layout
+          className={`${styles.logoArea} ${collapsed ? styles.collapsed : ""}`}
+        >
+          {!collapsed && (
+            <motion.span
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2, duration: 0.3 }}
+              className={styles.logoText}
+            >
+              EduPro
+            </motion.span>
+          )}
+        </motion.div>
         <Menu
           mode="inline"
-          selectedKeys={[location.pathname]}
-          onClick={handleMenuClick}
-          items={menuItems}
-          className={styles.customAdminMenu}
-          style={{
-            height: "calc(100vh - 64px)",
-            overflowY: "auto",
-            overflowX: "hidden",
-          }}
           theme="light"
+          className={styles.menu}
+          items={menuItems}
+          selectedKeys={[location.pathname]}
+          onClick={({ key }) => navigate(key)}
         />
       </Sider>
-
-      <Layout style={{ marginLeft: collapsed ? 80 : 280, transition: "margin-left 0.2s" }}>
-        <Header
-          className={styles.header}
-        >
-
-
-          <Dropdown menu={{ items: profileMenu }} trigger={["click"]} placement="bottomRight">
-            <div
-              className={styles.profileDropdown}
-            >
-              <SettingOutlined style={{ fontSize: 20, color: "#1890ff" }} />
-            </div>
-          </Dropdown>
+      <Layout className={styles.siteLayout}>
+        <Header className={styles.header}>
+          <Button
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setCollapsed(!collapsed)}
+            className={styles.toggleButton}
+          />
+          <div className={styles.headerRight}>
+            <Dropdown menu={{ items: userMenuItems }} trigger={["click"]}>
+              <a onClick={(e) => e.preventDefault()} className={styles.profileDropdown}>
+                <Avatar src={user.avatar} size="small">{user.fullname.charAt(0)}</Avatar>
+                <span>{user.fullname}</span>
+              </a>
+            </Dropdown>
+          </div>
         </Header>
-
-        <Content
-          className={styles.contentArea}
-        >
+        <Content className={styles.content}>
           <Breadcrumb items={finalBreadcrumbItems} className={styles.breadcrumb} />
-          <Outlet />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className={styles.pageContainer}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </Content>
       </Layout>
     </Layout>
