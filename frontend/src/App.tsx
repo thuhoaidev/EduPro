@@ -34,6 +34,7 @@ import MyBlogPosts from "./pages/client/blog/MyBlogPosts";
 import SavedBlogPosts from "./pages/client/blog/SavedBlogPosts";
 import FeaturedPostsPage from "./pages/client/blog/FeaturedPostsPage";
 import VouchersPage from "./pages/client/VouchersPage";
+import VoucherPage from "./pages/admin/Vouchers/VouchersPage";
 import CoursesPage from './pages/client/CoursesPage';
 import InstructorsPage from './pages/client/InstructorsPage';
 import BlogPage from './pages/client/BlogPage';
@@ -88,6 +89,7 @@ function App() {
         { path: "reports", element: <ReportsPage /> },
         { path: "system/vouchers", element: <CouponManagement /> },
         { path: "history", element: <TransactionHistory /> },
+        { path: "vouchers", element: <VoucherPage />}
       ],
     },
     {
