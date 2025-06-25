@@ -32,7 +32,8 @@ export default function LoginPage(): React.ReactElement {
   const onFinish = (values: { identifier: string; password: string }) => {
     setIsLoading(true);
     mutate(values, {
-      onSuccess: (data: { user?: { isEmailVerified?: boolean }, token?: string }) => {
+      onSuccess: (data) => {
+        console.log('Login response:', data);
         if (data?.user?.isEmailVerified === false) {
           setVerificationEmail(values.identifier);
           setShowVerificationModal(true);
@@ -128,6 +129,9 @@ export default function LoginPage(): React.ReactElement {
       transition: { duration: 0.1 }
     }
   };
+
+  const storedUser = localStorage.getItem('user');
+  console.log('User từ localStorage:', storedUser);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4 py-8 relative">

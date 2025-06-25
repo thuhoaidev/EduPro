@@ -47,16 +47,20 @@ const Profile = () => {
         const response = await config.get('/users/me');
         
         // Lưu user vào localStorage
-        localStorage.setItem('user', JSON.stringify(response.data));
+        localStorage.setItem('user', JSON.stringify(response.data.data));
         
-        setUser(response.data);
+        setUser(response.data.data);
         setError(null);
       } catch (error: unknown) {
         console.error('Error fetching user profile:', error);
         let errorMessage = 'Không thể tải thông tin người dùng';
         
         if (error && typeof error === 'object' && 'response' in error) {
-          const axiosError = error as { response?: { data?: { message?: string } } };
+          const axiosError = error as { response?: { status?: number, data?: { message?: string } } };
+          if (axiosError.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          }
           errorMessage = axiosError.response?.data?.message || errorMessage;
         } else if (error instanceof Error) {
           errorMessage = error.message;
