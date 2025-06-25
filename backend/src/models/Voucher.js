@@ -23,6 +23,8 @@ const voucherSchema = new mongoose.Schema({
   endDate: { type: Date }, // Ngày kết thúc
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+}, {
+  suppressReservedKeysWarning: true,
 });
 
 module.exports = mongoose.model("Voucher", voucherSchema);

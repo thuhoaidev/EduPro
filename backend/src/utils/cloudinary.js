@@ -8,14 +8,6 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Log để debug
-console.log('Cloudinary Config Check:');
-console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
-console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? '***' : 'undefined');
-console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? '***' : 'undefined');
-console.log('--- End Cloudinary Config Check ---');
-console.log('Cloudinary đã được cấu hình thành công.');
-
 /**
  * Upload file từ buffer trực tiếp lên Cloudinary
  * @param {Buffer} fileBuffer - Buffer của file cần upload
@@ -23,12 +15,6 @@ console.log('Cloudinary đã được cấu hình thành công.');
  * @returns {Promise<Object>} - Kết quả upload
  */
 exports.uploadBufferToCloudinary = async (fileBuffer, folder = 'misc') => {
-    console.log('DEBUG - uploadBufferToCloudinary called with:', {
-        folder,
-        bufferSize: fileBuffer ? fileBuffer.length : 'No buffer',
-        bufferType: fileBuffer ? typeof fileBuffer : 'No buffer'
-    });
-
     return new Promise((resolve, reject) => {
         const options = {
             folder: `edupor/${folder}`,
@@ -42,17 +28,12 @@ exports.uploadBufferToCloudinary = async (fileBuffer, folder = 'misc') => {
             ];
         }
 
-        console.log('DEBUG - Cloudinary upload options:', options);
-
         const uploadStream = cloudinary.uploader.upload_stream(
             options,
             (error, result) => {
-                console.log('Cloudinary upload callback:', { error, result });
                 if (error) {
-                    console.error('DEBUG - Cloudinary upload error:', error);
                     return reject(error);
                 }
-                console.log('DEBUG - Cloudinary upload success:', result);
                 resolve(result);
             },
         );

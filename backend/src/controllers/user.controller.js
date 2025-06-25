@@ -2,6 +2,7 @@ const User = require('../models/User');
 const { Role, ROLES } = require('../models/Role');
 const { sendInstructorVerificationEmail, sendInstructorProfileSubmittedEmail, sendInstructorApprovalResultEmail } = require('../utils/sendEmail');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
 // Lấy thông tin người dùng hiện tại
 exports.getCurrentUser = async (req, res) => {
@@ -590,25 +591,25 @@ exports.updateInstructorApproval = async (req, res) => {
     }
 
     // Cập nhật trạng thái duyệt
-    instructor.approval_status = status;
-    instructor.instructorInfo.instructor_profile_status = status;
-    instructor.instructorInfo.approval_date = new Date();
-    instructor.instructorInfo.approved_by = req.user._id;
-
     if (status === 'approved') {
+      instructor.approval_status = 'approved';
+      instructor.instructorInfo.instructor_profile_status = 'approved';
+      instructor.instructorInfo.is_approved = true;
       // Nếu duyệt, cập nhật role thành instructor
       const instructorRole = await Role.findOne({ name: 'instructor' });
       if (instructorRole) {
         instructor.role_id = instructorRole._id;
         instructor.isInstructor = true;
-        instructor.instructorInfo.is_approved = true;
       }
       instructor.instructorInfo.rejection_reason = null;
-    } else {
-      // Nếu từ chối, giữ nguyên role student
-      instructor.instructorInfo.rejection_reason = rejection_reason;
+    } else if (status === 'rejected') {
+      // Nếu từ chối, chỉ cập nhật instructor_profile_status và lý do từ chối
+      instructor.instructorInfo.instructor_profile_status = 'rejected';
       instructor.instructorInfo.is_approved = false;
+      instructor.instructorInfo.rejection_reason = rejection_reason;
     }
+    instructor.instructorInfo.approval_date = new Date();
+    instructor.instructorInfo.approved_by = req.user._id;
 
     // Lưu thay đổi
     await instructor.save();
@@ -1200,7 +1201,6 @@ exports.registerInstructor = async (req, res) => {
     }
 
     // Hash password
-    const bcrypt = require('bcryptjs');
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(cleanPassword, saltRounds);
 
@@ -1360,6 +1360,10 @@ exports.verifyInstructorEmail = async (req, res) => {
     user.email_verification_expires = undefined;
     user.approval_status = 'approved'; // Chuyển sang đã duyệt khi xác minh email
     // KHÔNG cập nhật instructorInfo.instructor_profile_status, giữ nguyên trạng thái cũ
+
+    if (user.password && !user.password.startsWith('$2a$') && !user.password.startsWith('$2b$')) {
+      user.password = await bcrypt.hash(user.password, 10);
+    }
 
     await user.save();
 

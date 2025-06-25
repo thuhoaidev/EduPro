@@ -1,13 +1,15 @@
 const mongoose = require('mongoose');
-const User = require('./src/models/UserSchema');
-const { Role } = require('./src/models/Role');
+const User = require('../src/models/User');
+const { Role } = require('../src/models/Role');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
+
+const MONGO_URI = 'mongodb+srv://edupro:edupro123@cluster0.qjwuxzj.mongodb.net/edupro';
 
 async function createTestUser() {
   try {
     // Kết nối MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://edupro:edupro123@cluster0.qjwuxzj.mongodb.net/edupro');
+    await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
     console.log('Connected to MongoDB');
 
     // Tìm role student
@@ -60,4 +62,18 @@ async function createTestUser() {
   }
 }
 
-createTestUser(); 
+async function resetPassword() {
+  await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+  const user = await User.findOne({ email: 'dev.thuhoai@gmail.com' });
+  if (!user) {
+    console.log('Không tìm thấy user với email dev.thuhoai@gmail.com');
+    process.exit(1);
+  }
+  user.password = '12345678'; // Gán mật khẩu mới, pre-save hook sẽ tự hash
+  await user.save();
+  console.log('Đã cập nhật lại mật khẩu cho user dev.thuhoai@gmail.com!');
+  await mongoose.disconnect();
+}
+
+createTestUser();
+resetPassword(); 

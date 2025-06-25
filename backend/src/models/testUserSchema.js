@@ -100,6 +100,7 @@ const testUserSchema = new mongoose.Schema({
   },
   toJSON: { virtuals: true },
   toObject: { virtuals: true },
+  suppressReservedKeysWarning: true,
 });
 
 testUserSchema.pre('save', async function(next) {

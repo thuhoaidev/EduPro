@@ -4,14 +4,12 @@ const blogLikeSchema = new mongoose.Schema({
   blog: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Blog',
-    required: true,
-    index: true
+    required: true
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   createdAt: {
     type: Date,
