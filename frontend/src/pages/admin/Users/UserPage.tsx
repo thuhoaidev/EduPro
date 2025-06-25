@@ -389,8 +389,8 @@ const UserPage = () => {
       const roleId = roles.find(r => r.name === values.role)?._id;
       if (!roleId) {
         message.error("Vai trò không hợp lệ!");
-          return;
-        }
+        return;
+      }
       // Build payload
       type UserPayload = {
         fullname: string;
@@ -405,7 +405,8 @@ const UserPage = () => {
         password?: string;
       };
       let payload: Omit<UserPayload, 'password'> | UserPayload;
-      if (!editingUser) {
+      let isEdit = !!editingUser;
+      if (!isEdit) {
         payload = {
           ...{
             fullname: values.fullname,
@@ -433,11 +434,32 @@ const UserPage = () => {
           role_id: roleId,
         };
       }
-      if (editingUser) {
-        await updateUser(editingUser.id.toString(), payload);
+
+      // Xử lý upload avatar: nếu có file, gửi kèm file, nếu không gửi url hoặc không gửi trường avatar
+      let formData: FormData | null = null;
+      if (avatarFileList.length > 0 && avatarFileList[0].originFileObj) {
+        formData = new FormData();
+        Object.entries(payload).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            formData!.append(key, value as string);
+          }
+        });
+        formData.append('avatar', avatarFileList[0].originFileObj as File);
+      }
+
+      if (isEdit) {
+        if (formData) {
+          await updateUser(editingUser.id.toString(), formData, true);
+        } else {
+          await updateUser(editingUser.id.toString(), payload);
+        }
         message.success("Cập nhật người dùng thành công");
       } else {
-        await createUser(payload as UserPayload);
+        if (formData) {
+          await createUser(formData, true);
+        } else {
+          await createUser(payload as UserPayload);
+        }
         message.success("Thêm người dùng thành công");
       }
       setIsModalVisible(false);

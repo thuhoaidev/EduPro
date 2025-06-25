@@ -42,12 +42,20 @@ exports.updateCurrentUser = async (req, res) => {
       instructorInfo: req.body.instructorInfo,
     };
 
-    // Xử lý avatar nếu có upload
-    if (req.uploadedAvatar) {
-      updateFields.avatar = req.uploadedAvatar.url;
+    // Xử lý avatar: ưu tiên file upload, nếu không có thì lấy từ body
+    let avatarUrl = null;
+    console.log('DEBUG - req.uploadedAvatar:', req.uploadedAvatar);
+    console.log('DEBUG - req.body.avatar:', req.body.avatar);
+
+    if (req.uploadedAvatar && req.uploadedAvatar.url) {
+      avatarUrl = req.uploadedAvatar.url;
+      console.log('DEBUG - Using uploaded avatar URL:', avatarUrl);
     } else if (req.body.avatar) {
-      // Nếu không có file upload nhưng có URL avatar
-      updateFields.avatar = req.body.avatar;
+      avatarUrl = req.body.avatar;
+      console.log('DEBUG - Using body avatar URL:', avatarUrl);
+    } else {
+      console.log('DEBUG - No avatar provided, using default');
+      avatarUrl = 'default-avatar.jpg'; // Giá trị mặc định
     }
 
     // Xử lý social_links
@@ -228,26 +236,36 @@ exports.createUser = async (req, res) => {
       });
     }
 
-    // Kiểm tra xem slug đã tồn tại chưa
-    let slug = nickname ? nickname.toLowerCase().replace(/[^a-z0-9]/g, '-') : '';
-    let counter = 1;
-    let userWithSlug;
-
-    if (slug) {
-      do {
-        userWithSlug = await User.findOne({ slug });
-        if (userWithSlug) {
-          slug = `${slug}-${counter++}`;
+    // Tạo nickname từ fullname nếu không được cung cấp
+    let finalNickname = nickname;
+    if (!finalNickname || finalNickname === '' || finalNickname === null || finalNickname === undefined) {
+      if (fullname) {
+        finalNickname = fullname.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '');
+        // Đảm bảo nickname không rỗng
+        if (!finalNickname || finalNickname === '' || finalNickname === null || finalNickname === undefined) {
+          finalNickname = 'user' + Date.now();
         }
-      } while (userWithSlug);
+      } else {
+        finalNickname = 'user' + Date.now();
+      }
     }
 
-    // Xử lý avatar nếu có upload
+    // Slug sẽ được tạo tự động bởi pre-save hook
+
+    // Xử lý avatar: ưu tiên file upload, nếu không có thì lấy từ body
     let avatarUrl = null;
-    if (req.uploadedAvatar) {
+    console.log('DEBUG - req.uploadedAvatar:', req.uploadedAvatar);
+    console.log('DEBUG - req.body.avatar:', req.body.avatar);
+
+    if (req.uploadedAvatar && req.uploadedAvatar.url) {
       avatarUrl = req.uploadedAvatar.url;
+      console.log('DEBUG - Using uploaded avatar URL:', avatarUrl);
     } else if (req.body.avatar) {
       avatarUrl = req.body.avatar;
+      console.log('DEBUG - Using body avatar URL:', avatarUrl);
+    } else {
+      console.log('DEBUG - No avatar provided, using default');
+      avatarUrl = 'default-avatar.jpg'; // Giá trị mặc định
     }
 
     // Xử lý social_links
@@ -266,11 +284,10 @@ exports.createUser = async (req, res) => {
     }
 
     // Tạo user mới
-    const user = new User({
+    const userData = {
       email,
       password,
       fullname,
-      nickname,
       phone,
       dob,
       address,
@@ -279,12 +296,18 @@ exports.createUser = async (req, res) => {
       status,
       approval_status,
       email_verified: true, // Admin tạo user nên mặc định đã xác thực email
-      slug,
       bio,
       instructorInfo,
       avatar: avatarUrl,
       social_links: socialLinks,
-    });
+    };
+
+    // Chỉ thêm nickname nếu nó có giá trị hợp lệ
+    if (finalNickname && finalNickname !== '' && finalNickname !== null && finalNickname !== undefined) {
+      userData.nickname = finalNickname;
+    }
+
+    const user = new User(userData);
 
     await user.save();
     await user.populate('role_id');
@@ -347,6 +370,27 @@ exports.updateUser = async (req, res) => {
       }
     }
 
+    // Xử lý avatar: ưu tiên file upload, nếu không có thì lấy từ body
+    let avatarUrl = existingUser.avatar; // Giữ avatar cũ nếu không có avatar mới
+    console.log('DEBUG - req.uploadedAvatar (update):', req.uploadedAvatar);
+    console.log('DEBUG - updateData.avatar:', updateData.avatar);
+    console.log('DEBUG - existingUser.avatar:', existingUser.avatar);
+
+    if (req.uploadedAvatar && req.uploadedAvatar.url) {
+      avatarUrl = req.uploadedAvatar.url;
+      console.log('DEBUG - Using uploaded avatar URL (update):', avatarUrl);
+    } else if (updateData.avatar) {
+      avatarUrl = updateData.avatar;
+      console.log('DEBUG - Using body avatar URL (update):', avatarUrl);
+    } else {
+      console.log('DEBUG - Keeping existing avatar:', avatarUrl);
+      // Đảm bảo có giá trị mặc định nếu không có avatar cũ
+      if (!avatarUrl) {
+        avatarUrl = 'default-avatar.jpg';
+        console.log('DEBUG - No existing avatar, using default:', avatarUrl);
+      }
+    }
+
     // Chuẩn bị dữ liệu cập nhật
     const dataToUpdate = {
       fullname: updateData.fullname || existingUser.fullname,
@@ -361,7 +405,7 @@ exports.updateUser = async (req, res) => {
       nickname: updateData.nickname || existingUser.nickname,
       bio: updateData.bio || existingUser.bio,
       social_links: updateData.social_links || existingUser.social_links,
-      avatar: updateData.avatar || existingUser.avatar,
+      avatar: avatarUrl,
     };
 
     console.log('Data to update:', dataToUpdate); // Debug log
@@ -767,9 +811,9 @@ exports.getPendingInstructorDetail = async (req, res) => {
 
 // Nộp hồ sơ giảng viên (từ role sinh viên)
 exports.submitInstructorProfile = async (req, res) => {
-  try { 
+  try {
     const userId = req.user._id;
-    
+
     // Kiểm tra user hiện tại
     const user = await User.findById(userId).populate('role_id');
     if (!user) {
@@ -823,14 +867,14 @@ exports.submitInstructorProfile = async (req, res) => {
 
     // Xử lý file upload
     const uploadedFiles = req.files || {};
-    
+
     // Xử lý file bằng cấp
     const processedCertificates = [];
     if (uploadedFiles.certificate_files && certificates) {
       for (let i = 0; i < certificates.length; i++) {
         const certificate = certificates[i];
         const certificateFile = uploadedFiles.certificate_files[i];
-        
+
         if (!certificateFile) {
           return res.status(400).json({
             success: false,
@@ -840,7 +884,7 @@ exports.submitInstructorProfile = async (req, res) => {
 
         // Upload file lên Cloudinary
         const cloudinaryResult = await uploadToCloudinary(certificateFile.path, 'instructor-certificates');
-        
+
         processedCertificates.push({
           name: certificate.name,
           major: certificate.major,
@@ -871,7 +915,7 @@ exports.submitInstructorProfile = async (req, res) => {
       for (let i = 0; i < other_documents.length; i++) {
         const doc = other_documents[i];
         const docFile = uploadedFiles.other_documents[i];
-        
+
         if (docFile) {
           const docResult = await uploadToCloudinary(docFile.path, 'instructor-documents');
           processedOtherDocuments.push({
@@ -935,7 +979,7 @@ exports.submitInstructorProfile = async (req, res) => {
 exports.getMyInstructorProfile = async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     const user = await User.findById(userId).populate('role_id');
     if (!user) {
       return res.status(404).json({
@@ -966,7 +1010,7 @@ exports.getMyInstructorProfile = async (req, res) => {
 exports.updateInstructorProfile = async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     const user = await User.findById(userId).populate('role_id');
     if (!user) {
       return res.status(404).json({
@@ -1057,18 +1101,18 @@ exports.registerInstructor = async (req, res) => {
       gender,
       dateOfBirth,
       address,
-      
+
       // Education
       degree,
       institution,
       graduationYear,
       major,
-      
+
       // Professional
       specializations,
       teachingExperience,
       experienceDescription,
-      
+
       // Additional
       bio,
       linkedin,
@@ -1217,7 +1261,7 @@ exports.registerInstructor = async (req, res) => {
     // Lấy thông tin file đã upload từ middleware
     const uploadedFiles = req.uploadedInstructorFiles || {};
     console.log('DEBUG - uploadedInstructorFiles in registerInstructor:', uploadedFiles); // Log để debug
-    
+
     // Xử lý avatar
     let avatarUrl = 'default-avatar.jpg';
     if (uploadedFiles.avatar) {

@@ -8,11 +8,11 @@ const UserSchema = new mongoose.Schema({
   },
   nickname: {
     type: String,
-    required: [true, 'Nickname là bắt buộc'],
     trim: true,
   },
   fullname: {
     type: String,
+    required: [true, 'Họ và tên là bắt buộc'],
     trim: true,
     minlength: [2, 'Họ và tên phải có ít nhất 2 ký tự'],
   },
@@ -21,7 +21,6 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     index: true,
-    required: true,
   },
   gender: {
     type: String,
@@ -51,7 +50,7 @@ const UserSchema = new mongoose.Schema({
   dob: {
     type: Date,
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         return !v || v <= new Date();
       },
       message: 'Ngày sinh không thể là ngày trong tương lai',
@@ -115,14 +114,14 @@ const UserSchema = new mongoose.Schema({
   },
   reset_password_token: {
     type: String,
-    required: function() {
+    required: function () {
       return this.reset_password_expires;
     },
     expires: '10m',
   },
   reset_password_expires: {
     type: Date,
-    required: function() {
+    required: function () {
       return this.reset_password_token;
     },
   },

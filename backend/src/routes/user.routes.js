@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { auth, checkRole } = require('../middlewares/auth');
 const { uploadAvatar, processAvatarUpload, deleteOldAvatar, uploadInstructorFiles, processInstructorFilesUpload } = require('../middlewares/upload');
+const { handleUploadError } = require('../middlewares/upload.middleware');
 const {
   getCurrentUser,
   updateCurrentUser,
@@ -59,7 +60,7 @@ router.get('/test-role', (req, res) => {
 router.get('/me', getCurrentUser);
 
 // Cập nhật thông tin người dùng hiện tại (với upload avatar)
-router.put('/me', uploadAvatar, processAvatarUpload, deleteOldAvatar, updateCurrentUser);
+router.put('/me', uploadAvatar, processAvatarUpload, deleteOldAvatar, handleUploadError, updateCurrentUser);
 
 // Routes cho sinh viên nộp hồ sơ giảng viên (chỉ cần đăng nhập)
 router.post('/instructor-profile/register', uploadInstructorFiles, processInstructorFilesUpload, submitInstructorProfile);
@@ -82,10 +83,10 @@ router.get('/', getAllUsers);
 router.get('/:id', getUserById);
 
 // Tạo người dùng mới (với upload avatar)
-router.post('/', uploadAvatar, processAvatarUpload, createUser);
+router.post('/', uploadAvatar, processAvatarUpload, handleUploadError, createUser);
 
-// Cập nhật thông tin người dùng theo ID
-router.put('/:id', updateUser);
+// Cập nhật thông tin người dùng theo ID (với upload avatar)
+router.put('/:id', uploadAvatar, processAvatarUpload, deleteOldAvatar, handleUploadError, updateUser);
 
 // Xóa người dùng theo ID
 router.delete('/:id', deleteUser);
