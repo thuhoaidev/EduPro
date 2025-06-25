@@ -4,25 +4,44 @@ import axios from 'axios';
 const API_URL = 'http://localhost:5000/api';
 
 export interface Voucher {
-  _id: string;
+  id: string;
   code: string;
-  course: string | null;
-  type: 'percentage' | 'amount';
-  value: number;
-  quantity: number;
-  used: number;
-  status: 'active' | 'expired';
+  title: string;
+  description: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  maxDiscount: number;
+  minOrderValue: number;
+  usageLimit: number;
+  usedCount: number;
+  categories: string[];
+  tags: string[];
+  isNew: boolean;
+  isHot: boolean;
+  isVipOnly: boolean;
+  startDate: string;
+  endDate?: string;
   createdAt: string;
-  expiresAt: string | null;
+  updatedAt: string;
 }
 
 export interface CreateVoucherData {
   code: string;
-  course?: string;
-  type: 'percentage' | 'amount';
-  value: number;
-  quantity: number;
-  expiresAt?: string;
+  title: string;
+  description?: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  maxDiscount?: number;
+  minOrderValue?: number;
+  usageLimit: number;
+  usedCount?: number;
+  categories?: string[];
+  tags?: string[];
+  isNew?: boolean;
+  isHot?: boolean;
+  isVipOnly?: boolean;
+  startDate: string;
+  endDate?: string;
 }
 
 export interface UpdateVoucherData extends Partial<CreateVoucherData> {}

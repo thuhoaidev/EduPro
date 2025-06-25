@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Layout, Input, Select, Card, Tag, Typography, Badge, message, Pagination } from 'antd';
-import { SearchOutlined, FilterOutlined, CopyOutlined, FireOutlined, ClockCircleOutlined, GiftOutlined, StarOutlined } from '@ant-design/icons';
+import { SearchOutlined, FilterOutlined, CopyOutlined, FireOutlined, ClockCircleOutlined, GiftOutlined, StarOutlined, CrownOutlined } from '@ant-design/icons';
+import axios from 'axios';
+import { getAllCategories } from '../../services/categoryService';
+import type { Category } from '../../interfaces/Category.interface';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -24,129 +27,21 @@ interface Voucher {
     isActive: boolean;
     isHot?: boolean;
     isNew?: boolean;
+    isVipOnly?: boolean;
     isExpired: boolean;
     daysLeft: number;
 }
 
-const mockVouchers: Voucher[] = [
-    {
-        id: '1',
-        code: 'WELCOME50',
-        title: 'Giảm 50% cho người mới',
-        description: 'Áp dụng cho tất cả khóa học, tối đa 500K',
-        discount: 50,
-        discountType: 'percentage',
-        minAmount: 100000,
-        maxDiscount: 500000,
-        validFrom: '2024-01-01',
-        validTo: '2024-12-31',
-        usageLimit: 1000,
-        usedCount: 234,
-        category: 'new-user',
-        isActive: true,
-        isHot: true,
-        isNew: true,
-        isExpired: false,
-        daysLeft: 45
-    },
-    {
-        id: '2',
-        code: 'FLASH200K',
-        title: 'Giảm 200K cho khóa học IT',
-        description: 'Áp dụng cho khóa học Công nghệ thông tin',
-        discount: 200000,
-        discountType: 'fixed',
-        minAmount: 500000,
-        validFrom: '2024-01-01',
-        validTo: '2024-06-30',
-        usageLimit: 500,
-        usedCount: 156,
-        category: 'it-courses',
-        isActive: true,
-        isHot: true,
-        isExpired: false,
-        daysLeft: 12
-    },
-    {
-        id: '3',
-        code: 'SUMMER30',
-        title: 'Giảm 30% mùa hè',
-        description: 'Áp dụng cho tất cả khóa học',
-        discount: 30,
-        discountType: 'percentage',
-        minAmount: 200000,
-        maxDiscount: 300000,
-        validFrom: '2024-06-01',
-        validTo: '2024-08-31',
-        usageLimit: 2000,
-        usedCount: 892,
-        category: 'seasonal',
-        isActive: true,
-        isExpired: false,
-        daysLeft: 78
-    },
-    {
-        id: '4',
-        code: 'WEBDEV100K',
-        title: 'Giảm 100K Web Development',
-        description: 'Áp dụng cho khóa học Phát triển Web',
-        discount: 100000,
-        discountType: 'fixed',
-        minAmount: 300000,
-        validFrom: '2024-01-01',
-        validTo: '2024-03-31',
-        usageLimit: 300,
-        usedCount: 298,
-        category: 'web-dev',
-        isActive: true,
-        isExpired: true,
-        daysLeft: -5
-    },
-    {
-        id: '5',
-        code: 'MOBILE25',
-        title: 'Giảm 25% Mobile Development',
-        description: 'Áp dụng cho khóa học Phát triển Mobile',
-        discount: 25,
-        discountType: 'percentage',
-        minAmount: 400000,
-        maxDiscount: 200000,
-        validFrom: '2024-02-01',
-        validTo: '2024-05-31',
-        usageLimit: 800,
-        usedCount: 445,
-        category: 'mobile-dev',
-        isActive: true,
-        isExpired: false,
-        daysLeft: 23
-    },
-    {
-        id: '6',
-        code: 'VIP500K',
-        title: 'Giảm 500K cho VIP',
-        description: 'Áp dụng cho khóa học cao cấp',
-        discount: 500000,
-        discountType: 'fixed',
-        minAmount: 1000000,
-        validFrom: '2024-01-01',
-        validTo: '2024-12-31',
-        usageLimit: 100,
-        usedCount: 23,
-        category: 'vip',
-        isActive: true,
-        isNew: true,
-        isExpired: false,
-        daysLeft: 120
-    }
-];
-
 const voucherCategories = ['Tất cả', 'Người mới', 'Khóa học IT', 'Theo mùa', 'Web Development', 'Mobile Development', 'VIP'];
 
-const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
-    searchTerm: string;
-    category: string;
-    discountType: string;
-}) => void }) => {
+const FilterSidebar = ({ setFilters, categories }: {
+    setFilters: (filters: {
+        searchTerm: string;
+        category: string;
+        discountType: string;
+    }) => void,
+    categories: Category[]
+}) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [category, setCategory] = useState('Tất cả');
     const [discountType, setDiscountType] = useState('all');
@@ -182,18 +77,24 @@ const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
                     <Text strong>Danh mục</Text>
                     <Select
                         size="large"
-                        defaultValue="Tất cả"
+                        value={category}
                         className="w-full !mt-2"
                         onChange={value => setCategory(value)}
                     >
-                        {voucherCategories.map(cat => <Option key={cat} value={cat}>{cat}</Option>)}
+                        <Option key="all" value="Tất cả">Tất cả</Option>
+                        <Option key="isNew" value="isNew">Mới</Option>
+                        <Option key="isHot" value="isHot">HOT</Option>
+                        <Option key="isVipOnly" value="isVipOnly">VIP Only</Option>
+                        {categories.map(cat => (
+                            <Option key={cat._id} value={cat._id}>{cat.name}</Option>
+                        ))}
                     </Select>
                 </div>
                 <div>
                     <Text strong>Loại giảm giá</Text>
                     <Select
                         size="large"
-                        defaultValue="all"
+                        value={discountType}
                         className="w-full !mt-2"
                         onChange={value => setDiscountType(value)}
                     >
@@ -207,22 +108,16 @@ const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
     );
 };
 
-const VoucherCard = ({ voucher }: { voucher: Voucher }) => {
+const VoucherCard = ({ voucher, categories }: { voucher: Voucher, categories: Category[] }) => {
     const copyToClipboard = (code: string) => {
         navigator.clipboard.writeText(code);
         message.success(`Đã sao chép mã ${code}!`);
     };
 
-    const getCategoryName = (category: string) => {
-        const categories: { [key: string]: string } = {
-            'new-user': 'Người mới',
-            'it-courses': 'Khóa học IT',
-            'seasonal': 'Theo mùa',
-            'web-dev': 'Web Development',
-            'mobile-dev': 'Mobile Development',
-            'vip': 'VIP'
-        };
-        return categories[category] || category;
+    const getCategoryName = (categoryId: string) => {
+        if (!categoryId || categoryId === 'Tất cả') return 'Tất cả';
+        const cat = categories.find(c => c._id === categoryId);
+        return cat ? cat.name : 'Tất cả';
     };
 
     const getCategoryColor = (category: string) => {
@@ -268,6 +163,9 @@ const VoucherCard = ({ voucher }: { voucher: Voucher }) => {
                             )}
                             {voucher.isNew && (
                                 <Badge count={<StarOutlined style={{ color: '#faad14' }} />} />
+                            )}
+                            {voucher.isVipOnly && (
+                                <span className="vip-glow" title="VIP Only">VIP</span>
                             )}
                         </div>
                         <h3 className="text-lg font-bold text-gray-900 mb-1">
@@ -386,9 +284,42 @@ const VouchersPage = () => {
     });
     const [currentPage, setCurrentPage] = useState(1);
     const vouchersPerPage = 6;
+    const [categories, setCategories] = useState<Category[]>([]);
 
     useEffect(() => {
-        setVouchers(mockVouchers);
+        // Fetch vouchers from backend
+        axios.get('/api/vouchers').then(res => {
+            if (res.data && res.data.data) {
+                const mapped = res.data.data.map((v: any) => ({
+                    id: v.id || v._id,
+                    code: v.code,
+                    title: v.title,
+                    description: v.description,
+                    discount: v.discountValue,
+                    discountType: v.discountType,
+                    minAmount: v.minOrderValue,
+                    maxDiscount: v.maxDiscount,
+                    validFrom: v.startDate,
+                    validTo: v.endDate,
+                    usageLimit: v.usageLimit,
+                    usedCount: v.usedCount,
+                    category: v.categories && v.categories.length > 0 ? v.categories[0] : 'Tất cả',
+                    isActive: !v.endDate || new Date(v.endDate) > new Date(),
+                    isHot: v.isHot,
+                    isNew: v.isNew,
+                    isVipOnly: v.isVipOnly,
+                    isExpired: v.endDate ? new Date(v.endDate) < new Date() : false,
+                    daysLeft: v.endDate ? Math.max(0, Math.ceil((new Date(v.endDate).getTime() - Date.now()) / (1000*60*60*24))) : 999
+                }));
+                setVouchers(mapped);
+            }
+        }).catch(() => {
+            setVouchers([]);
+        });
+        // Lấy danh mục thật
+        getAllCategories().then(res => {
+            if (res.success) setCategories(res.data.filter(c => c.status === 'active'));
+        });
     }, []);
 
     useEffect(() => {
@@ -405,17 +336,14 @@ const VouchersPage = () => {
 
         // Filter by category
         if (filters.category !== 'Tất cả') {
-            const categoryMap: { [key: string]: string } = {
-                'Người mới': 'new-user',
-                'Khóa học IT': 'it-courses',
-                'Theo mùa': 'seasonal',
-                'Web Development': 'web-dev',
-                'Mobile Development': 'mobile-dev',
-                'VIP': 'vip'
-            };
-            const categoryValue = categoryMap[filters.category];
-            if (categoryValue) {
-                filtered = filtered.filter(voucher => voucher.category === categoryValue);
+            if (filters.category === 'isNew') {
+                filtered = filtered.filter(voucher => voucher.isNew);
+            } else if (filters.category === 'isHot') {
+                filtered = filtered.filter(voucher => voucher.isHot);
+            } else if (filters.category === 'isVipOnly') {
+                filtered = filtered.filter(voucher => voucher.isVipOnly);
+            } else {
+                filtered = filtered.filter(voucher => voucher.category === filters.category);
             }
         }
 
@@ -426,7 +354,7 @@ const VouchersPage = () => {
 
         setFilteredVouchers(filtered);
         setCurrentPage(1);
-    }, [filters, vouchers]);
+    }, [filters, vouchers, categories]);
 
     const paginatedVouchers = filteredVouchers.slice((currentPage - 1) * vouchersPerPage, currentPage * vouchersPerPage);
 
@@ -452,7 +380,7 @@ const VouchersPage = () => {
 
     return (
         <Layout>
-            <FilterSidebar setFilters={setFilters} />
+            <FilterSidebar setFilters={setFilters} categories={categories} />
             <Content className="p-8 bg-gray-50 min-h-screen">
                 <motion.div
                     className="w-full"
@@ -468,7 +396,7 @@ const VouchersPage = () => {
                                 variants={containerVariants}
                             >
                                 {paginatedVouchers.map((voucher) => (
-                                    <VoucherCard key={voucher.id} voucher={voucher} />
+                                    <VoucherCard key={voucher.id} voucher={voucher} categories={categories} />
                                 ))}
                             </motion.div>
                             <motion.div className="text-center mt-8" variants={cardVariants}>
@@ -504,3 +432,24 @@ const VouchersPage = () => {
 };
 
 export default VouchersPage;
+
+<style>
+{`
+  .vip-glow {
+    display: inline-block;
+    color: #fff700;
+    font-weight: bold;
+    font-size: 18px;
+    letter-spacing: 1px;
+    text-shadow:
+      0 0 6px #fff700,
+      0 0 12px #fff700,
+      0 0 18px #fff700,
+      0 0 24px #fff700;
+    background: linear-gradient(90deg, #fff700 60%, #fff 100%);
+    border-radius: 4px;
+    padding: 0 6px;
+    margin-left: 4px;
+  }
+`}
+</style>
