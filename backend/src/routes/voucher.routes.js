@@ -6,10 +6,32 @@ const Voucher = require("../models/Voucher");
 router.get("/", async (req, res) => {
   try {
     const vouchers = await Voucher.find().sort({ createdAt: -1 });
+    // Map to new structure for frontend compatibility
+    const mapped = vouchers.map(v => ({
+      id: v._id,
+      code: v.code,
+      title: v.title,
+      description: v.description,
+      discountType: v.discountType,
+      discountValue: v.discountValue,
+      maxDiscount: v.maxDiscount,
+      minOrderValue: v.minOrderValue,
+      usageLimit: v.usageLimit,
+      usedCount: v.usedCount,
+      categories: v.categories,
+      tags: v.tags,
+      isNew: v.isNew,
+      isHot: v.isHot,
+      isVipOnly: v.isVipOnly,
+      startDate: v.startDate,
+      endDate: v.endDate,
+      createdAt: v.createdAt,
+      updatedAt: v.updatedAt
+    }));
     res.json({
       success: true,
       message: "Lấy danh sách mã giảm giá thành công",
-      data: vouchers
+      data: mapped
     });
   } catch (err) {
     res.status(500).json({
@@ -23,17 +45,38 @@ router.get("/", async (req, res) => {
 // GET single voucher
 router.get("/:id", async (req, res) => {
   try {
-    const voucher = await Voucher.findById(req.params.id);
-    if (!voucher) {
+    const v = await Voucher.findById(req.params.id);
+    if (!v) {
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy mã giảm giá"
       });
     }
+    const mapped = {
+      id: v._id,
+      code: v.code,
+      title: v.title,
+      description: v.description,
+      discountType: v.discountType,
+      discountValue: v.discountValue,
+      maxDiscount: v.maxDiscount,
+      minOrderValue: v.minOrderValue,
+      usageLimit: v.usageLimit,
+      usedCount: v.usedCount,
+      categories: v.categories,
+      tags: v.tags,
+      isNew: v.isNew,
+      isHot: v.isHot,
+      isVipOnly: v.isVipOnly,
+      startDate: v.startDate,
+      endDate: v.endDate,
+      createdAt: v.createdAt,
+      updatedAt: v.updatedAt
+    };
     res.json({
       success: true,
       message: "Lấy mã giảm giá thành công",
-      data: voucher
+      data: mapped
     });
   } catch (err) {
     res.status(500).json({

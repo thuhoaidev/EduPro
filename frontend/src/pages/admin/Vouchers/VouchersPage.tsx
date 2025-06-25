@@ -17,7 +17,8 @@ import {
   Statistic,
   Tag,
   Tooltip,
-  message
+  message,
+  Switch
 } from 'antd';
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -33,6 +34,8 @@ import {
 import dayjs from 'dayjs';
 import voucherService from '../../../services/voucher.service';
 import type { Voucher, CreateVoucherData } from '../../../services/voucher.service';
+import { getAllCategories } from '../../../services/categoryService';
+import type { Category } from '../../../interfaces/Category.interface';
 
 const { Option } = Select;
 
@@ -49,6 +52,7 @@ const VouchersPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState<boolean>(false);
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   // Danh sách khóa học giả lập dùng trong Select
   const courses = [
@@ -79,20 +83,24 @@ const VouchersPage: React.FC = () => {
 
   useEffect(() => {
     fetchVouchers();
+    // Lấy danh mục khóa học
+    const fetchCategories = async () => {
+      const res = await getAllCategories();
+      if (res.success) setCategories(res.data.filter(c => c.status === 'active'));
+    };
+    fetchCategories();
   }, []);
 
   const isVoucherActive = (voucher: Voucher) => {
-    if (!voucher.expiresAt) return true;
-    const expiryDate = dayjs(voucher.expiresAt);
-    return expiryDate.isValid() ? dayjs().isBefore(expiryDate) : true;
+    if (!voucher.endDate) return true;
+    const expiryDate = dayjs(voucher.endDate);
+    return expiryDate.isValid() ? dayjs().isBefore(expiryDate) && voucher.usageLimit > voucher.usedCount : true;
   };
 
   // Lọc theo tìm kiếm và trạng thái
   const filteredData = data.filter((item) => {
     const matchesSearch = 
-      item.code.toLowerCase().includes(searchText.toLowerCase()) ||
-      (item.course && item.course.toLowerCase().includes(searchText.toLowerCase()));
-    
+      item.code.toLowerCase().includes(searchText.toLowerCase());
     const isActive = isVoucherActive(item);
     const matchesStatus = 
       filterStatus === 'all' || 
@@ -102,9 +110,11 @@ const VouchersPage: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Sắp xếp theo giá trị giảm
+  // Sắp xếp theo giá trị giảm tối đa
   const sortedData = [...filteredData].sort((a, b) =>
-    sortOrder === 'asc' ? a.value - b.value : b.value - a.value
+    sortOrder === 'asc'
+      ? (a.maxDiscount || 0) - (b.maxDiscount || 0)
+      : (b.maxDiscount || 0) - (a.maxDiscount || 0)
   );
 
   // Phân trang
@@ -115,12 +125,19 @@ const VouchersPage: React.FC = () => {
     setEditingVoucher(null);
     form.resetFields();
     form.setFieldsValue({
-      type: 'amount',
-      value: 0,
-      quantity: 1,
+      discountType: 'percentage',
+      discountValue: 0,
+      maxDiscount: 0,
+      minOrderValue: 0,
+      usageLimit: 1,
+      usedCount: 0,
+      categories: [],
+      tags: [],
+      isNew: false,
+      isHot: false,
+      isVipOnly: false,
       startDate: dayjs(),
       endDate: null,
-      courseId: 'all',
     });
     setIsModalVisible(true);
   };
@@ -129,12 +146,21 @@ const VouchersPage: React.FC = () => {
     setEditingVoucher(record);
     form.setFieldsValue({
       code: record.code,
-      courseId: record.course || 'all',
-      type: record.type,
-      value: record.value,
-      quantity: record.quantity,
-      startDate: dayjs(record.createdAt),
-      endDate: record.expiresAt ? dayjs(record.expiresAt) : null,
+      title: record.title,
+      description: record.description,
+      discountType: record.discountType,
+      discountValue: record.discountValue,
+      maxDiscount: record.maxDiscount,
+      minOrderValue: record.minOrderValue,
+      usageLimit: record.usageLimit,
+      usedCount: record.usedCount,
+      categories: record.categories || [],
+      tags: record.tags,
+      isNew: record.isNew,
+      isHot: record.isHot,
+      isVipOnly: record.isVipOnly,
+      startDate: dayjs(record.startDate),
+      endDate: record.endDate ? dayjs(record.endDate) : null,
     });
     setIsModalVisible(true);
   };
@@ -142,19 +168,26 @@ const VouchersPage: React.FC = () => {
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
-      const courseName = courses.find(c => c.id === values.courseId)?.name || 'Tất cả khóa học';
-
       const voucherData: CreateVoucherData = {
         code: values.code,
-        course: values.courseId === 'all' ? null : values.courseId,
-        type: values.type,
-        value: values.value,
-        quantity: values.quantity,
-        expiresAt: values.endDate ? values.endDate.format('YYYY-MM-DD') : undefined,
+        title: values.title || '',
+        description: values.description || '',
+        discountType: values.discountType,
+        discountValue: values.discountValue,
+        maxDiscount: values.maxDiscount || 0,
+        minOrderValue: values.minOrderValue || 0,
+        usageLimit: values.usageLimit,
+        usedCount: values.usedCount || 0,
+        categories: values.categories || [],
+        tags: values.tags || [],
+        isNew: values.isNew || false,
+        isHot: values.isHot || false,
+        isVipOnly: values.isVipOnly || false,
+        startDate: values.startDate ? values.startDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+        endDate: values.endDate ? values.endDate.format('YYYY-MM-DD') : undefined,
       };
-
       if (editingVoucher) {
-        const response = await voucherService.update(editingVoucher._id, voucherData);
+        const response = await voucherService.update(editingVoucher.id, voucherData);
         if (response.success) {
           message.success('Cập nhật mã giảm giá thành công');
           fetchVouchers();
@@ -170,7 +203,6 @@ const VouchersPage: React.FC = () => {
           message.error('Lỗi khi tạo mã giảm giá');
         }
       }
-
       setIsModalVisible(false);
       setEditingVoucher(null);
       form.resetFields();
@@ -232,33 +264,43 @@ const VouchersPage: React.FC = () => {
       ),
     },
     {
-      title: 'Áp dụng khóa học',
-      dataIndex: 'course',
-      key: 'course',
-      width: 140,
-      align: 'center',
-      className: "text-gray-600",
+      title: 'Tiêu đề',
+      dataIndex: 'title',
+      key: 'title',
+      width: 180,
+      align: 'left',
       ellipsis: true,
-      render: (course: string | null) => (
-        <span style={{ fontSize: 13, wordBreak: 'break-word', whiteSpace: 'normal' }}>
-          {course || 'Tất cả khóa học'}
-        </span>
-      )
+      render: (title: string) => <span style={{ fontWeight: 500 }}>{title}</span>
     },
     {
       title: 'Giá trị giảm',
-      dataIndex: 'value',
-      key: 'value',
+      dataIndex: 'discountValue',
+      key: 'discountValue',
       width: 110,
       align: 'center',
-      ellipsis: true,
       render: (value: number, record: Voucher) =>
         <span style={{ color: '#1677ff', fontWeight: 600, fontSize: 13 }}>
-          {record.type === 'percentage'
+          {record.discountType === 'percentage'
             ? `${value}%`
             : `${value.toLocaleString('vi-VN')} VNĐ`}
         </span>,
       className: "font-semibold text-blue-600"
+    },
+    {
+      title: 'Giảm tối đa',
+      dataIndex: 'maxDiscount',
+      key: 'maxDiscount',
+      width: 110,
+      align: 'center',
+      render: (max: number) => max ? `${max.toLocaleString('vi-VN')} VNĐ` : '-'
+    },
+    {
+      title: 'Số lượng',
+      dataIndex: 'usageLimit',
+      key: 'usageLimit',
+      width: 90,
+      align: 'center',
+      render: (limit: number, record: Voucher) => `${record.usedCount} / ${limit}`
     },
     {
       title: 'Trạng thái',
@@ -299,7 +341,7 @@ const VouchersPage: React.FC = () => {
           </Tooltip>
           <Popconfirm
             title="Bạn có chắc chắn muốn xóa mã này?"
-            onConfirm={() => handleDelete(record._id)}
+            onConfirm={() => handleDelete(record.id)}
             okText="Có"
             cancelText="Hủy"
             okButtonProps={{ danger: true }}
@@ -411,7 +453,7 @@ const VouchersPage: React.FC = () => {
       {/* Table */}
       <Card className="shadow-sm">
         <Table
-          rowKey="_id"
+          rowKey="id"
           columns={columns}
           dataSource={currentData}
           pagination={false}
@@ -450,9 +492,17 @@ const VouchersPage: React.FC = () => {
           form={form}
           layout="vertical"
           initialValues={{
-            type: 'amount',
-            value: 0,
-            quantity: 1,
+            discountType: 'percentage',
+            discountValue: 0,
+            maxDiscount: 0,
+            minOrderValue: 0,
+            usageLimit: 1,
+            usedCount: 0,
+            categories: [],
+            tags: [],
+            isNew: false,
+            isHot: false,
+            isVipOnly: false,
             courseId: 'all',
           }}
         >
@@ -464,26 +514,46 @@ const VouchersPage: React.FC = () => {
             <Input placeholder="Nhập mã giảm giá" maxLength={20} disabled={!!editingVoucher} />
           </Form.Item>
 
-          <Form.Item label="Khóa học áp dụng" name="courseId" rules={[{ required: true }]}>
-            <Select>
-              {courses.map(c => (
-                <Option key={c.id} value={c.id}>
-                  {c.name}
-                </Option>
-              ))}
-            </Select>
+          <Form.Item
+            label="Tiêu đề"
+            name="title"
+            rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}
+          >
+            <Input maxLength={100} placeholder="Nhập tiêu đề cho mã giảm giá" />
           </Form.Item>
 
-          <Form.Item label="Loại giảm giá" name="type" rules={[{ required: true }]}>
+          <Form.Item
+            label="Mô tả"
+            name="description"
+          >
+            <Input.TextArea maxLength={200} rows={2} placeholder="Nhập mô tả cho mã giảm giá" />
+          </Form.Item>
+
+          <Form.Item
+            label="Danh mục áp dụng"
+            name="categories"
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="Chọn danh mục áp dụng"
+              options={[
+                { value: 'all', label: 'Tất cả danh mục' },
+                ...categories.map(cat => ({ value: cat._id, label: cat.name }))
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item label="Loại giảm giá" name="discountType" rules={[{ required: true }]}>
             <Select>
-              <Option value="amount">Số tiền (VNĐ)</Option>
+              <Option value="fixed">Số tiền (VNĐ)</Option>
               <Option value="percentage">Phần trăm (%)</Option>
             </Select>
           </Form.Item>
 
           <Form.Item
             label="Giá trị giảm"
-            name="value"
+            name="discountValue"
             rules={[
               { required: true, message: 'Vui lòng nhập giá trị giảm' },
               { type: 'number', min: 0, message: 'Giá trị không thể âm' },
@@ -495,7 +565,7 @@ const VouchersPage: React.FC = () => {
               placeholder="Nhập giá trị giảm"
               formatter={(value) => {
                 if (value === null || value === undefined) return '';
-                const type = form.getFieldValue('type');
+                const type = form.getFieldValue('discountType');
                 return type === 'percentage' ? `${value}%` : `${value} VNĐ`;
               }}
               parser={(value) => {
@@ -506,8 +576,36 @@ const VouchersPage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
+            label="Giảm tối đa"
+            name="maxDiscount"
+            rules={[
+              { type: 'number', min: 0, message: 'Giá trị không thể âm' },
+            ]}
+          >
+            <InputNumber<number>
+              style={{ width: '100%' }}
+              min={0}
+              placeholder="Nhập giá trị giảm tối đa"
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="Đơn tối thiểu"
+            name="minOrderValue"
+            rules={[
+              { type: 'number', min: 0, message: 'Giá trị không thể âm' },
+            ]}
+          >
+            <InputNumber<number>
+              style={{ width: '100%' }}
+              min={0}
+              placeholder="Nhập đơn tối thiểu"
+            />
+          </Form.Item>
+
+          <Form.Item
             label="Số lượng"
-            name="quantity"
+            name="usageLimit"
             rules={[
               { required: true, message: 'Vui lòng nhập số lượng' },
               { type: 'number', min: 1, message: 'Số lượng phải lớn hơn 0' },
@@ -532,6 +630,16 @@ const VouchersPage: React.FC = () => {
               placeholder="Chọn ngày hết hạn (Không bắt buộc)"
               disabledDate={current => current && current < dayjs().startOf('day')}
             />
+          </Form.Item>
+
+          <Form.Item name="isNew" valuePropName="checked" label="Mới">
+            <Switch checkedChildren="Mới" unCheckedChildren="Không" />
+          </Form.Item>
+          <Form.Item name="isHot" valuePropName="checked" label="HOT">
+            <Switch checkedChildren="HOT" unCheckedChildren="Không" />
+          </Form.Item>
+          <Form.Item name="isVipOnly" valuePropName="checked" label="VIP Only">
+            <Switch checkedChildren="VIP" unCheckedChildren="Không" />
           </Form.Item>
         </Form>
       </Modal>
@@ -564,34 +672,74 @@ const VouchersPage: React.FC = () => {
               </span>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Khóa học áp dụng:</span>
-              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.course || 'Tất cả khóa học'}</span>
+              <span style={{ color: '#888', fontWeight: 500 }}>Tiêu đề:</span>
+              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.title}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Mô tả:</span>
+              <span style={{ marginLeft: 8 }}>{selectedVoucher.description || '-'}</span>
             </div>
             <div style={{ marginBottom: 12 }}>
               <span style={{ color: '#888', fontWeight: 500 }}>Loại giảm giá:</span>
-              <span style={{ marginLeft: 8, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                {selectedVoucher.type === 'amount' ? <span>💵 Số tiền</span> : <span>🎯 Phần trăm</span>}
-              </span>
+              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.discountType === 'fixed' ? '💵 Số tiền' : '🎯 Phần trăm'}</span>
             </div>
             <div style={{ marginBottom: 12 }}>
               <span style={{ color: '#888', fontWeight: 500 }}>Giá trị giảm:</span>
               <span style={{ marginLeft: 8, fontWeight: 600, color: '#1677ff' }}>
-                {selectedVoucher.type === 'percentage'
-                  ? `${selectedVoucher.value}%`
-                  : `${selectedVoucher.value.toLocaleString('vi-VN')} VNĐ`}
+                {selectedVoucher.discountType === 'percentage'
+                  ? `${selectedVoucher.discountValue}%`
+                  : `${selectedVoucher.discountValue.toLocaleString('vi-VN')} VNĐ`}
+              </span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Giảm tối đa:</span>
+              <span style={{ marginLeft: 8 }}>{selectedVoucher.maxDiscount ? `${selectedVoucher.maxDiscount.toLocaleString('vi-VN')} VNĐ` : '-'}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Đơn tối thiểu:</span>
+              <span style={{ marginLeft: 8 }}>
+                {selectedVoucher.minOrderValue && selectedVoucher.minOrderValue > 0
+                  ? `${selectedVoucher.minOrderValue.toLocaleString('vi-VN')} VNĐ`
+                  : '0 VNĐ'}
               </span>
             </div>
             <div style={{ marginBottom: 12 }}>
               <span style={{ color: '#888', fontWeight: 500 }}>Đã sử dụng / Số lượng:</span>
-              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.used} / {selectedVoucher.quantity}</span>
+              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.usedCount} / {selectedVoucher.usageLimit}</span>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Ngày tạo:</span>
-              <span style={{ marginLeft: 8 }}>{dayjs(selectedVoucher.createdAt).format('YYYY-MM-DD')}</span>
+              <span style={{ color: '#888', fontWeight: 500 }}>Danh mục:</span>
+              <span style={{ marginLeft: 8 }}>
+                {selectedVoucher.categories && selectedVoucher.categories.length > 0
+                  ? selectedVoucher.categories
+                      .map(cid => {
+                        if (cid === 'all') return 'Tất cả';
+                        const cat = categories.find(c => c._id === cid);
+                        return cat ? cat.name : cid;
+                      })
+                      .join(', ')
+                  : 'Tất cả'}
+              </span>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Ngày hết hạn:</span>
-              <span style={{ marginLeft: 8 }}>{selectedVoucher.expiresAt ? dayjs(selectedVoucher.expiresAt).format('YYYY-MM-DD') : 'Không giới hạn'}</span>
+              <span style={{ color: '#888', fontWeight: 500 }}>Mới:</span>
+              <span style={{ marginLeft: 8 }}>{selectedVoucher.isNew ? 'Có' : 'Không'}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>HOT:</span>
+              <span style={{ marginLeft: 8 }}>{selectedVoucher.isHot ? 'Có' : 'Không'}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>VIP Only:</span>
+              <span style={{ marginLeft: 8 }}>{selectedVoucher.isVipOnly ? 'Có' : 'Không'}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Ngày bắt đầu:</span>
+              <span style={{ marginLeft: 8 }}>{dayjs(selectedVoucher.startDate).format('YYYY-MM-DD')}</span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontWeight: 500 }}>Ngày kết thúc:</span>
+              <span style={{ marginLeft: 8 }}>{selectedVoucher.endDate ? dayjs(selectedVoucher.endDate).format('YYYY-MM-DD') : 'Không giới hạn'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
               <Button onClick={() => {
