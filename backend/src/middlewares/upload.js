@@ -7,11 +7,29 @@ const storage = multer.memoryStorage();
 
 // Filter file types cho avatar
 const avatarFileFilter = (req, file, cb) => {
-  // Chỉ cho phép upload ảnh
-  if (file.mimetype.startsWith('image/')) {
+  console.log('DEBUG - avatarFileFilter - file:', {
+    originalname: file.originalname,
+    mimetype: file.mimetype,
+    fieldname: file.fieldname
+  });
+
+  // Chấp nhận nhiều định dạng ảnh
+  const allowedImageTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/bmp',
+    'image/tiff'
+  ];
+
+  if (allowedImageTypes.includes(file.mimetype) || file.mimetype.startsWith('image/')) {
+    console.log('DEBUG - File accepted by avatarFileFilter');
     cb(null, true);
   } else {
-    cb(new Error('Chỉ cho phép upload file ảnh!'), false);
+    console.log('DEBUG - File rejected by avatarFileFilter:', file.mimetype);
+    cb(new Error('Chỉ cho phép upload file ảnh (JPEG, PNG, GIF, WebP, BMP, TIFF)!'), false);
   }
 };
 
@@ -58,7 +76,7 @@ const avatarUpload = multer({
   storage: storage,
   fileFilter: avatarFileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 2 * 1024 * 1024, // 2MB
   },
 });
 
@@ -85,32 +103,57 @@ exports.uploadInstructorFiles = instructorUpload.fields([
 // Middleware xử lý upload avatar lên Cloudinary
 exports.processAvatarUpload = async (req, res, next) => {
   try {
+    console.log('DEBUG - processAvatarUpload - req.file:', req.file);
+    console.log('DEBUG - processAvatarUpload - req.body:', req.body);
+
     if (!req.file) {
+      console.log('DEBUG - No file uploaded, continuing...');
       return next(); // Không có file upload, tiếp tục
     }
 
+    console.log('DEBUG - File received:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      buffer: req.file.buffer ? 'Buffer exists' : 'No buffer'
+    });
+
     // Kiểm tra kích thước file
-    if (req.file.size > 5 * 1024 * 1024) {
+    if (req.file.size > 2 * 1024 * 1024) {
       return res.status(400).json({
         success: false,
-        message: 'File quá lớn. Kích thước tối đa là 5MB',
+        message: 'File quá lớn. Kích thước tối đa là 2MB',
       });
     }
 
-    // Upload lên Cloudinary
-    const result = await uploadBufferToCloudinary(req.file.buffer, 'avatars');
-
-    // Lưu thông tin file vào request
-    req.uploadedAvatar = {
-      url: result.secure_url,
-      public_id: result.public_id,
-      width: result.width,
-      height: result.height,
-      format: result.format,
-      size: result.bytes,
-    };
-
-    next();
+    console.log('DEBUG - Uploading to Cloudinary...');
+    try {
+      const result = await uploadBufferToCloudinary(req.file.buffer, 'avatars');
+      console.log('DEBUG - Cloudinary upload result:', result);
+      req.uploadedAvatar = {
+        url: result.secure_url,
+        public_id: result.public_id,
+        width: result.width,
+        height: result.height,
+        format: result.format,
+        size: result.bytes,
+      };
+      console.log('DEBUG - req.uploadedAvatar set:', req.uploadedAvatar);
+      next();
+    } catch (cloudErr) {
+      console.error('Lỗi upload Cloudinary:', cloudErr);
+      if (cloudErr && cloudErr.message && cloudErr.message.includes('Timeout')) {
+        return res.status(504).json({
+          success: false,
+          message: 'Upload ảnh lên Cloudinary bị timeout. Vui lòng thử lại hoặc chọn ảnh nhỏ hơn 2MB.',
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        message: 'Lỗi upload ảnh lên Cloudinary',
+        error: cloudErr.message || cloudErr,
+      });
+    }
   } catch (error) {
     console.error('Lỗi upload avatar:', error);
     res.status(500).json({
@@ -230,7 +273,7 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
 exports.deleteOldAvatar = async (req, res, next) => {
   try {
     const { deleteFromCloudinary, getPublicIdFromUrl } = require('../utils/cloudinary');
-    
+
     // Nếu có avatar cũ và có avatar mới được upload
     if (req.user && req.user.avatar && req.uploadedAvatar) {
       const oldAvatarPublicId = getPublicIdFromUrl(req.user.avatar);
@@ -238,7 +281,7 @@ exports.deleteOldAvatar = async (req, res, next) => {
         await deleteFromCloudinary(oldAvatarPublicId);
       }
     }
-    
+
     next();
   } catch (error) {
     console.error('Lỗi xóa avatar cũ:', error);

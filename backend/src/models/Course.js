@@ -44,14 +44,14 @@ const courseSchema = new mongoose.Schema({
         required: [true, 'Ngôn ngữ là bắt buộc'],
         enum: ['vi', 'en'],
         default: 'vi',
-        get: function(value) {
+        get: function (value) {
             const languageMap = {
                 'vi': 'Vietnamese',
                 'en': 'English'
             };
             return languageMap[value] || value;
         },
-        set: function(value) {
+        set: function (value) {
             const languageMap = {
                 'Vietnamese': 'vi',
                 'English': 'en',
@@ -113,13 +113,13 @@ const courseSchema = new mongoose.Schema({
 });
 
 // Tạo slug từ title trước khi lưu
-courseSchema.pre('save', function(next) {
+courseSchema.pre('save', function (next) {
     if (this.isModified('title')) {
         // Chuyển đổi tiếng Việt sang ASCII trước khi tạo slug
         const asciiTitle = this.title.normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '') // Loại bỏ dấu
             .replace(/[đĐ]/g, 'd'); // Chuyển đổi đ/Đ thành d
-        
+
         this.slug = slugify(asciiTitle, {
             lower: true,
             strict: true,
@@ -130,7 +130,7 @@ courseSchema.pre('save', function(next) {
 });
 
 // Virtual field cho giá sau khi giảm giá
-courseSchema.virtual('finalPrice').get(function() {
+courseSchema.virtual('finalPrice').get(function () {
     return this.price * (1 - this.discount / 100);
 });
 
@@ -148,7 +148,12 @@ Course.createIndexes({
     },
     name: 'course_text_search'
 }).catch(err => {
-    console.log('Lỗi khi tạo text index:', err.message);
+    if (err.message && err.message.includes('timed out')) {
+        console.error('Lỗi khi tạo text index (timeout):', err.message);
+        console.error('→ Hãy kiểm tra lại kết nối MongoDB, đảm bảo server MongoDB đang chạy và không bị quá tải.');
+    } else {
+        console.error('Lỗi khi tạo text index:', err.message);
+    }
 });
 
 module.exports = Course; 

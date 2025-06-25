@@ -12,7 +12,7 @@ UserSchema.virtual('courses', {
 });
 
 // Pre-save hook để xử lý password và slug
-UserSchema.pre('save', async function(next) {
+UserSchema.pre('save', async function (next) {
   try {
     // Xử lý password
     if (this.isModified('password')) {
@@ -20,11 +20,30 @@ UserSchema.pre('save', async function(next) {
       this.password = await bcrypt.hash(this.password, salt);
     }
 
-    // Xử lý slug từ nickname
-    if (this.isModified('nickname')) {
+    // Xử lý slug từ nickname - luôn đảm bảo slug được tạo
+    if (this.isModified('nickname') || !this.slug || this.slug === '' || !this.nickname || this.nickname === '' || this.nickname === null || this.nickname === undefined) {
+      // Đảm bảo nickname tồn tại
+      if (!this.nickname || this.nickname === '' || this.nickname === null || this.nickname === undefined) {
+        // Nếu không có nickname, tạo từ fullname
+        if (this.fullname) {
+          this.nickname = this.fullname.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '');
+          if (!this.nickname || this.nickname === '' || this.nickname === null || this.nickname === undefined) {
+            this.nickname = 'user' + Date.now();
+          }
+        } else {
+          // Nếu không có cả nickname và fullname, tạo nickname mặc định
+          this.nickname = 'user' + Date.now();
+        }
+      }
+
       // Chuẩn hóa nickname để tạo slug
       const normalizedNickname = this.nickname.toLowerCase().replace(/[^a-z0-9]/g, '-');
-      this.slug = normalizedNickname;
+      this.slug = normalizedNickname.replace(/-+/g, '-').replace(/^-+|-+$/g, ''); // Thay thế nhiều dấu gạch ngang liên tiếp và loại bỏ dấu gạch ngang ở đầu và cuối
+
+      // Đảm bảo slug không rỗng và không chỉ chứa dấu gạch ngang
+      if (!this.slug || this.slug === '' || this.slug === null || this.slug === undefined || this.slug.replace(/-/g, '') === '' || this.slug.length < 3) {
+        this.slug = 'user-' + Date.now();
+      }
 
       // Kiểm tra xem slug đã tồn tại chưa
       const existingUser = await mongoose.model('User').findOne({ slug: this.slug });
@@ -46,12 +65,12 @@ UserSchema.pre('save', async function(next) {
 });
 
 // Method để match password
-UserSchema.methods.matchPassword = async function(enteredPassword) {
+UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
 // Method để tạo token xác thực email
-UserSchema.methods.createEmailVerificationToken = function() {
+UserSchema.methods.createEmailVerificationToken = function () {
   const verificationToken = crypto.randomBytes(32).toString('hex');
   this.emailVerificationToken = crypto
     .createHash('sha256')
@@ -62,7 +81,7 @@ UserSchema.methods.createEmailVerificationToken = function() {
 };
 
 // Method để tạo token reset mật khẩu
-UserSchema.methods.createPasswordResetToken = function() {
+UserSchema.methods.createPasswordResetToken = function () {
   const resetToken = crypto.randomBytes(32).toString('hex');
   this.resetPasswordToken = crypto
     .createHash('sha256')
@@ -73,12 +92,12 @@ UserSchema.methods.createPasswordResetToken = function() {
 };
 
 // Method để kiểm tra quyền
-UserSchema.methods.hasPermission = function(permission) {
+UserSchema.methods.hasPermission = function (permission) {
   return this.role.permissions.includes(permission);
 };
 
 // Method để format dữ liệu khi trả về client
-UserSchema.methods.toJSON = function() {
+UserSchema.methods.toJSON = function () {
   const userObject = this.toObject();
   // Xóa các trường nhạy cảm
   delete userObject.password;
