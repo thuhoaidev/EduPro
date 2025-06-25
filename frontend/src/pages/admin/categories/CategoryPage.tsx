@@ -349,9 +349,6 @@ const CategoryPage = () => {
           <h2 className="text-2xl font-bold text-gray-800">Quản lý danh mục</h2>
           <p className="text-gray-500 mt-1">Quản lý và theo dõi các danh mục khóa học</p>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCategory} className={styles.addUserBtn}>
-          Thêm danh mục
-        </Button>
       </div>
 
       <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
