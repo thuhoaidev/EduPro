@@ -509,7 +509,7 @@ const UserPage = () => {
           }}
           columns={[
             {
-              title: '#',
+              title: 'STT',
               dataIndex: 'number',
               width: 70,
             },

@@ -76,7 +76,8 @@
 /* User Table */
 .userTableCard {
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(80, 80, 80, 0.06);
+  margin-top: 24px;
   background: #fff;
 }
 
@@ -408,4 +409,65 @@
   .userDetailHeaderBox {
     padding: 20px 0 12px 0;
   }
+}
+
+.categoryPageContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 0 40px 0;
+}
+
+.addCategoryBtn {
+  min-width: 160px;
+  font-weight: 500;
+  height: 40px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(80, 80, 80, 0.04);
+}
+
+.statsCard {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(80, 80, 80, 0.06);
+  margin-bottom: 0;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.filterInput {
+  max-width: 320px;
+  border-radius: 8px;
+  height: 40px;
+  font-size: 16px;
+}
+
+.categoryTableCard {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(80, 80, 80, 0.06);
+  margin-top: 0;
+}
+
+.categoryTable {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.linkBtn {
+  color: #222 !important;
+  font-weight: 500;
+  padding: 0;
+  height: auto;
+  background: none;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.linkBtn:hover, .linkBtn:focus {
+  color: #222 !important;
+  text-decoration: none;
 } 
