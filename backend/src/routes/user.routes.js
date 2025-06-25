@@ -12,13 +12,13 @@ const {
   updateUser,
   deleteUser,
   updateInstructorApproval,
-  getPendingInstructors,
-  getPendingInstructorDetail,
   submitInstructorProfile,
   getMyInstructorProfile,
   updateInstructorProfile,
   registerInstructor,
   verifyInstructorEmail,
+  getInstructors,
+  getInstructorDetail,
 } = require('../controllers/user.controller');
 
 // Đăng ký giảng viên mới (không cần đăng nhập) - Đặt trước middleware auth
@@ -68,9 +68,9 @@ router.get('/instructor-profile/my', getMyInstructorProfile);
 router.put('/instructor-profile/update', updateInstructorProfile);
 
 // Lấy danh sách hồ sơ giảng viên chờ duyệt (không cần quyền admin)
-router.get('/instructors/pending', getPendingInstructors);
+router.get('/instructors', getInstructors);
 // Lấy thông tin chi tiết hồ sơ giảng viên chờ duyệt (không cần quyền admin)
-router.get('/instructors/pending/:id', getPendingInstructorDetail);
+router.get('/instructors/:id/detail', getInstructorDetail);
 // Cập nhật trạng thái hồ sơ giảng viên (không cần quyền admin)
 router.put('/instructors/:id/approval', updateInstructorApproval);
 // Routes cho admin (cần quyền admin)
@@ -98,6 +98,5 @@ router.post('/upload-avatar', auth, uploadAvatar, processAvatarUpload, (req, res
   }
   res.json({ success: true, data: { url: req.uploadedAvatar.url } });
 });
-
 
 module.exports = router; 

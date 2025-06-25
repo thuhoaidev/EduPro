@@ -2,8 +2,10 @@
 import axios from 'axios';
 import type { AxiosResponse } from 'axios';
 
-// Sử dụng axios config đã được cấu hình
-const apiClient = axios;
+// Tạo axios instance với baseURL chuẩn
+const apiClient = axios.create({
+  baseURL: 'http://localhost:5000/api',
+});
 
 interface ApiResponse<T> {
   success: boolean;

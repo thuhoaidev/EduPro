@@ -14,12 +14,13 @@ import {
   Descriptions,
   Divider,
   Typography,
+  Button,
+  message,
 } from "antd";
 import {
   SearchOutlined,
   CheckCircleOutlined,
   UserOutlined,
-  ClockCircleOutlined,
   CloseCircleOutlined,
   TeamOutlined,
   UserSwitchOutlined,
@@ -32,7 +33,6 @@ import type { TablePaginationConfig } from 'antd/es/table';
 
 dayjs.locale("vi");
 
-const { RangePicker } = DatePicker;
 const { Paragraph, Link: AntdLink } = Typography;
 
 // Extend User with instructor-specific fields
@@ -57,6 +57,7 @@ interface Instructor extends User {
   website: string;
   applicationDate: string;
   password: string;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
 }
 
 // --- Helper Components ---
@@ -97,15 +98,15 @@ const FilterSection = ({
   searchInput,
   setSearchInput,
   setSearch,
-  selectedStatus,
-  setSelectedStatus,
+  selectedApprovalStatus,
+  setSelectedApprovalStatus,
   setDateRange,
 }: {
   searchInput: string;
   setSearchInput: (value: string) => void;
   setSearch: (value: string) => void;
-  selectedStatus: UserStatus | undefined;
-  setSelectedStatus: (status: UserStatus | undefined) => void;
+  selectedApprovalStatus: string | undefined;
+  setSelectedApprovalStatus: (status: string | undefined) => void;
   setDateRange: (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => void;
 }) => (
   <div className={styles.filterGroup}>
@@ -119,16 +120,17 @@ const FilterSection = ({
       allowClear
     />
     <Select
-      placeholder="Lọc theo trạng thái"
-      value={selectedStatus}
-      onChange={setSelectedStatus}
+      placeholder="Lọc theo trạng thái duyệt"
+      value={selectedApprovalStatus}
+      onChange={setSelectedApprovalStatus}
       className={styles.filterSelect}
       allowClear
     >
-      <Select.Option value={UserStatus.ACTIVE}>Hoạt động</Select.Option>
-      <Select.Option value={UserStatus.INACTIVE}>Không hoạt động</Select.Option>
+      <Select.Option value="pending">Chờ duyệt</Select.Option>
+      <Select.Option value="approved">Đã duyệt</Select.Option>
+      <Select.Option value="rejected">Từ chối</Select.Option>
     </Select>
-    <RangePicker
+    <DatePicker.RangePicker
       placeholder={["Từ ngày", "Đến ngày"]}
       onChange={(dates) => setDateRange(dates)}
       className={styles.filterDateRange}
@@ -170,6 +172,7 @@ const mockInstructors: Instructor[] = [
     website: "https://nguyenvana.dev",
     applicationDate: dayjs().subtract(12, "day").toISOString(),
     password: "12345678",
+    approvalStatus: 'pending',
   },
   {
     id: "2",
@@ -202,6 +205,7 @@ const mockInstructors: Instructor[] = [
     website: "https://tranthib.com",
     applicationDate: dayjs().subtract(22, "day").toISOString(),
     password: "87654321",
+    approvalStatus: 'approved',
   },
   {
     id: "3",
@@ -232,6 +236,7 @@ const mockInstructors: Instructor[] = [
     website: "",
     applicationDate: dayjs().subtract(6, "day").toISOString(),
     password: "password123",
+    approvalStatus: 'rejected',
   },
 ];
 
@@ -246,7 +251,7 @@ const InstructorList = () => {
     pageSize: 10,
     total: mockInstructors.length,
   });
-  const [selectedStatus, setSelectedStatus] = useState<UserStatus | undefined>(undefined);
+  const [selectedApprovalStatus, setSelectedApprovalStatus] = useState<string | undefined>(undefined);
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 
   // Filter logic (mock)
@@ -255,13 +260,13 @@ const InstructorList = () => {
       !search ||
       inst.fullname.toLowerCase().includes(search.toLowerCase()) ||
       inst.email.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus =
-      !selectedStatus || inst.status === selectedStatus;
+    const matchesApproval =
+      !selectedApprovalStatus || inst.approvalStatus === selectedApprovalStatus;
     const matchesDate =
       !dateRange ||
       (!dateRange[0] || dayjs(inst.createdAt).isAfter(dateRange[0].startOf("day"))) &&
       (!dateRange[1] || dayjs(inst.createdAt).isBefore(dateRange[1].endOf("day")));
-    return matchesSearch && matchesStatus && matchesDate;
+    return matchesSearch && matchesApproval && matchesDate;
   });
 
   // Stats
@@ -281,20 +286,6 @@ const InstructorList = () => {
     setPagination((prev) => ({ ...prev, current: pag.current || 1, pageSize: pag.pageSize || 10 }));
   };
 
-  // Status tag
-  const getStatusTag = (status: UserStatus) => {
-    const statusMap = {
-      [UserStatus.ACTIVE]: { color: "success", label: "Hoạt động", icon: <CheckCircleOutlined /> },
-      [UserStatus.INACTIVE]: { color: "default", label: "Không hoạt động", icon: <ClockCircleOutlined /> },
-    };
-    const tag = statusMap[status] || { color: "default", label: status, icon: null };
-    return (
-      <Tag color={tag.color} icon={tag.icon} className={styles.statusTag}>
-        {tag.label}
-      </Tag>
-    );
-  };
-
   return (
     <div className={styles.userPageContainer}>
       <div className="flex justify-between items-center mb-6">
@@ -308,8 +299,8 @@ const InstructorList = () => {
         searchInput={searchInput}
         setSearchInput={setSearchInput}
         setSearch={setSearch}
-        selectedStatus={selectedStatus}
-        setSelectedStatus={setSelectedStatus}
+        selectedApprovalStatus={selectedApprovalStatus}
+        setSelectedApprovalStatus={setSelectedApprovalStatus}
         setDateRange={setDateRange}
       />
       <Card className={styles.userTableCard}>
@@ -322,7 +313,7 @@ const InstructorList = () => {
           scroll={{ x: true }}
           title={() => (
             <div className={styles.tableHeader}>
-              <h4 className={styles.tableTitle}>Danh sách giảng viên</h4>
+              <h4 className={styles.tableTitle}>Danh sách hồ sơ giảng viên chờ duyệt</h4>
             </div>
           )}
           onRow={(record) => {
@@ -338,10 +329,12 @@ const InstructorList = () => {
               title: "STT",
               dataIndex: "number",
               width: 70,
+              align: 'center',
             },
             {
               title: "Giảng viên",
               dataIndex: "fullname",
+              align: 'left',
               render: (_: unknown, record: Instructor) => (
                 <div className={styles.avatarCell}>
                   <Avatar src={record.avatar} icon={<UserOutlined />} />
@@ -353,16 +346,54 @@ const InstructorList = () => {
               ),
             },
             {
-              title: "Trạng thái",
-              dataIndex: "status",
-              render: (status: UserStatus) => getStatusTag(status),
-              width: 150,
+              title: "Trạng thái duyệt",
+              dataIndex: "approvalStatus",
+              align: 'center',
+              width: 120,
+              render: (status: string) => {
+                if (status === 'approved') return <Tag color="green">Đã duyệt</Tag>;
+                if (status === 'rejected') return <Tag color="red">Từ chối</Tag>;
+                return <Tag color="gold">Chờ duyệt</Tag>;
+              },
             },
             {
-              title: "Ngày tạo",
+              title: "Ngày nộp hồ sơ",
               dataIndex: "createdAt",
               render: (date: string) => dayjs(date).format("DD/MM/YYYY HH:mm"),
               width: 150,
+              align: 'center',
+            },
+            {
+              title: "Thao tác",
+              key: "action",
+              width: 160,
+              align: 'center',
+              render: (_: unknown, record: Instructor) => (
+                record.approvalStatus === 'pending' ? (
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                    <Button
+                      type="primary"
+                      icon={<CheckCircleOutlined />}
+                      onClick={e => {
+                        e.stopPropagation();
+                        message.info(`Đã duyệt giảng viên: ${record.fullname}`);
+                      }}
+                    >
+                      Duyệt
+                    </Button>
+                    <Button
+                      danger
+                      icon={<CloseCircleOutlined />}
+                      onClick={e => {
+                        e.stopPropagation();
+                        message.info(`Đã từ chối giảng viên: ${record.fullname}`);
+                      }}
+                    >
+                      Từ chối
+                    </Button>
+                  </div>
+                ) : null
+              ),
             },
           ]}
         />

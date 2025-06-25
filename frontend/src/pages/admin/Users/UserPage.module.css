@@ -470,4 +470,24 @@
 .linkBtn:hover, .linkBtn:focus {
   color: #222 !important;
   text-decoration: none;
+}
+
+.centeredTable :global(.ant-table) {
+  width: 100%;
+}
+.centeredTable :global(.ant-table-thead) th {
+  text-align: center;
+  padding: 12px 8px;
+}
+.centeredTable :global(.ant-table-tbody) td {
+  text-align: center;
+  padding: 10px 8px;
+}
+.centeredTable :global(.ant-table-tbody) td:first-child,
+.centeredTable :global(.ant-table-thead) th:first-child {
+  text-align: center;
+}
+.centeredTable :global(.ant-table-tbody) td:nth-child(2),
+.centeredTable :global(.ant-table-thead) th:nth-child(2) {
+  text-align: left;
 } 

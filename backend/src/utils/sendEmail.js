@@ -24,7 +24,7 @@ const sendEmail = async (to, subject, html) => {
 // Gửi email xác minh cho instructor registration
 const sendInstructorVerificationEmail = async (email, fullName, verificationToken) => {
   try {
-    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email/${verificationToken}`;
+    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/users/verify-instructor-email/${verificationToken}`;
     
     const mailOptions = {
       from: `"${process.env.EMAIL_FROM_NAME || 'EduPro Platform'}" <${process.env.EMAIL_FROM}>`,
@@ -39,117 +39,116 @@ const sendInstructorVerificationEmail = async (email, fullName, verificationToke
           <title>Xác minh email - Đăng ký giảng viên</title>
           <style>
             body {
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-              line-height: 1.6;
-              color: #333;
+              background: linear-gradient(135deg, #e0e7ff 0%, #f0fdfa 100%);
+              font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
               margin: 0;
               padding: 0;
-              background: linear-gradient(135deg, #f0f9ff 0%, #f8fafc 50%, #f3e8ff 100%);
+              min-height: 100vh;
             }
             .container {
-              max-width: 600px;
-              margin: 0 auto;
-              background-color: #ffffff;
-              border-radius: 16px;
+              max-width: 520px;
+              margin: 40px auto;
+              background: #fff;
+              border-radius: 20px;
+              box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
               overflow: hidden;
-              box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-              border: 1px solid rgba(255, 255, 255, 0.2);
+              border: 1px solid #e0e7ef;
             }
             .header {
               background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
               color: white;
-              padding: 40px 30px;
+              padding: 48px 30px 32px 30px;
               text-align: center;
               position: relative;
               overflow: hidden;
             }
-            .header::before {
-              content: '';
-              position: absolute;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-              opacity: 0.3;
+            .header .logo {
+              font-size: 38px;
+              font-weight: 800;
+              margin-bottom: 10px;
+              letter-spacing: 2px;
+              text-shadow: 0 2px 8px rgba(0,0,0,0.08);
             }
             .header h1 {
               margin: 0;
-              font-size: 28px;
+              font-size: 30px;
               font-weight: 700;
-              position: relative;
-              z-index: 1;
+              letter-spacing: 1px;
             }
             .header .subtitle {
-              margin: 8px 0 0 0;
-              font-size: 16px;
-              opacity: 0.9;
-              position: relative;
-              z-index: 1;
+              margin: 10px 0 0 0;
+              font-size: 18px;
+              opacity: 0.93;
+              font-weight: 400;
             }
             .content {
-              padding: 40px 30px;
+              padding: 40px 32px 32px 32px;
+              text-align: center;
             }
             .greeting {
-              font-size: 20px;
-              margin-bottom: 24px;
+              font-size: 22px;
+              margin-bottom: 20px;
               color: #1e293b;
-              font-weight: 600;
+              font-weight: 700;
             }
             .message {
               font-size: 16px;
-              margin-bottom: 32px;
+              margin-bottom: 28px;
               color: #475569;
-              line-height: 1.8;
+              line-height: 1.7;
             }
             .verification-button {
               display: inline-block;
               background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
               color: white;
-              padding: 16px 32px;
+              padding: 18px 40px;
               text-decoration: none;
-              border-radius: 12px;
-              font-weight: 600;
-              font-size: 16px;
-              margin: 24px 0;
-              transition: all 0.3s ease;
-              box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.3), 0 4px 6px -2px rgba(139, 92, 246, 0.2);
+              border-radius: 16px;
+              font-weight: 700;
+              font-size: 18px;
+              margin: 30px 0 18px 0;
+              transition: all 0.3s cubic-bezier(.4,2.3,.3,1);
+              box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.18), 0 4px 6px -2px rgba(139, 92, 246, 0.13);
+              letter-spacing: 0.5px;
             }
             .verification-button:hover {
-              transform: translateY(-2px);
-              box-shadow: 0 20px 25px -5px rgba(6, 182, 212, 0.4), 0 10px 10px -5px rgba(139, 92, 246, 0.3);
+              transform: translateY(-2px) scale(1.03);
+              box-shadow: 0 20px 25px -5px rgba(6, 182, 212, 0.25), 0 10px 10px -5px rgba(139, 92, 246, 0.18);
             }
             .warning {
               background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
               border: 1px solid #f59e0b;
-              border-radius: 12px;
-              padding: 20px;
-              margin: 24px 0;
+              border-radius: 14px;
+              padding: 18px 18px 18px 48px;
+              margin: 28px 0 18px 0;
               color: #92400e;
               position: relative;
+              font-size: 15px;
+              text-align: left;
             }
             .warning::before {
               content: '⚠️';
               position: absolute;
-              top: 20px;
-              left: 20px;
+              top: 18px;
+              left: 18px;
               font-size: 20px;
             }
             .warning-content {
-              margin-left: 35px;
+              margin-left: 0;
             }
             .footer {
               background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-              padding: 30px;
+              padding: 28px 20px;
               text-align: center;
               color: #64748b;
-              font-size: 14px;
+              font-size: 15px;
               border-top: 1px solid #e2e8f0;
             }
             .link {
               color: #06b6d4;
               text-decoration: none;
               font-weight: 500;
+              word-break: break-all;
             }
             .link:hover {
               text-decoration: underline;
@@ -157,29 +156,30 @@ const sendInstructorVerificationEmail = async (email, fullName, verificationToke
             .steps {
               background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
               border: 1px solid #0ea5e9;
-              border-radius: 12px;
-              padding: 20px;
-              margin: 24px 0;
+              border-radius: 14px;
+              padding: 18px 18px 18px 38px;
+              margin: 28px 0 18px 0;
+              text-align: left;
             }
             .steps h4 {
               color: #0369a1;
-              margin: 0 0 16px 0;
-              font-size: 16px;
-              font-weight: 600;
+              margin: 0 0 14px 0;
+              font-size: 17px;
+              font-weight: 700;
             }
             .steps ol {
               margin: 0;
               padding-left: 20px;
               color: #0c4a6e;
+              font-size: 15px;
             }
             .steps li {
-              margin-bottom: 8px;
+              margin-bottom: 7px;
             }
-            .logo {
-              font-size: 24px;
-              font-weight: 700;
-              color: white;
-              margin-bottom: 8px;
+            @media (max-width: 600px) {
+              .container { margin: 10px; }
+              .content, .header, .footer { padding-left: 10px; padding-right: 10px; }
+              .steps, .warning { padding-left: 18px; }
             }
           </style>
         </head>
@@ -783,117 +783,116 @@ const sendVerificationEmail = async (email, fullName, verificationToken) => {
           <title>Xác minh email - EduPro</title>
           <style>
             body {
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-              line-height: 1.6;
-              color: #333;
+              background: linear-gradient(135deg, #e0e7ff 0%, #f0fdfa 100%);
+              font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
               margin: 0;
               padding: 0;
-              background: linear-gradient(135deg, #f0f9ff 0%, #f8fafc 50%, #f3e8ff 100%);
+              min-height: 100vh;
             }
             .container {
-              max-width: 600px;
-              margin: 0 auto;
-              background-color: #ffffff;
-              border-radius: 16px;
+              max-width: 520px;
+              margin: 40px auto;
+              background: #fff;
+              border-radius: 20px;
+              box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
               overflow: hidden;
-              box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-              border: 1px solid rgba(255, 255, 255, 0.2);
+              border: 1px solid #e0e7ef;
             }
             .header {
               background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
               color: white;
-              padding: 40px 30px;
+              padding: 48px 30px 32px 30px;
               text-align: center;
               position: relative;
               overflow: hidden;
             }
-            .header::before {
-              content: '';
-              position: absolute;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-              opacity: 0.3;
+            .header .logo {
+              font-size: 38px;
+              font-weight: 800;
+              margin-bottom: 10px;
+              letter-spacing: 2px;
+              text-shadow: 0 2px 8px rgba(0,0,0,0.08);
             }
             .header h1 {
               margin: 0;
-              font-size: 28px;
+              font-size: 30px;
               font-weight: 700;
-              position: relative;
-              z-index: 1;
+              letter-spacing: 1px;
             }
             .header .subtitle {
-              margin: 8px 0 0 0;
-              font-size: 16px;
-              opacity: 0.9;
-              position: relative;
-              z-index: 1;
+              margin: 10px 0 0 0;
+              font-size: 18px;
+              opacity: 0.93;
+              font-weight: 400;
             }
             .content {
-              padding: 40px 30px;
+              padding: 40px 32px 32px 32px;
+              text-align: center;
             }
             .greeting {
-              font-size: 20px;
-              margin-bottom: 24px;
+              font-size: 22px;
+              margin-bottom: 20px;
               color: #1e293b;
-              font-weight: 600;
+              font-weight: 700;
             }
             .message {
               font-size: 16px;
-              margin-bottom: 32px;
+              margin-bottom: 28px;
               color: #475569;
-              line-height: 1.8;
+              line-height: 1.7;
             }
             .verification-button {
               display: inline-block;
               background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
               color: white;
-              padding: 16px 32px;
+              padding: 18px 40px;
               text-decoration: none;
-              border-radius: 12px;
-              font-weight: 600;
-              font-size: 16px;
-              margin: 24px 0;
-              transition: all 0.3s ease;
-              box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.3), 0 4px 6px -2px rgba(139, 92, 246, 0.2);
+              border-radius: 16px;
+              font-weight: 700;
+              font-size: 18px;
+              margin: 30px 0 18px 0;
+              transition: all 0.3s cubic-bezier(.4,2.3,.3,1);
+              box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.18), 0 4px 6px -2px rgba(139, 92, 246, 0.13);
+              letter-spacing: 0.5px;
             }
             .verification-button:hover {
-              transform: translateY(-2px);
-              box-shadow: 0 20px 25px -5px rgba(6, 182, 212, 0.4), 0 10px 10px -5px rgba(139, 92, 246, 0.3);
+              transform: translateY(-2px) scale(1.03);
+              box-shadow: 0 20px 25px -5px rgba(6, 182, 212, 0.25), 0 10px 10px -5px rgba(139, 92, 246, 0.18);
             }
             .warning {
               background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
               border: 1px solid #f59e0b;
-              border-radius: 12px;
-              padding: 20px;
-              margin: 24px 0;
+              border-radius: 14px;
+              padding: 18px 18px 18px 48px;
+              margin: 28px 0 18px 0;
               color: #92400e;
               position: relative;
+              font-size: 15px;
+              text-align: left;
             }
             .warning::before {
               content: '⚠️';
               position: absolute;
-              top: 20px;
-              left: 20px;
+              top: 18px;
+              left: 18px;
               font-size: 20px;
             }
             .warning-content {
-              margin-left: 35px;
+              margin-left: 0;
             }
             .footer {
               background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-              padding: 30px;
+              padding: 28px 20px;
               text-align: center;
               color: #64748b;
-              font-size: 14px;
+              font-size: 15px;
               border-top: 1px solid #e2e8f0;
             }
             .link {
               color: #06b6d4;
               text-decoration: none;
               font-weight: 500;
+              word-break: break-all;
             }
             .link:hover {
               text-decoration: underline;
@@ -901,29 +900,30 @@ const sendVerificationEmail = async (email, fullName, verificationToken) => {
             .steps {
               background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
               border: 1px solid #0ea5e9;
-              border-radius: 12px;
-              padding: 20px;
-              margin: 24px 0;
+              border-radius: 14px;
+              padding: 18px 18px 18px 38px;
+              margin: 28px 0 18px 0;
+              text-align: left;
             }
             .steps h4 {
               color: #0369a1;
-              margin: 0 0 16px 0;
-              font-size: 16px;
-              font-weight: 600;
+              margin: 0 0 14px 0;
+              font-size: 17px;
+              font-weight: 700;
             }
             .steps ol {
               margin: 0;
               padding-left: 20px;
               color: #0c4a6e;
+              font-size: 15px;
             }
             .steps li {
-              margin-bottom: 8px;
+              margin-bottom: 7px;
             }
-            .logo {
-              font-size: 24px;
-              font-weight: 700;
-              color: white;
-              margin-bottom: 8px;
+            @media (max-width: 600px) {
+              .container { margin: 10px; }
+              .content, .header, .footer { padding-left: 10px; padding-right: 10px; }
+              .steps, .warning { padding-left: 18px; }
             }
           </style>
         </head>

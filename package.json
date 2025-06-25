@@ -12,6 +12,7 @@
     "express-rate-limit": "^7.5.0",
     "framer-motion": "^12.18.1",
     "helmet": "^8.1.0",
+    "js-sha256": "^0.11.1",
     "morgan": "^1.10.0",
     "react-confetti": "^6.4.0",
     "react-intersection-observer": "^9.16.0",

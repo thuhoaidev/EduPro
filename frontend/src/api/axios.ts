@@ -9,9 +9,6 @@ export const config = axios.create({
     withCredentials: true, // Thêm để hỗ trợ CORS với credentials
     headers: {
         "Content-Type": "application/json",
-        // "Access-Control-Allow-Origin": "*",
-        // "Access-Control-Allow-Methods": "GET,PUT,POST,DELETE,PATCH,OPTIONS",
-        // "Access-Control-Allow-Headers": "Content-Type, Authorization"
     },
     timeout: 10000 // timeout sau 10 giây
 });

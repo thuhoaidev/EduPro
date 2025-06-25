@@ -52,6 +52,7 @@ function App() {
       children: [
         { index: true, element: <Homepage /> },
         { path: 'verify-email/:token', element: <VerifyEmail /> },
+        { path: 'users/verify-instructor-email/:token', element: <VerifyEmail /> },
         { path: 'instructor/earnings', element: <Earnings /> },
         { path: "blog/write", element: <BlogWritePage /> },//viết blog
         { path: "blog/mine", element: <MyBlogPosts  /> },

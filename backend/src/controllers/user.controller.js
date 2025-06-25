@@ -591,7 +591,7 @@ exports.updateInstructorApproval = async (req, res) => {
 
     // Cập nhật trạng thái duyệt
     instructor.approval_status = status;
-    instructor.instructorInfo.approval_status = status;
+    instructor.instructorInfo.instructor_profile_status = status;
     instructor.instructorInfo.approval_date = new Date();
     instructor.instructorInfo.approved_by = req.user._id;
 
@@ -642,119 +642,18 @@ exports.updateInstructorApproval = async (req, res) => {
   }
 };
 
-// Lấy danh sách hồ sơ giảng viên chờ duyệt
-exports.getPendingInstructors = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || '';
-
-    // Tạo query cơ bản
-    const pendingInstructorsQuery = {
-      approval_status: 'pending',
-      instructorInfo: { $exists: true },
-    };
-
-    // Thêm điều kiện tìm kiếm nếu có
-    if (search) {
-      const searchQuery = {
-        $or: [
-          { fullname: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } },
-          { nickname: { $regex: search, $options: 'i' } },
-          { phone: { $regex: search, $options: 'i' } },
-        ],
-      };
-      pendingInstructorsQuery.$and = [searchQuery];
-    }
-
-    // Lấy danh sách giảng viên chờ duyệt
-    const pendingInstructors = await User.find(pendingInstructorsQuery)
-      .populate('role_id')
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .sort({ created_at: -1 });
-
-    // Đếm tổng số
-    const total = await User.countDocuments(pendingInstructorsQuery);
-
-    // Format dữ liệu trả về
-    const formattedInstructors = pendingInstructors.map(instructor => {
-      const instructorData = instructor.toJSON();
-      return {
-        ...instructorData,
-        instructorProfile: {
-          bio: instructorData.bio || '',
-          social_links: instructorData.social_links || {},
-          avatar: instructorData.avatar || null,
-          phone: instructorData.phone || '',
-          address: instructorData.address || '',
-          dob: instructorData.dob || null,
-          gender: instructorData.gender || '',
-          instructorInfo: instructorData.instructorInfo || {},
-        },
-        registrationInfo: {
-          created_at: instructorData.created_at,
-          updated_at: instructorData.updated_at,
-          email_verified: instructorData.email_verified,
-          status: instructorData.status,
-        },
-      };
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Lấy danh sách hồ sơ giảng viên chờ duyệt thành công',
-      data: {
-        pendingInstructors: formattedInstructors,
-        pagination: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-        summary: {
-          totalPending: total,
-          totalApproved: await User.countDocuments({
-            approval_status: 'approved',
-            instructorInfo: { $exists: true },
-          }),
-          totalRejected: await User.countDocuments({
-            approval_status: 'rejected',
-            instructorInfo: { $exists: true },
-          }),
-        },
-      },
-    });
-  } catch (error) {
-    console.error('Lỗi lấy danh sách hồ sơ giảng viên chờ duyệt:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi lấy danh sách hồ sơ giảng viên chờ duyệt',
-      error: error.message,
-    });
-  }
-};
-
-
 // Lấy thông tin chi tiết hồ sơ giảng viên chờ duyệt
-exports.getPendingInstructorDetail = async (req, res) => {
+exports.getInstructorDetail = async (req, res) => {
   try {
     const instructorId = req.params.id;
 
-    // Không lọc theo role vì lúc này user chưa phải instructor
-    const instructor = await User.findOne({
-      _id: instructorId,
-      $or: [
-        { approval_status: 'pending' },
-        { approval_status: null },
-      ],
-    }).populate('role_id');
+    // Tìm user theo _id, không lọc approval_status
+    const instructor = await User.findById(instructorId).populate('role_id');
 
     if (!instructor) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy hồ sơ giảng viên chờ duyệt',
+        message: 'Không tìm thấy hồ sơ giảng viên ',
       });
     }
 
@@ -807,8 +706,6 @@ exports.getPendingInstructorDetail = async (req, res) => {
   }
 };
 
-
-
 // Nộp hồ sơ giảng viên (từ role sinh viên)
 exports.submitInstructorProfile = async (req, res) => {
   try {
@@ -833,7 +730,7 @@ exports.submitInstructorProfile = async (req, res) => {
     }
 
     // Kiểm tra xem đã có hồ sơ giảng viên chưa
-    if (user.instructorInfo && user.instructorInfo.approval_status) {
+    if (user.instructorInfo && user.instructorInfo.instructor_profile_status) {
       return res.status(400).json({
         success: false,
         message: 'Bạn đã nộp hồ sơ giảng viên trước đó',
@@ -949,7 +846,7 @@ exports.submitInstructorProfile = async (req, res) => {
       demo_video: demoVideoUrl,
       cv_file: cvFileUrl,
       other_documents: processedOtherDocuments,
-      approval_status: 'pending',
+      instructor_profile_status: 'pending',
     };
 
     // Cập nhật user
@@ -1020,7 +917,7 @@ exports.updateInstructorProfile = async (req, res) => {
     }
 
     // Kiểm tra xem có hồ sơ giảng viên không
-    if (!user.instructorInfo || !user.instructorInfo.approval_status) {
+    if (!user.instructorInfo || !user.instructorInfo.instructor_profile_status) {
       return res.status(400).json({
         success: false,
         message: 'Bạn chưa nộp hồ sơ giảng viên',
@@ -1028,7 +925,7 @@ exports.updateInstructorProfile = async (req, res) => {
     }
 
     // Chỉ cho phép cập nhật khi hồ sơ bị từ chối
-    if (user.instructorInfo.approval_status === 'approved') {
+    if (user.instructorInfo.instructor_profile_status === 'approved') {
       return res.status(400).json({
         success: false,
         message: 'Không thể cập nhật hồ sơ đã được duyệt',
@@ -1056,7 +953,7 @@ exports.updateInstructorProfile = async (req, res) => {
     if (other_documents) user.instructorInfo.other_documents = other_documents;
 
     // Reset trạng thái về pending
-    user.instructorInfo.approval_status = 'pending';
+    user.instructorInfo.instructor_profile_status = 'pending';
     user.approval_status = 'pending';
 
     await user.save();
@@ -1115,7 +1012,7 @@ exports.registerInstructor = async (req, res) => {
 
       // Additional
       bio,
-      linkedin,
+      facebook,
       github,
       website
     } = req.body;
@@ -1133,7 +1030,7 @@ exports.registerInstructor = async (req, res) => {
     const cleanInstitution = institution?.trim();
     const cleanMajor = major?.trim();
     const cleanBio = typeof req.body.bio === 'string' ? req.body.bio.trim() : '';
-    const cleanLinkedin = linkedin?.trim();
+    const cleanFacebook = facebook?.trim();
     const cleanGithub = github?.trim();
     const cleanWebsite = website?.trim();
 
@@ -1293,12 +1190,12 @@ exports.registerInstructor = async (req, res) => {
       demoVideoUrl = uploadedFiles.demoVideo.url;
     }
 
-    // Tìm role student (mặc định cho user mới)
-    const studentRole = await Role.findOne({ name: 'student' });
-    if (!studentRole) {
+    // Tìm role instructor
+    const instructorRole = await Role.findOne({ name: 'instructor' });
+    if (!instructorRole) {
       return res.status(404).json({
         success: false,
-        message: 'Vai trò sinh viên không tồn tại',
+        message: 'Vai trò giảng viên không tồn tại',
       });
     }
 
@@ -1349,11 +1246,11 @@ exports.registerInstructor = async (req, res) => {
       avatar: avatarUrl || 'default-avatar.jpg',
       bio: cleanBio,
       social_links: {
-        linkedin: cleanLinkedin || '',
+        facebook: cleanFacebook || '',
         github: cleanGithub || '',
         website: cleanWebsite || '',
       },
-      role_id: studentRole._id,
+      role_id: instructorRole._id,
       status: 'inactive',
       email_verified: false,
       approval_status: 'pending',
@@ -1377,7 +1274,8 @@ exports.registerInstructor = async (req, res) => {
         certificates: processedCertificates,
         demo_video: demoVideoUrl || null,
         cv_file: cvFileUrl || null,
-        approval_status: 'pending',
+        instructor_profile_status: 'pending',
+        bio: cleanBio || '',
       },
     });
 
@@ -1410,8 +1308,13 @@ exports.registerInstructor = async (req, res) => {
           status: newUser.status,
           email_verified: newUser.email_verified,
           approval_status: newUser.approval_status,
+          instructor_approval_status: newUser.instructor_approval_status,
         },
-        instructorInfo: newUser.instructorInfo,
+        instructorInfo: {
+          ...newUser.instructorInfo.toObject ? newUser.instructorInfo.toObject() : newUser.instructorInfo,
+          bio: newUser.bio || newUser.instructorInfo.bio || '',
+          instructor_profile_status: newUser.instructorInfo.instructor_profile_status,
+        },
       },
     });
   } catch (error) {
@@ -1436,9 +1339,10 @@ exports.verifyInstructorEmail = async (req, res) => {
       });
     }
 
-    // Tìm user với token này
+    // Tìm user với token này (hash SHA256 token từ URL)
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const user = await User.findOne({
-      email_verification_token: token,
+      email_verification_token: hashedToken,
       email_verification_expires: { $gt: Date.now() }
     });
 
@@ -1454,7 +1358,8 @@ exports.verifyInstructorEmail = async (req, res) => {
     user.status = 'active';
     user.email_verification_token = undefined;
     user.email_verification_expires = undefined;
-    user.approval_status = 'pending'; // Chuyển sang chờ admin duyệt
+    user.approval_status = 'approved'; // Chuyển sang đã duyệt khi xác minh email
+    // KHÔNG cập nhật instructorInfo.instructor_profile_status, giữ nguyên trạng thái cũ
 
     await user.save();
 

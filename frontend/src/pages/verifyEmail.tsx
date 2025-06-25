@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Result, Button, Spin, notification } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
-import { verifyEmail } from '../services/authService';
+import { verifyEmail, verifyInstructorEmail } from '../services/authService';
 import { useAuth } from '../hooks/Auths/useAuth';
 import styled from 'styled-components';
 import Confetti from 'react-confetti';
@@ -114,7 +114,11 @@ const VerifyEmail: React.FC = () => {
     const verifyToken = async () => {
       try {
         if (!token) throw new Error('Token không hợp lệ');
-        const response = await verifyEmail(token);
+        // Nếu URL chứa /users/verify-instructor-email/ thì gọi API xác minh giảng viên
+        const isInstructorVerify = window.location.pathname.includes('/users/verify-instructor-email/');
+        const response = isInstructorVerify
+          ? await verifyInstructorEmail(token)
+          : await verifyEmail(token);
         if (response.success) {
           setSuccess(true);
           setError(null); // Reset error nếu thành công

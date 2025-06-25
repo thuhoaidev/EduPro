@@ -78,8 +78,8 @@ const UserSchema = new mongoose.Schema({
   },
   approval_status: {
     type: String,
-    enum: [null, 'pending', 'approved', 'rejected'],
-    default: null,
+    enum: ['pending', 'approved'],
+    default: 'pending',
   },
   avatar: {
     type: String,
@@ -227,10 +227,10 @@ const UserSchema = new mongoose.Schema({
       },
     }],
     // Trạng thái duyệt
-    approval_status: {
+    instructor_profile_status: {
       type: String,
-      enum: [null, 'pending', 'approved', 'rejected'],
-      default: null,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
     },
     approval_date: {
       type: Date,

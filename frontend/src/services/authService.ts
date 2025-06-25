@@ -1,5 +1,6 @@
 import { config } from '../api/axios';
 import axios from 'axios';
+import sha256 from 'js-sha256';
 
 export const refreshAccessToken = async (): Promise<string | null> => {
   try {
@@ -48,5 +49,16 @@ export const checkEmailVerification = async (email: string) => {
     return response.data;
   } catch (error) {
     throw error;
+  }
+};
+
+// Xác minh email giảng viên
+export const verifyInstructorEmail = async (token: string) => {
+  try {
+    // Gửi token gốc lên backend, backend sẽ tự hash
+    const response = await config.get(`/users/verify-instructor-email/${token}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || 'Lỗi xác minh email giảng viên');
   }
 };
