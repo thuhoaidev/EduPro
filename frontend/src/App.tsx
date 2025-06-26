@@ -17,7 +17,7 @@ import ReportsPage from "./pages/admin/reports/Reports";
 import LoginPage from "./pages/client/auth/login";
 import RegisterPage from "./pages/client/auth/register";
 import ForgotPassword from "./pages/client/auth/forgotPassword";
-import ResetPassword from "./pages/client/auth/resetPassword";
+import ResetPassword from "./pages/client/auth/ResetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import Earnings from "./pages/client/earnings/Earnings";
 
@@ -41,6 +41,12 @@ import BlogPage from './pages/client/BlogPage';
 import CartPage from './pages/client/CartPage';
 import CourseDetailPage from "./pages/client/CourseDetailPage";
 import Dashboard from './pages/admin/Dashboard/Dashboard';
+import MyCourseList from './pages/instructor/course/MyCourseList';
+import MyCourseAdd from './pages/instructor/course/MyCourseAdd';
+import MyLessonManager from './pages/instructor/lessons/MyLessonManager';
+import MyStudentStats from './pages/instructor/students/MyStudentStats';
+import MyEarnings from './pages/instructor/earnings/MyEarnings';
+import CourseDetail from './pages/instructor/course/CourseDetail';
 
 const queryClient = new QueryClient();
 
@@ -103,6 +109,12 @@ function App() {
       path: "/instructor",
       element: <InstructorLayout />,
       children: [
+        { path: "courses", element: <MyCourseList /> },
+        { path: "courses/create", element: <MyCourseAdd /> },
+        { path: "courses/:id", element: <CourseDetail /> },
+        { path: "lessons", element: <MyLessonManager /> },
+        { path: "students", element: <MyStudentStats /> },
+        { path: "income", element: <MyEarnings /> },
       ],
     },
     { path: '/login', element: <LoginPage /> },

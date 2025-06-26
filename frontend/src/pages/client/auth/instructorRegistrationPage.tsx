@@ -23,8 +23,8 @@ import {
   UserAddOutlined
 } from "@ant-design/icons";
 import AuthNotification from "../../../components/common/AuthNotification";
-import { registerInstructor } from "../../../services/apiService";
-import type { InstructorRegistrationResponse } from "../../../services/apiService";
+// import { registerInstructor } from "../../../services/apiService";
+// import type { InstructorRegistrationResponse } from "../../../services/apiService";
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -195,7 +195,8 @@ export function InstructorRegistrationPage() {
       }
       
       // Gọi API
-      const result: InstructorRegistrationResponse = await registerInstructor(formData);
+      // const result: InstructorRegistrationResponse = await registerInstructor(formData);
+      // TODO: Chưa có API đăng ký giảng viên, cần bổ sung hàm registerInstructor trong apiService.ts
       
       // Kiểm tra response structure mới từ backend
       if (result.success) {

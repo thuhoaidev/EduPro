@@ -1,377 +1,296 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  Card, 
-  Tag, 
-  Collapse, 
-  List, 
-  Typography, 
-  Spin, 
-  Badge, 
-  Row, 
-  Col, 
-  Statistic, 
-  Button, 
+import {
+  Card,
+  Typography,
+  Tag,
+  Row,
+  Col,
+  Avatar,
+  Divider,
+  Skeleton,
+  List,
   Space,
-  Divider 
+  Button,
+  message,
+  Badge,
+  Tooltip,
+  Rate,
 } from "antd";
-import { 
-  PlayCircleOutlined, 
-  VideoCameraOutlined, 
-  EditOutlined, 
-  BookOutlined, 
-  ClockCircleOutlined, 
-  UserOutlined, 
-  DollarOutlined 
-} from "@ant-design/icons";
+import { ArrowLeftOutlined, BookOutlined, UserOutlined, CalendarOutlined, ClockCircleOutlined, TeamOutlined, StarFilled, DollarOutlined } from "@ant-design/icons";
+import { courseService } from '../../../services/apiService';
+import { motion } from 'framer-motion';
 
-const { Title, Paragraph, Text } = Typography;
-const { Panel } = Collapse;
+const { Title, Text, Paragraph } = Typography;
 
-interface CourseDetailData {
-  id: number;
+// Định nghĩa interface cho dữ liệu course và section
+interface Author {
+  name: string;
+  avatar?: string;
+  bio?: string;
+  expertise?: string[];
+}
+interface Lesson {
+  _id: string;
   title: string;
-  description: string;
-  thumbnail: string;
-  level: string;
-  language: string;
+  is_preview?: boolean;
+}
+interface Section {
+  _id: string;
+  title: string;
+  lessons?: Lesson[];
+}
+interface CourseDetailData {
+  id: string;
+  title: string;
+  subtitle?: string;
+  Image?: string;
+  status?: string;
+  type?: string;
+  language?: string;
+  level?: string;
+  createdAt?: string;
   price: number;
-  discount: number;
-  category: {
-    name: string;
-  };
-  requirements: string[];
-  sections: {
-    id: number;
-    title: string;
-    lessons: {
-      id: number;
-      title: string;
-      is_preview: boolean;
-      video: {
-        url: string;
-        duration: number;
-      } | null;
-    }[];
-  }[];
+  rating?: number;
+  reviews?: number;
+  requirements?: string[];
+  author?: Author;
+  sections?: Section[];
+  instructor?: any;
+  category?: any;
+  thumbnail?: string;
+  description?: string;
+  discount?: number;
 }
 
-const mockFetchCourseDetail = async (id: string): Promise<CourseDetailData> => {
-  return {
-    id: parseInt(id),
-    title: "React Cơ Bản",
-    description: "Khóa học giúp bạn bắt đầu với React từ con số 0.",
-    thumbnail: "https://i.imgur.com/xsKJ4Eh.png",
-    level: "beginner",
-    language: "Tiếng Việt",
-    price: 990000,
-    discount: 490000,
-    category: { name: "Frontend" },
-    requirements: [
-      "Biết HTML, CSS cơ bản",
-      "Có máy tính kết nối Internet",
-    ],
-    sections: [
-      {
-        id: 1,
-        title: "Giới thiệu",
-        lessons: [
-          {
-            id: 1,
-            title: "Giới thiệu khóa học",
-            is_preview: true,
-            video: {
-              url: "https://example.com/video1.mp4",
-              duration: 300,
-            },
-          },
-          {
-            id: 2,
-            title: "Cài đặt môi trường",
-            is_preview: false,
-            video: {
-              url: "https://example.com/video2.mp4",
-              duration: 480,
-            },
-          },
-        ],
-      },
-      {
-        id: 2,
-        title: "React Cơ Bản",
-        lessons: [
-          {
-            id: 3,
-            title: "Component là gì?",
-            is_preview: false,
-            video: {
-              url: "https://example.com/video3.mp4",
-              duration: 600,
-            },
-          },
-        ],
-      },
-    ],
-  };
-};
-
-const formatDuration = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}p ${secs}s`;
+const FADE_IN = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
 const CourseDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [course, setCourse] = useState<CourseDetailData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [course, setCourse] = useState<CourseDetailData | null>(null);
 
   useEffect(() => {
-    if (id) {
-      mockFetchCourseDetail(id).then((data) => {
-        setCourse(data);
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        let courseData = null;
+        if (id) {
+          courseData = await courseService.getCourseById(id);
+        }
+        setCourse(courseData);
+      } catch {
+        message.error('Không thể lấy chi tiết khóa học.');
+      } finally {
         setLoading(false);
-      });
-    }
+      }
+    };
+    fetchData();
   }, [id]);
 
-  if (loading || !course) return (
-    <div style={{ textAlign: 'center', padding: '50px 0' }}>
-      <Spin size="large">
-        <div style={{ padding: '50px 0' }}>
-          <div>Đang tải khóa học...</div>
-        </div>
-      </Spin>
-    </div>
-  );
+  if (loading) {
+    return <Card style={{ margin: 24 }}><Skeleton active avatar paragraph={{ rows: 8 }} /></Card>;
+  }
+  if (!course) {
+    return <Card style={{ margin: 24 }}><Text type="danger">Không tìm thấy khóa học.</Text></Card>;
+  }
 
-  const totalDuration = course.sections.reduce((sum, section) => {
-    return (
-      sum +
-      section.lessons.reduce((sec, lesson) => sec + (lesson.video?.duration || 0), 0)
-    );
-  }, 0);
+  const sections = course.sections || [];
+  const instructor = course.instructor;
+  const author = instructor?.user || course.author || {};
+  const authorBio = instructor?.bio || course.author?.bio || '';
+  const authorExpertise = instructor?.expertise || course.author?.expertise || [];
+  const totalLessons = sections.reduce((sum: number, s: any) => sum + (s.lessons?.length || 0), 0);
+  // Giả lập tổng thời lượng
+  const totalDuration = totalLessons * 12 + 30; // phút
 
-  const totalLessons = course.sections.reduce((sum, section) => sum + section.lessons.length, 0);
-  const previewLessons = course.sections.reduce(
-    (sum, section) => sum + section.lessons.filter(lesson => lesson.is_preview).length,
-    0
-  );
+  // Tính giá sau giảm
+  const hasDiscount = course.discount && course.discount > 0;
+  const oldPrice = course.price;
+  const discountPercent = hasDiscount ? course.discount ?? 0 : 0;
+  const finalPrice = hasDiscount ? Math.round(course.price * (1 - discountPercent / 100)) : course.price;
 
   return (
-    <div className="p-6">
-      {/* Header Section */}
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Chi tiết khóa học</h2>
-          <p className="text-gray-500 mt-1">Xem và quản lý thông tin chi tiết khóa học</p>
-        </div>
-        <Button 
-          type="primary" 
-          icon={<EditOutlined />}
-          onClick={() => navigate(`/instructor/courses/${id}/edit`)}
-          size="large"
-        >
-          Chỉnh sửa khóa học
-        </Button>
-      </div>
-
-      {/* Course Overview */}
-      <Card 
-        className="shadow-sm mb-6"
-        cover={
-          <div className="relative h-64">
-            <img
-              alt={course.title}
-              src={course.thumbnail}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-              <Typography.Title level={2} className="text-white mb-2">
-                {course.title}
-              </Typography.Title>
-              <Space size="middle">
-                <Tag color="blue" className="text-base px-3 py-1">
-                  {course.category.name}
-                </Tag>
-                <Tag color="gold" className="text-base px-3 py-1">
-                  Trình độ: {course.level}
-                </Tag>
-                <Tag color="purple" className="text-base px-3 py-1">
-                  Ngôn ngữ: {course.language}
-                </Tag>
-              </Space>
-            </div>
-          </div>
+    <motion.div initial="hidden" animate="visible" variants={FADE_IN} style={{ padding: 0, background: '#f5f7fa', minHeight: '100vh' }}>
+      <style>{`
+        .course-detail-main {
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 32px 16px 48px 16px;
         }
-      >
-        <Row gutter={[16, 16]} className="mb-6">
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <Statistic
-                title="Tổng số bài học"
-                value={totalLessons}
-                prefix={<BookOutlined />}
-                valueStyle={{ color: '#1890ff' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <Statistic
-                title="Bài học xem trước"
-                value={previewLessons}
-                prefix={<PlayCircleOutlined />}
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <Statistic
-                title="Tổng thời lượng"
-                value={formatDuration(totalDuration)}
-                prefix={<ClockCircleOutlined />}
-                valueStyle={{ color: '#faad14' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <Statistic
-                title="Giá khóa học"
-                value={course.discount.toLocaleString()}
-                prefix={<DollarOutlined />}
-                suffix="VNĐ"
-                valueStyle={{ color: '#eb2f96' }}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        <Typography.Paragraph className="text-base text-gray-600">
-          {course.description}
-        </Typography.Paragraph>
-
-        <div className="flex items-center gap-3 text-lg mt-4">
-          <span className="line-through text-gray-400">
-            {course.price.toLocaleString()}đ
-          </span>
-          <span className="text-red-500 font-semibold text-xl">
-            {course.discount.toLocaleString()}đ
-          </span>
-        </div>
-      </Card>
-
-      <Row gutter={[16, 16]}>
-        {/* Requirements */}
-        <Col xs={24} lg={12}>
-          <Card 
-            title={
-              <Space>
-                <UserOutlined />
-                <span>Yêu cầu trước khi học</span>
+        .course-detail-card {
+          background: #fff;
+          border-radius: 18px;
+          box-shadow: 0 4px 24px 0 rgba(26,115,232,0.10);
+          border: none;
+          margin-bottom: 32px;
+        }
+        .course-cover {
+          border-radius: 18px 18px 0 0;
+          object-fit: cover;
+          max-height: 340px;
+          min-height: 220px;
+          background: #f5f7fa;
+        }
+        .section-card {
+          background: #f5f7fa;
+          border-radius: 12px;
+          margin-bottom: 18px;
+          border: none;
+          box-shadow: 0 2px 8px 0 rgba(26,115,232,0.04);
+          transition: box-shadow 0.2s;
+        }
+        .section-card:hover {
+          box-shadow: 0 4px 16px 0 rgba(26,115,232,0.10);
+        }
+        .lesson-item {
+          border-radius: 8px;
+          transition: background 0.2s;
+        }
+        .lesson-item:hover {
+          background: #e3f0fd;
+        }
+        .author-avatar {
+          border: 3px solid #1a73e8;
+          transition: box-shadow 0.2s;
+        }
+        .author-avatar:hover {
+          box-shadow: 0 0 0 4px #e3f0fd;
+        }
+        .course-badge {
+          background: #1a73e8;
+          color: #fff;
+          border-radius: 6px;
+          padding: 2px 10px;
+          font-size: 13px;
+          margin-right: 8px;
+        }
+        .author-expertise {
+          color: #1a73e8;
+          font-size: 13px;
+          font-weight: 500;
+          background: #e3f0fd;
+          border-radius: 6px;
+          padding: 2px 8px;
+          margin-right: 6px;
+        }
+        .course-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 18px;
+          margin-bottom: 12px;
+        }
+        .course-meta-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 15px;
+          color: #23272f;
+        }
+        @media (max-width: 900px) {
+          .course-detail-main { padding: 12px 2vw 32px 2vw; }
+        }
+      `}</style>
+      <div className="course-detail-main">
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ marginBottom: 18, background: '#f5f7fa', border: 'none', color: '#1a73e8', fontWeight: 500 }}>Quay lại</Button>
+        <Card
+          className="course-detail-card"
+          cover={<img alt={course.title} src={course.Image || course.thumbnail || ''} className="course-cover" />}
+          variant="borderless"
+        >
+          <Row gutter={[32, 32]}>
+            <Col xs={24} md={16}>
+              <Title level={2} style={{ color: '#1a73e8', marginBottom: 0 }}>{course.title}</Title>
+              <Space style={{ margin: '8px 0 16px 0', flexWrap: 'wrap' }}>
+                <span className="course-badge">{course.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}</span>
+                <Tag color="purple">{course.type || course.category?.name || ''}</Tag>
+                <Tag color="geekblue">{course.language}</Tag>
+                <Tag color="cyan">{course.level}</Tag>
+                <Tag icon={<CalendarOutlined />} color="default">{course.createdAt ? new Date(course.createdAt).toLocaleDateString() : ''}</Tag>
               </Space>
-            }
-            className="shadow-sm h-full"
-          >
-            <List
-              dataSource={course.requirements}
-              renderItem={(item) => (
-                <List.Item className="hover:bg-gray-50 p-2 rounded-lg transition-colors">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                    <span className="text-gray-600">{item}</span>
-                  </div>
-                </List.Item>
+              <Paragraph type="secondary" style={{ marginTop: 0, fontSize: 16 }}>{course.subtitle || course.description || ''}</Paragraph>
+              <div className="course-meta">
+                <div className="course-meta-item">
+                  <DollarOutlined style={{ color: '#faad14' }} />
+                  {oldPrice === 0 ? (
+                    <Tag color="green">Miễn phí</Tag>
+                  ) : (
+                    <>
+                      {hasDiscount && (
+                        <>
+                          <span style={{ textDecoration: 'line-through', color: '#888', marginRight: 8 }}>
+                            {oldPrice?.toLocaleString()}đ
+                          </span>
+                          <Tag color="red" style={{ fontWeight: 600, marginRight: 8 }}>-{discountPercent}%</Tag>
+                        </>
+                      )}
+                      <Tag color="orange" style={{ fontWeight: 600 }}>{finalPrice?.toLocaleString()}đ</Tag>
+                    </>
+                  )}
+                </div>
+                <div className="course-meta-item"><TeamOutlined style={{ color: '#1a73e8' }} />{Math.floor(Math.random() * 500) + 50} học viên</div>
+                <div className="course-meta-item"><StarFilled style={{ color: '#faad14' }} />{course.rating || 4.5} <span style={{ color: '#888', fontWeight: 400 }}>({course.reviews || 0} đánh giá)</span></div>
+                <div className="course-meta-item"><BookOutlined style={{ color: '#1a73e8' }} />{totalLessons} bài học</div>
+                <div className="course-meta-item"><ClockCircleOutlined style={{ color: '#1a73e8' }} />{Math.floor(totalDuration / 60)}h {totalDuration % 60}m</div>
+              </div>
+              <Divider style={{ margin: '16px 0' }} />
+              <Row gutter={16} style={{ marginBottom: 12 }}>
+                <Col><Text strong>Yêu cầu: </Text>{Array.isArray(course.requirements) && course.requirements.length > 0 ? course.requirements.join(', ') : 'Không có'}</Col>
+              </Row>
+              <Divider orientation="left" style={{ color: '#1a73e8', fontWeight: 600 }}>Nội dung khóa học</Divider>
+              {sections.length === 0 ? <Text type="secondary">Chưa có chương nào.</Text> : (
+                <div>
+                  {sections.map((section: any, idx: number) => (
+                    <Card key={section._id || idx} className="section-card" title={<span><BookOutlined style={{ color: '#1a73e8', marginRight: 8 }} />{section.title}</span>}>
+                      <List
+                        size="small"
+                        dataSource={section.lessons || []}
+                        renderItem={(lesson: any) => (
+                          <List.Item className="lesson-item">
+                            <Space>
+                              <UserOutlined style={{ color: '#1a73e8' }} />
+                              <Text>{lesson.title}</Text>
+                              {lesson.is_preview && <Badge color="#1a73e8" text="Preview" />}
+                            </Space>
+                          </List.Item>
+                        )}
+                      />
+                    </Card>
+                  ))}
+                </div>
               )}
-            />
-          </Card>
-        </Col>
-
-        {/* Course Content */}
-        <Col xs={24} lg={12}>
-          <Card 
-            title={
-              <Space>
-                <BookOutlined />
-                <span>Chương trình học ({formatDuration(totalDuration)})</span>
-              </Space>
-            }
-            className="shadow-sm h-full"
-          >
-            <Collapse 
-              accordion 
-              className="course-content"
-              expandIconPosition="end"
-            >
-              {course.sections.map((section) => (
-                <Collapse.Panel 
-                  header={
-                    <div className="font-medium text-gray-800">
-                      {section.title}
-                    </div>
-                  } 
-                  key={section.id}
-                >
-                  <List
-                    dataSource={section.lessons}
-                    renderItem={(lesson) => (
-                      <List.Item className="hover:bg-gray-50 p-2 rounded-lg transition-colors">
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-2">
-                            <VideoCameraOutlined className="text-blue-500" />
-                            <span className="text-gray-600">{lesson.title}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {lesson.is_preview && (
-                              <Badge color="green" text="Xem trước" />
-                            )}
-                            {lesson.video?.duration && (
-                              <Tag color="default" className="text-xs">
-                                {formatDuration(lesson.video.duration)}
-                              </Tag>
-                            )}
-                          </div>
+            </Col>
+            <Col xs={24} md={8}>
+              <motion.div initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+                <Card variant="borderless" style={{ background: '#f5f7fa', borderRadius: 14, boxShadow: '0 2px 8px 0 rgba(26,115,232,0.06)', marginBottom: 24 }}>
+                  <Title level={5} style={{ color: '#23272f', marginBottom: 12 }}>Giảng viên</Title>
+                  <Space align="start" style={{ width: '100%' }}>
+                    <Tooltip title={author?.fullname || author?.name || ''}>
+                      <Avatar src={author?.avatar || ''} size={72} className="author-avatar" />
+                    </Tooltip>
+                    <div style={{ flex: 1 }}>
+                      <Text strong style={{ color: '#1a73e8', fontSize: 18 }}>{author?.fullname || author?.name || ''}</Text>
+                      <Paragraph type="secondary" style={{ margin: 0, color: '#23272f', fontSize: 14 }}>{authorBio}</Paragraph>
+                      {Array.isArray(authorExpertise) && authorExpertise.length > 0 && (
+                        <div style={{ marginTop: 8 }}>
+                          {authorExpertise.map((exp: string, idx: number) => (
+                            <span className="author-expertise" key={idx}>{exp}</span>
+                          ))}
                         </div>
-                      </List.Item>
-                    )}
-                  />
-                </Collapse.Panel>
-              ))}
-            </Collapse>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Custom styles */}
-      <style>
-        {`
-          .course-content .ant-collapse-item {
-            border: 1px solid #f0f0f0;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            overflow: hidden;
-          }
-          .course-content .ant-collapse-header {
-            padding: 12px 16px !important;
-            background: #fafafa;
-          }
-          .course-content .ant-collapse-content {
-            border-top: 1px solid #f0f0f0;
-          }
-          .course-content .ant-list-item {
-            padding: 8px 16px;
-            border-bottom: 1px solid #f0f0f0;
-          }
-          .course-content .ant-list-item:last-child {
-            border-bottom: none;
-          }
-        `}
-      </style>
-    </div>
+                      )}
+                    </div>
+                  </Space>
+                </Card>
+              </motion.div>
+            </Col>
+          </Row>
+        </Card>
+      </div>
+    </motion.div>
   );
 };
 

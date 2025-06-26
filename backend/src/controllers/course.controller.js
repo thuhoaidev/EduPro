@@ -2,7 +2,7 @@ const Course = require('../models/Course');
 const InstructorProfile = require('../models/InstructorProfile');
 const { uploadBufferToCloudinary, getPublicIdFromUrl, deleteFromCloudinary } = require('../utils/cloudinary');
 const { validateSchema } = require('../utils/validateSchema');
-const { createCourseSchema, updateCourseSchema, updateCourseStatusSchema } = require('../validations/course.validation');
+const { createCourseSchema, updateCourseSchema } = require('../validations/course.validation');
 const ApiError = require('../utils/ApiError');
 const Section = require('../models/Section');
 const User = require('../models/User');
@@ -650,6 +650,15 @@ exports.getCourseById = async (req, res, next) => {
             throw new ApiError(404, 'Không tìm thấy khóa học');
         }
 
+        // Lấy danh sách chương học và bài học
+        const sections = await Section.find({ course_id: id })
+            .sort({ position: 1 })
+            .populate({
+                path: 'lessons',
+                select: 'title position is_preview',
+                options: { sort: { position: 1 } },
+            });
+
         // Tăng lượt xem
         course.views = (course.views || 0) + 1;
         await course.save();
@@ -670,7 +679,10 @@ exports.getCourseById = async (req, res, next) => {
 
         res.json({
             success: true,
-            data: formattedCourse
+            data: {
+                ...formattedCourse,
+                sections
+            }
         });
 
     } catch (error) {
