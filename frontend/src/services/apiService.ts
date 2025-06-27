@@ -6,6 +6,16 @@ const apiClient = axios.create({
   baseURL: 'http://localhost:5000/api',
 });
 
+// Thêm interceptor để tự động gửi token
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  return config;
+});
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -131,6 +141,42 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
 };
 
 export const courseService = {
+  getAllCourses: async (): Promise<Course[]> => {
+    try {
+      const response = await apiClient.get<ApiResponse<ApiCourse[]>>('/courses');
+      return response.data?.success && Array.isArray(response.data.data)
+        ? response.data.data.map(mapApiCourseToAppCourse)
+        : [];
+    } catch (error) {
+      console.error('Lỗi khi lấy tất cả khóa học:', error);
+      return [];
+    }
+  },
+
+  searchCourses: async (searchTerm: string): Promise<Course[]> => {
+    try {
+      const response = await apiClient.get<ApiResponse<ApiCourse[]>>(`/courses?search=${encodeURIComponent(searchTerm)}`);
+      return response.data?.success && Array.isArray(response.data.data)
+        ? response.data.data.map(mapApiCourseToAppCourse)
+        : [];
+    } catch (error) {
+      console.error('Lỗi khi tìm kiếm khóa học:', error);
+      return [];
+    }
+  },
+
+  getCoursesByCategory: async (categoryId: string): Promise<Course[]> => {
+    try {
+      const response = await apiClient.get<ApiResponse<ApiCourse[]>>(`/courses?category=${categoryId}`);
+      return response.data?.success && Array.isArray(response.data.data)
+        ? response.data.data.map(mapApiCourseToAppCourse)
+        : [];
+    } catch (error) {
+      console.error('Lỗi khi lấy khóa học theo danh mục:', error);
+      return [];
+    }
+  },
+
   getInstructorCourses: async (instructorId: string): Promise<Course[]> => {
     try {
       const response = await apiClient.get<ApiResponse<ApiCourse[]>>(`/courses?instructor=${instructorId}`);
@@ -182,4 +228,17 @@ export const courseService = {
       return null;
     }
   },
+
+  createCourse: async (data: any) => {
+    try {
+      const response = await apiClient.post('/courses', data, {
+        headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined
+      });
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data || error;
+    }
+  },
+
+  mapApiCourseToAppCourse,
 };

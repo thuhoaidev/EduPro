@@ -34,9 +34,7 @@ const CoursesPage: React.FC = () => {
                     fetchedCourses = await courseService.getAllCourses();
                 }
                 
-                // Chỉ hiển thị khóa học có status archived
-                const archivedCourses = fetchedCourses.filter(course => course.status === 'archived');
-                setCourses(archivedCourses);
+                setCourses(fetchedCourses);
             } catch (err) {
                 setError('Không thể tải danh sách khóa học. Vui lòng thử lại sau.');
                 console.error(err);

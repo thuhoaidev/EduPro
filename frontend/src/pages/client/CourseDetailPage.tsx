@@ -27,7 +27,7 @@ const sectionVariants = {
 };
 
 const CourseDetailPage: React.FC = () => {
-    const { slug } = useParams<{ slug: string }>();
+    const { slug, id } = useParams<{ slug?: string; id?: string }>();
     const [course, setCourse] = useState<Course | null>(null);
     const [courseContent, setCourseContent] = useState<Section[]>([]);
     const [loading, setLoading] = useState(true);
@@ -37,20 +37,40 @@ const CourseDetailPage: React.FC = () => {
 
     useEffect(() => {
         const fetchCourseData = async () => {
-            if (!slug) {
-                setError('Không tìm thấy slug của khóa học.');
+            if (!slug && !id) {
+                setError('Không tìm thấy thông tin khóa học.');
                 setLoading(false); return;
             }
             try {
                 setLoading(true);
-                const courseData = await courseService.getCourseBySlug(slug);
+                let courseData: Course | null = null;
+                let contentData: Section[] = [];
+                if (id) {
+                    // Lấy chi tiết bằng id
+                    const apiRes = await courseService.getCourseById(id);
+                    if (apiRes) {
+                        // Map sang type Course
+                        courseData = courseService.mapApiCourseToAppCourse(apiRes);
+                        // Nếu backend trả về sections kèm theo
+                        if (apiRes.sections) {
+                            contentData = apiRes.sections;
+                        } else {
+                            contentData = await courseService.getCourseContent(apiRes._id || id);
+                        }
+                    }
+                } else if (slug) {
+                    courseData = await courseService.getCourseBySlug(slug);
+                    if (courseData) {
+                        contentData = await courseService.getCourseContent(courseData.id);
+                    }
+                }
                 if (courseData) {
                     setCourse(courseData);
-                    setContentLoading(true);
-                    const contentData = await courseService.getCourseContent(courseData.id);
                     setCourseContent(contentData);
-                    setContentLoading(false);
-                } else { setError('Không tìm thấy khóa học.'); }
+                } else {
+                    setError('Không tìm thấy khóa học.');
+                }
+                setContentLoading(false);
             } catch (err) {
                 setError('Đã có lỗi xảy ra khi tải dữ liệu khóa học.');
                 console.error(err);
@@ -59,16 +79,11 @@ const CourseDetailPage: React.FC = () => {
             }
         };
         fetchCourseData();
-    }, [slug]);
+    }, [slug, id]);
 
     if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Spin size="large" /></div>;
     if (error) return <div className="p-8"><Alert message="Lỗi" description={error} type="error" showIcon /></div>;
     if (!course) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Empty description="Không tìm thấy dữ liệu khóa học." /></div>;
-
-    // Chỉ hiển thị nếu là archived
-    if (course.status !== 'archived') {
-        return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Empty description="Chỉ hiển thị cho khóa học đã lưu trữ (archived)." /></div>;
-    }
 
     const totalLessons = courseContent.reduce((acc, section) => acc + section.lessons.length, 0);
 

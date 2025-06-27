@@ -501,7 +501,17 @@ exports.getCourses = async (req, res, next) => {
 
         // Xây dựng query
         const query = {};
-        if (status) query.status = status;
+        if (status) {
+            // Hỗ trợ multiple status values được phân tách bằng dấu phẩy
+            if (status.includes(',')) {
+                query.status = { $in: status.split(',').map(s => s.trim()) };
+            } else {
+                query.status = status;
+            }
+        } else {
+            // Mặc định chỉ lấy khóa học đã được phê duyệt
+            query.status = { $in: ['published', 'active'] };
+        }
         if (category) query.category = category;
         if (level) query.level = level;
         if (search) {

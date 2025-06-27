@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  Card,
+import { 
+  Card, 
   Typography,
-  Tag,
-  Row,
-  Col,
+  Tag, 
+  Row, 
+  Col, 
   Avatar,
   Divider,
   Skeleton,
@@ -79,7 +79,7 @@ const CourseDetail: React.FC = () => {
       setLoading(true);
       try {
         let courseData = null;
-        if (id) {
+    if (id) {
           courseData = await courseService.getCourseById(id);
         }
         setCourse(courseData);
@@ -87,7 +87,7 @@ const CourseDetail: React.FC = () => {
         message.error('Không thể lấy chi tiết khóa học.');
       } finally {
         setLoading(false);
-      }
+    }
     };
     fetchData();
   }, [id]);
@@ -231,16 +231,16 @@ const CourseDetail: React.FC = () => {
                       <Tag color="orange" style={{ fontWeight: 600 }}>{finalPrice?.toLocaleString()}đ</Tag>
                     </>
                   )}
-                </div>
+            </div>
                 <div className="course-meta-item"><TeamOutlined style={{ color: '#1a73e8' }} />{Math.floor(Math.random() * 500) + 50} học viên</div>
                 <div className="course-meta-item"><StarFilled style={{ color: '#faad14' }} />{course.rating || 4.5} <span style={{ color: '#888', fontWeight: 400 }}>({course.reviews || 0} đánh giá)</span></div>
                 <div className="course-meta-item"><BookOutlined style={{ color: '#1a73e8' }} />{totalLessons} bài học</div>
                 <div className="course-meta-item"><ClockCircleOutlined style={{ color: '#1a73e8' }} />{Math.floor(totalDuration / 60)}h {totalDuration % 60}m</div>
-              </div>
+          </div>
               <Divider style={{ margin: '16px 0' }} />
               <Row gutter={16} style={{ marginBottom: 12 }}>
                 <Col><Text strong>Yêu cầu: </Text>{Array.isArray(course.requirements) && course.requirements.length > 0 ? course.requirements.join(', ') : 'Không có'}</Col>
-              </Row>
+        </Row>
               <Divider orientation="left" style={{ color: '#1a73e8', fontWeight: 600 }}>Nội dung khóa học</Divider>
               {sections.length === 0 ? <Text type="secondary">Chưa có chương nào.</Text> : (
                 <div>
@@ -251,17 +251,17 @@ const CourseDetail: React.FC = () => {
                         dataSource={section.lessons || []}
                         renderItem={(lesson: any) => (
                           <List.Item className="lesson-item">
-                            <Space>
+              <Space>
                               <UserOutlined style={{ color: '#1a73e8' }} />
                               <Text>{lesson.title}</Text>
                               {lesson.is_preview && <Badge color="#1a73e8" text="Preview" />}
-                            </Space>
-                          </List.Item>
-                        )}
-                      />
-                    </Card>
+              </Space>
+                </List.Item>
+              )}
+            />
+          </Card>
                   ))}
-                </div>
+                          </div>
               )}
             </Col>
             <Col xs={24} md={8}>
@@ -284,12 +284,12 @@ const CourseDetail: React.FC = () => {
                       )}
                     </div>
                   </Space>
-                </Card>
+          </Card>
               </motion.div>
-            </Col>
-          </Row>
+        </Col>
+      </Row>
         </Card>
-      </div>
+    </div>
     </motion.div>
   );
 };
