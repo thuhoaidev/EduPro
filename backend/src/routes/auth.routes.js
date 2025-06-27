@@ -11,6 +11,8 @@ const {
   resetPassword,
   changePassword,
 } = require('../controllers/auth.controller');
+const { uploadInstructorFiles, processInstructorFilesUpload } = require('../middlewares/upload');
+const { registerInstructor, verifyInstructorEmail } = require('../controllers/user.controller');
 
 router.post('/register', register);
 router.post('/login', login);
@@ -28,5 +30,10 @@ router.post('/reset-password/:resetToken', resetPassword);
 
 // Routes cho tất cả user đã đăng nhập
 router.patch('/change-password', auth, requireAuth(), changePassword);
+
+// Đăng ký giảng viên mới (KHÔNG cần đăng nhập)
+router.post('/instructor-register', uploadInstructorFiles, processInstructorFilesUpload, registerInstructor);
+// Xác minh email cho instructor (KHÔNG cần đăng nhập)
+router.get('/verify-instructor-email/:token', verifyInstructorEmail);
 
 module.exports = router; 

@@ -304,7 +304,21 @@ exports.login = async (req, res, next) => {
 
     // Kiểm tra điều kiện riêng cho giảng viên
     if (user.role_id && user.role_id.name === 'instructor') {
-      if (user.approval_status !== 'approved') {
+      // Kiểm tra instructor_profile_status trong instructorInfo
+      const profileStatus = user.instructorInfo?.instructor_profile_status;
+      if (profileStatus === 'pending') {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài khoản giảng viên của bạn đang trong thời gian xét duyệt. Vui lòng quay lại sau!',
+        });
+      }
+      if (profileStatus === 'rejected') {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài khoản giảng viên của bạn không phù hợp. Bạn có thể đăng kí tài khoản học tập để tiếp tục sử dụng.',
+        });
+      }
+      if (profileStatus !== 'approved') {
         return res.status(403).json({
           success: false,
           message: 'Tài khoản giảng viên chưa được duyệt',

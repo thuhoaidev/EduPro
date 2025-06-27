@@ -59,12 +59,24 @@ export default function LoginPage(): React.ReactElement {
       },
       onError: (error: { response?: { data?: { message?: string } } }) => {
         const errorMessage = error?.response?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại.";
-        setNotification({
-          isVisible: true,
-          type: 'error',
-          title: 'Lỗi đăng nhập!',
-          message: errorMessage
-        });
+        if (
+          errorMessage === 'Tài khoản giảng viên của bạn đang trong thời gian xét duyệt. Vui lòng quay lại sau!' ||
+          errorMessage === 'Tài khoản giảng viên của bạn không phù hợp. Bạn có thể đăng kí tài khoản học tập để tiếp tục sử dụng.'
+        ) {
+          setNotification({
+            isVisible: true,
+            type: 'warning',
+            title: 'Thông báo trạng thái giảng viên',
+            message: errorMessage
+          });
+        } else {
+          setNotification({
+            isVisible: true,
+            type: 'error',
+            title: 'Lỗi đăng nhập!',
+            message: errorMessage
+          });
+        }
         setIsLoading(false);
       }
     });

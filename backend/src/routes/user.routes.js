@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth, checkRole } = require('../middlewares/auth');
-const { uploadAvatar, processAvatarUpload, deleteOldAvatar, uploadInstructorFiles, processInstructorFilesUpload } = require('../middlewares/upload');
+const { uploadAvatar, processAvatarUpload, deleteOldAvatar } = require('../middlewares/upload');
 const { handleUploadError } = require('../middlewares/upload.middleware');
 const {
   getCurrentUser,
@@ -12,20 +12,9 @@ const {
   updateUser,
   deleteUser,
   updateInstructorApproval,
-  submitInstructorProfile,
-  getMyInstructorProfile,
-  updateInstructorProfile,
-  registerInstructor,
-  verifyInstructorEmail,
   getInstructors,
   getInstructorDetail,
 } = require('../controllers/user.controller');
-
-// Đăng ký giảng viên mới (không cần đăng nhập) - Đặt trước middleware auth
-router.post('/instructor-register', uploadInstructorFiles, processInstructorFilesUpload, registerInstructor);
-
-// Xác minh email cho instructor (không cần đăng nhập)
-router.get('/verify-instructor-email/:token', verifyInstructorEmail);
 
 // Routes cho người dùng hiện tại (cần đăng nhập)
 router.use(auth);
@@ -62,17 +51,16 @@ router.get('/me', getCurrentUser);
 // Cập nhật thông tin người dùng hiện tại (với upload avatar)
 router.put('/me', uploadAvatar, processAvatarUpload, deleteOldAvatar, handleUploadError, updateCurrentUser);
 
-// Routes cho sinh viên nộp hồ sơ giảng viên (chỉ cần đăng nhập)
-router.post('/instructor-profile/register', uploadInstructorFiles, processInstructorFilesUpload, submitInstructorProfile);
-router.get('/instructor-profile/my', getMyInstructorProfile);
-router.put('/instructor-profile/update', updateInstructorProfile);
-
 // Lấy danh sách hồ sơ giảng viên chờ duyệt (không cần quyền admin)
 router.get('/instructors', getInstructors);
 // Lấy thông tin chi tiết hồ sơ giảng viên chờ duyệt (không cần quyền admin)
 router.get('/instructors/:id/detail', getInstructorDetail);
 // Cập nhật trạng thái hồ sơ giảng viên (không cần quyền admin)
 router.put('/instructors/:id/approval', updateInstructorApproval);
+
+// Cập nhật hồ sơ giảng viên (và đồng bộ sang User)
+router.put('/instructor-profiles/:id', require('./../controllers/user.controller').updateInstructorProfile);
+
 // Routes cho admin (cần quyền admin)
 router.use(checkRole(['admin']));
 

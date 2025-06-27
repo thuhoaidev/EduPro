@@ -56,7 +56,7 @@ export const checkEmailVerification = async (email: string) => {
 export const verifyInstructorEmail = async (token: string) => {
   try {
     // Gửi token gốc lên backend, backend sẽ tự hash
-    const response = await config.get(`/users/verify-instructor-email/${token}`);
+    const response = await config.get(`/auth/verify-instructor-email/${token}`);
     return response.data;
   } catch (error: any) {
     throw new Error(error.response?.data?.message || 'Lỗi xác minh email giảng viên');

@@ -15,11 +15,6 @@ exports.createCourse = async (req, res, next) => {
             throw new ApiError(403, 'Bạn không có quyền tạo khóa học');
         }
 
-        // Log thông tin user
-        console.log('\n=== DEBUG INSTRUCTOR PROFILE ===');
-        console.log('User ID:', req.user._id);
-        console.log('User roles:', req.user.roles);
-
         // Nếu là admin, bỏ qua kiểm tra instructor profile
         if (req.user.roles.includes('admin')) {
             console.log('User is admin, skipping instructor profile check');
@@ -39,7 +34,6 @@ exports.createCourse = async (req, res, next) => {
                 // Kiểm tra và xóa record với user_id null nếu có
                 const nullProfile = await InstructorProfile.findOne({ user: null });
                 if (nullProfile) {
-                    console.log('Found and removing profile with null user_id...');
                     await nullProfile.remove();
                 }
                 instructorProfile = new InstructorProfile({

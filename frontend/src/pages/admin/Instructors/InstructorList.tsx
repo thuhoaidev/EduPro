@@ -315,7 +315,7 @@ const InstructorList = () => {
           scroll={{ x: true }}
           title={() => (
             <div className={styles.tableHeader}>
-              <h4 className={styles.tableTitle}>Danh sách hồ sơ giảng viên chờ duyệt pri</h4>
+              <h4 className={styles.tableTitle}>Danh sách hồ sơ giảng viên chờ duyệt</h4>
             </div>
           )}
           onRow={(record) => {
