@@ -244,6 +244,10 @@ const UserSchema = new mongoose.Schema({
       trim: true,
       maxlength: [1000, 'Lý do từ chối không được quá 1000 ký tự'],
     },
+    application_date: {
+    type: Date,
+    default: Date.now,
+  }, 
   },
 }, {
   timestamps: {

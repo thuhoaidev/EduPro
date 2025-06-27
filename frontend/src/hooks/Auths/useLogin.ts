@@ -11,6 +11,7 @@ const useLogin = ({ resource }: useLoginParams) => {
     return useMutation({
         mutationFn: (variables: any) => {
             // Gửi yêu cầu login và trả về response.data.data (chứa token hoặc user info)
+            console.log("🧪 Login variables:", variables);
             return login({ resource, variables });
         },
         onSuccess: (data: any) => {
