@@ -262,17 +262,18 @@ exports.login = async (req, res, next) => {
     await validateSchema(loginSchema, req.body);
 
     const { identifier, password } = req.body;
-
     const user = await User.findOne({
       $or: [
         { email: identifier },
         { nickname: identifier }
       ]
     }).select('+password').populate('role_id');
-
     if (!user) {
       console.log('Không tìm thấy user với identifier:', identifier);
     } else {
+       console.log('✅ Đã tìm thấy user:', user.email);
+  console.log('🔑 Password trong DB:', user.password);
+  console.log('🔒 So sánh với password nhập:', password);
       const isMatch = await user.matchPassword(password);
       if (!isMatch) {
         console.log('Sai mật khẩu cho user:', user.email, 'Hash trong DB:', user.password, 'Mật khẩu nhập:', password);
