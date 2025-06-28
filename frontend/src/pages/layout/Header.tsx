@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import AuthNotification from '../../components/common/AuthNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
+import { useCart } from '../../contexts/CartContext';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
@@ -49,6 +50,7 @@ interface Notification {
 
 const AppHeader = () => {
   const getRoleName = (user: User): string => user?.role?.name || 'student';
+  const { cartCount } = useCart();
 
   const [user, setUser] = useState<User | null | false>(null); // null: loading, User: logged in, false: not logged in
   const [loading, setLoading] = useState(true);
@@ -755,7 +757,7 @@ const AppHeader = () => {
                   whileTap={{ scale: 0.9 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Badge count={0} showZero size="small">
+                  <Badge count={cartCount} showZero size="small">
                     <Button 
                       onClick={() => navigate('/cart')} 
                       className="header-action-button" 

@@ -8,6 +8,7 @@ import ProfileEdit from "./pages/client/Profile/ProfileEdit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CouponManagement from "./pages/admin/Vouchers/VouchersPage";
 import TransactionHistory from "./pages/admin/Transaction/TransactionHistory";
+import { CartProvider } from "./contexts/CartContext";
 
 import UserPage from "./pages/admin/Users/UserPage";
 import InstructorList from "./pages/admin/Instructors/InstructorList";
@@ -131,7 +132,13 @@ function App() {
 
   const element = useRoutes(routes);
 
-  return <QueryClientProvider client={queryClient}>{element}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <CartProvider>
+        {element}
+      </CartProvider>
+    </QueryClientProvider>
+  );
 }
 
 export default App;

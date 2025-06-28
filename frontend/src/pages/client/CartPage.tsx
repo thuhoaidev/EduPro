@@ -28,6 +28,7 @@ import {
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { config as apiClient } from '../../api/axios';
+import { useCart } from '../../contexts/CartContext';
 
 const { Title, Text } = Typography;
 
@@ -59,6 +60,7 @@ const CartPage: React.FC = () => {
   const [voucher, setVoucher] = useState('');
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
   const [loading, setLoading] = useState(true);
+  const { updateCartCount } = useCart();
 
   const formatCurrency = (amount: number) => 
     new Intl.NumberFormat('vi-VN', { 
@@ -105,6 +107,7 @@ const CartPage: React.FC = () => {
       message.success('Đã xóa khỏi giỏ hàng');
       setCartItems(cartItems.filter(item => item.id !== id));
       setSelectedItems(selectedItems.filter(itemId => itemId !== id));
+      await updateCartCount();
     } catch (err) {
       console.error('Lỗi khi xóa:', err);
       message.error('Không thể xóa khóa học');
@@ -140,6 +143,7 @@ const CartPage: React.FC = () => {
       setCartItems(cartItems.filter(item => !selectedItems.includes(item.id)));
       setSelectedItems([]);
       message.success(`Đã xóa ${selectedItems.length} khóa học khỏi giỏ hàng!`);
+      await updateCartCount();
     } catch (err) {
       console.error('Lỗi khi xóa nhiều:', err);
       message.error('Có lỗi xảy ra khi xóa các khóa học');
