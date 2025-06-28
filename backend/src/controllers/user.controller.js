@@ -4,6 +4,7 @@ const { sendInstructorVerificationEmail, sendInstructorProfileSubmittedEmail, se
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const InstructorProfile = require('../models/InstructorProfile');
+const Enrollment = require('../models/Enrollment');
 
 // Lấy thông tin người dùng hiện tại
 exports.getCurrentUser = async (req, res) => {
@@ -1282,5 +1283,15 @@ exports.updateInstructorProfile = async (req, res) => {
       message: 'Lỗi cập nhật hồ sơ giảng viên',
       error: error.message,
     });
+  }
+};
+
+exports.getMyEnrollments = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const enrollments = await Enrollment.find({ student: userId }).populate('course');
+    res.json({ success: true, data: enrollments });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách khóa học đã đăng ký', error: error.message });
   }
 };

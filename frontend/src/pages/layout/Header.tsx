@@ -202,12 +202,11 @@ const AppHeader = () => {
 
       try {
         const response = await config.get('/auth/me');
-        const userData = response.data.data; // Assuming user data is in response.data.data
+        const userData = response.data.data;
         setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
-        localStorage.removeItem('token'); // Clear invalid token
+        // Không xóa token ở đây nữa
         setUser(false);
       } finally {
         setLoading(false);

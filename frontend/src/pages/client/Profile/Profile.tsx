@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { config } from "../../../api/axios";
 import { formatDistanceToNow, format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { Link } from 'react-router-dom';
+import { Progress } from 'antd';
+import { ArrowRightOutlined } from '@ant-design/icons';
 
 interface User {
   id: number;
@@ -54,20 +57,12 @@ const Profile = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          // Redirect to login if no token
-          window.location.href = '/login';
-          return;
-        }
-
         const response = await config.get('/users/me');
-        // Lưu user vào localStorage
-        localStorage.setItem('user', JSON.stringify(response.data.data));
         setUser(response.data.data);
         setError(null);
       } catch (error: unknown) {
@@ -76,10 +71,6 @@ const Profile = () => {
         
         if (error && typeof error === 'object' && 'response' in error) {
           const axiosError = error as { response?: { status?: number, data?: { message?: string } } };
-          if (axiosError.response?.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-          }
           errorMessage = axiosError.response?.data?.message || errorMessage;
         } else if (error instanceof Error) {
           errorMessage = error.message;
@@ -91,7 +82,17 @@ const Profile = () => {
       }
     };
 
+    const fetchEnrolledCourses = async () => {
+      try {
+        const response = await config.get('/users/me/enrollments');
+        setEnrolledCourses(response.data.data || []);
+      } catch (error) {
+        // Có thể log lỗi nếu cần
+      }
+    };
+
     fetchUserProfile();
+    fetchEnrolledCourses();
   }, []);
 
   if (loading) {
@@ -289,7 +290,7 @@ const Profile = () => {
             </div>
 
             {/* Thông tin giảng viên */}
-            {((user?.role?.name === 'instructor') || user?.instructorInfo) && (
+            {user?.role?.name === 'instructor' && (
               <motion.div
                 className="mt-8 border-t border-gray-100 pt-6"
                 initial={{ opacity: 0 }}
@@ -317,7 +318,6 @@ const Profile = () => {
                   {user?.instructorInfo?.demo_video && (
                     <div><b>Video demo:</b> <a href={user.instructorInfo.demo_video} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Xem video</a></div>
                   )}
-                
                 </div>
               </motion.div>
             )}
@@ -362,7 +362,7 @@ const Profile = () => {
           {/* Courses Section */}
           <motion.div 
             className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100"
-            whileHover={{ y: -5, boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}
+            whileHover={{ y: -5, boxShadow: "0 20px 25px -5px rgba(56,189,248,0.12)" }}
             transition={{ duration: 0.3 }}
           >
             <motion.div 
@@ -376,56 +376,70 @@ const Profile = () => {
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
               >
-                <BookOpen className="w-5 h-5 text-white" />
+                <Users className="w-5 h-5 text-white" />
               </motion.div>
               <h2 className="text-xl font-bold text-gray-900">
-                {user?.role?.name === 'instructor' ? 'Khóa học của bạn' : 'Khóa học đang học'}
+                Khóa học đang học
               </h2>
             </motion.div>
             
-            <motion.div 
-              className="text-center py-12"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.8 }}
-            >
-              <motion.div 
-                className="w-20 h-20 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-6"
-                animate={{ 
-                  scale: [1, 1.1, 1],
-                  rotate: [0, 5, -5, 0]
-                }}
-                transition={{ 
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              >
-                <Users className="w-10 h-10 text-gray-400" />
-              </motion.div>
-              <p className="text-gray-500 text-lg mb-2">
-                {user?.role?.name === 'instructor' 
-                  ? 'Chưa có khóa học nào được tạo' 
-                  : 'Chưa có khóa học nào'
-                }
-              </p>
-              <p className="text-gray-400 text-sm mb-6">
-                {user?.role?.name === 'instructor' 
-                  ? 'Bắt đầu tạo khóa học đầu tiên của bạn' 
-                  : 'Bắt đầu học ngay để xem tiến độ của bạn'
-                }
-              </p>
-              <motion.button 
-                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-medium shadow-lg"
-                whileHover={{ 
-                  scale: 1.05,
-                  boxShadow: "0 10px 25px rgba(59, 130, 246, 0.3)"
-                }}
-                whileTap={{ scale: 0.95 }}
-              >
-                {user?.role?.name === 'instructor' ? 'Tạo khóa học' : 'Khám phá khóa học'}
-              </motion.button>
-            </motion.div>
+            {enrolledCourses.length === 0 ? (
+              <p>Bạn chưa đăng ký khóa học nào.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {enrolledCourses.map((enroll) => {
+                  const course = enroll.course;
+                  const progress = enroll.progress || {};
+                  const completed = progress.completedLessons || 0;
+                  const total = course.totalLessons || 1;
+                  const percent = Math.round((completed / total) * 100);
+                  return (
+                    <div
+                      key={course._id || course.id}
+                      className="relative bg-white rounded-2xl shadow-lg overflow-hidden group transition-all duration-300 hover:shadow-2xl"
+                    >
+                      <div className="relative">
+                        <img
+                          src={course.thumbnail || '/default-course.jpg'}
+                          alt={course.title}
+                          className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                        <Link
+                          to={`/courses/${course._id || course.id}`}
+                          className="absolute bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-lg hover:bg-blue-700 flex items-center gap-2 transition"
+                        >
+                          Tiếp tục học <ArrowRightOutlined />
+                        </Link>
+                      </div>
+                      <div className="p-5">
+                        <h3 className="font-bold text-lg mb-1 text-gray-900 truncate">{course.title}</h3>
+                        <div className="text-gray-500 text-sm mb-2">
+                          {total} bài học
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Progress
+                            percent={percent}
+                            size="small"
+                            strokeColor={{
+                              '0%': '#4f8cff',
+                              '100%': '#16a34a',
+                            }}
+                            showInfo={false}
+                            className="flex-1"
+                          />
+                          <span className="font-semibold text-blue-600">{percent}%</span>
+                        </div>
+                        <div className="text-gray-500 text-xs">
+                          {completed}/{total} bài học
+                          {percent === 100 && <span className="ml-2 text-green-600 font-bold">🏆 Hoàn thành!</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </motion.div>
         </motion.div>
       </div>

@@ -13,15 +13,17 @@ export const config = axios.create({
     timeout: 10000 // timeout sau 10 giây
 });
 
-// Xử lý request
+// Thêm interceptor để tự động gắn token vào header
 config.interceptors.request.use(
-  (req) => {
+  (request) => {
     const token = localStorage.getItem('token');
+    console.log('Interceptor token:', token); // Log token trước mỗi request
     if (token) {
-      req.headers.Authorization = `Bearer ${token}`;
+      request.headers['Authorization'] = `Bearer ${token}`;
     }
-    return req;
-  }
+    return request;
+  },
+  (error) => Promise.reject(error)
 );
 
 // Xử lý response

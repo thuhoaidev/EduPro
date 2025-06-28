@@ -6,6 +6,7 @@ const { createCourseSchema, updateCourseSchema } = require('../validations/cours
 const ApiError = require('../utils/ApiError');
 const Section = require('../models/Section');
 const User = require('../models/User');
+const Enrollment = require('../models/Enrollment');
 
 // Tạo khóa học mới
 exports.createCourse = async (req, res, next) => {
@@ -846,4 +847,36 @@ exports.searchCourses = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+};
+
+// Tham gia khóa học
+exports.enrollCourse = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const courseId = req.params.courseId;
+
+    const course = await Course.findById(courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    // Kiểm tra miễn phí hoặc đã mua (giả sử có trường price)
+    const isFree = course.price === 0;
+    // TODO: Thay thế đoạn này bằng logic kiểm tra đã mua thực tế
+    const hasPurchased = isFree ? true : false; // Tạm thời chỉ cho phép miễn phí
+
+    if (!isFree && !hasPurchased) {
+      return res.status(403).json({ message: 'Bạn cần mua khóa học này' });
+    }
+
+    // Đã enroll chưa?
+    const alreadyEnrolled = await Enrollment.findOne({ student: userId, course: courseId });
+    if (alreadyEnrolled) {
+      return res.status(400).json({ message: 'Bạn đã tham gia khóa học này' });
+    }
+
+    // Tạo enrollment
+    await Enrollment.create({ student: userId, course: courseId });
+    res.json({ message: 'Tham gia thành công' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };

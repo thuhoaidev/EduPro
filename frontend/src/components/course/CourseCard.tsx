@@ -5,11 +5,23 @@ import { UserOutlined, BookOutlined, StarFilled } from '@ant-design/icons';
 import type { Course } from '../../services/apiService';
 import { motion } from 'framer-motion';
 import styles from './CourseCard.module.css';
+import { config } from '../../api/axios';
 
 const formatCurrency = (value: number) => value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 const isMongoId = (str: string) => /^[a-f\d]{24}$/i.test(str);
 
-const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
+const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course, isEnrolled }) => {
+    const handleEnroll = async (e: React.MouseEvent, course: Course) => {
+        e.preventDefault();
+        try {
+            await config.post(`/courses/${course._id || course.id}/enroll`);
+            alert('Đăng ký học thành công!');
+            window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`;
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'Có lỗi xảy ra khi đăng ký học!');
+        }
+    };
+
     return (
         <motion.div
             className={styles.cardWrapper}
@@ -63,7 +75,11 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
                             )}
                         </div>
                         {course.isFree ? (
-                            <button className={styles.buyBtnFree} type="button" onClick={e => { e.preventDefault(); window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`; }}>Học ngay</button>
+                            isEnrolled ? (
+                                <button className={styles.buyBtnFree} type="button" onClick={e => { e.preventDefault(); window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`; }}>Học ngay</button>
+                            ) : (
+                                <button className={styles.buyBtnFree} type="button" onClick={e => handleEnroll(e, course)}>Đăng ký học</button>
+                            )
                         ) : (
                             <button className={styles.buyBtn} type="button" onClick={e => { e.preventDefault(); window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`; }}>Mua ngay</button>
                         )}

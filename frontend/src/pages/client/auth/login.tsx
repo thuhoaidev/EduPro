@@ -34,25 +34,38 @@ export default function LoginPage(): React.ReactElement {
     mutate(values, {
       onSuccess: (data) => {
         console.log('Login response:', data);
+        localStorage.removeItem('token');
+        // Thử lấy token ở nhiều vị trí khác nhau
+        let token = null;
+        if (data?.data?.token) {
+          token = data.data.token;
+        } else if (data?.token) {
+          token = data.token;
+        } else if (data?.access_token) {
+          token = data.access_token;
+        } else if (data?.data?.access_token) {
+          token = data.data.access_token;
+        }
+        if (token) {
+          localStorage.setItem('token', token);
+          console.log('Token after login:', localStorage.getItem('token'));
+          window.location.href = '/';
+          return;
+        } else {
+          console.warn('Không tìm thấy token trong response!', data);
+        }
         if (data?.user?.isEmailVerified === false) {
           setVerificationEmail(values.identifier);
           setShowVerificationModal(true);
         } else {
-          if (data?.token) {
-            localStorage.setItem('token', data.token);
-          }
-          if (data?.user) {
-            localStorage.setItem('user', JSON.stringify(data.user));
-          }
           setNotification({
             isVisible: true,
             type: 'success',
             title: 'Đăng nhập thành công!',
             message: 'Chào mừng bạn trở lại!'
           });
-
           setTimeout(() => {
-            navigate("/");
+            window.location.href = '/';
           }, 1500);
         }
         setIsLoading(false);

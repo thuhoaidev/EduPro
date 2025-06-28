@@ -21,14 +21,12 @@ export const useAuth = () => {
 
   const login = (token: string, userData: any) => {
     localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
     setIsAuthenticated(true);
     setUser(userData);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('user');
     setIsAuthenticated(false);
     setUser(null);
     navigate('/login');

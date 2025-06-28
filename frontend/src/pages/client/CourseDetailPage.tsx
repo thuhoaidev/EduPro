@@ -5,6 +5,7 @@ import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutl
 import { courseService } from '../../services/apiService';
 import type { Course, Section } from '../../services/apiService';
 import { motion, AnimatePresence } from 'framer-motion';
+import { config } from '../../api/axios';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -34,6 +35,7 @@ const CourseDetailPage: React.FC = () => {
     const [contentLoading, setContentLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
+    const [isEnrolled, setIsEnrolled] = useState(false);
 
     useEffect(() => {
         const fetchCourseData = async () => {
@@ -43,14 +45,14 @@ const CourseDetailPage: React.FC = () => {
             }
             try {
                 setLoading(true);
-                let courseData: Course | null = null;
+                let courseObj: Course | null = null;
                 let contentData: Section[] = [];
                 if (id) {
                     // Lấy chi tiết bằng id
                     const apiRes = await courseService.getCourseById(id);
                     if (apiRes) {
                         // Map sang type Course
-                        courseData = courseService.mapApiCourseToAppCourse(apiRes);
+                        courseObj = courseService.mapApiCourseToAppCourse(apiRes);
                         // Nếu backend trả về sections kèm theo
                         if (apiRes.sections) {
                             contentData = apiRes.sections;
@@ -59,14 +61,18 @@ const CourseDetailPage: React.FC = () => {
                         }
                     }
                 } else if (slug) {
-                    courseData = await courseService.getCourseBySlug(slug);
-                    if (courseData) {
-                        contentData = await courseService.getCourseContent(courseData.id);
+                    courseObj = await courseService.getCourseBySlug(slug);
+                    if (courseObj) {
+                        contentData = await courseService.getCourseContent(courseObj.id);
                     }
                 }
-                if (courseData) {
-                    setCourse(courseData);
+                if (courseObj) {
+                    setCourse(courseObj);
                     setCourseContent(contentData);
+                    // Lưu nội dung khóa học vào localStorage để trang video có thể lấy lại
+                    try {
+                        localStorage.setItem('lastCourseSections', JSON.stringify(contentData));
+                    } catch {}
                 } else {
                     setError('Không tìm thấy khóa học.');
                 }
@@ -80,6 +86,24 @@ const CourseDetailPage: React.FC = () => {
         };
         fetchCourseData();
     }, [slug, id]);
+
+    useEffect(() => {
+        const checkEnrolled = async () => {
+            if (!course) return;
+            try {
+                const res = await config.get('/users/me/enrollments');
+                const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
+                if (enrolledIds.includes(course.id)) {
+                    setIsEnrolled(true);
+                } else {
+                    setIsEnrolled(false);
+                }
+            } catch (err) {
+                setIsEnrolled(false);
+            }
+        };
+        checkEnrolled();
+    }, [course]);
 
     if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Spin size="large" /></div>;
     if (error) return <div className="p-8"><Alert message="Lỗi" description={error} type="error" showIcon /></div>;
@@ -221,8 +245,17 @@ const CourseDetailPage: React.FC = () => {
                                                                                 </div>
                                                                                 <span className="flex-1 text-gray-700 font-medium">{lesson.title}</span>
                                                                                 <div className="flex items-center gap-2">
-                                                                                    <LockOutlined className="text-gray-400" />
-                                                                                    <span className="text-gray-400 text-sm">~15 phút</span>
+                                                                                    {isEnrolled ? (
+                                                                                        <>
+                                                                                            <Button type="link" size="small" href={`/lessons/${lesson._id}/video`} target="_blank">Xem video</Button>
+                                                                                            <Button type="link" size="small" href={`/lessons/${lesson._id}/quiz`} target="_blank">Quiz</Button>
+                                                                                        </>
+                                                                                    ) : (
+                                                                                        <>
+                                                                                            <LockOutlined className="text-gray-400" />
+                                                                                            <span className="text-gray-400 text-sm">~15 phút</span>
+                                                                                        </>
+                                                                                    )}
                                                                                 </div>
                                                                             </motion.div>
                                                                         ))}
@@ -357,22 +390,48 @@ const CourseDetailPage: React.FC = () => {
                                 {/* Action Buttons */}
                                 <div className="space-y-4 mb-8">
                                     {course.isFree ? (
-                                        <Button 
-                                            type="primary" 
-                                            size="large" 
-                                            block 
-                                            className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
-                                            icon={<PlayCircleOutlined />}
-                                        >
-                                            Bắt đầu học
-                                        </Button>
+                                        isEnrolled ? (
+                                            <Button 
+                                                type="primary" 
+                                                size="large" 
+                                                block 
+                                                className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
+                                                icon={<PlayCircleOutlined />} 
+                                                onClick={() => window.location.href = `/courses/${course.id}/learn`}
+                                            >
+                                                Học ngay
+                                            </Button>
+                                        ) : (
+                                            <Button 
+                                                type="primary" 
+                                                size="large" 
+                                                block 
+                                                className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
+                                                icon={<PlayCircleOutlined />} 
+                                                onClick={async () => {
+                                                    try {
+                                                        await config.post(`/courses/${course.id}/enroll`);
+                                                        setIsEnrolled(true);
+                                                    } catch (err: unknown) {
+                                                        if (err && typeof err === 'object' && 'response' in err) {
+                                                            // @ts-ignore
+                                                            alert(err.response?.data?.message || 'Có lỗi khi đăng ký học!');
+                                                        } else {
+                                                            alert('Có lỗi khi đăng ký học!');
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                Đăng ký học
+                                            </Button>
+                                        )
                                     ) : (
                                         <Button 
                                             type="primary" 
                                             size="large" 
                                             block 
                                             className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
-                                            icon={<ShoppingCartOutlined />}
+                                            icon={<ShoppingCartOutlined />} 
                                         >
                                             Thêm vào giỏ hàng
                                         </Button>

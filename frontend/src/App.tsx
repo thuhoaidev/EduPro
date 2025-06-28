@@ -47,6 +47,8 @@ import MyLessonManager from './pages/instructor/lessons/MyLessonManager';
 import MyStudentStats from './pages/instructor/students/MyStudentStats';
 import MyEarnings from './pages/instructor/earnings/MyEarnings';
 import CourseDetail from './pages/instructor/course/CourseDetail';
+import LessonVideoPage from './pages/client/lessons/LessonVideoPage';
+import LessonQuizPage from './pages/client/lessons/LessonQuizPage';
 
 const queryClient = new QueryClient();
 
@@ -67,9 +69,12 @@ function App() {
         { path: "vouchers", element: <VouchersPage /> },
         { path: "courses", element: <CoursesPage /> },
         { path: "courses/:slug", element: <CourseDetailPage /> },
+        { path: "courses/slug/:slug", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
         { path: "cart", element: <CartPage /> },
+        { path: "/lessons/:lessonId/video", element: <LessonVideoPage /> },
+        { path: "/lessons/:lessonId/quiz", element: <LessonQuizPage /> },
       ]
     },
     {

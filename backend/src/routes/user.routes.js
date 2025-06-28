@@ -14,6 +14,7 @@ const {
   updateInstructorApproval,
   getInstructors,
   getInstructorDetail,
+  getMyEnrollments,
 } = require('../controllers/user.controller');
 
 // Routes cho người dùng hiện tại (cần đăng nhập)
@@ -51,15 +52,8 @@ router.get('/me', getCurrentUser);
 // Cập nhật thông tin người dùng hiện tại (với upload avatar)
 router.put('/me', uploadAvatar, processAvatarUpload, deleteOldAvatar, handleUploadError, updateCurrentUser);
 
-// Lấy danh sách hồ sơ giảng viên chờ duyệt (không cần quyền admin)
-router.get('/instructors', getInstructors);
-// Lấy thông tin chi tiết hồ sơ giảng viên chờ duyệt (không cần quyền admin)
-router.get('/instructors/:id/detail', getInstructorDetail);
-// Cập nhật trạng thái hồ sơ giảng viên (không cần quyền admin)
-router.put('/instructors/:id/approval', updateInstructorApproval);
-
-// Cập nhật hồ sơ giảng viên (và đồng bộ sang User)
-router.put('/instructor-profiles/:id', require('./../controllers/user.controller').updateInstructorProfile);
+// Thêm route GET /me/enrollments
+router.get('/me/enrollments', getMyEnrollments);
 
 // Routes cho admin (cần quyền admin)
 router.use(checkRole(['admin']));
@@ -86,5 +80,15 @@ router.post('/upload-avatar', auth, uploadAvatar, processAvatarUpload, (req, res
   }
   res.json({ success: true, data: { url: req.uploadedAvatar.url } });
 });
+
+// Lấy danh sách hồ sơ giảng viên chờ duyệt (không cần quyền admin)
+router.get('/instructors', getInstructors);
+// Lấy thông tin chi tiết hồ sơ giảng viên chờ duyệt (không cần quyền admin)
+router.get('/instructors/:id/detail', getInstructorDetail);
+// Cập nhật trạng thái hồ sơ giảng viên (không cần quyền admin)
+router.put('/instructors/:id/approval', updateInstructorApproval);
+
+// Cập nhật hồ sơ giảng viên (và đồng bộ sang User)
+router.put('/instructor-profiles/:id', require('./../controllers/user.controller').updateInstructorProfile);
 
 module.exports = router; 

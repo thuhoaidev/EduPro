@@ -95,8 +95,6 @@ const AdminLayout = () => {
         localStorage.setItem('user', JSON.stringify(userData));
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
         setUser(null);
         navigate("/login");
       } finally {
