@@ -13,9 +13,17 @@ const {
   deleteUser,
   updateInstructorApproval,
   getInstructors,
+  getApprovedInstructors,
+  getApprovedInstructorDetail,
   getInstructorDetail,
   getMyEnrollments,
 } = require('../controllers/user.controller');
+
+// Routes cho client (không cần đăng nhập)
+// Lấy danh sách giảng viên đã duyệt cho client
+router.get('/approved-instructors', getApprovedInstructors);
+// Lấy chi tiết giảng viên đã duyệt cho client
+router.get('/approved-instructors/:id', getApprovedInstructorDetail);
 
 // Routes cho người dùng hiện tại (cần đăng nhập)
 router.use(auth);

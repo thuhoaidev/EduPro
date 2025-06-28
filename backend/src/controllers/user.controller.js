@@ -1295,3 +1295,260 @@ exports.getMyEnrollments = async (req, res) => {
     res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách khóa học đã đăng ký', error: error.message });
   }
 };
+
+// Lấy danh sách giảng viên đã duyệt cho client
+exports.getApprovedInstructors = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+
+    // Tìm role instructor
+    const instructorRole = await Role.findOne({ name: ROLES.INSTRUCTOR });
+    if (!instructorRole) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vai trò giảng viên không tồn tại',
+      });
+    }
+
+    // Xây dựng query - chỉ lấy giảng viên đã được duyệt
+    const instructorsQuery = {
+      role_id: instructorRole._id,
+      'instructorInfo.approval_status': 'approved',
+      'instructorInfo.is_approved': true
+    };
+
+    // Tìm kiếm
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      instructorsQuery.$or = [
+        { fullname: searchRegex },
+        { email: searchRegex },
+        { nickname: searchRegex },
+        { 'instructorInfo.bio': searchRegex },
+        { 'instructorInfo.expertise': searchRegex }
+      ];
+    }
+
+    // Query + lean để truy cập nested fields
+    const instructors = await User.find(instructorsQuery)
+      .populate('role_id')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    const total = await User.countDocuments(instructorsQuery);
+
+    // Lấy thống kê khóa học cho từng giảng viên
+    const Course = require('../models/Course');
+    const instructorIds = instructors.map(instructor => instructor._id);
+    
+    // Lấy instructor profile IDs cho các user
+    const instructorProfiles = await InstructorProfile.find({
+      user: { $in: instructorIds }
+    }).select('_id user');
+    
+    const instructorProfileIds = instructorProfiles.map(profile => profile._id);
+    const userToProfileMap = {};
+    instructorProfiles.forEach(profile => {
+      userToProfileMap[profile.user.toString()] = profile._id.toString();
+    });
+    
+    const courseStats = await Course.aggregate([
+      {
+        $match: {
+          instructor: { $in: instructorProfileIds }
+        }
+      },
+      {
+        $group: {
+          _id: '$instructor',
+          totalCourses: { $sum: 1 },
+          totalStudents: { $sum: '$enrolledStudents' || 0 }
+        }
+      }
+    ]);
+
+    // Tạo map để truy cập nhanh thống kê
+    const courseStatsMap = {};
+    courseStats.forEach(stat => {
+      courseStatsMap[stat._id.toString()] = stat;
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        instructors: instructors.map((instructor) => {
+          const info = instructor.instructorInfo || {};
+          const profileId = userToProfileMap[instructor._id.toString()];
+          const stats = profileId ? courseStatsMap[profileId] : { totalCourses: 0, totalStudents: 0 };
+          
+          return {
+            id: instructor._id,
+            fullname: instructor.fullname,
+            email: instructor.email,
+            avatar: instructor.avatar,
+            phone: instructor.phone,
+            address: instructor.address,
+            bio: info.bio || 'Chưa có thông tin giới thiệu',
+            rating: info.rating || 0,
+            totalStudents: stats.totalStudents || info.totalStudents || 0,
+            totalCourses: stats.totalCourses || 0,
+            totalReviews: info.totalReviews || 0,
+            experienceYears: info.experience_years || 0,
+            expertise: info.expertise || [],
+            isVerified: true, // Tất cả đều đã được duyệt
+            isFeatured: false, // Có thể thêm logic sau
+            isOnline: false, // Có thể thêm logic sau
+            location: instructor.address || 'Chưa cập nhật',
+            education: info.education || `${info.degree || ''} ${info.university || ''}`.trim() || 'Chưa cập nhật',
+            approvalStatus: 'approved',
+            degree: info.degree,
+            university: info.university,
+            major: info.major,
+            graduationYear: info.graduation_year,
+            experienceDescription: info.teaching_experience_description,
+            github: info.github,
+            facebook: info.facebook,
+            website: info.website,
+            createdAt: instructor.createdAt
+          };
+        }),
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi lấy danh sách giảng viên đã duyệt:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi lấy danh sách giảng viên',
+      error: error.message,
+    });
+  }
+};
+
+// Lấy chi tiết giảng viên đã duyệt cho client
+exports.getApprovedInstructorDetail = async (req, res) => {
+  try {
+    const instructorId = req.params.id;
+
+    // Tìm role instructor
+    const instructorRole = await Role.findOne({ name: ROLES.INSTRUCTOR });
+    if (!instructorRole) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vai trò giảng viên không tồn tại',
+      });
+    }
+
+    // Tìm giảng viên đã được duyệt
+    const instructor = await User.findOne({
+      _id: instructorId,
+      role_id: instructorRole._id,
+      'instructorInfo.approval_status': 'approved',
+      'instructorInfo.is_approved': true
+    }).populate('role_id').lean();
+
+    if (!instructor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy giảng viên hoặc giảng viên chưa được duyệt',
+      });
+    }
+
+    const info = instructor.instructorInfo || {};
+
+    // Lấy thống kê khóa học
+    const Course = require('../models/Course');
+    const InstructorProfile = require('../models/InstructorProfile');
+    
+    const instructorProfile = await InstructorProfile.findOne({ user: instructor._id });
+    let courseStats = { totalCourses: 0, totalStudents: 0 };
+    
+    if (instructorProfile) {
+      const courseAggregation = await Course.aggregate([
+        {
+          $match: {
+            instructor: instructorProfile._id
+          }
+        },
+        {
+          $group: {
+            _id: '$instructor',
+            totalCourses: { $sum: 1 },
+            totalStudents: { $sum: '$enrolledStudents' || 0 }
+          }
+        }
+      ]);
+      
+      if (courseAggregation.length > 0) {
+        courseStats = courseAggregation[0];
+      }
+    }
+
+    // Lấy danh sách khóa học của giảng viên
+    const courses = instructorProfile ? await Course.find({ instructor: instructorProfile._id })
+      .select('title slug thumbnail price discount rating totalReviews level language')
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .lean() : [];
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: instructor._id,
+        fullname: instructor.fullname,
+        email: instructor.email,
+        avatar: instructor.avatar,
+        phone: instructor.phone,
+        address: instructor.address,
+        bio: info.bio || 'Chưa có thông tin giới thiệu',
+        rating: info.rating || 0,
+        totalStudents: courseStats.totalStudents || info.totalStudents || 0,
+        totalCourses: courseStats.totalCourses || 0,
+        totalReviews: info.totalReviews || 0,
+        experienceYears: info.experience_years || 0,
+        expertise: info.expertise || [],
+        isVerified: true,
+        location: instructor.address || 'Chưa cập nhật',
+        education: info.education || `${info.degree || ''} ${info.university || ''}`.trim() || 'Chưa cập nhật',
+        degree: info.degree,
+        university: info.university,
+        major: info.major,
+        graduationYear: info.graduation_year,
+        experienceDescription: info.teaching_experience_description,
+        github: info.github,
+        facebook: info.facebook,
+        website: info.website,
+        createdAt: instructor.createdAt,
+        courses: courses.map(course => ({
+          id: course._id,
+          title: course.title,
+          slug: course.slug,
+          thumbnail: course.thumbnail,
+          price: course.price,
+          discount: course.discount,
+          finalPrice: Math.round(course.price * (1 - (course.discount || 0) / 100)),
+          rating: course.rating,
+          totalReviews: course.totalReviews,
+          level: course.level,
+          language: course.language
+        }))
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi lấy chi tiết giảng viên:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi lấy chi tiết giảng viên',
+      error: error.message,
+    });
+  }
+};
