@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Rate, Tag, Avatar, Button, message } from 'antd';
-import { UserOutlined, BookOutlined, StarFilled, ShoppingCartOutlined, CheckOutlined } from '@ant-design/icons';
+import { Rate, message } from 'antd';
+import { BookOutlined } from '@ant-design/icons';
 import type { Course } from '../../services/apiService';
 import { motion } from 'framer-motion';
 import styles from './CourseCard.module.css';
@@ -62,40 +62,9 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
                 <div className={styles.imageContainer} style={{ borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden', position: 'relative' }}>
                     <img alt={course.title} src={course.Image} className={styles.cardImage} style={{ borderTopLeftRadius: 20, borderTopRightRadius: 20 }} />
                     <div className={styles.imageOverlay} style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 60%)', borderTopLeftRadius: 20, borderTopRightRadius: 20 }}></div>
-                    
-                    {courseInCart && (
-                        <div style={{
-                            position: 'absolute',
-                            top: 12,
-                            left: 12,
-                            background: '#10b981',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: 6,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4
-                        }}>
-                            <CheckOutlined style={{ fontSize: 10 }} />
-                            Added
-                        </div>
-                    )}
-                    
-                    {course.isFree ? (
-                        <Tag color="green" style={{ position: 'absolute', top: 12, right: 12, fontWeight: 600, fontSize: 13, borderRadius: 999, padding: '4px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>Miễn phí</Tag>
-                    ) : course.oldPrice && course.oldPrice > course.price ? (
-                        <Tag color="red" style={{ position: 'absolute', top: courseInCart ? 40 : 12, right: 12, fontWeight: 700, fontSize: 15, borderRadius: 999, padding: '4px 18px', letterSpacing: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
-                            -{Math.round(((course.oldPrice - course.price) / course.oldPrice) * 100)}%
-                        </Tag>
-                    ) : null}
                 </div>
                 <div className={styles.contentContainer}>
-                    <div className={styles.authorContainer}>
-                        <Avatar src={course.author.avatar || undefined} size={32} icon={<UserOutlined />} />
-                        <span className={styles.authorName} style={{ fontSize: 15 }}>{course.author.name || 'Giảng viên EduPro'}</span>
-                    </div>
+                    
                     <h3 className={styles.courseTitle} style={{ fontSize: 20, fontWeight: 700, minHeight: 48, marginBottom: 8 }}>{course.title}</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#64748b', marginBottom: 8 }}>
                         <BookOutlined style={{ marginRight: 4 }} /> {course.lessons || 30} bài
@@ -111,7 +80,7 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
                             {course.isFree ? (
                                 <div className={styles.priceContainer}>
                                     <span className={styles.priceFree}>Miễn phí</span>
-                                    <span className={styles.priceSubtitle}>Học ngay không cần thanh toán</span>
+                                    <span className={styles.priceSubtitle}>Đăng ký học ngay</span>
                                 </div>
                             ) : course.oldPrice && course.oldPrice > course.price ? (
                                 <div className={styles.priceContainer}>
