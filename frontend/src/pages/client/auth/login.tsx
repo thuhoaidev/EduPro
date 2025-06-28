@@ -46,18 +46,26 @@ export default function LoginPage(): React.ReactElement {
         } else if (data?.data?.access_token) {
           token = data.data.access_token;
         }
+        
         if (token) {
           localStorage.setItem('token', token);
           console.log('Token after login:', localStorage.getItem('token'));
-          window.location.href = '/';
-          return;
+          
+          // Hiển thị thông báo thành công trước khi chuyển hướng
+          setNotification({
+            isVisible: true,
+            type: 'success',
+            title: 'Đăng nhập thành công!',
+            message: 'Chào mừng bạn trở lại!'
+          });
+          
+          // Chuyển hướng sau khi hiển thị thông báo
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1500);
         } else {
           console.warn('Không tìm thấy token trong response!', data);
-        }
-        if (data?.user?.isEmailVerified === false) {
-          setVerificationEmail(values.identifier);
-          setShowVerificationModal(true);
-        } else {
+          // Nếu không có token, vẫn hiển thị thông báo thành công
           setNotification({
             isVisible: true,
             type: 'success',
@@ -68,6 +76,13 @@ export default function LoginPage(): React.ReactElement {
             window.location.href = '/';
           }, 1500);
         }
+        
+        // Kiểm tra email verification nếu cần
+        if (data?.user?.isEmailVerified === false) {
+          setVerificationEmail(values.identifier);
+          setShowVerificationModal(true);
+        }
+        
         setIsLoading(false);
       },
       onError: (error: { response?: { data?: { message?: string } } }) => {
