@@ -8,7 +8,6 @@ import {
   HistoryOutlined,
   BarChartOutlined,
   WarningOutlined,
-  LogoutOutlined,
   ProfileOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -117,15 +116,6 @@ const InstructorLayout = () => {
     }
   }, [user, loading, navigate]);
 
-  // --- Logout ---
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
-    message.success("Đăng xuất thành công!");
-    navigate("/login");
-  };
-
   // --- Menu Items ---
   const menuItems: MenuProps["items"] = useMemo(
     () => [
@@ -196,13 +186,6 @@ const InstructorLayout = () => {
       onClick: () => navigate("/"),
     },
     { type: "divider" },
-    {
-      key: "logout",
-      icon: <LogoutOutlined />,
-      label: "Đăng xuất",
-      onClick: handleLogout,
-      danger: true,
-    },
   ];
 
   // --- Render ---

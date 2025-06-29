@@ -41,7 +41,13 @@ interface ApiInstructor {
     isFeatured?: boolean;
     isOnline?: boolean;
     location?: string;
-    education?: string;
+    education?: Array<{
+        degree: string;
+        institution: string;
+        year: number;
+        major: string;
+        _id: string;
+    }>;
 }
 
 const instructorCategories = ['Tất cả', 'Full-Stack Development', 'UI/UX Design', 'Data Science', 'Mobile Development', 'DevOps', 'Digital Marketing'];
@@ -306,7 +312,7 @@ const InstructorsPage = () => {
                 isFeatured: instructor.isFeatured || false,
                 isOnline: instructor.isOnline || false,
                 location: instructor.location || 'Chưa cập nhật',
-                education: instructor.education || 'Chưa cập nhật',
+                education: instructor.education?.map(edu => `${edu.degree} - ${edu.institution} - ${edu.year} - ${edu.major}`).join(', ') || 'Chưa cập nhật',
                 approvalStatus: 'approved'
             }));
 

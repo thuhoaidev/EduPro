@@ -5,7 +5,6 @@ import {
   WarningOutlined,
   BarChartOutlined,
   SettingOutlined,
-  LogoutOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import {
@@ -195,31 +194,14 @@ const ModeratorLayout = () => {
     },
   ];
 
-  const profileMenu = (
-    <Menu>
-      <Menu.ItemGroup
-        title={
-          <div style={{ padding: "8px 12px" }}>
-            <p style={{ margin: 0, fontWeight: "bold" }}>Xin chào, {user?.fullname}</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>Vai trò: Quản trị viên</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#888" }}>{user?.email}</p>
-          </div>
-        }
-      >
-      </Menu.ItemGroup>
-      <Menu.Divider />
-      <Menu.Item key="home" icon={<HomeOutlined />} onClick={() => navigate('/')}>
-        Trang người dùng
-      </Menu.Item>
-      <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={() => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        navigate('/login');
-      }}>
-        Đăng xuất
-      </Menu.Item>
-    </Menu>
-  );
+  const profileMenuItems: MenuProps["items"] = [
+    {
+      key: "home",
+      icon: <HomeOutlined />,
+      label: "Quay lại trang chủ",
+      onClick: () => navigate('/'),
+    },
+  ];
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -253,7 +235,7 @@ const ModeratorLayout = () => {
         <Header
           className={styles.header}
         >
-          <Dropdown menu={{ items: profileMenu }} trigger={["click"]} placement="bottomRight">
+          <Dropdown menu={{ items: profileMenuItems }} trigger={["click"]} placement="bottomRight">
             <div
               className={styles.profileDropdown}
             >

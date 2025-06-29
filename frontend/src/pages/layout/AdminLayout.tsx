@@ -7,7 +7,6 @@ import {
   HistoryOutlined,
   BarChartOutlined,
   WarningOutlined,
-  LogoutOutlined,
   ProfileOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -112,15 +111,6 @@ const AdminLayout = () => {
     }
   }, [user, loading, navigate]);
 
-  // --- Logout ---
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
-    message.success("Đăng xuất thành công!");
-    navigate("/login");
-  };
-
   // --- Menu Items ---
   const menuItems: MenuProps["items"] = useMemo(
     () => [
@@ -195,14 +185,6 @@ const AdminLayout = () => {
       icon: <HomeOutlined />,
       label: "Quay lại trang chủ",
       onClick: () => navigate("/"),
-    },
-    { type: "divider" },
-    {
-      key: "logout",
-      icon: <LogoutOutlined />,
-      label: "Đăng xuất",
-      onClick: handleLogout,
-      danger: true,
     },
   ];
 

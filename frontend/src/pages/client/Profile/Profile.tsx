@@ -14,6 +14,7 @@ interface User {
   fullname: string;
   nickname?: string;
   email: string;
+  bio?: string;
   created_at: string;
   approval_status?: string;
   role?: {
@@ -250,6 +251,20 @@ const Profile = () => {
                 <span className="text-sm">{user?.email}</span>
               </motion.div>
 
+              {/* Bio Section */}
+              {user?.bio && (
+                <motion.div 
+                  className="text-center mb-4"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.65 }}
+                >
+                  <p className="text-gray-600 text-sm leading-relaxed max-w-xs mx-auto">
+                    {user.bio}
+                  </p>
+                </motion.div>
+              )}
+
               {/* Social links */}
               {user?.social_links && (user.social_links.facebook || user.social_links.github || user.social_links.website) && (
                 <motion.div
@@ -275,18 +290,6 @@ const Profile = () => {
                   )}
                 </motion.div>
               )}
-
-              {joinInfo ? (
-                <motion.div 
-                  className="flex items-center justify-center gap-2 text-gray-500 mb-4"
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.5, delay: 0.7 }}
-                >
-                  <Calendar size={16} />
-                  <span className="text-sm">Tham gia {joinInfo.timeAgo}</span>
-                </motion.div>
-              ) : null}
             </div>
 
             {/* Thông tin giảng viên */}
@@ -348,6 +351,21 @@ const Profile = () => {
                 </motion.div>
               </div>
             </motion.div>
+
+            {/* Join Date Section */}
+            {joinInfo ? (
+              <motion.div 
+                className="border-t border-gray-100 pt-6 mt-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 1.4 }}
+              >
+                <div className="flex items-center justify-center gap-2 text-gray-500">
+                  <Calendar size={16} />
+                  <span className="text-sm">Tham gia {joinInfo.timeAgo}</span>
+                </div>
+              </motion.div>
+            ) : null}
 
           </motion.div>
         </motion.div>
