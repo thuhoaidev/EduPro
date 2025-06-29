@@ -12,7 +12,7 @@ UserSchema.virtual('courses', {
 });
 
 // Pre-save hook để xử lý password và slug
-UserSchema.pre('save', async function(next) {
+UserSchema.pre('save', async function (next) {
   try {
     // Xử lý password
     if (this.isModified('password')) {
@@ -46,12 +46,12 @@ UserSchema.pre('save', async function(next) {
 });
 
 // Method để match password
-UserSchema.methods.matchPassword = async function(enteredPassword) {
+UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
 // Method để tạo token xác thực email
-UserSchema.methods.createEmailVerificationToken = function() {
+UserSchema.methods.createEmailVerificationToken = function () {
   const verificationToken = crypto.randomBytes(32).toString('hex');
   this.emailVerificationToken = crypto
     .createHash('sha256')
@@ -62,30 +62,30 @@ UserSchema.methods.createEmailVerificationToken = function() {
 };
 
 // Method để tạo token reset mật khẩu
-UserSchema.methods.createPasswordResetToken = function() {
+UserSchema.methods.createPasswordResetToken = function () {
   const resetToken = crypto.randomBytes(32).toString('hex');
-  this.resetPasswordToken = crypto
+  this.reset_password_token = crypto
     .createHash('sha256')
     .update(resetToken)
     .digest('hex');
-  this.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.reset_password_expires = Date.now() + 10 * 60 * 1000; // 10 minutes
   return resetToken;
 };
 
 // Method để kiểm tra quyền
-UserSchema.methods.hasPermission = function(permission) {
+UserSchema.methods.hasPermission = function (permission) {
   return this.role.permissions.includes(permission);
 };
 
 // Method để format dữ liệu khi trả về client
-UserSchema.methods.toJSON = function() {
+UserSchema.methods.toJSON = function () {
   const userObject = this.toObject();
   // Xóa các trường nhạy cảm
   delete userObject.password;
   delete userObject.emailVerificationToken;
   delete userObject.emailVerificationExpires;
-  delete userObject.resetPasswordToken;
-  delete userObject.resetPasswordExpires;
+  delete userObject.reset_password_token;
+  delete userObject.reset_password_expires;
   return userObject;
 };
 
