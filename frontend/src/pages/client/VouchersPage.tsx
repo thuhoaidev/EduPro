@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 
 import { Layout, Input, Select, Card, Tag, Typography, Badge, message, Pagination } from 'antd';
 import { SearchOutlined, FilterOutlined, CopyOutlined, FireOutlined, ClockCircleOutlined, GiftOutlined, StarOutlined, CrownOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import voucherService from '../../services/voucher.service';
+import type { Voucher } from '../../services/voucher.service';
 import { getAllCategories } from '../../services/categoryService';
 import type { Category } from '../../interfaces/Category.interface';
 
@@ -11,7 +12,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { Sider, Content } = Layout;
 
-interface Voucher {
+interface VoucherDisplay {
     id: string;
     code: string;
     title: string;
@@ -31,6 +32,8 @@ interface Voucher {
     isVipOnly?: boolean;
     isExpired: boolean;
     daysLeft: number;
+    status: 'available' | 'unavailable';
+    statusMessage: string;
 }
 
 const voucherCategories = ['Tất cả', 'Người mới', 'Khóa học IT', 'Theo mùa', 'Web Development', 'Mobile Development', 'VIP'];
@@ -109,7 +112,7 @@ const FilterSidebar = ({ setFilters, categories }: {
     );
 };
 
-const VoucherCard = ({ voucher, categories }: { voucher: Voucher, categories: Category[] }) => {
+const VoucherCard = ({ voucher, categories }: { voucher: VoucherDisplay, categories: Category[] }) => {
     const copyToClipboard = (code: string) => {
         navigator.clipboard.writeText(code);
         message.success(`Đã sao chép mã ${code}!`);
@@ -133,7 +136,7 @@ const VoucherCard = ({ voucher, categories }: { voucher: Voucher, categories: Ca
         return colors[category] || 'default';
     };
 
-    const formatDiscount = (voucher: Voucher) => {
+    const formatDiscount = (voucher: VoucherDisplay) => {
         if (voucher.discountType === 'percentage') {
             return `${voucher.discount}%`;
         }
@@ -148,7 +151,7 @@ const VoucherCard = ({ voucher, categories }: { voucher: Voucher, categories: Ca
         >
             <Card
                 className={`h-full flex flex-col border-0 shadow-lg hover:shadow-xl transition-all duration-300 ${
-                    voucher.isExpired ? 'opacity-60' : ''
+                    voucher.status === 'unavailable' ? 'opacity-60' : ''
                 }`}
                 styles={{ body: { padding: '24px', display: 'flex', flexDirection: 'column', flexGrow: 1 } }}
             >
@@ -168,6 +171,9 @@ const VoucherCard = ({ voucher, categories }: { voucher: Voucher, categories: Ca
                             {voucher.isVipOnly && (
                                 <span className="vip-glow" title="VIP Only">VIP</span>
                             )}
+                            {voucher.status === 'unavailable' && (
+                                <Tag color="red">Hết voucher</Tag>
+                            )}
                         </div>
                         <h3 className="text-lg font-bold text-gray-900 mb-1">
                             {voucher.title}
@@ -180,104 +186,95 @@ const VoucherCard = ({ voucher, categories }: { voucher: Voucher, categories: Ca
 
                 {/* Discount Display */}
                 <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-4 mb-4 text-center">
-                    <div className="text-2xl font-bold text-white mb-1">
-                        {formatDiscount(voucher)}
-                    </div>
-                    <div className="text-white text-sm opacity-90">
-                        Giảm giá
+                    <div className="text-white">
+                        <div className="text-2xl font-bold mb-1">
+                            {formatDiscount(voucher)}
+                        </div>
+                        <div className="text-sm opacity-90">
+                            {voucher.discountType === 'percentage' && voucher.maxDiscount && (
+                                <div>Tối đa {voucher.maxDiscount.toLocaleString()}đ</div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 {/* Code Section */}
                 <div className="bg-gray-50 rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between">
-                        <code className="text-lg font-mono font-bold text-gray-800">
-                            {voucher.code}
-                        </code>
-                        <motion.button
+                        <div>
+                            <Text className="text-sm text-gray-600">Mã giảm giá:</Text>
+                            <div className="font-mono font-bold text-lg">{voucher.code}</div>
+                        </div>
+                        <button
                             onClick={() => copyToClipboard(voucher.code)}
-                            className="text-blue-600 hover:text-blue-800 transition-colors"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
+                            className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                            disabled={voucher.status === 'unavailable'}
                         >
                             <CopyOutlined />
-                        </motion.button>
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex-grow space-y-4 flex flex-col">
-                    {/* Details */}
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">Điều kiện:</span>
-                            <span className="font-medium">Từ {voucher.minAmount.toLocaleString()}đ</span>
-                        </div>
-                        {voucher.maxDiscount && (
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">Tối đa:</span>
-                                <span className="font-medium">{voucher.maxDiscount.toLocaleString()}đ</span>
-                            </div>
-                        )}
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">Đã sử dụng:</span>
-                            <span className="font-medium">{voucher.usedCount}/{voucher.usageLimit}</span>
-                        </div>
+                {/* Status Message */}
+                {voucher.status === 'unavailable' && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                        <Text className="text-red-600 text-sm">
+                            {voucher.statusMessage}
+                        </Text>
                     </div>
+                )}
 
-                    {/* Progress Bar */}
-                    <div className="mb-0">
-                        <div className="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>Tiến độ sử dụng</span>
-                            <span>{Math.round((voucher.usedCount / voucher.usageLimit) * 100)}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                            <motion.div
-                                className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${(voucher.usedCount / voucher.usageLimit) * 100}%` }}
-                                transition={{ duration: 1, delay: 0.5 }}
-                            />
-                        </div>
+                {/* Details */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Điều kiện:</span>
+                        <span className="font-medium">Từ {voucher.minAmount.toLocaleString()}đ</span>
                     </div>
-                </div>
-
-                {/* Expiry Info */}
-                <div className="mt-4 flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-1 text-gray-600">
-                        <ClockCircleOutlined />
-                        <span>
-                            {voucher.isExpired 
-                                ? 'Đã hết hạn' 
-                                : `Còn ${voucher.daysLeft} ngày`
-                            }
-                        </span>
-                    </div>
-                    {voucher.isExpired && (
-                        <Tag color="red">Hết hạn</Tag>
+                    {voucher.maxDiscount && (
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Tối đa:</span>
+                            <span className="font-medium">{voucher.maxDiscount.toLocaleString()}đ</span>
+                        </div>
                     )}
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Đã sử dụng:</span>
+                        <span className="font-medium">{voucher.usedCount}/{voucher.usageLimit}</span>
+                    </div>
                 </div>
 
-                {/* Action Button */}
-                <motion.button
-                    className={`w-full mt-2 py-2 px-4 rounded-lg font-medium transition-all duration-200 ${
-                        voucher.isExpired
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700'
-                    }`}
-                    disabled={voucher.isExpired}
-                    whileHover={!voucher.isExpired ? { scale: 1.02 } : {}}
-                    whileTap={!voucher.isExpired ? { scale: 0.98 } : {}}
-                >
-                    {voucher.isExpired ? 'Đã hết hạn' : 'Sử dụng ngay'}
-                </motion.button>
+                {/* Progress Bar */}
+                <div className="mb-0">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(voucher.usedCount / voucher.usageLimit) * 100}%` }}
+                        ></div>
+                    </div>
+                </div>
+
+                {/* Validity */}
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex items-center gap-1">
+                            <ClockCircleOutlined />
+                            <span>
+                                {voucher.daysLeft > 0 ? `Còn ${voucher.daysLeft} ngày` : 'Đã hết hạn'}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <GiftOutlined />
+                            <span>Giảm giá</span>
+                        </div>
+                    </div>
+                </div>
             </Card>
         </motion.div>
     );
 };
 
 const VouchersPage = () => {
-    const [vouchers, setVouchers] = useState<Voucher[]>([]);
-    const [filteredVouchers, setFilteredVouchers] = useState<Voucher[]>([]);
+    const [vouchers, setVouchers] = useState<VoucherDisplay[]>([]);
+    const [filteredVouchers, setFilteredVouchers] = useState<VoucherDisplay[]>([]);
     const [filters, setFilters] = useState({
         searchTerm: '',
         category: 'Tất cả',
@@ -286,40 +283,61 @@ const VouchersPage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const vouchersPerPage = 6;
     const [categories, setCategories] = useState<Category[]>([]);
+    const [loading, setLoading] = useState(true);
+
     useEffect(() => {
-        // Fetch vouchers from backend
-        axios.get('/api/vouchers').then(res => {
-            if (res.data && res.data.data) {
-                const mapped = res.data.data.map((v: any) => ({
-                    id: v.id || v._id,
-                    code: v.code,
-                    title: v.title,
-                    description: v.description,
-                    discount: v.discountValue,
-                    discountType: v.discountType,
-                    minAmount: v.minOrderValue,
-                    maxDiscount: v.maxDiscount,
-                    validFrom: v.startDate,
-                    validTo: v.endDate,
-                    usageLimit: v.usageLimit,
-                    usedCount: v.usedCount,
-                    category: v.categories && v.categories.length > 0 ? v.categories[0] : 'Tất cả',
-                    isActive: !v.endDate || new Date(v.endDate) > new Date(),
-                    isHot: v.isHot,
-                    isNew: v.isNew,
-                    isVipOnly: v.isVipOnly,
-                    isExpired: v.endDate ? new Date(v.endDate) < new Date() : false,
-                    daysLeft: v.endDate ? Math.max(0, Math.ceil((new Date(v.endDate).getTime() - Date.now()) / (1000*60*60*24))) : 999
-                }));
-                setVouchers(mapped);
+        // Fetch vouchers from backend using new API
+        const fetchVouchers = async () => {
+            try {
+                setLoading(true);
+                const response = await voucherService.getAvailable();
+                if (response.success) {
+                    const mapped = response.data.map((v: Voucher) => ({
+                        id: v.id,
+                        code: v.code,
+                        title: v.title,
+                        description: v.description,
+                        discount: v.discountValue,
+                        discountType: v.discountType,
+                        minAmount: v.minOrderValue,
+                        maxDiscount: v.maxDiscount,
+                        validFrom: v.startDate,
+                        validTo: v.endDate || '',
+                        usageLimit: v.usageLimit,
+                        usedCount: v.usedCount,
+                        category: v.categories && v.categories.length > 0 ? v.categories[0] : 'Tất cả',
+                        isActive: v.isValid || false,
+                        isHot: v.isHot,
+                        isNew: v.isNew,
+                        isVipOnly: v.isVipOnly,
+                        isExpired: v.endDate ? new Date(v.endDate) < new Date() : false,
+                        daysLeft: v.endDate ? Math.max(0, Math.ceil((new Date(v.endDate).getTime() - Date.now()) / (1000*60*60*24))) : 999,
+                        status: v.status || 'available',
+                        statusMessage: v.statusMessage || 'Có thể sử dụng'
+                    }));
+                    setVouchers(mapped);
+                }
+            } catch (error) {
+                console.error('Error fetching vouchers:', error);
+                message.error('Không thể tải danh sách voucher');
+                setVouchers([]);
+            } finally {
+                setLoading(false);
             }
-        }).catch(() => {
-            setVouchers([]);
-        });
-        // Lấy danh mục thật
-        getAllCategories().then(res => {
-            if (res.success) setCategories(res.data.filter(c => c.status === 'active'));
-        });
+        };
+
+        fetchVouchers();
+
+        // Lấy danh mục
+        const fetchCategories = async () => {
+            try {
+                const res = await getAllCategories();
+                if (res.success) setCategories(res.data.filter(c => c.status === 'active'));
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+            }
+        };
+        fetchCategories();
     }, []);
 
     useEffect(() => {
@@ -453,3 +471,4 @@ export default VouchersPage;
   }
 `}
 </style>
+

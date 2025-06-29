@@ -24,6 +24,8 @@ import {
 } from "@ant-design/icons";
 import "../styles/courseCard.css";
 import { courseService, type Course as ApiCourse } from '../services/apiService';
+import voucherService from '../services/voucher.service';
+import type { Voucher } from '../services/voucher.service';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -38,7 +40,7 @@ interface Testimonial {
   rating: number;
 }
 
-interface Voucher {
+interface VoucherDisplay {
   id: string;
   code: string;
   title: string;
@@ -56,6 +58,8 @@ interface Voucher {
   isNew?: boolean;
   isExpired: boolean;
   daysLeft: number;
+  status?: 'available' | 'unavailable';
+  statusMessage?: string;
 }
 
 const CustomArrow = ({ currentSlide, slideCount, children, ...rest }) => (
@@ -95,7 +99,7 @@ const Homepage = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-  const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [vouchers, setVouchers] = useState<VoucherDisplay[]>([]);
   const [loading, setLoading] = useState({
     courses: true,
     testimonials: true,
@@ -119,62 +123,99 @@ const Homepage = () => {
         }));
         setTestimonials(mappedTestimonials);
 
-        const mockVouchers: Voucher[] = [
-          {
-            id: '1',
-            code: 'WELCOME50',
-            title: 'Giảm 50% cho người mới',
-            description: 'Áp dụng cho tất cả khóa học, tối đa 500K',
-            discount: 50,
-            discountType: 'percentage',
-            minAmount: 100000,
-            maxDiscount: 500000,
-            validFrom: '2024-01-01',
-            validTo: '2024-12-31',
-            usageLimit: 1000,
-            usedCount: 234,
-            category: 'new-user',
-            isHot: true,
-            isNew: true,
-            isExpired: false,
-            daysLeft: 45
-          },
-          {
-            id: '2',
-            code: 'FLASH200K',
-            title: 'Giảm 200K cho khóa học IT',
-            description: 'Áp dụng cho khóa học Công nghệ thông tin',
-            discount: 200000,
-            discountType: 'fixed',
-            minAmount: 500000,
-            validFrom: '2024-01-01',
-            validTo: '2024-06-30',
-            usageLimit: 500,
-            usedCount: 156,
-            category: 'it-courses',
-            isHot: true,
-            isExpired: false,
-            daysLeft: 12
-          },
-          {
-            id: '3',
-            code: 'SUMMER30',
-            title: 'Giảm 30% mùa hè',
-            description: 'Áp dụng cho tất cả khóa học',
-            discount: 30,
-            discountType: 'percentage',
-            minAmount: 200000,
-            maxDiscount: 300000,
-            validFrom: '2024-06-01',
-            validTo: '2024-08-31',
-            usageLimit: 2000,
-            usedCount: 892,
-            category: 'seasonal',
-            isExpired: false,
-            daysLeft: 78
-          },
-        ];
-        setVouchers(mockVouchers);
+        // Fetch vouchers from API
+        try {
+          const voucherResponse = await voucherService.getAvailable();
+          if (voucherResponse.success) {
+            const mappedVouchers = voucherResponse.data.map((v: Voucher) => ({
+              id: v.id,
+              code: v.code,
+              title: v.title,
+              description: v.description,
+              discount: v.discountValue,
+              discountType: v.discountType,
+              minAmount: v.minOrderValue,
+              maxDiscount: v.maxDiscount,
+              validFrom: v.startDate,
+              validTo: v.endDate || '',
+              usageLimit: v.usageLimit,
+              usedCount: v.usedCount,
+              category: v.categories && v.categories.length > 0 ? v.categories[0] : 'all',
+              isHot: v.isHot,
+              isNew: v.isNew,
+              isExpired: v.endDate ? new Date(v.endDate) < new Date() : false,
+              daysLeft: v.endDate ? Math.max(0, Math.ceil((new Date(v.endDate).getTime() - Date.now()) / (1000*60*60*24))) : 999,
+              status: v.status || 'available',
+              statusMessage: v.statusMessage || 'Có thể sử dụng'
+            }));
+            setVouchers(mappedVouchers);
+          }
+        } catch (voucherError) {
+          console.error('Error fetching vouchers:', voucherError);
+          // Fallback to mock data if API fails
+          const mockVouchers: VoucherDisplay[] = [
+            {
+              id: '1',
+              code: 'WELCOME50',
+              title: 'Giảm 50% cho người mới',
+              description: 'Áp dụng cho tất cả khóa học, tối đa 500K',
+              discount: 50,
+              discountType: 'percentage',
+              minAmount: 100000,
+              maxDiscount: 500000,
+              validFrom: '2024-01-01',
+              validTo: '2024-12-31',
+              usageLimit: 1000,
+              usedCount: 234,
+              category: 'new-user',
+              isHot: true,
+              isNew: true,
+              isExpired: false,
+              daysLeft: 45,
+              status: 'available',
+              statusMessage: 'Có thể sử dụng'
+            },
+            {
+              id: '2',
+              code: 'FLASH200K',
+              title: 'Giảm 200K cho khóa học IT',
+              description: 'Áp dụng cho khóa học Công nghệ thông tin',
+              discount: 200000,
+              discountType: 'fixed',
+              minAmount: 500000,
+              validFrom: '2024-01-01',
+              validTo: '2024-06-30',
+              usageLimit: 500,
+              usedCount: 156,
+              category: 'it-courses',
+              isHot: true,
+              isExpired: false,
+              daysLeft: 12,
+              status: 'available',
+              statusMessage: 'Có thể sử dụng'
+            },
+            {
+              id: '3',
+              code: 'SUMMER30',
+              title: 'Giảm 30% mùa hè',
+              description: 'Áp dụng cho tất cả khóa học',
+              discount: 30,
+              discountType: 'percentage',
+              minAmount: 200000,
+              maxDiscount: 300000,
+              validFrom: '2024-06-01',
+              validTo: '2024-08-31',
+              usageLimit: 2000,
+              usedCount: 892,
+              category: 'seasonal',
+              isExpired: false,
+              daysLeft: 78,
+              status: 'available',
+              statusMessage: 'Có thể sử dụng'
+            },
+          ];
+          setVouchers(mockVouchers);
+        }
 
       } catch (err) {
         if (err instanceof Error) {
@@ -217,7 +258,7 @@ const Homepage = () => {
     return colors[category] || 'default';
   };
 
-  const formatDiscount = (voucher: Voucher) => {
+  const formatDiscount = (voucher: VoucherDisplay) => {
     if (voucher.discountType === 'percentage') {
       return `${voucher.discount}%`;
     }
@@ -317,7 +358,17 @@ const Homepage = () => {
                 <Card
                   hoverable
                   variant="borderless"
-                  style={{ borderRadius: "16px", overflow: "hidden", border: 'none', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', width: '100%', display: 'flex', flexDirection: 'column', height: '100%' }}
+                  style={{ 
+                    borderRadius: "16px", 
+                    overflow: "hidden", 
+                    border: 'none', 
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.08)', 
+                    width: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    height: '100%',
+                    opacity: voucher.status === 'unavailable' ? 0.6 : 1
+                  }}
                   styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', flex: 1 } }}
                 >
                   <div style={{ background: "linear-gradient(135deg, #ef4444, #f87171)", padding: '24px', color: 'white', textAlign: 'center' }}>
@@ -329,29 +380,66 @@ const Homepage = () => {
                       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                         <Text type='secondary'>Mã giảm giá</Text>
                         <div
-                          style={{ border: '2px dashed #d1d5db', padding: '8px 16px', borderRadius: '8px', margin: '8px auto', display: 'inline-block', cursor: 'pointer' }}
-                          onClick={() => copyToClipboard(voucher.code)}
+                          style={{ 
+                            border: '2px dashed #d1d5db', 
+                            padding: '8px 16px', 
+                            borderRadius: '8px', 
+                            margin: '8px auto', 
+                            display: 'inline-block', 
+                            cursor: voucher.status === 'available' ? 'pointer' : 'not-allowed',
+                            opacity: voucher.status === 'available' ? 1 : 0.5
+                          }}
+                          onClick={() => voucher.status === 'available' && copyToClipboard(voucher.code)}
                         >
                           <Text strong style={{ fontSize: '20px', letterSpacing: '2px', color: '#1e3a8a' }}>{voucher.code}</Text>
-                          <Tooltip title="Sao chép mã">
-                            <CopyOutlined style={{ marginLeft: '12px', color: '#6b7280' }} />
-                          </Tooltip>
+                          {voucher.status === 'available' && (
+                            <Tooltip title="Sao chép mã">
+                              <CopyOutlined style={{ marginLeft: '12px', color: '#6b7280' }} />
+                            </Tooltip>
+                          )}
                         </div>
                       </div>
+
+                      {/* Status Message */}
+                      {voucher.status === 'unavailable' && (
+                        <div style={{ 
+                          background: '#fef2f2', 
+                          border: '1px solid #fecaca', 
+                          borderRadius: '8px', 
+                          padding: '8px 12px', 
+                          marginBottom: '16px',
+                          textAlign: 'center'
+                        }}>
+                          <Text style={{ color: '#dc2626', fontSize: '12px' }}>
+                            {voucher.statusMessage}
+                          </Text>
+                        </div>
+                      )}
 
                       <Space direction="vertical" size="small" style={{ width: "100%"}}>
                         {voucher.minAmount && <Text type="secondary"><Tag color='blue'>Điều kiện</Tag> Đơn hàng từ {voucher.minAmount.toLocaleString()}đ</Text>}
                         {voucher.maxDiscount && voucher.discountType === 'percentage' && <Text type="secondary"><Tag color='blue'>Tối đa</Tag> Giảm đến {voucher.maxDiscount.toLocaleString()}đ</Text>}
                         <Text type="secondary"><ClockIcon style={{ marginRight: "4px" }} />Hạn sử dụng: {new Date(voucher.validTo).toLocaleDateString('vi-VN')}</Text>
+                        <Text type="secondary"><Tag color='orange'>Đã sử dụng</Tag> {voucher.usedCount}/{voucher.usageLimit}</Text>
                       </Space>
                     </div>
 
-                    <Button type="primary" block size="large" style={{ background: '#1e3a8a', height: '48px', marginTop: '24px' }}>
-                      Lưu mã
+                    <Button 
+                      type="primary" 
+                      block 
+                      size="large" 
+                      style={{ 
+                        background: voucher.status === 'available' ? '#1e3a8a' : '#9ca3af', 
+                        height: '48px', 
+                        marginTop: '24px' 
+                      }}
+                      disabled={voucher.status === 'unavailable'}
+                    >
+                      {voucher.status === 'available' ? 'Lưu mã' : 'Hết voucher'}
                     </Button>
                   </div>
-                  {voucher.isExpired && (
-                    <Badge.Ribbon text="Đã hết hạn" color="red" />
+                  {voucher.status === 'unavailable' && (
+                    <Badge.Ribbon text="Hết voucher" color="red" />
                   )}
                 </Card>
               </motion.div>

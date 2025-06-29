@@ -41,6 +41,8 @@ import CoursesPage from './pages/client/CoursesPage';
 import InstructorsPage from './pages/client/InstructorsPage';
 import BlogPage from './pages/client/BlogPage';
 import CartPage from './pages/client/CartPage';
+import CheckoutPage from './pages/client/CheckoutPage';
+import OrdersPage from './pages/client/OrdersPage';
 import CourseDetailPage from "./pages/client/CourseDetailPage";
 import Dashboard from './pages/admin/Dashboard/Dashboard';
 import MyCourseList from './pages/instructor/course/MyCourseList';
@@ -75,6 +77,8 @@ function App() {
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
         { path: "cart", element: <CartPage /> },
+        { path: "checkout", element: <CheckoutPage /> },
+        { path: "orders", element: <OrdersPage /> },
         { path: "/lessons/:lessonId/video", element: <LessonVideoPage /> },
         { path: "/lessons/:lessonId/quiz", element: <LessonQuizPage /> },
       ]
@@ -86,6 +90,7 @@ function App() {
         { path: "", element: <Profile /> },
         { path: 'edit', element: <ProfileEdit /> },
         { path: 'change-password', element: <ChangePassword /> },
+        { path: 'orders', element: <OrdersPage /> },
       ]
     },
     {
