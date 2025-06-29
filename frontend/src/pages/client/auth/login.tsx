@@ -9,6 +9,8 @@ import AuthNotification from "../../../components/common/AuthNotification";
 import AccountTypeModal from "../../../components/common/AccountTypeModal";
 
 export default function LoginPage(): React.ReactElement {
+  console.log('🔍 LoginPage component is rendering...');
+  
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const { mutate } = useLogin({ resource: "login" });
@@ -30,6 +32,7 @@ export default function LoginPage(): React.ReactElement {
   });
 
   const onFinish = (values: { identifier: string; password: string }) => {
+    console.log('🔍 Form submitted:', values);
     setIsLoading(true);
     mutate(values, {
       onSuccess: (data) => {
@@ -51,7 +54,7 @@ export default function LoginPage(): React.ReactElement {
           localStorage.setItem('token', token);
           console.log('Token after login:', localStorage.getItem('token'));
           
-          // Hiển thị thông báo thành công trước khi chuyển hướng
+          // Hiển thị thông báo thành công
           setNotification({
             isVisible: true,
             type: 'success',
@@ -59,10 +62,7 @@ export default function LoginPage(): React.ReactElement {
             message: 'Chào mừng bạn trở lại!'
           });
           
-          // Chuyển hướng sau khi hiển thị thông báo
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 1500);
+          // Không chuyển hướng ngay, để thông báo tự động chuyển hướng
         } else {
           console.warn('Không tìm thấy token trong response!', data);
           // Nếu không có token, vẫn hiển thị thông báo thành công
@@ -72,9 +72,6 @@ export default function LoginPage(): React.ReactElement {
             title: 'Đăng nhập thành công!',
             message: 'Chào mừng bạn trở lại!'
           });
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 1500);
         }
         
         // Kiểm tra email verification nếu cần

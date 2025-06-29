@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CouponManagement from "./pages/admin/Vouchers/VouchersPage";
 import TransactionHistory from "./pages/admin/Transaction/TransactionHistory";
 import { CartProvider } from "./contexts/CartContext";
-import AuthNotification from "./components/common/AuthNotification";
+import React from "react";
 
 import UserPage from "./pages/admin/Users/UserPage";
 import InstructorList from "./pages/admin/Instructors/InstructorList";
@@ -55,6 +55,41 @@ import LessonVideoPage from './pages/client/lessons/LessonVideoPage';
 import LessonQuizPage from './pages/client/lessons/LessonQuizPage';
 
 const queryClient = new QueryClient();
+
+// Error Boundary Component
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <h1>Đã xảy ra lỗi!</h1>
+          <p>Lỗi: {this.state.error?.message}</p>
+          <button onClick={() => window.location.reload()}>
+            Tải lại trang
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 function App() {
   const routes = [
@@ -139,13 +174,13 @@ function App() {
   const element = useRoutes(routes);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthNotification>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
         <CartProvider>
           {element}
         </CartProvider>
-      </AuthNotification>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

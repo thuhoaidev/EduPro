@@ -130,10 +130,7 @@ const AppHeader = () => {
       message: 'Bạn đã đăng xuất khỏi hệ thống. Hẹn gặp lại!'
     });
     
-    // Navigate after notification
-    setTimeout(() => {
-      navigate('/');
-    }, 2000);
+    // Không chuyển hướng ngay, để thông báo tự động chuyển hướng
   };
 
   const handleRegisterClick = () => {
@@ -794,7 +791,7 @@ const AppHeader = () => {
                   transition={{ duration: 0.2 }}
                 >
                   <Button 
-                    href="/login" 
+                    onClick={() => navigate('/login')} 
                     size="middle" 
                     className="auth-button login-button"
                     style={{ height: '40px', padding: '0 20px' }}
