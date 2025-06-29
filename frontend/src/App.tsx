@@ -21,6 +21,7 @@ import RegisterPage from "./pages/client/auth/register";
 import ForgotPassword from "./pages/client/auth/forgotPassword";
 import ResetPassword from "./pages/client/auth/ResetPassword";
 import VerifyEmail from "./pages/verifyEmail";
+import { VerifyInstructorEmail } from "./pages/client/auth/verifyInstructorEmail";
 import Earnings from "./pages/client/earnings/Earnings";
 
 import InstructorRegistrationPage from "./pages/client/auth/instructorRegistrationPage";
@@ -168,7 +169,8 @@ function App() {
     { path: '/register', element: <RegisterPage /> },
     { path: '/forgot-password', element: <ForgotPassword /> },
     { path: '/reset-password/:token', element: <ResetPassword /> },
-    { path: '/register/instructor', element: <InstructorRegistrationPage /> }
+    { path: '/register/instructor', element: <InstructorRegistrationPage /> },
+    { path: '/verify-instructor-email/:token', element: <VerifyInstructorEmail /> }
   ];
 
   const element = useRoutes(routes);

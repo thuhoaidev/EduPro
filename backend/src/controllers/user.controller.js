@@ -1,5 +1,6 @@
 const User = require('../models/User');
-const { Role, ROLES } = require('../models/Role');
+const { Role } = require('../models/Role');
+const ROLES = require('../constants/roles');
 const { sendInstructorVerificationEmail, sendInstructorProfileSubmittedEmail, sendInstructorApprovalResultEmail } = require('../utils/sendEmail');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
@@ -580,6 +581,9 @@ exports.getInstructors = async (req, res) => {
       data: {
         instructors: instructors.map((instructor) => {
           const info = instructor.instructorInfo || {};
+          const education = instructor.education || [];
+          const firstEducation = education.length > 0 ? education[0] : {};
+          
           return {
             id: instructor._id,
             fullname: instructor.fullname,
@@ -593,23 +597,24 @@ exports.getInstructors = async (req, res) => {
             role: instructor.role_id?.name || 'instructor',
             createdAt: instructor.createdAt,
             updatedAt: instructor.updatedAt,
-            password: instructor.password,
-approvalStatus: info.instructor_profile_status || 'pending',
-            applicationDate: info.application_date || info.created_at, 
-            degree: info.degree,
-            university: info.university,
-            major: info.major,
-            graduationYear: info.graduation_year,
-            expertise: info.expertise || [],
-            experienceYears: info.experience_years,
-            experienceDescription: info.teaching_experience_description,
-            cvUrl: info.cv_url,
+            approvalStatus: info.instructor_profile_status || 'pending',
+            isApproved: info.is_approved || false,
+            specializations: info.specializations || [],
+            experienceYears: info.experience_years || (info.teaching_experience?.years ?? 0),
+            experienceDescription: info.teaching_experience?.description || '',
             certificates: info.certificates || [],
-            demoVideoUrl: info.demo_video_url,
-            bio: info.bio,
-            github: info.github,
-            facebook: info.facebook,
-            website: info.website,
+            demoVideo: info.demo_video || '',
+            bio: info.bio || '',
+            github: info.github || '',
+            website: info.website || '',
+            education: instructor.education || [],
+            degree: firstEducation.degree || '',
+            university: firstEducation.institution || '',
+            major: firstEducation.major || '',
+            graduationYear: firstEducation.year || '',
+            cvUrl: info.cv_file || '',
+            demoVideoUrl: info.demo_video || '',
+            applicationDate: info.application_date || instructor.createdAt,
           };
         }),
         pagination: {
@@ -875,26 +880,8 @@ exports.registerInstructor = async (req, res) => {
       return fullName.toLowerCase().replace(/\s+/g, '');
     };
 
-    // Tạo slug từ nickname
-    const generateSlug = (nickname) => {
-      return nickname.toLowerCase()
-        .replace(/[^a-z0-9]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-    };
-
     const nickname = generateNickname(cleanFullName);
-    let slug = generateSlug(nickname);
-
-    // Kiểm tra slug đã tồn tại chưa
-    let counter = 1;
-    let existingUserWithSlug;
-    do {
-      existingUserWithSlug = await User.findOne({ slug });
-      if (existingUserWithSlug) {
-        slug = `${generateSlug(nickname)}-${counter++}`;
-      }
-    } while (existingUserWithSlug);
+    // Không tạo slug ở đây, để model tự động tạo trong pre-save hook
 
     console.log('Received instructor registration data:', {
       fullName: cleanFullName,
@@ -902,7 +889,6 @@ exports.registerInstructor = async (req, res) => {
       phone: cleanPhone,
       gender: mappedGender,
       nickname,
-      slug,
       dateOfBirth,
       address: cleanAddress,
       degree: cleanDegree,
@@ -1043,7 +1029,6 @@ exports.registerInstructor = async (req, res) => {
     const newUser = new User({
       fullname: cleanFullName,
       nickname: nickname,
-      slug: slug,
       email: cleanEmail,
       phone: cleanPhone,
       password: cleanPassword,
@@ -1382,8 +1367,8 @@ exports.getApprovedInstructors = async (req, res) => {
       data: {
         instructors: instructors.map((instructor) => {
           const info = instructor.instructorInfo || {};
-          const profileId = userToProfileMap[instructor._id.toString()];
-          const stats = profileId ? courseStatsMap[profileId] : { totalCourses: 0, totalStudents: 0 };
+          const education = instructor.education || [];
+          const firstEducation = education.length > 0 ? education[0] : {};
           
           return {
             id: instructor._id,
@@ -1392,28 +1377,30 @@ exports.getApprovedInstructors = async (req, res) => {
             avatar: instructor.avatar,
             phone: instructor.phone,
             address: instructor.address,
-            bio: info.bio || 'Chưa có thông tin giới thiệu',
-            rating: info.rating || 0,
-            totalStudents: stats.totalStudents || info.totalStudents || 0,
-            totalCourses: stats.totalCourses || 0,
-            totalReviews: info.totalReviews || 0,
-            experienceYears: info.experience_years || 0,
-            expertise: info.expertise || [],
-            isVerified: true, // Tất cả đều đã được duyệt
-            isFeatured: false, // Có thể thêm logic sau
-            isOnline: false, // Có thể thêm logic sau
-            location: instructor.address || 'Chưa cập nhật',
-            education: info.education || `${info.degree || ''} ${info.university || ''}`.trim() || 'Chưa cập nhật',
-            approvalStatus: 'approved',
-            degree: info.degree,
-            university: info.university,
-            major: info.major,
-            graduationYear: info.graduation_year,
-            experienceDescription: info.teaching_experience_description,
-            github: info.github,
-            facebook: info.facebook,
-            website: info.website,
-            createdAt: instructor.createdAt
+            dob: instructor.dob,
+            gender: instructor.gender,
+            status: instructor.status,
+            role: instructor.role_id?.name || 'instructor',
+            createdAt: instructor.createdAt,
+            updatedAt: instructor.updatedAt,
+            approvalStatus: info.instructor_profile_status || 'pending',
+            isApproved: info.is_approved || false,
+            specializations: info.specializations || [],
+            experienceYears: info.experience_years || (info.teaching_experience?.years ?? 0),
+            experienceDescription: info.teaching_experience?.description || '',
+            certificates: info.certificates || [],
+            demoVideo: info.demo_video || '',
+            bio: info.bio || '',
+            github: info.github || '',
+            website: info.website || '',
+            education: instructor.education || [],
+            degree: firstEducation.degree || '',
+            university: firstEducation.institution || '',
+            major: firstEducation.major || '',
+            graduationYear: firstEducation.year || '',
+            cvUrl: info.cv_file || '',
+            demoVideoUrl: info.demo_video || '',
+            applicationDate: info.application_date || instructor.createdAt,
           };
         }),
         pagination: {

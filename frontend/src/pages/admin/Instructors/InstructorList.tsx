@@ -207,14 +207,16 @@ const InstructorList = () => {
       if (dateRange?.[1]) params.to = dateRange[1].toISOString();
 
       const response = await config.get("/users/instructors", { params });
-      console.log("data", response.data)
+      console.log("API Response:", response.data);
       const rawInstructors = response.data.data.instructors || [];
       const mappedInstructors = rawInstructors.map((inst: any) => ({
         ...inst,
-        approvalStatus: inst.approval_status || inst.approvalStatus || 'pending',
+        approvalStatus: inst.approvalStatus || inst.approval_status || 'pending',
       }));
+      console.log("Mapped Instructors:", mappedInstructors);
       setInstructors(mappedInstructors);
     } catch (error) {
+      console.error("Error fetching instructors:", error);
       message.error("Không thể lấy danh sách giảng viên");
     } finally {
       setLoading(false);
@@ -237,8 +239,16 @@ const InstructorList = () => {
             status: "approved",
           });
           message.success(`Đã duyệt giảng viên: ${instructor.fullname}`);
-          await fetchInstructors(); // GỌI LẠI API để cập nhật danh sách
+          
+          setInstructors(prev => prev.map(inst => 
+            inst.id === instructor.id 
+              ? { ...inst, approvalStatus: 'approved' }
+              : inst
+          ));
+          
+          await fetchInstructors();
         } catch (error) {
+          console.error("Error approving instructor:", error);
           message.error("Duyệt thất bại");
         }
       },
@@ -267,7 +277,7 @@ const InstructorList = () => {
       onOk: async () => {
         if (!rejectReasonRef.current.trim()) {
           message.warning("Vui lòng nhập lý do từ chối");
-          return Promise.reject(); // <- Dừng Modal.confirm
+          return Promise.reject();
         }
         try {
           await config.put(`/users/instructors/${instructor.id}/approval`, {
@@ -275,6 +285,13 @@ const InstructorList = () => {
             rejection_reason: rejectReasonRef.current,
           });
           message.success(`Đã từ chối giảng viên: ${instructor.fullname}`);
+          
+          setInstructors(prev => prev.map(inst => 
+            inst.id === instructor.id 
+              ? { ...inst, approvalStatus: 'rejected' }
+              : inst
+          ));
+          
           await fetchInstructors();
         } catch (error) {
           console.error("Lỗi từ chối:", error);
@@ -437,20 +454,19 @@ const InstructorList = () => {
               <Descriptions.Item label="Giới tính">{viewingInstructor.gender || "Chưa cập nhật"}</Descriptions.Item>
               <Descriptions.Item label="Ngày sinh">{viewingInstructor.dob ? dayjs(viewingInstructor.dob).format("DD/MM/YYYY") : "Chưa cập nhật"}</Descriptions.Item>
               <Descriptions.Item label="Địa chỉ">{viewingInstructor.address || "Chưa cập nhật"}</Descriptions.Item>
-              <Descriptions.Item label="Mật khẩu">{viewingInstructor.password ? <span style={{ fontFamily: 'monospace' }}>{viewingInstructor.password}</span> : "Chưa cập nhật"}</Descriptions.Item>
             </Descriptions>
             <Divider orientation="left">Học vấn & Chuyên môn</Divider>
             <Descriptions column={2} bordered size="small">
-              <Descriptions.Item label="Bằng cấp">{viewingInstructor.degree}</Descriptions.Item>
-              <Descriptions.Item label="Trường đào tạo">{viewingInstructor.university}</Descriptions.Item>
-              <Descriptions.Item label="Chuyên ngành">{viewingInstructor.major}</Descriptions.Item>
-              <Descriptions.Item label="Năm tốt nghiệp">{viewingInstructor.graduationYear}</Descriptions.Item>
+              <Descriptions.Item label="Bằng cấp">{viewingInstructor.degree || "Chưa cập nhật"}</Descriptions.Item>
+              <Descriptions.Item label="Trường đào tạo">{viewingInstructor.university || "Chưa cập nhật"}</Descriptions.Item>
+              <Descriptions.Item label="Chuyên ngành">{viewingInstructor.major || "Chưa cập nhật"}</Descriptions.Item>
+              <Descriptions.Item label="Năm tốt nghiệp">{viewingInstructor.graduationYear || "Chưa cập nhật"}</Descriptions.Item>
               <Descriptions.Item label="Lĩnh vực chuyên môn">
                 {viewingInstructor.expertise && viewingInstructor.expertise.length > 0 ? viewingInstructor.expertise.map((exp) => <Tag key={exp}>{exp}</Tag>) : "Chưa cập nhật"}
               </Descriptions.Item>
-              <Descriptions.Item label="Số năm kinh nghiệm">{viewingInstructor.experienceYears}</Descriptions.Item>
+              <Descriptions.Item label="Số năm kinh nghiệm">{viewingInstructor.experienceYears || 0} năm</Descriptions.Item>
               <Descriptions.Item label="Mô tả kinh nghiệm" span={2}>
-                <Paragraph style={{ marginBottom: 0 }}>{viewingInstructor.experienceDescription}</Paragraph>
+                <Paragraph style={{ marginBottom: 0 }}>{viewingInstructor.experienceDescription || "Chưa cập nhật"}</Paragraph>
               </Descriptions.Item>
             </Descriptions>
             <Divider orientation="left">Hồ sơ & Tài liệu</Divider>
@@ -463,9 +479,11 @@ const InstructorList = () => {
               <Descriptions.Item label="Chứng chỉ">
                 {viewingInstructor.certificates && viewingInstructor.certificates.length > 0 ? (
                   <ul style={{ paddingLeft: 16, margin: 0 }}>
-                    {viewingInstructor.certificates.map((cert) => (
-                      <li key={cert.url}>
-                        <AntdLink href={cert.url} target="_blank" rel="noopener noreferrer">{cert.name}</AntdLink>
+                    {viewingInstructor.certificates.map((cert, index) => (
+                      <li key={index}>
+                        <AntdLink href={cert.file || cert.url} target="_blank" rel="noopener noreferrer">
+                          {cert.name || cert.original_name || `Chứng chỉ ${index + 1}`}
+                        </AntdLink>
                       </li>
                     ))}
                   </ul>

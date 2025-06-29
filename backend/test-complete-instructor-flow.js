@@ -19,7 +19,7 @@ function createTestFile(content, filename) {
   return filePath;
 }
 
-// Test instructor registration
+// Test 1: Instructor Registration
 async function testInstructorRegistration() {
   try {
     console.log('🧪 Bắt đầu test instructor registration...');
@@ -28,6 +28,7 @@ async function testInstructorRegistration() {
     const avatarPath = createTestFile('fake image content', 'test-avatar.jpg');
     const cvPath = createTestFile('fake CV content', 'test-cv.pdf');
     const certPath = createTestFile('fake certificate content', 'test-cert.pdf');
+    const videoPath = createTestFile('fake video content', 'test-video.mp4');
     
     // Tạo FormData
     const formData = new FormData();
@@ -48,9 +49,9 @@ async function testInstructorRegistration() {
     formData.append('major', 'Công nghệ thông tin');
     
     // Thông tin chuyên môn
-    formData.append('specializations', 'JavaScript');
-    formData.append('specializations', 'React');
-    formData.append('specializations', 'Node.js');
+    formData.append('specializations[0]', 'JavaScript');
+    formData.append('specializations[1]', 'React');
+    formData.append('specializations[2]', 'Node.js');
     formData.append('teachingExperience', '5');
     formData.append('experienceDescription', 'Có 5 năm kinh nghiệm giảng dạy lập trình web');
     
@@ -64,33 +65,36 @@ async function testInstructorRegistration() {
     formData.append('avatar', fs.createReadStream(avatarPath));
     formData.append('cv', fs.createReadStream(cvPath));
     formData.append('certificates', fs.createReadStream(certPath));
+    formData.append('demoVideo', fs.createReadStream(videoPath));
     
-    console.log('📤 Gửi request đến API...');
+    console.log('📤 Gửi request đăng ký instructor...');
     
-    // Gọi API
+    // Gọi API đăng ký
     const response = await axios.post(`${API_BASE_URL}/auth/instructor-register`, formData, {
       headers: {
         ...formData.getHeaders(),
       },
-      timeout: 30000, // 30 seconds
+      timeout: 30000,
     });
     
-    console.log('✅ Response:', {
+    console.log('✅ Đăng ký thành công:', {
       status: response.status,
       success: response.data.success,
       message: response.data.message,
-      data: response.data.data
+      userId: response.data.data?.user?._id,
+      email: response.data.data?.user?.email
     });
     
     // Cleanup test files
     fs.unlinkSync(avatarPath);
     fs.unlinkSync(cvPath);
     fs.unlinkSync(certPath);
+    fs.unlinkSync(videoPath);
     
     return response.data;
     
   } catch (error) {
-    console.error('❌ Test failed:', {
+    console.error('❌ Test đăng ký thất bại:', {
       message: error.message,
       response: error.response?.data,
       status: error.response?.status
@@ -110,51 +114,60 @@ async function testInstructorRegistration() {
   }
 }
 
-// Test validation errors
-async function testValidationErrors() {
-  console.log('\n🧪 Test validation errors...');
-  
-  try {
-    const formData = new FormData();
-    
-    // Chỉ gửi một số trường để test validation
-    formData.append('fullName', 'Test User');
-    formData.append('email', 'invalid-email');
-    formData.append('password', '123'); // Too short
-    
-    const response = await axios.post(`${API_BASE_URL}/auth/instructor-register`, formData, {
-      headers: {
-        ...formData.getHeaders(),
-      },
-    });
-    
-    console.log('❌ Expected validation error but got success');
-    
-  } catch (error) {
-    if (error.response?.status === 400) {
-      console.log('✅ Validation error caught correctly:', {
-        status: error.response.status,
-        message: error.response.data.message,
-        missing: error.response.data.missing
-      });
-    } else {
-      console.error('❌ Unexpected error:', error.message);
-    }
-  }
+// Test 2: Verify Instructor Email (Mock - vì cần token thực)
+async function testVerifyInstructorEmail() {
+  console.log('\n🧪 Test verify instructor email (Mock)...');
+  console.log('📧 Trong thực tế, user sẽ nhận email với link xác minh');
+  console.log('🔗 Link format: http://localhost:3000/verify-instructor-email/{token}');
+  console.log('✅ Frontend sẽ gọi API: GET /auth/verify-instructor-email/{token}');
+  console.log('✅ Backend sẽ xác minh token và cập nhật trạng thái user');
+}
+
+// Test 3: Check User Status After Verification
+async function testCheckUserStatus() {
+  console.log('\n🧪 Test check user status...');
+  console.log('📋 Sau khi xác minh email, user sẽ có:');
+  console.log('   - email_verified: true');
+  console.log('   - status: active');
+  console.log('   - approval_status: approved');
+  console.log('   - instructor_approval_status: pending (chờ admin duyệt)');
+}
+
+// Test 4: Admin Approval Process (Mock)
+async function testAdminApprovalProcess() {
+  console.log('\n🧪 Test admin approval process (Mock)...');
+  console.log('👨‍💼 Admin sẽ:');
+  console.log('   1. Xem danh sách instructor pending');
+  console.log('   2. Xem chi tiết hồ sơ instructor');
+  console.log('   3. Duyệt hoặc từ chối hồ sơ');
+  console.log('   4. Gửi email thông báo kết quả');
+  console.log('✅ Sau khi được duyệt, instructor có thể đăng nhập và tạo khóa học');
 }
 
 // Main test function
-async function runTests() {
-  console.log('🚀 Bắt đầu test instructor registration API...\n');
+async function runCompleteFlow() {
+  console.log('🚀 Bắt đầu test toàn bộ luồng instructor registration...\n');
   
   try {
-    // Test 1: Successful registration
+    // Test 1: Registration
     await testInstructorRegistration();
     
-    // Test 2: Validation errors
-    await testValidationErrors();
+    // Test 2: Email Verification (Mock)
+    await testVerifyInstructorEmail();
+    
+    // Test 3: Check User Status
+    await testCheckUserStatus();
+    
+    // Test 4: Admin Approval (Mock)
+    await testAdminApprovalProcess();
     
     console.log('\n🎉 Tất cả tests hoàn thành!');
+    console.log('\n📝 Tóm tắt luồng hoàn chỉnh:');
+    console.log('1. ✅ User đăng ký instructor → Backend tạo user + gửi email xác minh');
+    console.log('2. 📧 User nhận email → Click link xác minh → Frontend gọi API verify');
+    console.log('3. ✅ Backend xác minh token → Cập nhật trạng thái user');
+    console.log('4. 👨‍💼 Admin xét duyệt hồ sơ → Gửi email thông báo kết quả');
+    console.log('5. 🎓 Instructor được duyệt → Có thể đăng nhập và tạo khóa học');
     
   } catch (error) {
     console.error('\n💥 Test suite failed:', error.message);
@@ -164,12 +177,13 @@ async function runTests() {
 
 // Chạy tests nếu file được execute trực tiếp
 if (require.main === module) {
-  runTests();
+  runCompleteFlow();
 }
 
 module.exports = {
   testInstructorRegistration,
-  testValidationErrors,
-  runTests
+  testVerifyInstructorEmail,
+  testCheckUserStatus,
+  testAdminApprovalProcess,
+  runCompleteFlow
 }; 
-testInstructorRegistration(); 

@@ -242,3 +242,102 @@ export const courseService = {
 
   mapApiCourseToAppCourse,
 };
+
+// Instructor Registration Interfaces
+export interface InstructorRegistrationForm {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  gender: string;
+  dateOfBirth: string;
+  address: string;
+  degree: string;
+  institution: string;
+  graduationYear: string;
+  major: string;
+  specializations: string[];
+  teachingExperience: string;
+  experienceDescription: string;
+  bio: string;
+  linkedin?: string;
+  github?: string;
+  website?: string;
+  avatar?: File;
+  cv?: File;
+  certificates?: File[];
+  demoVideo?: File;
+}
+
+export interface InstructorRegistrationResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user: {
+      _id: string;
+      fullname: string;
+      email: string;
+      status: string;
+      email_verified: boolean;
+      approval_status: string;
+    };
+    instructorInfo: {
+      is_approved: boolean;
+      experience_years: number;
+      specializations: string[];
+      teaching_experience: {
+        years: number;
+        description: string;
+      };
+      certificates: Array<{
+        name: string;
+        file: string;
+        original_name: string;
+        uploaded_at: string;
+      }>;
+      demo_video: string | null;
+      cv_file: string | null;
+      instructor_profile_status: string;
+      bio: string;
+    };
+  };
+}
+
+// Instructor Registration Service
+export const instructorService = {
+  registerInstructor: async (formData: FormData): Promise<InstructorRegistrationResponse> => {
+    try {
+      const response = await apiClient.post<InstructorRegistrationResponse>(
+        '/auth/instructor-register',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Lỗi đăng ký giảng viên:', error);
+      if (error.response?.data) {
+        throw new Error(error.response.data.message || 'Lỗi đăng ký giảng viên');
+      }
+      throw new Error('Lỗi kết nối server');
+    }
+  },
+
+  verifyInstructorEmail: async (token: string): Promise<InstructorRegistrationResponse> => {
+    try {
+      const response = await apiClient.get<InstructorRegistrationResponse>(
+        `/auth/verify-instructor-email/${token}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Lỗi xác minh email giảng viên:', error);
+      if (error.response?.data) {
+        throw new Error(error.response.data.message || 'Lỗi xác minh email');
+      }
+      throw new Error('Lỗi kết nối server');
+    }
+  }
+};

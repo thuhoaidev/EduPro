@@ -167,8 +167,12 @@ exports.processAvatarUpload = async (req, res, next) => {
 // Middleware xử lý upload instructor profile files lên Cloudinary (updated)
 exports.processInstructorFilesUpload = async (req, res, next) => {
   try {
-    console.log('DEBUG - req.files:', req.files); // Log toàn bộ files nhận được từ multer
+    console.log('DEBUG - processInstructorFilesUpload - req.files:', req.files); // Log toàn bộ files nhận được từ multer
+    console.log('DEBUG - processInstructorFilesUpload - req.body:', req.body); // Log body data
+    console.log('DEBUG - processInstructorFilesUpload - req.headers:', req.headers['content-type']); // Log content type
+    
     if (!req.files) {
+      console.log('DEBUG - No files uploaded, continuing...');
       return next(); // Không có file upload, tiếp tục
     }
 
@@ -176,6 +180,7 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
 
     // Xử lý Avatar
     if (req.files.avatar && req.files.avatar[0]) {
+      console.log('DEBUG - Processing avatar file:', req.files.avatar[0]);
       const avatarFile = req.files.avatar[0];
       if (avatarFile.size > 5 * 1024 * 1024) {
         return res.status(400).json({
@@ -192,10 +197,13 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
         size: result.bytes,
         format: result.format,
       };
+    } else {
+      console.log('DEBUG - No avatar file found');
     }
 
     // Xử lý CV file
     if (req.files.cv && req.files.cv[0]) {
+      console.log('DEBUG - Processing CV file:', req.files.cv[0]);
       const cvFile = req.files.cv[0];
       if (cvFile.size > 10 * 1024 * 1024) {
         return res.status(400).json({
@@ -212,12 +220,16 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
         size: result.bytes,
         format: result.format,
       };
+    } else {
+      console.log('DEBUG - No CV file found');
     }
 
     // Xử lý certificates files
     if (req.files.certificates && req.files.certificates.length > 0) {
+      console.log('DEBUG - Processing certificates files:', req.files.certificates);
       uploadedFiles.certificates = [];
       for (const certFile of req.files.certificates) {
+        console.log('DEBUG - Processing certificate file:', certFile);
         if (certFile.size > 10 * 1024 * 1024) {
           return res.status(400).json({
             success: false,
@@ -234,10 +246,13 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
           format: result.format,
         });
       }
+    } else {
+      console.log('DEBUG - No certificates files found');
     }
 
     // Xử lý demo video
     if (req.files.demoVideo && req.files.demoVideo[0]) {
+      console.log('DEBUG - Processing demo video file:', req.files.demoVideo[0]);
       const videoFile = req.files.demoVideo[0];
       if (videoFile.size > 50 * 1024 * 1024) { // 50MB cho video
         return res.status(400).json({
@@ -254,10 +269,12 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
         size: result.bytes,
         format: result.format,
       };
+    } else {
+      console.log('DEBUG - No demo video file found');
     }
 
     req.uploadedInstructorFiles = uploadedFiles;
-    console.log('DEBUG - uploadedInstructorFiles:', uploadedFiles); // Log kết quả cuối cùng
+    console.log('DEBUG - Final uploadedInstructorFiles:', uploadedFiles); // Log kết quả cuối cùng
     next();
   } catch (error) {
     console.error('Lỗi upload instructor files:', error);

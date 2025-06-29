@@ -38,25 +38,34 @@ UserSchema.pre('save', async function (next) {
 
       // Chuẩn hóa nickname để tạo slug
       const normalizedNickname = this.nickname.toLowerCase().replace(/[^a-z0-9]/g, '-');
-      this.slug = normalizedNickname.replace(/-+/g, '-').replace(/^-+|-+$/g, ''); // Thay thế nhiều dấu gạch ngang liên tiếp và loại bỏ dấu gạch ngang ở đầu và cuối
+      let baseSlug = normalizedNickname.replace(/-+/g, '-').replace(/^-+|-+$/g, ''); // Thay thế nhiều dấu gạch ngang liên tiếp và loại bỏ dấu gạch ngang ở đầu và cuối
 
       // Đảm bảo slug không rỗng và không chỉ chứa dấu gạch ngang
-      if (!this.slug || this.slug === '' || this.slug === null || this.slug === undefined || this.slug.replace(/-/g, '') === '' || this.slug.length < 3) {
-        this.slug = 'user-' + Date.now();
+      if (!baseSlug || baseSlug === '' || baseSlug === null || baseSlug === undefined || baseSlug.replace(/-/g, '') === '' || baseSlug.length < 3) {
+        baseSlug = 'user-' + Date.now();
       }
 
-      // Kiểm tra xem slug đã tồn tại chưa
-      const existingUser = await mongoose.model('User').findOne({ slug: this.slug });
-      if (existingUser && existingUser._id.toString() !== this._id.toString()) {
-        // Nếu slug đã tồn tại, thêm số vào cuối
-        let counter = 1;
-        let newSlug = `${this.slug}-${counter}`;
-        while (await mongoose.model('User').findOne({ slug: newSlug })) {
-          counter++;
-          newSlug = `${this.slug}-${counter}`;
+      // Kiểm tra xem slug đã tồn tại chưa và tạo slug duy nhất
+      let finalSlug = baseSlug;
+      let counter = 1;
+      
+      while (true) {
+        const existingUser = await mongoose.model('User').findOne({ slug: finalSlug });
+        if (!existingUser || existingUser._id.toString() === this._id.toString()) {
+          break; // Slug không tồn tại hoặc là chính user này
         }
-        this.slug = newSlug;
+        // Nếu slug đã tồn tại, thêm số vào cuối
+        finalSlug = `${baseSlug}-${counter}`;
+        counter++;
+        
+        // Nếu đã thử quá nhiều lần, thêm timestamp để đảm bảo unique
+        if (counter > 100) {
+          finalSlug = `${baseSlug}-${Date.now()}`;
+          break;
+        }
       }
+      
+      this.slug = finalSlug;
     }
     next();
   } catch (error) {
