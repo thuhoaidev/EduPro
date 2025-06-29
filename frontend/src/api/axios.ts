@@ -1,5 +1,6 @@
 import axios from "axios";
 import { refreshAccessToken } from '../services/authService';
+import { clearAuthData, redirectToLogin } from '../utils/tokenUtils';
 
 // Cấu hình API
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -12,6 +13,22 @@ export const config = axios.create({
     },
     timeout: 10000 // timeout sau 10 giây
 });
+
+// Biến để theo dõi việc refresh token
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+    failedQueue.forEach(({ resolve, reject }) => {
+        if (error) {
+            reject(error);
+        } else {
+            resolve(token);
+        }
+    });
+    
+    failedQueue = [];
+};
 
 // Thêm interceptor để tự động gắn token vào header
 config.interceptors.request.use(
@@ -35,21 +52,42 @@ config.interceptors.response.use(
         const originalRequest = error.config;
         
         if (error.response?.status === 401 && !originalRequest._retry) {
+            if (isRefreshing) {
+                // Nếu đang refresh, thêm request vào queue
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then(token => {
+                    originalRequest.headers.Authorization = `Bearer ${token}`;
+                    return config(originalRequest);
+                }).catch(err => {
+                    return Promise.reject(err);
+                });
+            }
+
             originalRequest._retry = true;
+            isRefreshing = true;
             
             try {
                 const newToken = await refreshAccessToken();
                 if (newToken) {
                     localStorage.setItem('token', newToken);
                     originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                    processQueue(null, newToken);
                     return config(originalRequest);
+                } else {
+                    // Nếu không refresh được token, xóa token và redirect
+                    processQueue(error, null);
+                    redirectToLogin();
+                    return Promise.reject(error);
                 }
             } catch (refreshError) {
                 console.error('Failed to refresh token:', refreshError);
+                processQueue(refreshError, null);
                 // Xóa token và redirect đến trang login
-                localStorage.removeItem('token');
-                localStorage.removeItem('refresh_token');
-                window.location.href = '/login';
+                redirectToLogin();
+                return Promise.reject(error);
+            } finally {
+                isRefreshing = false;
             }
         }
         
