@@ -83,11 +83,11 @@ UserSchema.methods.createEmailVerificationToken = function () {
 // Method để tạo token reset mật khẩu
 UserSchema.methods.createPasswordResetToken = function () {
   const resetToken = crypto.randomBytes(32).toString('hex');
-  this.resetPasswordToken = crypto
+  this.reset_password_token = crypto
     .createHash('sha256')
     .update(resetToken)
     .digest('hex');
-  this.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.reset_password_expires = Date.now() + 10 * 60 * 1000; // 10 minutes
   return resetToken;
 };
 
@@ -103,8 +103,8 @@ UserSchema.methods.toJSON = function () {
   delete userObject.password;
   delete userObject.emailVerificationToken;
   delete userObject.emailVerificationExpires;
-  delete userObject.resetPasswordToken;
-  delete userObject.resetPasswordExpires;
+  delete userObject.reset_password_token;
+  delete userObject.reset_password_expires;
   return userObject;
 };
 
