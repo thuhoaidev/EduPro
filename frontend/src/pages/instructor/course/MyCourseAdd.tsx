@@ -82,7 +82,7 @@ const MyCourseAdd: React.FC = () => {
           formData.append('sections', JSON.stringify({ title: chapter.title }));
         });
       }
-      for (let pair of formData.entries()) {
+      for (const pair of formData.entries()) {
         console.log(pair[0]+ ', ' + pair[1]);
       }
       await courseService.createCourse(formData);

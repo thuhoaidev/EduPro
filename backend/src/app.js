@@ -25,6 +25,10 @@ const userRoutes = require('./routes/user.routes');
 const blogRoutes = require('./routes/blog.routes');
 const cartRoutes = require('./routes/cart.routes');
 const orderRoutes = require('./routes/order.routes');
+const progressRoutes = require('./routes/progress.routes');
+const lessonCommentRoutes = require('./routes/lessonComment.routes');
+const certificateRoutes = require('./routes/certificate.routes');
+const courseReviewRoutes = require('./routes/courseReview.routes');
 
 
 // Khởi tạo app
@@ -94,6 +98,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/carts', cartRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/progress', progressRoutes);
+app.use('/api/lesson-comments', lessonCommentRoutes);
+app.use('/api/certificates', certificateRoutes);
+app.use('/api/course-reviews', courseReviewRoutes);
 
 // Error handling middleware
 app.use((err, req, res, _next) => {

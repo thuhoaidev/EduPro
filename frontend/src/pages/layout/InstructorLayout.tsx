@@ -89,7 +89,7 @@ const InstructorLayout = () => {
 
       try {
         const response = await config.get('/auth/me');
-        let userData = response.data;
+        const userData = response.data;
         if (userData && typeof userData.role === 'string') {
           userData.role = { name: userData.role };
         }

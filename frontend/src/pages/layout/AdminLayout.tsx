@@ -86,7 +86,7 @@ const AdminLayout = () => {
       try {
         // Reverted to /auth/me and response.data
         const response = await config.get('/auth/me');
-        let userData = response.data;
+        const userData = response.data;
         if (userData && typeof userData.role === 'string') {
           userData.role = { name: userData.role };
         }

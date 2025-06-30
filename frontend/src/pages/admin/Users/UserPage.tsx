@@ -405,7 +405,7 @@ const UserPage = () => {
         password?: string;
       };
       let payload: Omit<UserPayload, 'password'> | UserPayload;
-      let isEdit = !!editingUser;
+      const isEdit = !!editingUser;
       if (!isEdit) {
         payload = {
           ...{
