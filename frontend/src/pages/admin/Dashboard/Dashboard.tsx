@@ -137,7 +137,7 @@ const Dashboard: React.FC = () => {
       {/* Thống kê tổng quan */}
       <Row gutter={[24, 24]} className={styles.statsRow}>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className={styles.statCard}>
+          <Card variant="outlined" className={styles.statCard}>
             <Statistic
               title={
                 <div className={styles.cardTitle}>
@@ -162,7 +162,7 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className={styles.statCard}>
+          <Card variant="outlined" className={styles.statCard}>
             <Statistic
               title={
                 <div className={styles.cardTitle}>
@@ -187,7 +187,7 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className={styles.statCard}>
+          <Card variant="outlined" className={styles.statCard}>
             <Statistic
               title={
                 <div className={styles.cardTitle}>
@@ -206,7 +206,7 @@ const Dashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className={styles.statCard}>
+          <Card variant="outlined" className={styles.statCard}>
             <Statistic
               title={
                 <div className={styles.cardTitle}>

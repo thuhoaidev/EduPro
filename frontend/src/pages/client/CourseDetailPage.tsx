@@ -206,7 +206,7 @@ const CourseDetailPage: React.FC = () => {
                     {/* Left Column */}
                     <Col xs={24} lg={16}>
                         <motion.div custom={1} variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }}>
-                            <Card bordered={false} className="border border-gray-200 shadow-sm rounded-xl bg-white/80 backdrop-blur-md">
+                            <Card variant="outlined" className="border border-gray-200 shadow-sm rounded-xl bg-white/80 backdrop-blur-md">
                                 <Title level={3} className="mb-6 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">Những gì bạn sẽ học</Title>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {course.requirements.map((item, index) => (
@@ -226,7 +226,7 @@ const CourseDetailPage: React.FC = () => {
                         </motion.div>
 
                         <motion.div custom={2} variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }}>
-                            <Card bordered={false} className="border border-gray-200 shadow-sm rounded-xl mt-20 bg-white/80 backdrop-blur-md">
+                            <Card variant="outlined" className="border border-gray-200 shadow-sm rounded-xl mt-20 bg-white/80 backdrop-blur-md">
                                 <Title level={3} className="!m-0 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">Nội dung khóa học</Title>
                                 <div className="flex justify-between items-center mt-6 mb-8 text-gray-600 border-t border-b border-gray-200 py-4">
                                     <Text><span className="font-bold text-cyan-600">{courseContent.length}</span> chương</Text>
@@ -324,7 +324,7 @@ const CourseDetailPage: React.FC = () => {
                         </motion.div>
                         
                         <motion.div custom={3} variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.5 }}>
-                            <Card bordered={false} className="border border-gray-200 shadow-sm rounded-xl mt-20 bg-white/80 backdrop-blur-md">
+                            <Card variant="outlined" className="border border-gray-200 shadow-sm rounded-xl mt-20 bg-white/80 backdrop-blur-md">
                                 <Title level={3} className="mb-8 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">Giảng viên</Title>
                                 <div className="flex items-center gap-6 mt-8">
                                     <div className="relative">
@@ -345,7 +345,7 @@ const CourseDetailPage: React.FC = () => {
                         </motion.div>
 
                         <motion.div custom={4} variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.5 }}>
-                            <Card bordered={false} className="border border-gray-200 shadow-sm rounded-xl mt-20 bg-white/80 backdrop-blur-md">
+                            <Card variant="outlined" className="border border-gray-200 shadow-sm rounded-xl mt-20 bg-white/80 backdrop-blur-md">
                                 <Title level={3} className="mb-8 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">Đánh giá từ học viên</Title>
                                 {reviewLoading ? <Spin /> : (
                                     <List

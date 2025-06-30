@@ -12,4 +12,10 @@ router.post('/:courseId/progress/:lessonId', progressController.updateProgress);
 // Lấy danh sách bài học đã mở khóa
 router.get('/:courseId/unlocked-lessons', progressController.getUnlockedLessons);
 
+// Lấy và cập nhật tiến độ xem video cho một bài học cụ thể
+router
+  .route('/:courseId/lessons/:lessonId/progress')
+  .get(progressController.getVideoProgress)
+  .post(progressController.updateVideoProgress);
+
 module.exports = router; 

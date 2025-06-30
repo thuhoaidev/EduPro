@@ -242,7 +242,7 @@ const EarningsPage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: 24 }}>
-      <Card bordered={false} style={{ marginBottom: 24 }}>
+      <Card variant="outlined" style={{ marginBottom: 24 }}>
         <Row gutter={16}>
           <Col span={8}>
             <Statistic
@@ -273,7 +273,7 @@ const EarningsPage: React.FC = () => {
         </div>
       </Card>
 
-      <Card bordered={false} style={{ marginBottom: 16 }}>
+      <Card variant="outlined" style={{ marginBottom: 16 }}>
         <Row gutter={16} align="middle">
           <Col>
             <Select defaultValue="all" style={{ width: 160 }} onChange={setFilterType}>
@@ -291,7 +291,7 @@ const EarningsPage: React.FC = () => {
         </Row>
       </Card>
 
-      <Card bordered={false}>
+      <Card variant="outlined">
         <Table<Transaction>
           columns={columns}
           dataSource={filteredData}

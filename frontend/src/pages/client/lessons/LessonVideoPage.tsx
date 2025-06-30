@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, Row, Col, Radio, Avatar } from 'antd';
 import { config } from '../../../api/axios';
 import { LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined } from '@ant-design/icons';
-import { getProgress, updateProgress, getUnlockedLessons } from '../../../services/progressService';
+import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress } from '../../../services/progressService';
 import { getComments, addComment, replyComment } from '../../../services/lessonCommentService';
 import SectionSidebar from './SectionSidebar';
 import { motion } from 'framer-motion';
@@ -45,36 +45,121 @@ const LessonVideoPage: React.FC = () => {
   const [unlockedLessons, setUnlockedLessons] = useState<string[]>([]);
   const [videoProgress, setVideoProgress] = useState(0);
   const { user } = useAuth();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const updateProgressTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [savedVideoTime, setSavedVideoTime] = useState<number>(0);
+  const [hasNavigated, setHasNavigated] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizCompleted, setQuizCompleted] = useState(false);
+  const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
 
-  // Lưu thời gian xem video vào localStorage
+  // Debounce function để tránh gọi API liên tục
+  const debouncedUpdateProgress = useCallback((courseId: string, lessonId: string, time: number, duration: number) => {
+    if (updateProgressTimeout.current) {
+      clearTimeout(updateProgressTimeout.current);
+    }
+    updateProgressTimeout.current = setTimeout(() => {
+      updateVideoProgress(courseId, lessonId, time, duration).catch(e => console.error("Failed to update progress", e));
+    }, 1000); // Cập nhật 1 giây một lần
+  }, []);
+
+  // Hàm chuyển sang bài tiếp theo
+  const goToNextLesson = () => {
+    if (hasNavigated) return;
+    let found = false;
+    let nextLessonId = null;
+    for (let s = 0; s < courseSections.length; s++) {
+      const lessons = courseSections[s].lessons;
+      for (let l = 0; l < lessons.length; l++) {
+        if (lessons[l]._id === currentLessonId) {
+          if (l + 1 < lessons.length) {
+            nextLessonId = lessons[l + 1]._id;
+          } else if (s + 1 < courseSections.length && courseSections[s + 1].lessons.length > 0) {
+            nextLessonId = courseSections[s + 1].lessons[0]._id;
+          }
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+    if (nextLessonId) {
+      setHasNavigated(true);
+      setTimeout(() => {
+        navigate(`/lessons/${nextLessonId}/video`);
+        setHasNavigated(false);
+      }, 2000);
+    } else {
+      message.success('Bạn đã hoàn thành tất cả các bài học!');
+    }
+  };
+
+  // Cập nhật tiến độ xem video
   const handleVideoTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     const video = e.currentTarget;
-    if (currentLessonId) {
-      localStorage.setItem(`video-progress-${currentLessonId}`, String(video.currentTime));
+    if (courseId && currentLessonId) {
+      debouncedUpdateProgress(courseId, currentLessonId, video.currentTime, video.duration);
       if (video.duration > 0) {
-        setVideoProgress(video.currentTime / video.duration);
+        const progressRatio = video.currentTime / video.duration;
+        setVideoProgress(progressRatio);
+        // Nếu vừa đạt 90% thì gọi updateProgress để backend mở khóa bài tiếp theo
+        if (progressRatio >= 0.9 && !videoWatched) {
+          // Chỉ cần 90% video là đủ, không cần quizPassed
+          updateProgress(courseId, currentLessonId, {
+            watchedSeconds: video.currentTime,
+            videoDuration: video.duration,
+            quizPassed: false // Không cần quizPassed, chỉ cần videoCompleted
+          }).then(() => {
+            getUnlockedLessons(courseId).then(unlocked => {
+              setUnlockedLessons(unlocked || []);
+              console.log('Đã cập nhật unlockedLessons sau khi đạt 90% video:', unlocked);
+            });
+          });
+          setVideoWatched(true);
+        }
       }
     }
   };
 
-  // Khi vào lại bài học, nếu có thời gian đã lưu thì tự động tua video đến thời gian đó
-  const videoRef = React.useRef<HTMLVideoElement>(null);
+  // Khi vào lại bài học, lấy tiến độ đã lưu từ backend
   useEffect(() => {
-    if (currentLessonId && videoRef.current) {
-      const saved = localStorage.getItem(`video-progress-${currentLessonId}`);
-      if (saved && !isNaN(Number(saved))) {
-        videoRef.current.currentTime = Number(saved);
-      }
+    if (courseId && lessonId) {
+      getVideoProgress(courseId, lessonId)
+        .then(progress => {
+          // Chỉ set nếu lessonId vẫn là bài học hiện tại
+          if (progress && typeof progress.watchedSeconds === 'number' && lessonId === currentLessonId) {
+            // Nếu bài học vừa unlock (videoCompleted === false và watchedSeconds < 5), luôn phát từ đầu
+            if (progress.videoCompleted === false && (!progress.watchedSeconds || progress.watchedSeconds < 5)) {
+              setSavedVideoTime(0);
+            } else {
+              setSavedVideoTime(progress.watchedSeconds);
+            }
+          }
+        })
+        .catch(err => console.error("Lỗi lấy tiến độ video", err));
     }
-  }, [videoUrl, currentLessonId]);
+  }, [courseId, lessonId, currentLessonId]);
 
-  // Khi video load xong, set lại currentTime nếu có
+  // Đảm bảo khi savedVideoTime thay đổi và video đã load, sẽ tua lại đúng vị trí
+  useEffect(() => {
+    if (videoRef.current && savedVideoTime > 0) {
+      videoRef.current.currentTime = savedVideoTime;
+    }
+  }, [savedVideoTime]);
+
+  // Khi video load xong, tua đến vị trí đã lưu
   const handleVideoLoadedMetadata = () => {
-    if (currentLessonId && videoRef.current) {
-      const saved = localStorage.getItem(`video-progress-${currentLessonId}`);
-      if (saved && !isNaN(Number(saved))) {
-        videoRef.current.currentTime = Number(saved);
-      }
+    if (videoRef.current && savedVideoTime > 0) {
+      videoRef.current.currentTime = savedVideoTime;
+    }
+  };
+
+  // Khi xem hết video
+  const handleVideoEnded = () => {
+    setVideoWatched(true);
+    if (courseId && currentLessonId && videoRef.current) {
+      updateVideoProgress(courseId, currentLessonId, videoRef.current.duration, videoRef.current.duration)
+        .catch(e => console.error("Failed to update final progress", e));
     }
   };
 
@@ -112,8 +197,12 @@ const LessonVideoPage: React.FC = () => {
 
   useEffect(() => {
     setCurrentLessonId(lessonId || null);
-    setVideoWatched(false);
+    setVideoWatched(false); // Reset lại khi chuyển bài
     setQuizPassed(false);
+    setQuizCompleted(false);
+    setQuizResult(null);
+    setQuizAnswers([]);
+    setShowQuiz(false);
   }, [lessonId]);
 
   useEffect(() => {
@@ -132,13 +221,7 @@ const LessonVideoPage: React.FC = () => {
         const courseSectionsRes = await config.get(`/courses/${courseId}/sections`);
         setCourseSections(courseSectionsRes.data.data || []);
       } catch (e) {
-        // Nếu lỗi, thử lấy từ localStorage (nếu đã từng vào trang chi tiết khóa học)
-        const cached = localStorage.getItem('lastCourseSections');
-        if (cached) {
-          setCourseSections(JSON.parse(cached));
-        } else {
-          setCourseSections([]);
-        }
+        setCourseSections([]);
       } finally {
         setSidebarLoading(false);
       }
@@ -176,131 +259,14 @@ const LessonVideoPage: React.FC = () => {
     fetchQuiz();
   }, [videoId]);
 
-  // Khi load quiz, khôi phục đáp án từ localStorage nếu có
+  // Khi component unmount, dọn dẹp timeout
   useEffect(() => {
-    if (quiz && currentLessonId) {
-      const saved = localStorage.getItem(`quiz-answers-${currentLessonId}`);
-      if (saved) {
-        try {
-          const arr = JSON.parse(saved);
-          if (Array.isArray(arr) && arr.length === quiz.questions.length) {
-            setAnswers(arr);
-          }
-        } catch (e) {}
+    return () => {
+      if (updateProgressTimeout.current) {
+        clearTimeout(updateProgressTimeout.current);
       }
-    }
-  }, [quiz, currentLessonId]);
-
-  // Khi chọn đáp án hoặc nộp quiz, lưu đáp án vào localStorage
-  useEffect(() => {
-    if (currentLessonId && answers.length > 0) {
-      localStorage.setItem(`quiz-answers-${currentLessonId}`, JSON.stringify(answers));
-    }
-  }, [answers, currentLessonId]);
-
-  // Khi làm lại quiz, xóa đáp án khỏi localStorage
-  const handleQuizRetry = () => {
-    if (currentLessonId) {
-      localStorage.removeItem(`quiz-answers-${currentLessonId}`);
-      localStorage.removeItem(`quiz-passed-${currentLessonId}`);
-    }
-    setQuizResult(null);
-    setAnswers(new Array(quiz?.questions.length).fill(-1));
-  };
-
-  const handleComment = async () => {
-    if (!newComment.trim() || !lessonId) return;
-    try {
-      await addComment(lessonId, newComment);
-      setNewComment('');
-      // Reload comments
-      const commentsData = await getComments(lessonId);
-      setComments(commentsData || []);
-      message.success('Đã gửi bình luận!');
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Không gửi được bình luận.');
-    }
-  };
-
-  const handleQuizChange = (qIdx: number, value: number) => {
-    setAnswers(prev => prev.map((a, idx) => (idx === qIdx ? value : a)));
-  };
-
-  const handleQuizSubmit = async () => {
-    if (!quiz) return;
-    if (answers.some(a => a === -1)) {
-      message.warning('Bạn cần trả lời tất cả các câu hỏi!');
-      return;
-    }
-    try {
-      const res = await config.post(`/quizzes/${quiz._id}/submit`, { answers });
-      setQuizResult(res.data);
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Có lỗi khi nộp bài!');
-    }
-  };
-
-  // Hàm kiểm tra bài học có được mở không
-  const canAccessLesson = (lessonId: string) => unlockedLessons.includes(lessonId);
-
-  // Khi xem hết video
-  const handleVideoEnded = () => {
-    setVideoWatched(true);
-  };
-
-  // Khi quiz đạt 100%
-  useEffect(() => {
-    if (quizResult && quizResult.success) {
-      setQuizPassed(true);
-    }
-  }, [quizResult]);
-
-  // Khi cả hai điều kiện đều đúng và bài học chưa hoàn thành, mới lưu tiến độ
-  useEffect(() => {
-    if (
-      videoWatched && quizPassed && currentLessonId && courseId &&
-      !unlockedLessons.includes(currentLessonId)
-    ) {
-      (async () => {
-        if (videoRef.current) {
-          await config.post('/users/me/enrollments/progress', { lessonId: currentLessonId });
-          // Sau khi lưu, reload lại progress
-          const enrollRes = await config.get('/users/me/enrollments');
-          const enrollment = (enrollRes.data.data || []).find((enroll: unknown) => {
-            if (typeof enroll === 'object' && enroll !== null && 'course' in enroll) {
-              const course = (enroll as { course?: { _id?: string; id?: string } }).course;
-              return (course?._id || course?.id) === courseId;
-            }
-            return false;
-          });
-          setProgress(enrollment?.progress || { completedLessons: [] });
-        }
-      })().catch(() => {});
-    }
-  }, [videoWatched, quizPassed, currentLessonId, courseId]);
-
-  // Khi progress.completedLessons thay đổi, chỉ thêm mới vào unlockedLessons, không reset lại mảng
-  useEffect(() => {
-    if (!courseSections.length) return;
-    const completed: string[] = [];
-    for (const section of courseSections) {
-      for (let l = 0; l < section.lessons.length; l++) {
-        const lesson = section.lessons[l];
-        if (progress.completedLessons?.includes(lesson._id)) {
-          completed.push(lesson._id);
-        }
-      }
-    }
-    // Luôn merge unlockedLessons với completed để không mất lịch sử
-    setUnlockedLessons(prev => Array.from(new Set([...prev, ...completed])));
-  }, [progress.completedLessons, courseSections]);
-
-  // Khi quiz đạt, lưu trạng thái ĐẠT vào localStorage
-  useEffect(() => {
-    if (quizResult && quizResult.success && currentLessonId) {
-      localStorage.setItem(`quiz-passed-${currentLessonId}`, '1');
-    }
-  }, [quizResult, currentLessonId]);
+    };
+  }, []);
 
   // Khi load quiz, nếu đã đạt thì set quizResult.success = true để giữ giao diện ĐẠT
   useEffect(() => {
@@ -317,239 +283,259 @@ const LessonVideoPage: React.FC = () => {
     setVideoProgress(0);
   }, [currentLessonId]);
 
-  // Khi videoProgress đạt >= 90% thì mở khóa bài tiếp theo nếu chưa mở
+  // Khi video đạt >= 50% thì mới show quiz
   useEffect(() => {
-    if (!courseSections.length || !currentLessonId) return;
-    if (videoProgress >= 0.9) {
-      // Tìm bài học tiếp theo
-      let found = false;
-      let nextLessonId = null;
-      for (let s = 0; s < courseSections.length; s++) {
-        const lessons = courseSections[s].lessons;
-        for (let l = 0; l < lessons.length; l++) {
-          if (lessons[l]._id === currentLessonId) {
-            if (l + 1 < lessons.length) {
-              nextLessonId = lessons[l + 1]._id;
-            } else if (s + 1 < courseSections.length && courseSections[s + 1].lessons.length > 0) {
-              nextLessonId = courseSections[s + 1].lessons[0]._id;
-            }
-            found = true;
-            break;
-          }
-        }
-        if (found) break;
-      }
-      if (nextLessonId && !unlockedLessons.includes(nextLessonId)) {
-        setUnlockedLessons(prev => Array.from(new Set([...prev, nextLessonId])));
-      }
+    if (videoProgress >= 0.5 && quiz && !quizCompleted) {
+      setShowQuiz(true);
+    } else {
+      setShowQuiz(false);
     }
-  }, [videoProgress, courseSections, currentLessonId, unlockedLessons]);
+  }, [videoProgress, quiz, quizCompleted]);
+
+  // Khi quiz đúng 100% và video >= 90% thì mở khóa bài tiếp theo
+  useEffect(() => {
+    if (quizCompleted && videoProgress >= 0.9 && courseId && currentLessonId) {
+      updateProgress(courseId, currentLessonId, {
+        watchedSeconds: videoRef.current?.currentTime || 0,
+        videoDuration: videoRef.current?.duration || 1,
+        quizPassed: true
+      }).then(() => {
+        getUnlockedLessons(courseId).then(unlocked => setUnlockedLessons(unlocked || []));
+      });
+    }
+  }, [quizCompleted, videoProgress, courseId, currentLessonId]);
+
+  // Khi load quiz mới, reset quizAnswers đúng số lượng câu hỏi
+  useEffect(() => {
+    if (quiz) {
+      const lessonKey = String(currentLessonId);
+      const prevAnswers = progress && progress[lessonKey] && progress[lessonKey].quizAnswers;
+      const quizPassed = progress && progress[lessonKey] && progress[lessonKey].quizPassed;
+      // Log debug
+      console.log('progress:', progress, 'lessonKey:', lessonKey, 'prevAnswers:', prevAnswers, 'quizPassed:', quizPassed, 'quiz:', quiz, 'quizLen:', quiz.questions.length);
+      if (Array.isArray(prevAnswers) && prevAnswers.length === quiz.questions.length) {
+        setQuizAnswers(prevAnswers);
+        // Tự động chấm lại quizResult khi reload
+        const wrongQuestions = quiz.questions
+          .map((q, idx) => prevAnswers[idx] !== q.correctIndex ? idx : -1)
+          .filter(idx => idx !== -1);
+        if (quizPassed === true) {
+          setQuizResult({ success: true, message: 'Tất cả đáp án đều đúng!' });
+        } else if (quizPassed === false) {
+          setQuizResult({ success: false, message: 'Có đáp án sai.', wrongQuestions });
+        } else {
+          setQuizResult(null);
+        }
+      } else {
+        setQuizAnswers(new Array(quiz.questions.length).fill(-1));
+        setQuizResult(null);
+      }
+      setQuizCompleted(false);
+    }
+  }, [quiz, progress, currentLessonId]);
+
+  // Hàm kiểm tra bài học có được mở không
+  const canAccessLesson = (lessonId: string) => {
+    return unlockedLessons.map(String).includes(String(lessonId));
+  };
+
+  // Hàm gửi bình luận
+  const handleComment = async () => {
+    if (!newComment.trim() || !lessonId) return;
+    try {
+      await addComment(lessonId, newComment);
+      setNewComment('');
+      // Reload comments
+      const commentsData = await getComments(lessonId);
+      setComments(commentsData || []);
+      message.success('Đã gửi bình luận!');
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Không gửi được bình luận.');
+    }
+  };
+
+  // Khi submit quiz
+  const handleQuizSubmit = async () => {
+    if (!quiz) return;
+    if (quizAnswers.some(a => a === -1)) {
+      message.warning('Bạn cần trả lời tất cả các câu hỏi!');
+      return;
+    }
+    try {
+      const res = await config.post(`/quizzes/${quiz._id}/submit`, { answers: quizAnswers });
+      setQuizResult(res.data);
+      if (courseId && currentLessonId) {
+        updateProgress(courseId, currentLessonId, {
+          watchedSeconds: videoRef.current?.currentTime || 0,
+          videoDuration: videoRef.current?.duration || 1,
+          quizPassed: res.data.success,
+          quizAnswers: quizAnswers
+        }).then(() => {
+          getUnlockedLessons(courseId).then(unlocked => setUnlockedLessons(unlocked || []));
+        });
+      }
+      if (res.data.success) {
+        setQuizCompleted(true);
+      } else {
+        setQuizCompleted(false);
+      }
+    } catch (err) {
+      message.error('Có lỗi khi nộp bài!');
+    }
+  };
+
+  // Cho phép làm lại quiz không giới hạn
+  const handleQuizRetry = () => {
+    setQuizResult(null);
+    setQuizAnswers(new Array(quiz?.questions.length || 0).fill(-1));
+    setQuizCompleted(false);
+  };
+
+  // Định nghĩa điều kiện hiển thị quiz: chỉ cần có quiz hoặc đã từng nộp bài
+  const shouldShowQuiz = !!quiz;
 
   if (loading) return <div className="flex justify-center items-center min-h-screen"><Spin size="large" /></div>;
   if (error) return <Alert message="Lỗi" description={error} type="error" showIcon />;
 
   return (
-    <Row gutter={32}>
-      <Col flex="250px">
-        <SectionSidebar
-          sections={courseSections}
-          unlockedLessons={unlockedLessons}
-          currentLessonId={currentLessonId}
-          progress={progress}
-          onSelectLesson={lessonId => navigate(`/lessons/${lessonId}/video`)}
-        />
-      </Col>
-      <Col flex="auto">
-        <div className="max-w-3xl mx-auto p-4">
-          <Card bordered={false} className="shadow-lg rounded-xl bg-gradient-to-br from-white via-cyan-50 to-purple-50 p-0 overflow-hidden">
+    <div style={{ display: 'flex' }}>
+      <SectionSidebar
+        sections={courseSections}
+        unlockedLessons={unlockedLessons}
+        currentLessonId={currentLessonId}
+        progress={progress}
+        onSelectLesson={(lessonId) => {
+          navigate(`/lessons/${lessonId}/video`);
+        }}
+        canAccessLesson={canAccessLesson}
+      />
+      <motion.div
+        initial={{ x: 300, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: -300, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+        style={{ flex: 1, padding: '20px', overflowY: 'auto', height: '100vh' }}
+      >
+        {loading ? (
+          <Spin size="large" />
+        ) : error ? (
+          <Alert message={error} type="error" />
+        ) : (
+          <>
+            <Title level={2}>{lessonTitle}</Title>
             <div className="relative">
-              {videoUrl ? (
-                <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                  <video
-                    ref={videoRef}
-                    src={videoUrl}
-                    controls
-                    className="w-full rounded-t-xl mb-0 shadow-lg"
-                    style={{ maxHeight: 480, background: '#000' }}
-                    onEnded={handleVideoEnded}
-                    onTimeUpdate={handleVideoTimeUpdate}
-                    onLoadedMetadata={handleVideoLoadedMetadata}
-                  />
-                  {videoWatched && quizPassed && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
-                      <span className="bg-green-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+                <Card>
+                    {videoUrl ? (
+                    <video
+                        ref={videoRef}
+                        key={videoUrl}
+                        src={videoUrl}
+                        controls
+                        style={{ width: '100%' }}
+                        onTimeUpdate={handleVideoTimeUpdate}
+                        onEnded={handleVideoEnded}
+                        onLoadedMetadata={handleVideoLoadedMetadata}
+                    >
+                        Trình duyệt không hỗ trợ video tag.
+                    </video>
+                    ) : (
+                    <Alert message="Không có video" type="warning" />
+                    )}
+                </Card>
+
+                {videoWatched && !quiz && (
+                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
+                        <span className="bg-green-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
                         <CheckCircleOutlined className="text-xl" /> Đã hoàn thành bài học
-                      </span>
+                        </span>
                     </motion.div>
-                  )}
-                </motion.div>
-              ) : (
-                <Alert message="Không tìm thấy video cho bài học này." type="warning" showIcon />
-              )}
+                )}
             </div>
-            <Divider className="my-4" />
-            {videoProgress < 0.9 ? null : quiz && quiz.questions?.length > 0 ? (
-              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-8">
-                <Card bordered={false} className="rounded-xl shadow-md bg-gradient-to-br from-cyan-50 to-purple-50">
-                  <Title level={4} className="mb-4 text-cyan-700">Quiz</Title>
-                  {quizLoading ? (
-                    <Spin size="large" />
-                  ) : quizError ? (
-                    <Alert message="Lỗi" description={quizError} type="error" showIcon />
-                  ) : quiz ? (
-                    <div>
-                      {quiz.questions.map((q, idx) => (
-                        <motion.div key={idx} className="mb-6" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }}>
-                          <div className="font-semibold mb-2">Câu {idx + 1}: {q.question}</div>
-                          <Radio.Group
-                            onChange={e => handleQuizChange(idx, e.target.value)}
-                            value={answers[idx]}
-                            disabled={!!quizResult}
-                            className="flex flex-col gap-1"
-                          >
-                            {q.options.map((opt, oIdx) => (
-                              <Radio key={oIdx} value={oIdx} className={`block mb-1 ${quizResult && quizResult.wrongQuestions?.includes(idx) && oIdx === q.correctIndex ? 'text-green-700 font-bold' : ''}`}>{opt}</Radio>
-                            ))}
-                          </Radio.Group>
-                          {quizResult && quizResult.wrongQuestions?.includes(idx) && (
-                            <div className="text-red-600 mt-1">
-                              Đáp án đúng: <span className="font-bold text-green-700">{q.options[q.correctIndex ?? 0]}</span>
-                            </div>
-                          )}
-                        </motion.div>
-                      ))}
-                      <div className="flex gap-4 mt-4">
-                        <Button type="primary" size="large" onClick={handleQuizSubmit} disabled={!!quizResult} className="bg-gradient-to-r from-cyan-500 to-purple-500 border-0 shadow-lg hover:from-cyan-600 hover:to-purple-600 transition-all duration-300">
-                          Nộp bài
-                        </Button>
-                        {quizResult && !quizResult.success && (
-                          <Button onClick={handleQuizRetry} type="default" size="large" className="border-cyan-300">
-                            Làm lại
-                          </Button>
-                        )}
-                      </div>
-                      {quizResult && (
-                        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mt-6 flex flex-col gap-3">
-                          <Alert
-                            message={quizResult.success ? 'ĐẠT' : 'CHƯA ĐẠT'}
-                            type={quizResult.success ? 'success' : 'error'}
-                            showIcon
-                            className="text-lg font-bold"
-                          />
-                          {quizResult.success && videoWatched && (
-                            <Button
-                              type="primary"
-                              size="large"
-                              className="bg-gradient-to-r from-green-400 to-cyan-500 border-0 shadow-lg"
-                              onClick={() => {
-                                // Tìm bài học tiếp theo
-                                let found = false;
-                                let nextLessonId = null;
-                                for (let s = 0; s < courseSections.length; s++) {
-                                  const lessons = courseSections[s].lessons;
-                                  for (let l = 0; l < lessons.length; l++) {
-                                    if (lessons[l]._id === currentLessonId) {
-                                      if (l + 1 < lessons.length) {
-                                        nextLessonId = lessons[l + 1]._id;
-                                      } else if (s + 1 < courseSections.length && courseSections[s + 1].lessons.length > 0) {
-                                        nextLessonId = courseSections[s + 1].lessons[0]._id;
-                                      }
-                                      found = true;
-                                      break;
-                                    }
-                                  }
-                                  if (found) break;
-                                }
-                                if (nextLessonId) {
-                                  navigate(`/lessons/${nextLessonId}/video`);
-                                } else {
-                                  message.success('Bạn đã hoàn thành tất cả các bài học!');
-                                }
-                              }}
-                            >
-                              Học bài tiếp theo
-                            </Button>
-                          )}
-                        </motion.div>
+
+            <Divider />
+
+            {/* Quiz Section */}
+            {shouldShowQuiz && quiz && (
+              <div className="mt-8">
+                <Card variant="outlined" className="shadow-lg rounded-xl">
+                  <Title level={3}>Quiz: {quiz.questions.length} câu hỏi</Title>
+                  {quiz.questions.map((q, idx) => (
+                    <div key={idx} className="mb-6">
+                      <div className="font-semibold mb-2">Câu {idx + 1}: {q.question}</div>
+                      <Radio.Group
+                        onChange={e => setQuizAnswers(prev => prev.map((a, i) => (i === idx ? e.target.value : a)))}
+                        value={quizAnswers[idx]}
+                        disabled={false}
+                      >
+                        {q.options.map((opt, oIdx) => (
+                          <Radio key={oIdx} value={oIdx} className="block mb-1">
+                            {opt}
+                            {quizResult && quizResult.success && q.correctIndex === oIdx && (
+                              <span style={{ color: '#52c41a', marginLeft: 8 }}>(Đáp án đúng)</span>
+                            )}
+                          </Radio>
+                        ))}
+                      </Radio.Group>
+                      {quizResult && quizResult.wrongQuestions?.includes(idx) && (
+                        <div className="text-red-600 mt-1">Đáp án chưa đúng</div>
                       )}
                     </div>
-                  ) : null}
-                </Card>
-              </motion.div>
-            ) : (
-              <Paragraph className="text-gray-500">Bài học này chưa có quiz.</Paragraph>
-            )}
-            <Divider className="my-4" />
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <Card bordered={false} className="rounded-2xl shadow-xl bg-white/60 backdrop-blur-md mt-8 p-6">
-                <Title level={4} className="mb-4 text-cyan-700">Bình luận</Title>
-                <List
-                  loading={commentLoading}
-                  dataSource={comments}
-                  locale={{ emptyText: 'Chưa có bình luận nào.' }}
-                  renderItem={(item: Comment) => (
-                    <motion.div initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
-                      <List.Item className="!items-start !border-0 !bg-transparent !py-4">
-                        <div className="flex items-start gap-4 w-full">
-                          <div className="relative">
-                            <span className="absolute -inset-1 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 blur opacity-40"></span>
-                            <Avatar src={item.user?.avatar} icon={<UserOutlined />} size={48} className="border-4 border-white shadow-lg relative z-10" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="bg-gradient-to-br from-cyan-50 to-white rounded-xl px-5 py-4 shadow-inner relative">
-                              <Text className="block text-base font-medium bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent mb-1">
-                                {item.user?.name || 'Người dùng'}
-                              </Text>
-                              <Text className="block text-gray-800 mb-2">{item.content}</Text>
-                              <div className="flex items-center gap-2">
-                                <span className="text-gray-400 text-xs">{item.createdAt ? dayjs(item.createdAt).fromNow() : ''}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </List.Item>
-                    </motion.div>
+                  ))}
+                  <Button type="primary" size="large" onClick={handleQuizSubmit} disabled={!!quizResult && quizResult.success}>Nộp bài</Button>
+                  {quizResult && (
+                    <Button className="ml-4" onClick={handleQuizRetry}>Làm lại</Button>
                   )}
-                  className="mb-4"
+                  {quizResult && (
+                    <Alert
+                      className="mt-6"
+                      message={quizResult.success ? 'Chúc mừng!' : 'Kết quả'}
+                      description={quizResult.message}
+                      type={quizResult.success ? 'success' : 'error'}
+                      showIcon
+                    />
+                  )}
+                </Card>
+              </div>
+            )}
+
+            <Divider />
+
+            {/* Comments Section */}
+            <Card title="Bình luận">
+                <List
+                    loading={commentLoading}
+                    dataSource={comments}
+                    renderItem={(item) => (
+                    <List.Item>
+                        <List.Item.Meta
+                        avatar={<Avatar icon={<UserOutlined />} />}
+                        title={item.user?.name || 'Anonymous'}
+                        description={item.content}
+                        />
+                        <div>{dayjs(item.createdAt).fromNow()}</div>
+                    </List.Item>
+                    )}
                 />
-                <div className="flex items-end gap-3 mt-4">
-                  <Avatar
-                    src={user?.avatar && user?.avatar !== 'default-avatar.jpg' && user?.avatar !== ''
-                      ? user.avatar
-                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullname || user?.name || 'User')}&background=4f8cff&color=fff&size=256`}
-                    icon={<UserOutlined />}
-                    size={40}
-                    className="border-2 border-cyan-400 shadow"
-                  />
-                  <div className="flex-1">
+                <Row style={{ marginTop: 20 }}>
+                    <Col flex="auto">
                     <TextArea
-                      rows={2}
-                      value={newComment}
-                      onChange={e => setNewComment(e.target.value)}
-                      placeholder="Nhập bình luận..."
-                      maxLength={500}
-                      className="rounded-xl shadow focus:shadow-lg focus:border-cyan-400 transition-all duration-200"
+                        rows={3}
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Viết bình luận của bạn..."
                     />
-                  </div>
-                  <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.08 }}>
-                    <Button
-                      type="primary"
-                      shape="circle"
-                      icon={<SendOutlined />}
-                      size="large"
-                      onClick={handleComment}
-                      disabled={!newComment.trim()}
-                      className="bg-gradient-to-r from-cyan-500 to-purple-500 border-0 shadow-lg flex items-center justify-center"
-                      style={{ height: 48, width: 48 }}
-                    />
-                  </motion.div>
-                </div>
-              </Card>
-            </motion.div>
-          </Card>
-        </div>
-      </Col>
-    </Row>
+                    </Col>
+                    <Col>
+                    <Button type="primary" icon={<SendOutlined />} onClick={handleComment} style={{ height: '100%' }}>
+                        Gửi
+                    </Button>
+                    </Col>
+                </Row>
+            </Card>
+          </>
+        )}
+      </motion.div>
+    </div>
   );
 };
 

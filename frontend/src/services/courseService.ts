@@ -318,3 +318,17 @@ export const courseService = {
     }
   },
 };
+
+// Lấy lesson theo id
+export const getLessonById = async (lessonId: string) => {
+  const response = await fetch(`${API_BASE_URL}/lessons/${lessonId}`);
+  if (!response.ok) throw new Error('Không tìm thấy bài học');
+  return await response.json();
+};
+
+// Lấy section theo id
+export const getSectionById = async (sectionId: string) => {
+  const response = await fetch(`${API_BASE_URL}/sections/${sectionId}`);
+  if (!response.ok) throw new Error('Không tìm thấy chương');
+  return await response.json();
+};
