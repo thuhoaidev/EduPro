@@ -16,8 +16,7 @@ const blogSchema = new mongoose.Schema({
     default: ''
   },
   category: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Category',
+    type: String,
     required: true
   },
   status: {
@@ -53,20 +52,22 @@ const blogSchema = new mongoose.Schema({
     default: ''
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Chuẩn bị cho populate comments và likes sau này
+// Virtuals để populate comments, likes
 blogSchema.virtual('comments', {
   ref: 'BlogComment',
   localField: '_id',
-  foreignField: 'blog',
+  foreignField: 'blog'
 });
 
 blogSchema.virtual('likes', {
   ref: 'BlogLike',
   localField: '_id',
-  foreignField: 'blog',
+  foreignField: 'blog'
 });
 
-module.exports = mongoose.model('Blog', blogSchema); 
+module.exports = mongoose.model('Blog', blogSchema);

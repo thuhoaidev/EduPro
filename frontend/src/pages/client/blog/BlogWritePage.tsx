@@ -6,12 +6,12 @@ import {
   Upload, 
   message, 
   Card, 
-  Space, 
-  Tag, 
+  Space,  
   Tooltip,
   Modal,
   Row,
-  Col
+  Col,
+  Alert
 } from 'antd';
 import {
   PlusOutlined,
@@ -28,90 +28,96 @@ import {
   CodeOutlined,
   QuestionCircleOutlined,
   FullscreenOutlined,
-  FullscreenExitOutlined,
-  HeartOutlined,
-  HeartFilled
+  FullscreenExitOutlined
 } from '@ant-design/icons';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
 // API Configuration
-const API_BASE_URL = 'http://localhost:5000/api';
-const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2MGQ1ZWNiNzRiMjRjNzJmNWM4ZTRlM2EiLCJpYXQiOjE2MjQ1NzI4MDAsImV4cCI6MTYyNDY1OTIwMH0.example'; // Thay bằng token thực tế
+const apiUrl = 'http://localhost:5000/api';
 
-// API Functions
-const apiRequest = async (endpoint, method = 'GET', data = null) => {
+// Get auth token from localStorage or context
+const getAuthToken = () => {
+  return localStorage.getItem('token') || sessionStorage.getItem('token');
+};
+
+
+// API Helper function
+const apiRequest = async (endpoint, method = 'GET', data = null, isFormData = false) => {
   try {
+    const token = getAuthToken();
     const config = {
       method,
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AUTH_TOKEN}`
+        'Authorization': token ? `Bearer ${token}` : '',
       }
     };
 
-    if (data) {
+    if (isFormData && data) {
+      config.body = data;
+    } else if (data) {
+      config.headers['Content-Type'] = 'application/json';
       config.body = JSON.stringify(data);
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    const response = await fetch(`${apiUrl}${endpoint}`, config);
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
     
-    return await response.json();
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json();
+    }
+    
+    return { success: true };
   } catch (error) {
     console.error('API Error:', error);
     throw error;
   }
 };
 
-// API Methods
+// Simplified Blog API - only writing related endpoints
 const blogAPI = {
-  // Lấy danh sách blog
-  getBlogs: () => apiRequest('/blogs'),
-  
-  // Tạo blog mới
+  // Create new blog
   createBlog: (blogData) => apiRequest('/blogs', 'POST', blogData),
   
-  // Cập nhật blog
+  // Update existing blog (for editing drafts)
   updateBlog: (id, blogData) => apiRequest(`/blogs/${id}`, 'PUT', blogData),
   
-  // Xóa blog
-  deleteBlog: (id) => apiRequest(`/blogs/${id}`, 'DELETE'),
+  // Get single blog by ID (for loading drafts)
+  getBlog: (id) => apiRequest(`/blogs/${id}`),
   
-  // Thả tim blog
-  likeBlog: (id) => apiRequest(`/blogs/${id}/like`, 'POST'),
-  
-  // Bỏ thả tim blog
-  unlikeBlog: (id) => apiRequest(`/blogs/${id}/unlike`, 'POST'),
-  
-  // Lưu draft
-  saveDraft: (draftData) => apiRequest('/blogs/draft', 'POST', draftData),
-  
-  // Lấy drafts
-  getDrafts: () => apiRequest('/blogs/drafts')
+  // Upload image
+  uploadImage: (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    return apiRequest('/image', 'POST', formData, true);
+  }
 };
 
 const BlogWritePage = () => {
+  // Form states
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [tags, setTags] = useState([]);
   const [category, setCategory] = useState('');
-  const [thumbnail, setThumbnail] = useState(null);
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
+  
+  // UI states
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [blogId, setBlogId] = useState(null);
-  const [blogs, setBlogs] = useState([]);
-  const [drafts, setDrafts] = useState([]);
+  const [apiError, setApiError] = useState(null);
+  
   const textAreaRef = useRef(null);
 
-  // Categories giống F8
+  // Predefined categories (no API call needed)
   const categories = [
     { value: 'frontend', label: 'Frontend', color: '#1890ff' },
     { value: 'backend', label: 'Backend', color: '#52c41a' },
@@ -122,42 +128,32 @@ const BlogWritePage = () => {
     { value: 'career', label: 'Career Tips', color: '#f5222d' },
     { value: 'tutorial', label: 'Tutorial', color: '#faad14' },
   ];
-
-  // Popular tags
-  const popularTags = [
-    'JavaScript', 'React', 'Node.js', 'Python', 'CSS', 'HTML',
-    'TypeScript', 'Vue.js', 'Angular', 'Express', 'MongoDB', 'MySQL'
-  ];
-
+  // Calculate word count
   useEffect(() => {
     const words = content.trim().split(/\s+/).filter(word => word.length > 0);
-    setWordCount(words.length);
+    setWordCount(content.trim() ? words.length : 0);
   }, [content]);
 
-  // Load blogs and drafts on component mount
-  useEffect(() => {
-    loadBlogs();
-    loadDrafts();
-  }, []);
+  // Load blog for editing (if blogId is provided via props or URL)
+const loadBlogForEditing = async (id) => {
+  try {
+    const response = await blogAPI.getBlog(id);
+    const blog = response.data || response;
 
-  const loadBlogs = async () => {
-    try {
-      const response = await blogAPI.getBlogs();
-      setBlogs(response.blogs || response.data || []);
-    } catch (error) {
-      message.error('Không thể tải danh sách blog');
-    }
-  };
+    setTitle(blog.title || '');
+    setContent(blog.content || '');
+    setCategory(blog.category || '');
+    setThumbnailUrl(blog.thumbnail || '');
+    setBlogId(id);
 
-  const loadDrafts = async () => {
-    try {
-      const response = await blogAPI.getDrafts();
-      setDrafts(response.drafts || response.data || []);
-    } catch (error) {
-      console.error('Không thể tải drafts:', error);
-    }
-  };
+    message.success('Đã tải bài viết để chỉnh sửa');
+  } catch (error) {
+    message.error('Không thể tải bài viết: ' + error.message);
+  }
+};
 
+
+  // Toolbar functions
   const insertText = (beforeText, afterText = '') => {
     const textarea = textAreaRef.current?.resizableTextArea?.textArea;
     if (!textarea) return;
@@ -172,7 +168,6 @@ const BlogWritePage = () => {
     
     setContent(newText);
     
-    // Set cursor position
     setTimeout(() => {
       const newCursorPos = start + beforeText.length + selectedText.length + afterText.length;
       textarea.setSelectionRange(newCursorPos, newCursorPos);
@@ -190,135 +185,186 @@ const BlogWritePage = () => {
     { icon: <OrderedListOutlined />, tooltip: 'Danh sách có thứ tự', action: () => insertText('\n1. ') },
   ];
 
-  const handleImageUpload = (file) => {
-    // Simulate image upload
-    message.success('Ảnh đã được tải lên thành công!');
-    const imageUrl = `![${file.name}](https://via.placeholder.com/600x300?text=${encodeURIComponent(file.name)})`;
-    setContent(prev => prev + '\n\n' + imageUrl + '\n\n');
-    return false; // Prevent default upload
-  };
-
-  const handlePublish = async () => {
-    if (!title.trim()) {
-      message.error('Vui lòng nhập tiêu đề bài viết');
-      return;
-    }
-    if (!content.trim()) {
-      message.error('Vui lòng nhập nội dung bài viết');
-      return;
-    }
-    if (!category) {
-      message.error('Vui lòng chọn danh mục');
-      return;
-    }
-
-    setIsPublishing(true);
-    
+  // Image upload handler
+  const handleImageUpload = async (file) => {
     try {
-      const blogData = {
-        title: title.trim(),
-        content: content.trim(),
-        category,
-        tags,
-        thumbnail: thumbnail ? URL.createObjectURL(thumbnail) : null,
-        status: 'published',
-        publishedAt: new Date().toISOString()
-      };
-
-      let response;
-      if (blogId) {
-        // Update existing blog
-        response = await blogAPI.updateBlog(blogId, blogData);
-        message.success('Bài viết đã được cập nhật thành công!');
-      } else {
-        // Create new blog
-        response = await blogAPI.createBlog(blogData);
-        message.success('Bài viết đã được đăng thành công!');
-        setBlogId(response.id || response._id);
+      message.loading('Đang tải ảnh lên...', 0);
+      const response = await blogAPI.uploadImage(file);
+      message.destroy();
+      
+      const imageUrl = response.data?.url || response.url;
+      if (imageUrl) {
+        const markdownImage = `![${file.name}](${imageUrl})`;
+        setContent(prev => prev + '\n\n' + markdownImage + '\n\n');
+        message.success('Ảnh đã được tải lên thành công!');
       }
-      
-      // Reload blogs
-      await loadBlogs();
-      
-      // Reset form
-      setTitle('');
-      setContent('');
-      setTags([]);
-      setCategory('');
-      setThumbnail(null);
-      setBlogId(null);
-      
     } catch (error) {
-      message.error('Có lỗi xảy ra khi đăng bài: ' + error.message);
-    } finally {
-      setIsPublishing(false);
+      message.destroy();
+      message.error('Không thể tải ảnh lên: ' + error.message);
     }
+    return false;
   };
 
+  // Thumbnail upload handler
+  const handleThumbnailUpload = async (file) => {
+    try {
+      const response = await blogAPI.uploadImage(file);
+      const imageUrl = response.data?.url || response.url;
+      if (imageUrl) {
+        setThumbnailUrl(imageUrl);
+        message.success('Ảnh đại diện đã được tải lên!');
+      }
+    } catch (error) {
+      message.error('Không thể tải ảnh đại diện: ' + error.message);
+    }
+    return false;
+  };
+
+  // Publish blog
+  const handlePublish = async () => {
+  if (!title.trim()) {
+    message.error('Vui lòng nhập tiêu đề bài viết');
+    return;
+  }
+  if (!content.trim()) {
+    message.error('Vui lòng nhập nội dung bài viết');
+    return;
+  }
+  if (!category) {
+    message.error('Vui lòng chọn danh mục');
+    return;
+  }
+
+  setIsPublishing(true);
+
+  try {
+    const blogData = {
+      title: title.trim(),
+      content: content.trim(),
+      category,
+      image: thumbnailUrl, // 👈 sửa lại field này
+      status: 'pending'     // 👈 sửa lại status hợp lệ
+    };
+
+    let response;
+    if (blogId) {
+      response = await blogAPI.updateBlog(blogId, blogData);
+      message.success('Bài viết đã được cập nhật thành công!');
+    } else {
+      response = await blogAPI.createBlog(blogData);
+      message.success('Bài viết đã được gửi duyệt!');
+      setBlogId(response.data?.id || response.data?._id || response.id || response._id);
+    }
+
+    setTimeout(() => {
+      resetForm();
+    }, 2000);
+
+  } catch (error) {
+    message.error('Có lỗi xảy ra khi đăng bài: ' + error.message);
+    setApiError('Không thể đăng bài. Vui lòng kiểm tra kết nối và thử lại.');
+  } finally {
+    setIsPublishing(false);
+  }
+};
+
+  // Save draft
   const handleSaveDraft = async () => {
-    if (!title.trim() && !content.trim()) {
-      message.warning('Không có nội dung để lưu');
-      return;
-    }
+  if (!title.trim() && !content.trim()) {
+    message.warning('Không có nội dung để lưu');
+    return;
+  }
 
-    setIsSaving(true);
-    
-    try {
-      const draftData = {
-        title: title.trim(),
-        content: content.trim(),
-        category,
-        tags,
-        thumbnail: thumbnail ? URL.createObjectURL(thumbnail) : null,
-        status: 'draft',
-        savedAt: new Date().toISOString()
-      };
+  setIsSaving(true);
 
-      await blogAPI.saveDraft(draftData);
+  try {
+    const draftData = {
+      title: title.trim(),
+      content: content.trim(),
+      category,
+      image: thumbnailUrl, // 👈 sửa lại field
+      status: 'draft'       // 👈 giữ nguyên vì schema cho phép
+    };
+
+    let response;
+    if (blogId) {
+      response = await blogAPI.updateBlog(blogId, draftData);
+      message.success('Bản nháp đã được cập nhật!');
+    } else {
+      response = await blogAPI.createBlog(draftData);
+      setBlogId(response.data?.id || response.data?._id || response.id || response._id);
       message.success('Bản nháp đã được lưu!');
-      
-      // Reload drafts
-      await loadDrafts();
-      
-    } catch (error) {
-      message.error('Có lỗi xảy ra khi lưu bản nháp: ' + error.message);
-    } finally {
-      setIsSaving(false);
     }
+
+  } catch (error) {
+    message.error('Có lỗi xảy ra khi lưu bản nháp: ' + error.message);
+    setApiError('Không thể lưu bản nháp. Vui lòng kiểm tra kết nối và thử lại.');
+  } finally {
+    setIsSaving(false);
+  }
+};
+
+  // Reset form
+  const resetForm = () => {
+    setTitle('');
+    setContent('');
+    setCategory('');
+    setThumbnailUrl('');
+    setBlogId(null);
+    setApiError(null);
   };
 
-  const handleLikeBlog = async (id) => {
-    try {
-      await blogAPI.likeBlog(id);
-      message.success('Đã thả tim bài viết!');
-      await loadBlogs(); // Reload to update like count
-    } catch (error) {
-      message.error('Có lỗi xảy ra khi thả tim: ' + error.message);
-    }
-  };
-
-  const handleUnlikeBlog = async (id) => {
-    try {
-      await blogAPI.unlikeBlog(id);
-      message.success('Đã bỏ thả tim bài viết!');
-      await loadBlogs(); // Reload to update like count
-    } catch (error) {
-      message.error('Có lỗi xảy ra khi bỏ thả tim: ' + error.message);
-    }
-  };
-
+  // Render preview
   const renderPreview = () => {
     if (!content) return <div className="text-gray-400 text-center py-8">Chưa có nội dung để xem trước</div>;
     
-    // Simple markdown-like rendering
     const htmlContent = content
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>')
+      .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto my-4" />')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:underline">$1</a>')
       .replace(/\n/g, '<br/>');
 
     return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />;
   };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'b':
+            e.preventDefault();
+            insertText('**', '**');
+            break;
+          case 'i':
+            e.preventDefault();
+            insertText('*', '*');
+            break;
+          case 's':
+            e.preventDefault();
+            handleSaveDraft();
+            break;
+          case 'Enter':
+            e.preventDefault();
+            handlePublish();
+            break;
+          case 'p':
+            e.preventDefault();
+            setIsPreviewMode(!isPreviewMode);
+            break;
+        }
+      }
+      if (e.key === 'F11') {
+        e.preventDefault();
+        setIsFullscreen(!isFullscreen);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [content, isPreviewMode, isFullscreen]);
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
@@ -354,17 +400,6 @@ const BlogWritePage = () => {
           margin: 0 auto;
           padding: 20px;
         }
-        .blog-item {
-          padding: 12px;
-          border: 1px solid #f0f0f0;
-          border-radius: 8px;
-          margin-bottom: 8px;
-          background: white;
-          transition: all 0.2s ease;
-        }
-        .blog-item:hover {
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
         @media (max-width: 768px) {
           .write-container {
             padding: 10px;
@@ -373,15 +408,37 @@ const BlogWritePage = () => {
       `}</style>
 
       <div className="write-container">
+        {/* API Error Alert */}
+        {apiError && (
+          <Alert
+            message="Lỗi kết nối"
+            description={apiError}
+            type="error"
+            showIcon
+            closable
+            onClose={() => setApiError(null)}
+            className="mb-6"
+          />
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Viết bài mới
+              {blogId ? 'Chỉnh sửa bài viết' : 'Viết bài mới'}
             </h1>
             <p className="text-gray-600 mt-1">Chia sẻ kiến thức và kinh nghiệm của bạn</p>
           </div>
           <div className="flex items-center gap-3">
+            {blogId && (
+              <Button 
+                icon={<PlusOutlined />}
+                onClick={resetForm}
+                className="toolbar-btn"
+              >
+                Bài mới
+              </Button>
+            )}
             <Button 
               icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
               onClick={() => setIsFullscreen(!isFullscreen)}
@@ -497,53 +554,16 @@ Hãy chia sẻ những kiến thức và kinh nghiệm quý báu của bạn!"
                 </Row>
               </Card>
 
-              {/* Tags */}
-              <Card title="Tags" className="shadow-lg border-0">
-                <div className="mb-3">
-                  <Select
-                    mode="tags"
-                    placeholder="Thêm tags..."
-                    value={tags}
-                    onChange={setTags}
-                    className="w-full"
-                    tokenSeparators={[',']}
-                  >
-                    {popularTags.map(tag => (
-                      <Option key={tag} value={tag}>{tag}</Option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="text-xs text-gray-500 mb-2">Tags phổ biến:</div>
-                <div className="flex flex-wrap gap-1">
-                  {popularTags.slice(0, 8).map(tag => (
-                    <Tag 
-                      key={tag}
-                      className="cursor-pointer hover:bg-blue-50"
-                      onClick={() => {
-                        if (!tags.includes(tag)) {
-                          setTags([...tags, tag]);
-                        }
-                      }}
-                    >
-                      {tag}
-                    </Tag>
-                  ))}
-                </div>
-              </Card>
-
               {/* Thumbnail */}
               <Card title="Ảnh đại diện" className="shadow-lg border-0">
                 <Upload
                   listType="picture-card"
                   showUploadList={false}
-                  beforeUpload={(file) => {
-                    setThumbnail(file);
-                    message.success('Ảnh đại diện đã được chọn!');
-                    return false;
-                  }}
+                  beforeUpload={handleThumbnailUpload}
+                  accept="image/*"
                 >
-                  {thumbnail ? (
-                    <img src={URL.createObjectURL(thumbnail)} alt="thumbnail" className="w-full h-full object-cover" />
+                  {thumbnailUrl ? (
+                    <img src={thumbnailUrl} alt="thumbnail" className="w-full h-full object-cover" />
                   ) : (
                     <div className="text-center">
                       <PlusOutlined className="text-2xl mb-2" />
@@ -581,56 +601,55 @@ Hãy chia sẻ những kiến thức và kinh nghiệm quý báu của bạn!"
                 </Space>
               </Card>
 
-              {/* Published Blogs */}
-              <Card title="Bài viết đã đăng" className="shadow-lg border-0">
-                <div className="max-h-60 overflow-y-auto">
-                  {blogs.length > 0 ? (
-                    blogs.slice(0, 5).map(blog => (
-                      <div key={blog._id || blog.id} className="blog-item">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h4 className="text-sm font-medium mb-1 truncate">{blog.title}</h4>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              <span>{blog.category}</span>
-                              <span>•</span>
-                              <span>{blog.likes || 0} ❤️</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              size="small"
-                              icon={blog.isLiked ? <HeartFilled className="text-red-500" /> : <HeartOutlined />}
-                              onClick={() => blog.isLiked ? handleUnlikeBlog(blog._id || blog.id) : handleLikeBlog(blog._id || blog.id)}
-                              className="border-0"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-gray-400 py-4">
-                      Chưa có bài viết nào
-                    </div>
-                  )}
+              {/* Writing Tips */}
+              <Card title={<><QuestionCircleOutlined className="mr-2" />Gợi ý viết bài</>} className="shadow-lg border-0">
+                <div className="space-y-3">
+                  <div className="text-sm">
+                    <div className="font-medium text-gray-700 mb-1">✍️ Tiêu đề hấp dẫn</div>
+                    <div className="text-gray-600 text-xs">Sử dụng từ khóa quan trọng, tạo tò mò cho người đọc</div>
+                  </div>
+                  <div className="text-sm">
+                    <div className="font-medium text-gray-700 mb-1">🎯 Nội dung có cấu trúc</div>
+                    <div className="text-gray-600 text-xs">Chia thành các phần rõ ràng, sử dụng heading</div>
+                  </div>
+                  <div className="text-sm">
+                    <div className="font-medium text-gray-700 mb-1">🖼️ Hình ảnh minh họa</div>
+                    <div className="text-gray-600 text-xs">Thêm ảnh để làm bài viết sinh động hơn</div>
+                  </div>
+                  <div className="text-sm">
+                    <div className="font-medium text-gray-700 mb-1">🏷️ Tags phù hợp</div>
+                    <div className="text-gray-600 text-xs">Giúp người đọc dễ tìm thấy bài viết</div>
+                  </div>
                 </div>
               </Card>
 
-              {/* Help */}
-              <Card 
-                title={
-                  <span className="flex items-center gap-2">
-                    <QuestionCircleOutlined />
-                    Hướng dẫn viết bài
-                  </span>
-                }
-                className="shadow-lg border-0"
-              >
-                <div className="text-sm space-y-2">
-                  <div>• Tiêu đề nên ngắn gọn, súc tích</div>
-                  <div>• Sử dụng markdown để định dạng</div>
-                  <div>• Thêm ảnh để bài viết sinh động</div>
-                  <div>• Chọn danh mục và tags phù hợp</div>
-                  <div>• Kiểm tra lại trước khi đăng</div>
+              {/* Keyboard Shortcuts */}
+              <Card title="Phím tắt" className="shadow-lg border-0">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Ctrl + B:</span>
+                    <span className="text-gray-600">In đậm</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Ctrl + I:</span>
+                    <span className="text-gray-600">In nghiêng</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Ctrl + S:</span>
+                    <span className="text-gray-600">Lưu nháp</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Ctrl + Enter:</span>
+                    <span className="text-gray-600">Đăng bài</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Ctrl + P:</span>
+                    <span className="text-gray-600">Xem trước</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>F11:</span>
+                    <span className="text-gray-600">Toàn màn hình</span>
+                  </div>
                 </div>
               </Card>
             </Space>

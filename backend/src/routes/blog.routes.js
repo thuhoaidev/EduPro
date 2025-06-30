@@ -30,5 +30,7 @@ router.get('/approved/all', blogController.getAllApprovedBlogs);
 
 // New route
 router.get('/comments/all', blogController.getAllComments);
+// Saved Blogs
+router.get('/saved-posts', auth, blogController.getSavedPosts);
 
 module.exports = router; 
