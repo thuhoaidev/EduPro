@@ -11,15 +11,10 @@ export interface OrderItem {
 export interface CreateOrderData {
   items: OrderItem[];
   voucherCode?: string;
-  paymentMethod?: 'cod' | 'bank_transfer' | 'credit_card';
-  shippingAddress?: {
-    fullName: string;
-    phone: string;
-    address: string;
-    city: string;
-    district: string;
-    ward: string;
-  };
+  paymentMethod?: 'bank_transfer' | 'momo' | 'vnpay';
+  fullName?: string;
+  phone?: string;
+  email?: string;
   notes?: string;
 }
 
@@ -48,15 +43,10 @@ export interface Order {
   };
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   paymentStatus: 'pending' | 'paid' | 'failed';
-  paymentMethod: 'cod' | 'bank_transfer' | 'credit_card';
-  shippingAddress?: {
-    fullName: string;
-    phone: string;
-    address: string;
-    city: string;
-    district: string;
-    ward: string;
-  };
+  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay';
+  fullName?: string;
+  phone?: string;
+  email?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;

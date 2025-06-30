@@ -15,8 +15,10 @@ class OrderController {
       const { 
         items, 
         voucherCode, 
-        paymentMethod = 'cod',
-        shippingAddress,
+        paymentMethod = 'bank_transfer',
+        fullName,
+        phone,
+        email,
         notes 
       } = req.body;
       const userId = req.user.id;
@@ -102,7 +104,9 @@ class OrderController {
         finalAmount: finalAmount,
         voucherId: voucherId,
         paymentMethod: paymentMethod,
-        shippingAddress: shippingAddress,
+        fullName: fullName,
+        phone: phone,
+        email: email,
         notes: notes
       });
 

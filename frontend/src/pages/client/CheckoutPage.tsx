@@ -25,11 +25,14 @@ import {
   CheckCircleOutlined,
   UserOutlined,
   PhoneOutlined,
+  MailOutlined,
   EnvironmentOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  BankOutlined,
+  WalletOutlined
 } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/Auths/useAuth';
 import orderService from '../../services/orderService';
 import type { CreateOrderData } from '../../services/orderService';
 
@@ -37,13 +40,29 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
+interface FormValues {
+  fullName: string;
+  phone: string;
+  email: string;
+  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay';
+  notes?: string;
+}
+
+interface CheckoutItem {
+  courseId: string;
+  title: string;
+  thumbnail: string;
+  price: number;
+  quantity: number;
+}
+
 interface CheckoutData {
-  items: Array<{
-    courseId: string;
-    quantity: number;
-  }>;
+  items: CheckoutItem[];
   voucherCode?: string;
-  voucherValidation?: any;
+  voucherValidation?: {
+    discountAmount: number;
+    code: string;
+  };
   subtotal: number;
   discount: number;
   total: number;
@@ -57,8 +76,7 @@ const CheckoutPage: React.FC = () => {
   const [orderId, setOrderId] = useState<string>('');
   const { user, token } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<FormValues>();
 
   const formatCurrency = (amount: number) => 
     new Intl.NumberFormat('vi-VN', { 
@@ -73,15 +91,6 @@ const CheckoutPage: React.FC = () => {
       try {
         const data = JSON.parse(savedCheckoutData);
         setCheckoutData(data);
-        
-        // Pre-fill form với thông tin user nếu có
-        if (user) {
-          form.setFieldsValue({
-            fullName: user.fullName || user.name,
-            phone: user.phone,
-            email: user.email
-          });
-        }
       } catch (error) {
         console.error('Error parsing checkout data:', error);
         message.error('Dữ liệu đơn hàng không hợp lệ');
@@ -94,9 +103,34 @@ const CheckoutPage: React.FC = () => {
       return;
     }
     setLoading(false);
-  }, [user, form, navigate]);
+  }, [navigate]);
 
-  const handleSubmit = async (values: any) => {
+  // Effect để cập nhật form khi có thông tin user
+  useEffect(() => {
+    if (user) {
+      console.log('User data in CheckoutPage:', {
+        fullname: user.fullname,
+        phone: user.phone,
+        email: user.email,
+        rawUser: user
+      });
+      
+      const formValues = {
+        fullName: user.fullname,
+        phone: user.phone || '',  // Use empty string if phone is null/undefined
+        email: user.email,
+      };
+      
+      console.log('Setting form values:', formValues);
+      form.setFieldsValue(formValues);
+      
+      setTimeout(() => {
+        console.log('Current form values:', form.getFieldsValue());
+      }, 0);
+    }
+  }, [user, form]);
+
+  const handleSubmit = async (values: FormValues) => {
     if (!checkoutData || !token) {
       message.error('Dữ liệu không hợp lệ');
       return;
@@ -109,14 +143,9 @@ const CheckoutPage: React.FC = () => {
         items: checkoutData.items,
         voucherCode: checkoutData.voucherCode,
         paymentMethod: values.paymentMethod,
-        shippingAddress: {
-          fullName: values.fullName,
-          phone: values.phone,
-          address: values.address,
-          city: values.city,
-          district: values.district,
-          ward: values.ward
-        },
+        fullName: values.fullName,
+        phone: values.phone,
+        email: values.email,
         notes: values.notes
       };
 
@@ -128,17 +157,28 @@ const CheckoutPage: React.FC = () => {
       // Xóa dữ liệu checkout khỏi localStorage
       localStorage.removeItem('checkoutData');
       
-      message.success('Đặt hàng thành công!');
+      message.success('Thanh toán thành công!');
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Create order error:', error);
-      message.error(error.message || 'Lỗi khi tạo đơn hàng');
+      if (error instanceof Error) {
+        message.error(error.message);
+      } else {
+        message.error('Lỗi khi tạo đơn hàng');
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleBackToCart = () => {
+    // Lưu thông tin voucher vào localStorage trước khi quay lại giỏ hàng
+    if (checkoutData?.voucherValidation) {
+      localStorage.setItem('cartVoucherData', JSON.stringify({
+        voucher: checkoutData.voucherCode,
+        voucherValidation: checkoutData.voucherValidation
+      }));
+    }
     navigate('/cart');
   };
 
@@ -178,7 +218,7 @@ const CheckoutPage: React.FC = () => {
           <Result
             status="success"
             icon={<CheckCircleOutlined />}
-            title="Đặt hàng thành công!"
+            title="Thanh toán thành công!"
             subTitle={`Mã đơn hàng: ${orderId}`}
             extra={[
               <Button type="primary" key="orders" onClick={handleViewOrders}>
@@ -209,7 +249,7 @@ const CheckoutPage: React.FC = () => {
               Thanh toán
             </Title>
             <Text type="secondary">
-              Hoàn tất thông tin để đặt hàng
+              Hoàn tất thông tin để thanh toán
             </Text>
           </div>
 
@@ -255,6 +295,26 @@ const CheckoutPage: React.FC = () => {
                   }}
                 >
                   <div className="space-y-4">
+                    {/* Course List */}
+                    <div className="space-y-3">
+                      {checkoutData.items.map(item => (
+                        <motion.div key={item.courseId} layout>
+                          <Card size="small" className="hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-4">
+                              <img src={item.thumbnail} alt={item.title} className="w-24 h-16 object-cover rounded" />
+                              <div className="flex-1">
+                                <Text strong className="line-clamp-2">{item.title}</Text>
+                                <Text type="secondary" className="text-xs">Số lượng: {item.quantity}</Text>
+                              </div>
+                              <Text strong className="text-base">{formatCurrency(item.price)}</Text>
+                            </div>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    <Divider />
+
                     <div className="flex justify-between items-center">
                       <Text>Tạm tính ({checkoutData.items.length} khóa học):</Text>
                       <Text strong className="text-lg">{formatCurrency(checkoutData.subtotal)}</Text>
@@ -283,11 +343,11 @@ const CheckoutPage: React.FC = () => {
                         <div className="flex items-center gap-2 mb-1">
                           <CheckCircleOutlined style={{ color: '#52c41a' }} />
                           <Text strong className="text-blue-600">
-                            Mã giảm giá: {checkoutData.voucherValidation.voucher.code}
+                            Mã giảm giá: {checkoutData.voucherValidation.code}
                           </Text>
                         </div>
                         <Text className="text-sm text-blue-600">
-                          {checkoutData.voucherValidation.voucher.title}
+                          {checkoutData.voucherValidation.discountAmount}
                         </Text>
                       </div>
                     )}
@@ -320,7 +380,10 @@ const CheckoutPage: React.FC = () => {
                     layout="vertical"
                     onFinish={handleSubmit}
                     initialValues={{
-                      paymentMethod: 'cod'
+                      paymentMethod: 'bank_transfer',
+                      fullName: user?.fullname || '',
+                      phone: user?.phone || '',
+                      email: user?.email || '',
                     }}
                   >
                     <Row gutter={16}>
@@ -354,63 +417,18 @@ const CheckoutPage: React.FC = () => {
                     </Row>
 
                     <Form.Item
-                      name="address"
-                      label="Địa chỉ"
-                      rules={[{ required: true, message: 'Vui lòng nhập địa chỉ!' }]}
+                      name="email"
+                      label="Email"
+                      rules={[
+                        { required: true, message: 'Vui lòng nhập email!' },
+                        { type: 'email', message: 'Email không hợp lệ!' }
+                      ]}
                     >
                       <Input 
-                        prefix={<EnvironmentOutlined />} 
-                        placeholder="Nhập địa chỉ chi tiết"
+                        prefix={<MailOutlined />} 
+                        placeholder="Nhập email liên lạc"
                       />
                     </Form.Item>
-
-                    <Row gutter={16}>
-                      <Col span={8}>
-                        <Form.Item
-                          name="city"
-                          label="Tỉnh/Thành phố"
-                          rules={[{ required: true, message: 'Vui lòng chọn tỉnh/thành phố!' }]}
-                        >
-                          <Select placeholder="Chọn tỉnh/thành phố">
-                            <Option value="hanoi">Hà Nội</Option>
-                            <Option value="hcm">TP. Hồ Chí Minh</Option>
-                            <Option value="danang">Đà Nẵng</Option>
-                            <Option value="cantho">Cần Thơ</Option>
-                            <Option value="haiphong">Hải Phòng</Option>
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item
-                          name="district"
-                          label="Quận/Huyện"
-                          rules={[{ required: true, message: 'Vui lòng chọn quận/huyện!' }]}
-                        >
-                          <Select placeholder="Chọn quận/huyện">
-                            <Option value="district1">Quận 1</Option>
-                            <Option value="district2">Quận 2</Option>
-                            <Option value="district3">Quận 3</Option>
-                            <Option value="district4">Quận 4</Option>
-                            <Option value="district5">Quận 5</Option>
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item
-                          name="ward"
-                          label="Phường/Xã"
-                          rules={[{ required: true, message: 'Vui lòng chọn phường/xã!' }]}
-                        >
-                          <Select placeholder="Chọn phường/xã">
-                            <Option value="ward1">Phường 1</Option>
-                            <Option value="ward2">Phường 2</Option>
-                            <Option value="ward3">Phường 3</Option>
-                            <Option value="ward4">Phường 4</Option>
-                            <Option value="ward5">Phường 5</Option>
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                    </Row>
 
                     <Form.Item
                       name="paymentMethod"
@@ -418,9 +436,24 @@ const CheckoutPage: React.FC = () => {
                       rules={[{ required: true, message: 'Vui lòng chọn phương thức thanh toán!' }]}
                     >
                       <Select>
-                        <Option value="cod">Thanh toán khi nhận hàng (COD)</Option>
-                        <Option value="bank_transfer">Chuyển khoản ngân hàng</Option>
-                        <Option value="credit_card">Thẻ tín dụng/Ghi nợ</Option>
+                        <Option value="bank_transfer">
+                          <div className="flex items-center gap-2">
+                            <BankOutlined />
+                            <span>Chuyển khoản ngân hàng</span>
+                          </div>
+                        </Option>
+                        <Option value="momo">
+                          <div className="flex items-center gap-2">
+                            <WalletOutlined />
+                            <span>Ví điện tử MoMo</span>
+                          </div>
+                        </Option>
+                        <Option value="vnpay">
+                          <div className="flex items-center gap-2">
+                            <WalletOutlined />
+                            <span>Ví điện tử VNPAY</span>
+                          </div>
+                        </Option>
                       </Select>
                     </Form.Item>
 
@@ -450,7 +483,7 @@ const CheckoutPage: React.FC = () => {
                         className="flex-1"
                         icon={<CheckCircleOutlined />}
                       >
-                        {isSubmitting ? 'Đang xử lý...' : 'Đặt hàng'}
+                        {isSubmitting ? 'Đang xử lý...' : 'Thanh toán'}
                       </Button>
                     </div>
                   </Form>

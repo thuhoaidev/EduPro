@@ -51,11 +51,16 @@ const CoursesPage: React.FC = () => {
     useEffect(() => {
         // Lấy danh sách khóa học đã đăng ký
         const fetchEnrollments = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                setEnrolledCourseIds([]);
+                return;
+            }
             try {
                 const response = await config.get('/users/me/enrollments');
-                const ids = (response.data.data || []).map((enroll: any) => enroll.course?._id || enroll.course?.id);
+                const ids = (response.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
                 setEnrolledCourseIds(ids);
-            } catch (err) {
+            } catch {
                 // Không cần xử lý lỗi ở đây
             }
         };
@@ -129,7 +134,7 @@ const CoursesPage: React.FC = () => {
                 <Row gutter={[24, 24]}>
                     {courses.map(course => (
                         <Col key={course.id} xs={24} sm={12} md={8} lg={6}>
-                            <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course._id || course.id)} />
+                            <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id)} />
                         </Col>
                     ))}
                 </Row>

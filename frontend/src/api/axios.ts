@@ -52,18 +52,13 @@ config.interceptors.response.use(
         const originalRequest = error.config;
         
         if (error.response?.status === 401 && !originalRequest._retry) {
-            if (isRefreshing) {
-                // Nếu đang refresh, thêm request vào queue
-                return new Promise((resolve, reject) => {
-                    failedQueue.push({ resolve, reject });
-                }).then(token => {
-                    originalRequest.headers.Authorization = `Bearer ${token}`;
-                    return config(originalRequest);
-                }).catch(err => {
-                    return Promise.reject(err);
-                });
+            // Nếu đang ở trang login thì chỉ xóa token, không redirect
+            if (window.location.pathname === '/login') {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                localStorage.removeItem('refresh_token');
+                return Promise.reject(error);
             }
-
             originalRequest._retry = true;
             isRefreshing = true;
             
@@ -94,3 +89,5 @@ config.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+export default config;

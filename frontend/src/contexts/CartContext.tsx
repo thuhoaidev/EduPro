@@ -56,6 +56,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addToCart = async (courseId: string): Promise<boolean> => {
+    console.log('addToCart - courseId:', courseId);
     try {
       // Kiểm tra token trước khi gọi API
       const token = localStorage.getItem('token');
@@ -69,12 +70,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     } catch (error: any) {
       console.error('Error adding to cart:', error);
-      
+      if (error.response) {
+        console.error('Backend response:', error.response.data);
+      }
       if (error.response?.status === 401) {
         console.log('Token không hợp lệ khi thêm vào giỏ hàng');
         return false;
       }
-      
       return false;
     }
   };

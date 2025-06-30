@@ -16,7 +16,8 @@ import {
   Tag, 
   Checkbox,
   Spin,
-  Input
+  Input,
+  Popconfirm
 } from 'antd';
 import { 
   DeleteOutlined, 
@@ -30,9 +31,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { config as apiClient } from '../../api/axios';
 import { useCart } from '../../contexts/CartContext';
 import voucherService from '../../services/voucher.service';
-import orderService from '../../services/orderService';
 import type { ValidateVoucherResponse } from '../../services/voucher.service';
-import { useAuth } from '../../contexts/AuthContext';
 
 const { Title, Text } = Typography;
 
@@ -68,8 +67,6 @@ const CartPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const { updateCartCount } = useCart();
-  const { user, token: contextToken } = useAuth();
-  const token = contextToken || localStorage.getItem('token');
   const navigate = useNavigate();
 
   const formatCurrency = (amount: number) => 
@@ -91,7 +88,7 @@ const CartPage: React.FC = () => {
       }
       
       const res = await apiClient.get('/carts');
-      const items = res.data.items.map((item: any) => {
+      const items = res.data.items.map((item: { _id: string, course: any, addedAt: string }) => {
         const course = item.course;
         const discount = course.discount || 0;
         const finalPrice = Math.round(course.price * (1 - discount / 100));
@@ -122,6 +119,20 @@ const CartPage: React.FC = () => {
 
   useEffect(() => {
     fetchCart();
+
+    // Kiểm tra và áp dụng voucher đã lưu
+    const savedVoucherData = localStorage.getItem('cartVoucherData');
+    if (savedVoucherData) {
+      try {
+        const { voucher: savedVoucher, voucherValidation: savedValidation } = JSON.parse(savedVoucherData);
+        setVoucher(savedVoucher);
+        setVoucherValidation(savedValidation);
+        // Xóa dữ liệu voucher đã lưu sau khi đã áp dụng
+        localStorage.removeItem('cartVoucherData');
+      } catch (error) {
+        console.error('Error parsing saved voucher data:', error);
+      }
+    }
   }, []);
 
   const removeItem = async (itemId: string) => {
@@ -158,7 +169,7 @@ const CartPage: React.FC = () => {
       return;
     }
 
-    if (!token) {
+    if (!localStorage.getItem('token')) {
       message.error('Vui lòng đăng nhập để sử dụng voucher!');
       return;
     }
@@ -180,7 +191,7 @@ const CartPage: React.FC = () => {
       // Validate voucher
       const validationResult = await voucherService.validate(
         { code: voucher.trim(), orderAmount },
-        token
+        (localStorage.getItem('token') || '') as string
       );
 
       setVoucherValidation(validationResult);
@@ -203,7 +214,7 @@ const CartPage: React.FC = () => {
   };
 
   const handleCheckout = async () => {
-    if (!token) {
+    if (!localStorage.getItem('token')) {
       message.error('Vui lòng đăng nhập để thanh toán!');
       return;
     }
@@ -216,16 +227,18 @@ const CartPage: React.FC = () => {
     setIsCheckingOut(true);
 
     try {
-      // Chuẩn bị dữ liệu đơn hàng
+      // Chuẩn bị dữ liệu đơn hàng, lưu đầy đủ thông tin khóa học
       const selectedCartItems = cartItems.filter(item => selectedItems.includes(item.id));
-      const orderItems = selectedCartItems.map(item => ({
-        courseId: item.course.id,
-        quantity: item.quantity
-      }));
-
+      
       // Lưu thông tin đơn hàng vào localStorage để checkout page sử dụng
       const checkoutData = {
-        items: orderItems,
+        items: selectedCartItems.map(item => ({
+          courseId: item.course.id,
+          title: item.course.title,
+          thumbnail: item.course.thumbnail,
+          price: item.priceAtAddition,
+          quantity: item.quantity
+        })),
         voucherCode: voucherValidation ? voucherValidation.voucher.code : undefined,
         voucherValidation: voucherValidation,
         subtotal: selectedCartItems.reduce((acc, item) => acc + item.priceAtAddition * item.quantity, 0),
@@ -246,8 +259,24 @@ const CartPage: React.FC = () => {
     }
   };
 
+  // Thêm hàm xóa tất cả mục đã chọn
+  const handleRemoveSelected = async () => {
+    if (selectedItems.length === 0) {
+      message.warning('Vui lòng chọn ít nhất một mục để xóa!');
+      return;
+    }
+    try {
+      await Promise.all(selectedItems.map(id => apiClient.delete(`/carts/${id}`)));
+      message.success('Đã xóa các mục đã chọn khỏi giỏ hàng');
+      fetchCart();
+      updateCartCount();
+    } catch (error) {
+      message.error('Lỗi khi xóa các mục đã chọn');
+    }
+  };
+
   // Tính toán các giá trị
-  const selectedCartItems = cartItems.filter(item => selectedItems.includes(item.id));
+  const selectedCartItems = cartItems.filter((item: CartItem) => selectedItems.includes(item.id));
   const subtotal = selectedCartItems.reduce((acc, item) => acc + item.priceAtAddition * item.quantity, 0);
   const discount = voucherValidation ? voucherValidation.discountAmount : 0;
   const total = subtotal - discount;
@@ -262,26 +291,44 @@ const CartPage: React.FC = () => {
 
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-cyan-50 to-purple-100 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="text-center bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8 lg:p-12 max-w-2xl w-full"
+        >
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="Giỏ hàng trống"
-              className="my-16"
-            >
-              <Link to="/courses">
-                <Button type="primary" size="large">
-                  Tiếp tục mua sắm
-                </Button>
-              </Link>
-            </Empty>
+            <ShoppingCartOutlined className="text-7xl lg:text-8xl text-cyan-400 drop-shadow-lg" />
           </motion.div>
-        </div>
+
+          <Title level={2} className="!mt-8 !mb-3 !text-gray-800 font-bold">
+            Giỏ hàng của bạn đang trống
+          </Title>
+          <Text className="text-gray-600 text-lg max-w-md mx-auto block">
+            Có vẻ như bạn chưa chọn khóa học nào. Hãy bắt đầu khám phá ngay thôi!
+          </Text>
+
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="mt-10"
+          >
+            <Link to="/courses">
+              <Button
+                type="primary"
+                size="large"
+                icon={<ArrowLeftOutlined />}
+                className="!h-14 !px-8 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-full"
+              >
+                Khám phá khóa học
+              </Button>
+            </Link>
+          </motion.div>
+        </motion.div>
       </div>
     );
   }
@@ -294,119 +341,124 @@ const CartPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <ShoppingCartOutlined className="text-2xl text-blue-600" />
-              <Title level={2} className="!mb-0">Giỏ hàng</Title>
-              <Badge count={cartItems.length} showZero />
+          {/* Header Gradient */}
+          <div className="flex items-center justify-between bg-gradient-to-r from-cyan-500 to-purple-500 rounded-2xl shadow-xl p-6 mb-6">
+            <div className="flex items-center gap-4">
+              <ShoppingCartOutlined className="text-4xl text-white drop-shadow-lg" />
+              <Title level={2} className="!mb-0 !text-white drop-shadow-lg">Giỏ hàng</Title>
+              <Badge count={cartItems.length} showZero style={{ background: '#fff', color: '#7c3aed', fontWeight: 700, boxShadow: '0 2px 8px rgba(56,189,248,0.10)' }} />
             </div>
           </div>
 
           <Row gutter={24}>
             {/* Cart Items Column */}
             <Col xs={24} lg={16}>
-              <motion.div variants={itemVariants}>
-                <Card 
-                  title={
-                    <div className="flex items-center justify-between">
-                      <span>Khóa học đã chọn</span>
-                      <Checkbox 
-                        checked={selectedItems.length === cartItems.length && cartItems.length > 0}
-                        indeterminate={selectedItems.length > 0 && selectedItems.length < cartItems.length}
-                        onChange={(e) => handleSelectAll(e.target.checked)}
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex items-center justify-between mb-6 pb-4 border-b">
+                  <Title level={4} className="!mb-0 text-cyan-700">Khóa học trong giỏ</Title>
+                  <div className="flex items-center gap-4">
+                    <Checkbox 
+                      checked={selectedItems.length === cartItems.length && cartItems.length > 0}
+                      indeterminate={selectedItems.length > 0 && selectedItems.length < cartItems.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                    >
+                      Chọn tất cả ({selectedItems.length})
+                    </Checkbox>
+                    <Popconfirm
+                      title="Bạn có chắc muốn xóa các mục đã chọn?"
+                      onConfirm={handleRemoveSelected}
+                      okText="Xóa"
+                      cancelText="Hủy"
+                      disabled={selectedItems.length === 0}
+                    >
+                      <Button 
+                        type="primary"
+                        danger 
+                        disabled={selectedItems.length === 0} 
+                        icon={<DeleteOutlined />} 
+                        className="transition-all duration-300"
                       >
-                        Chọn tất cả
-                      </Checkbox>
-                    </div>
-                  }
-                  className="shadow-lg border-0"
-                >
-                  <AnimatePresence>
-                    {cartItems.map((item) => (
-                      <motion.div
-                        key={item.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        className="mb-4 last:mb-0"
-                      >
-                        <motion.div
-                          whileHover={{ scale: 1.01 }}
-                          className="border border-gray-200 rounded-lg p-4"
+                        Xóa mục đã chọn
+                      </Button>
+                    </Popconfirm>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {cartItems.map((item) => (
+                    <motion.div
+                      key={item.id}
+                      layout
+                      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -50, scale: 0.9 }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
+                      className="grid grid-cols-12 items-center gap-6 mb-6 p-4 rounded-xl hover:shadow-lg hover:bg-cyan-50 transition-all duration-300 border"
+                    >
+                      {/* Checkbox & Image */}
+                      <div className="col-span-3 flex items-center gap-4">
+                        <Checkbox
+                          checked={selectedItems.includes(item.id)}
+                          onChange={(e) => handleSelectItem(item.id, e.target.checked)}
+                          className="self-start mt-2"
+                        />
+                        <img 
+                          src={item.course.thumbnail} 
+                          alt={item.course.title}
+                          className="w-32 h-20 object-cover rounded-lg shadow-md"
+                        />
+                      </div>
+                      
+                      {/* Course Info */}
+                      <div className="col-span-5">
+                        <Link to={`/courses/${item.course.slug}`} className="hover:underline">
+                          <Title level={5} className="!mb-2 !text-gray-800 font-semibold truncate">
+                            {item.course.title}
+                          </Title>
+                        </Link>
+                        <Text type="secondary" className="text-sm">
+                          Bởi {item.course.instructor?.name || 'EduPro'}
+                        </Text>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                          <Tag color="yellow">⭐ {item.course.rating}</Tag>
+                          <Tag color="blue">👥 {item.course.students?.toLocaleString()}</Tag>
+                          <Tag color="purple">⏱️ {item.course.duration}</Tag>
+                        </div>
+                      </div>
+
+                      {/* Price */}
+                      <div className="col-span-3 text-right">
+                        <Text strong className="text-xl text-red-600 block">
+                          {formatCurrency(item.priceAtAddition)}
+                        </Text>
+                        {item.course.discount && (
+                          <Text delete type="secondary" className="block">
+                            {formatCurrency(item.course.price)}
+                          </Text>
+                        )}
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="col-span-1 text-center">
+                        <Popconfirm
+                          title="Xóa khóa học này?"
+                          onConfirm={() => removeItem(item.id)}
+                          okText="Xóa"
+                          cancelText="Không"
                         >
-                          <div className="flex items-start gap-4">
-                            <Checkbox
-                              checked={selectedItems.includes(item.id)}
-                              onChange={(e) => handleSelectItem(item.id, e.target.checked)}
-                            />
-                            
-                            <img 
-                              src={item.course.thumbnail} 
-                              alt={item.course.title}
-                              className="w-24 h-16 object-cover rounded-lg"
-                            />
-                            
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <Title level={5} className="!mb-2 truncate">
-                                    {item.course.title}
-                                  </Title>
-                                  
-                                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                                    <span>⭐ {item.course.rating}</span>
-                                    <span>👥 {item.course.students?.toLocaleString()}</span>
-                                    <span>⏱️ {item.course.duration}</span>
-                                    <span>📊 {item.course.level}</span>
-                                  </div>
-                                  
-                                  {item.course.instructor?.name && (
-                                    <Text type="secondary" className="text-sm">
-                                      Giảng viên: {item.course.instructor.name}
-                                    </Text>
-                                  )}
-                                </div>
-                                
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-baseline gap-2">
-                                    <Text strong className="text-xl text-red-500">
-                                      {formatCurrency(item.priceAtAddition)}
-                                    </Text>
-                                    {item.course.discount && (
-                                      <>
-                                        <Text delete type="secondary">
-                                          {formatCurrency(item.course.price)}
-                                        </Text>
-                                        <Tag color="red">Giảm {item.course.discount}%</Tag>
-                                      </>
-                                    )}
-                                  </div>
-                                  
-                                  <motion.div
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                  >
-                                    <Button 
-                                      type="text" 
-                                      danger 
-                                      icon={<DeleteOutlined />} 
-                                      onClick={() => removeItem(item.id)}
-                                      className="!h-10 !px-4"
-                                    >
-                                      Xóa
-                                    </Button>
-                                  </motion.div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </Card>
-              </motion.div>
+                          <Button 
+                            type="text" 
+                            danger 
+                            shape="circle" 
+                            icon={<DeleteOutlined className="text-xl" />} 
+                            className="hover:bg-red-100 transition-colors"
+                          />
+                        </Popconfirm>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
             </Col>
             
             {/* Order Summary Column */}
@@ -556,7 +608,7 @@ const CartPage: React.FC = () => {
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
 };
 
 export default CartPage;

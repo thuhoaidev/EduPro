@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Rate, message } from 'antd';
 import { BookOutlined } from '@ant-design/icons';
 import type { Course } from '../../services/apiService';
@@ -15,9 +15,19 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const { addToCart, isInCart, updateCartCount } = useCart();
     const courseInCart = isInCart(course._id || course.id);
+    const navigate = useNavigate();
 
     const handleEnroll = async (e: React.MouseEvent, course: Course) => {
         e.preventDefault();
+        const token = localStorage.getItem('token');
+        if (!token) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('refresh_token');
+            message.warning('Vui lòng đăng nhập!');
+            setTimeout(() => navigate('/login'), 800);
+            return;
+        }
         try {
             await config.post(`/courses/${course._id || course.id}/enroll`);
             alert('Đăng ký học thành công!');
@@ -30,12 +40,19 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
     const handleAddToCart = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('refresh_token');
+            message.warning('Vui lòng đăng nhập!');
+            setTimeout(() => navigate('/login'), 800);
+            return;
+        }
         if (courseInCart) {
             window.location.href = '/cart';
             return;
         }
-
         setIsAddingToCart(true);
         try {
             const success = await addToCart(course._id || course.id);

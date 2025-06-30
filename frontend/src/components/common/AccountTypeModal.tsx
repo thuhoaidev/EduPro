@@ -111,7 +111,6 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({ isVisible, onClose 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Student Account Option */}
             <motion.div
-              variants={itemVariants}
               whileHover="hover"
               whileTap="tap"
               variants={cardVariants}
@@ -138,7 +137,6 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({ isVisible, onClose 
 
             {/* Instructor Account Option */}
             <motion.div
-              variants={itemVariants}
               whileHover="hover"
               whileTap="tap"
               variants={cardVariants}

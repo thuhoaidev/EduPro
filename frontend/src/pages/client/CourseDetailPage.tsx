@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb } from 'antd';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb, message } from 'antd';
 import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, HeartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, SafetyCertificateOutlined, RiseOutlined, DownOutlined } from '@ant-design/icons';
 import { courseService } from '../../services/apiService';
 import type { Course, Section } from '../../services/apiService';
@@ -36,6 +36,7 @@ const CourseDetailPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
     const [isEnrolled, setIsEnrolled] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchCourseData = async () => {
@@ -90,6 +91,11 @@ const CourseDetailPage: React.FC = () => {
     useEffect(() => {
         const checkEnrolled = async () => {
             if (!course) return;
+            const token = localStorage.getItem('token');
+            if (!token) {
+                setIsEnrolled(false);
+                return;
+            }
             try {
                 const res = await config.get('/users/me/enrollments');
                 const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
@@ -409,6 +415,15 @@ const CourseDetailPage: React.FC = () => {
                                                 className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
                                                 icon={<PlayCircleOutlined />} 
                                                 onClick={async () => {
+                                                    const token = localStorage.getItem('token');
+                                                    if (!token) {
+                                                        localStorage.removeItem('token');
+                                                        localStorage.removeItem('user');
+                                                        localStorage.removeItem('refresh_token');
+                                                        message.warning('Vui lòng đăng nhập!');
+                                                        setTimeout(() => navigate('/login'), 800);
+                                                        return;
+                                                    }
                                                     try {
                                                         await config.post(`/courses/${course.id}/enroll`);
                                                         setIsEnrolled(true);
@@ -432,6 +447,18 @@ const CourseDetailPage: React.FC = () => {
                                             block 
                                             className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
                                             icon={<ShoppingCartOutlined />} 
+                                            onClick={async () => {
+                                                const token = localStorage.getItem('token');
+                                                if (!token) {
+                                                    localStorage.removeItem('token');
+                                                    localStorage.removeItem('user');
+                                                    localStorage.removeItem('refresh_token');
+                                                    message.warning('Vui lòng đăng nhập!');
+                                                    setTimeout(() => navigate('/login'), 800);
+                                                    return;
+                                                }
+                                                // TODO: Thêm logic thêm vào giỏ hàng ở đây
+                                            }}
                                         >
                                             Thêm vào giỏ hàng
                                         </Button>

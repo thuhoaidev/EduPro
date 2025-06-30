@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Form, Input, Button, Checkbox, Modal } from "antd";
+import { Form, Input, Button, Checkbox, Modal, message } from "antd";
 import { Link, useNavigate } from "react-router-dom";
 import useLogin from "../../../hooks/Auths/useLogin";
 import { config } from "../../../api/axios";
@@ -83,25 +83,13 @@ export default function LoginPage(): React.ReactElement {
         setIsLoading(false);
       },
       onError: (error: { response?: { data?: { message?: string } } }) => {
-        const errorMessage = error?.response?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại.";
-        if (
-          errorMessage === 'Tài khoản giảng viên của bạn đang trong thời gian xét duyệt. Vui lòng quay lại sau!' ||
-          errorMessage === 'Tài khoản giảng viên của bạn không phù hợp. Bạn có thể đăng kí tài khoản học tập để tiếp tục sử dụng.'
-        ) {
-          setNotification({
-            isVisible: true,
-            type: 'warning',
-            title: 'Thông báo trạng thái giảng viên',
-            message: errorMessage
-          });
-        } else {
-          setNotification({
-            isVisible: true,
-            type: 'error',
-            title: 'Lỗi đăng nhập!',
-            message: errorMessage
-          });
-        }
+        // Luôn hiển thị thông báo chung khi đăng nhập sai
+        setNotification({
+          isVisible: true,
+          type: 'error',
+          title: 'Lỗi đăng nhập!',
+          message: 'Sai email hoặc mật khẩu!'
+        });
         setIsLoading(false);
       }
     });

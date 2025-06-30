@@ -44,22 +44,17 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['cod', 'bank_transfer', 'credit_card'],
-    default: 'cod'
+    enum: ['bank_transfer', 'momo', 'vnpay'],
+    default: 'bank_transfer'
   },
   paymentStatus: {
     type: String,
     enum: ['pending', 'paid', 'failed'],
     default: 'pending'
   },
-  shippingAddress: {
-    fullName: String,
-    phone: String,
-    address: String,
-    city: String,
-    district: String,
-    ward: String
-  },
+  fullName: { type: String, required: true },
+  phone: { type: String, required: true },
+  email: { type: String, required: true },
   notes: String,
   paidAt: Date,
   cancelledAt: Date,
