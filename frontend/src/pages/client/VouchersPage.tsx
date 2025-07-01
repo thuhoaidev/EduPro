@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Layout, 
   Input, 
@@ -43,6 +43,7 @@ import { getAllCategories } from '../../services/categoryService';
 import type { Category } from '../../interfaces/Category.interface';
 import SearchBar from '../../components/common/SearchBar';
 import VoucherCard from '../../components/voucher/VoucherCard';
+import styles from '../../components/common/CategoryNav.module.css';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -71,6 +72,52 @@ interface VoucherDisplay {
     status: 'available' | 'unavailable';
     statusMessage: string;
 }
+
+const VoucherCategoryNav = ({ categories, activeCategory, onChange }: { categories: Category[], activeCategory: string, onChange: (cat: string) => void }) => {
+  const navItems = [
+    { label: 'Tất cả', value: 'Tất cả' },
+    { label: 'Mới', value: 'isNew' },
+    { label: 'HOT', value: 'isHot' },
+    { label: 'VIP Only', value: 'isVipOnly' },
+    ...categories.map(cat => ({ label: cat.name, value: cat._id }))
+  ];
+  return (
+    <nav className={styles.categoryNav} style={{ marginBottom: 16 }}>
+      {navItems.map(item => (
+        <button
+          key={item.value}
+          className={`${styles.categoryLink} ${activeCategory === item.value ? styles.active : styles.default}`}
+          onClick={() => onChange(item.value)}
+          type="button"
+        >
+          {item.label}
+        </button>
+      ))}
+    </nav>
+  );
+};
+
+const DiscountTypeNav = ({ activeType, onChange }: { activeType: string, onChange: (type: string) => void }) => {
+  const navItems = [
+    { label: 'Tất cả', value: 'all' },
+    { label: 'Giảm theo phần trăm', value: 'percentage' },
+    { label: 'Giảm cố định', value: 'fixed' }
+  ];
+  return (
+    <nav className={styles.categoryNav} style={{ marginBottom: 0, marginTop: 8 }}>
+      {navItems.map(item => (
+        <button
+          key={item.value}
+          className={`${styles.categoryLink} ${activeType === item.value ? styles.active : styles.default}`}
+          onClick={() => onChange(item.value)}
+          type="button"
+        >
+          {item.label}
+        </button>
+      ))}
+    </nav>
+  );
+};
 
 const VouchersPage = () => {
     const [vouchers, setVouchers] = useState<VoucherDisplay[]>([]);
@@ -256,41 +303,19 @@ const VouchersPage = () => {
                 {/* Filters */}
                 <div className="mb-8 bg-white p-6 rounded-lg shadow-sm">
                     <Title level={3} className="!mb-4 text-center sm:text-left">Bộ lọc mã giảm giá</Title>
+                    <VoucherCategoryNav 
+                      categories={categories} 
+                      activeCategory={categoryFilter} 
+                      onChange={handleCategoryChange} 
+                    />
                     <Row gutter={[16, 16]} className="items-end">
-                        <Col xs={24} sm={12} md={8}>
-                            <div>
-                                <Text strong className="text-gray-700 mb-2 block">Danh mục</Text>
-                                <Select
-                                    size="large"
-                                    value={categoryFilter}
-                                    className="w-full rounded-lg"
-                                    onChange={handleCategoryChange}
-                                    placeholder="Chọn danh mục"
-                                >
-                                    <Option value="Tất cả">🎯 Tất cả</Option>
-                                    <Option value="isNew">🆕 Mới</Option>
-                                    <Option value="isHot">🔥 HOT</Option>
-                                    <Option value="isVipOnly">👑 VIP Only</Option>
-                                    {categories.map(cat => (
-                                        <Option key={cat._id} value={cat._id}>📚 {cat.name}</Option>
-                                    ))}
-                                </Select>
-                            </div>
+                        <Col xs={24} sm={12} md={8} style={{ display: 'none' }}>
+                            {/* Đã thay filter danh mục bằng nav, ẩn Select cũ */}
                         </Col>
                         <Col xs={24} sm={12} md={8}>
                             <div>
                                 <Text strong className="text-gray-700 mb-2 block">Loại giảm giá</Text>
-                                <Select
-                                    size="large"
-                                    value={discountTypeFilter}
-                                    className="w-full rounded-lg"
-                                    onChange={handleDiscountTypeChange}
-                                    placeholder="Chọn loại giảm giá"
-                                >
-                                    <Option value="all">💎 Tất cả</Option>
-                                    <Option value="percentage">📊 Giảm theo phần trăm</Option>
-                                    <Option value="fixed">💰 Giảm cố định</Option>
-                                </Select>
+                                <DiscountTypeNav activeType={discountTypeFilter} onChange={handleDiscountTypeChange} />
                             </div>
                         </Col>
                         <Col xs={24} sm={24} md={8}>
@@ -324,11 +349,20 @@ const VouchersPage = () => {
 
                 {/* Vouchers Grid */}
                 <Row gutter={[24, 24]}>
-                    {filteredVouchers.map((voucher) => (
-                        <Col key={voucher.id} xs={24} sm={12} md={8} lg={6}>
-                            <VoucherCard voucher={voucher} categories={categories} />
-                        </Col>
-                    ))}
+                    <AnimatePresence mode="wait">
+                        {filteredVouchers.map((voucher, idx) => (
+                            <Col xs={24} sm={12} md={8} lg={8} key={voucher.id}>
+                                <motion.div
+                                    initial={{ opacity: 0, y: 30 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 30 }}
+                                    transition={{ duration: 0.5, delay: idx * 0.08 }}
+                                >
+                                    <VoucherCard voucher={voucher} categories={categories} />
+                                </motion.div>
+                            </Col>
+                        ))}
+                    </AnimatePresence>
                 </Row>
             </div>
         </Content>
