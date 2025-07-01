@@ -17,6 +17,11 @@ const {
   getApprovedInstructorDetail,
   getInstructorDetail,
   getMyEnrollments,
+  followUser,
+  unfollowUser,
+  getFollowers,
+  getFollowing,
+  getUserBySlug,
 } = require('../controllers/user.controller');
 
 // Routes cho client (không cần đăng nhập)
@@ -24,6 +29,8 @@ const {
 router.get('/approved-instructors', getApprovedInstructors);
 // Lấy chi tiết giảng viên đã duyệt cho client
 router.get('/approved-instructors/:id', getApprovedInstructorDetail);
+// Route lấy user theo slug (public, không cần auth)
+router.get('/slug/:slug', getUserBySlug);
 
 // Routes cho người dùng hiện tại (cần đăng nhập)
 router.use(auth);
@@ -98,5 +105,11 @@ router.post('/upload-avatar', auth, uploadAvatar, processAvatarUpload, (req, res
 
 // Cập nhật hồ sơ giảng viên (và đồng bộ sang User)
 router.put('/instructor-profiles/:id', require('./../controllers/user.controller').updateInstructorProfile);
+
+// Các route follow/unfollow và lấy danh sách follower/following
+router.post('/:id/follow', followUser); // Theo dõi user
+router.delete('/:id/follow', unfollowUser); // Bỏ theo dõi user
+router.get('/:id/followers', getFollowers); // Lấy danh sách follower
+router.get('/:id/following', getFollowing); // Lấy danh sách đang theo dõi
 
 module.exports = router; 

@@ -54,6 +54,7 @@ import MyEarnings from './pages/instructor/earnings/MyEarnings';
 import CourseDetail from './pages/instructor/course/CourseDetail';
 import LessonVideoPage from './pages/client/lessons/LessonVideoPage';
 import LessonQuizPage from './pages/client/lessons/LessonQuizPage';
+import UserProfile from './pages/client/Profile/UserProfile';
 
 const queryClient = new QueryClient();
 
@@ -117,6 +118,7 @@ function App() {
         { path: "orders", element: <OrdersPage /> },
         { path: "/lessons/:lessonId/video", element: <LessonVideoPage /> },
         { path: "/lessons/:lessonId/quiz", element: <LessonQuizPage /> },
+        { path: 'users/:slug', element: <UserProfile /> },
       ]
     },
     {

@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const InstructorProfile = require('../models/InstructorProfile');
 const Enrollment = require('../models/Enrollment');
+const Follow = require('../models/Follow');
 
 // Lấy thông tin người dùng hiện tại
 exports.getCurrentUser = async (req, res) => {
@@ -1372,6 +1373,7 @@ exports.getApprovedInstructors = async (req, res) => {
           
           return {
             id: instructor._id,
+            slug: instructor.slug,
             fullname: instructor.fullname,
             email: instructor.email,
             avatar: instructor.avatar,
@@ -1537,5 +1539,120 @@ exports.getApprovedInstructorDetail = async (req, res) => {
       message: 'Lỗi lấy chi tiết giảng viên',
       error: error.message,
     });
+  }
+};
+
+// Theo dõi một user
+exports.followUser = async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    const currentUserId = req.user._id;
+    if (targetUserId === currentUserId.toString()) {
+      return res.status(400).json({ success: false, message: 'Không thể tự theo dõi chính mình.' });
+    }
+    // Kiểm tra user tồn tại
+    const targetUser = await User.findById(targetUserId);
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: 'Người dùng không tồn tại.' });
+    }
+    // Tạo follow
+    const follow = await Follow.findOneAndUpdate(
+      { follower: currentUserId, following: targetUserId },
+      {},
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    // Tăng followers_count và following_count nếu là lần đầu
+    await User.findByIdAndUpdate(targetUserId, { $inc: { followers_count: 1 } });
+    await User.findByIdAndUpdate(currentUserId, { $inc: { following_count: 1 } });
+    res.status(200).json({ success: true, message: 'Đã theo dõi người dùng.' });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: 'Đã theo dõi người này.' });
+    }
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ', error: error.message });
+  }
+};
+
+// Bỏ theo dõi một user
+exports.unfollowUser = async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    const currentUserId = req.user._id;
+    const follow = await Follow.findOneAndDelete({ follower: currentUserId, following: targetUserId });
+    if (!follow) {
+      return res.status(400).json({ success: false, message: 'Bạn chưa theo dõi người này.' });
+    }
+    // Giảm followers_count và following_count
+    await User.findByIdAndUpdate(targetUserId, { $inc: { followers_count: -1 } });
+    await User.findByIdAndUpdate(currentUserId, { $inc: { following_count: -1 } });
+    res.status(200).json({ success: true, message: 'Đã bỏ theo dõi người dùng.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ', error: error.message });
+  }
+};
+
+// Lấy danh sách follower của user
+exports.getFollowers = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const followers = await Follow.find({ following: userId }).populate('follower', 'fullname nickname avatar slug');
+    res.status(200).json({ success: true, data: followers.map(f => f.follower) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ', error: error.message });
+  }
+};
+
+// Lấy danh sách user mà user này đang theo dõi
+exports.getFollowing = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const following = await Follow.find({ follower: userId }).populate('following', 'fullname nickname avatar slug');
+    res.status(200).json({ success: true, data: following.map(f => f.following) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ', error: error.message });
+  }
+};
+
+// Lấy thông tin user theo slug hoặc nickname, trả về cả khóa học đã tạo và đã tham gia
+exports.getUserBySlug = async (req, res) => {
+  try {
+    let user = await User.findOne({ slug: req.params.slug }).populate('role_id');
+    if (!user) {
+      // Nếu không tìm thấy theo slug, thử tìm theo nickname
+      user = await User.findOne({ nickname: req.params.slug }).populate('role_id');
+    }
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    // Lấy danh sách khóa học đã tạo (nếu là instructor)
+    let createdCourses = [];
+    if (user.role_id?.name === 'instructor' || user.isInstructor) {
+      // Tìm InstructorProfile
+      const InstructorProfile = require('../models/InstructorProfile');
+      const Course = require('../models/Course');
+      const instructorProfile = await InstructorProfile.findOne({ user: user._id });
+      if (instructorProfile) {
+        createdCourses = await Course.find({ instructor: instructorProfile._id });
+      }
+    }
+
+    // Lấy danh sách khóa học đã tham gia (enrolled)
+    const Enrollment = require('../models/Enrollment');
+    const Course = require('../models/Course');
+    const enrollments = await Enrollment.find({ user: user._id });
+    const enrolledCourseIds = enrollments.map(e => e.course);
+    const enrolledCourses = await Course.find({ _id: { $in: enrolledCourseIds } });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...user.toJSON(),
+        createdCourses,
+        enrolledCourses
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ', error: error.message });
   }
 };

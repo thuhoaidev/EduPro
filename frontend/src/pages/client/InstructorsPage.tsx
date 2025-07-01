@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Layout, Input, Select, Card, Tag, Typography, Badge, Rate, Avatar, Button, Pagination, Spin } from 'antd';
 import { SearchOutlined, FilterOutlined, UserOutlined, StarFilled, BookOutlined, TeamOutlined, TrophyOutlined, GlobalOutlined } from '@ant-design/icons';
 import { config } from '../../api/axios';
+import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -48,6 +49,7 @@ interface ApiInstructor {
         major: string;
         _id: string;
     }>;
+    slug: string;
 }
 
 const instructorCategories = ['Tất cả', 'Full-Stack Development', 'UI/UX Design', 'Data Science', 'Mobile Development', 'DevOps', 'Digital Marketing'];
@@ -138,37 +140,48 @@ const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
 
 const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
     const [isHovered, setIsHovered] = useState(false);
+    const navigate = useNavigate();
 
     return (
         <motion.div
             className="h-full"
-            whileHover={{ y: -8, transition: { duration: 0.3 } }}
+            whileHover={{ y: -8, scale: 1.03, boxShadow: '0 8px 32px rgba(24,144,255,0.15)' }}
             onHoverStart={() => setIsHovered(true)}
             onHoverEnd={() => setIsHovered(false)}
+            onClick={() => navigate(`/users/${instructor.slug}`)}
+            style={{ cursor: 'pointer', transition: 'box-shadow 0.3s, transform 0.3s' }}
         >
             <Card
-                className="h-full cursor-pointer transition-all duration-300"
+                className="h-full instructor-card transition-all duration-300 border-0 shadow-lg rounded-2xl"
                 style={{
-                    border: isHovered ? '2px solid #1890ff' : '1px solid #f0f0f0',
-                    boxShadow: isHovered ? '0 8px 25px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.1)'
+                    background: isHovered ? 'linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)' : '#fff',
+                    boxShadow: isHovered ? '0 8px 32px rgba(24,144,255,0.15)' : '0 2px 8px rgba(0,0,0,0.08)',
+                    borderRadius: 24,
+                    border: 'none',
                 }}
+                bodyStyle={{ padding: 24 }}
             >
                 {/* Header with Avatar and Status */}
                 <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
                         <div className="relative">
-                            <Avatar 
-                                size={64} 
+                            <Avatar
+                                size={80}
                                 src={instructor.avatar}
                                 icon={<UserOutlined />}
+                                style={{
+                                    border: isHovered ? '3px solid #1890ff' : '3px solid #e0e7ef',
+                                    boxShadow: isHovered ? '0 0 0 4px #bae6fd' : 'none',
+                                    transition: 'all 0.3s',
+                                }}
                             />
                             {instructor.isOnline && (
-                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
                             )}
                         </div>
                         <div>
                             <div className="flex items-center space-x-2">
-                                <Title level={4} className="!mb-1">{instructor.fullname}</Title>
+                                <Title level={4} className="!mb-1 !text-lg !font-bold text-blue-700">{instructor.fullname}</Title>
                                 {instructor.isVerified && (
                                     <Badge count={<TrophyOutlined style={{ color: '#faad14' }} />} />
                                 )}
@@ -189,8 +202,8 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                 {/* Rating and Stats */}
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
-                        <Rate disabled allowHalf defaultValue={instructor.rating || 0} style={{fontSize: 14}} />
-                        <Text strong className="text-sm">{instructor.rating || 0}</Text>
+                        <Rate disabled allowHalf defaultValue={instructor.rating || 0} style={{ fontSize: 16 }} />
+                        <Text strong className="text-base text-blue-600">{instructor.rating || 0}</Text>
                         <Text type="secondary" className="text-xs">({instructor.totalReviews || 0} đánh giá)</Text>
                     </div>
                     <div className="flex items-center space-x-1">
@@ -201,31 +214,31 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="text-center p-2 bg-blue-50 rounded">
+                    <div className="text-center p-2 bg-blue-50 rounded-xl">
                         <div className="text-lg font-bold text-blue-600">{instructor.totalCourses || 0}</div>
                         <Text className="text-xs">Khóa học</Text>
                     </div>
-                    <div className="text-center p-2 bg-green-50 rounded">
+                    <div className="text-center p-2 bg-green-50 rounded-xl">
                         <div className="text-lg font-bold text-green-600">{instructor.experienceYears || 0}</div>
                         <Text className="text-xs">Năm KN</Text>
                     </div>
-                    <div className="text-center p-2 bg-purple-50 rounded">
+                    <div className="text-center p-2 bg-purple-50 rounded-xl">
                         <div className="text-lg font-bold text-purple-600">Đã duyệt</div>
                         <Text className="text-xs">{instructor.approvalStatus === 'approved' ? 'Có' : 'Chưa'}</Text>
                     </div>
                 </div>
 
                 {/* Specializations */}
-                <div className="mb-4">
+                <div className="mb-2">
                     <Text strong className="text-sm mb-2 block">Chuyên môn:</Text>
                     <div className="flex flex-wrap gap-1">
                         {instructor.expertise && instructor.expertise.length > 0 ? (
                             <>
                                 {instructor.expertise.slice(0, 3).map((spec, index) => (
-                                    <Tag key={index} color="blue" className="text-xs">{spec}</Tag>
+                                    <Tag key={index} color="blue" className="text-xs rounded-full px-2 py-1">{spec}</Tag>
                                 ))}
                                 {instructor.expertise.length > 3 && (
-                                    <Tag color="default" className="text-xs">+{instructor.expertise.length - 3}</Tag>
+                                    <Tag color="default" className="text-xs rounded-full px-2 py-1">+{instructor.expertise.length - 3}</Tag>
                                 )}
                             </>
                         ) : (
@@ -234,8 +247,8 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                     </div>
                 </div>
 
-                {/* Location and Languages */}
-                <div className="flex items-center justify-between text-sm mb-4">
+                {/* Location and Education */}
+                <div className="flex items-center justify-between text-sm mb-2">
                     <div className="flex items-center space-x-1">
                         <GlobalOutlined className="text-gray-400" />
                         <Text type="secondary">{instructor.location || 'Chưa cập nhật'}</Text>
@@ -244,16 +257,6 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                         <BookOutlined className="text-gray-400" />
                         <Text type="secondary">{instructor.education || 'Chưa cập nhật'}</Text>
                     </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex space-x-2">
-                    <Button type="primary" className="flex-1">
-                        Xem hồ sơ
-                    </Button>
-                    <Button className="flex-1">
-                        Liên hệ
-                    </Button>
                 </div>
             </Card>
         </motion.div>
@@ -299,6 +302,7 @@ const InstructorsPage = () => {
             // Map API response to our interface
             const mappedInstructors = data.instructors.map((instructor: ApiInstructor) => ({
                 id: instructor.id,
+                slug: instructor.slug,
                 fullname: instructor.fullname,
                 avatar: instructor.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${instructor.fullname}`,
                 bio: instructor.bio || 'Chưa có thông tin giới thiệu',
