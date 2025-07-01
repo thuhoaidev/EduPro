@@ -89,7 +89,7 @@ interface Comment {
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Utility functions
-const getAuthToken = () => localStorage.getItem('authToken');
+const getAuthToken = () => localStorage.getItem('token');
 const getCurrentUserId = () => localStorage.getItem('userId') || '60d5ecp74b24c72f5c8e4e3a';
 
 // API Service - Optimized with correct endpoints
@@ -101,17 +101,19 @@ const apiService = {
 
   // Fetch saved posts
   fetchSavedPosts: async () => {
-    const response = await fetch(`${apiUrl}/blogs/saved-posts`, {
-      method: 'GET',
-      headers: apiService.getHeaders()
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    return await response.json();
-  },
+  const response = await fetch(`${apiUrl}/blogs/saved-posts`, {
+    method: 'GET',
+    headers: apiService.getHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const res = await response.json();
+  return res.data; // <-- chỉ lấy mảng data
+},
+
 
   // Like post
   likePost: async (postId: string) => {
@@ -239,6 +241,35 @@ const SavedBlogPosts = () => {
   const [submittingComment, setSubmittingComment] = useState(false);
   
   const navigate = useNavigate();
+ 
+  useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const user = await apiService.getCurrentUser();
+      setCurrentUser(user?.data || null);
+
+      const posts = await apiService.fetchSavedPosts();
+      if (Array.isArray(posts)) {
+        setSavedPosts(posts);
+
+        // Gợi ý lọc tất cả danh mục từ các post
+        const uniqueCategories = Array.from(
+          new Set(posts.map(p => p.post.category))
+        );
+        setCategories(uniqueCategories);
+      } else {
+        setSavedPosts([]);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải bài viết đã lưu:', error);
+      message.error('Không thể tải bài viết đã lưu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
 
   // Load initial data
   useEffect(() => {

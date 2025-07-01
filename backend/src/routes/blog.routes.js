@@ -8,6 +8,7 @@ const { auth } = require('../middlewares/auth');
 // CRUD
 router.post('/', auth, upload.single('image'), blogController.createBlog);
 router.get('/', blogController.getAllBlogs);
+router.get('/saved-posts', auth, blogController.getSavedPosts);// Saved Blogs
 router.get('/:id', blogController.getBlogById);
 router.put('/:id', blogController.updateBlog);
 router.delete('/:id', blogController.deleteBlog);
@@ -30,7 +31,4 @@ router.get('/approved/all', blogController.getAllApprovedBlogs);
 
 // New route
 router.get('/comments/all', blogController.getAllComments);
-// Saved Blogs
-router.get('/saved-posts', auth, blogController.getSavedPosts);
-
 module.exports = router; 
