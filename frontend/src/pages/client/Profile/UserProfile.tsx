@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { config } from '../../../api/axios';
 import { Button, Modal, List, Avatar, message, Card, List as AntList } from 'antd';
 import { UserOutlined, TeamOutlined, BookOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
 import CourseCard from '../../../components/course/CourseCard';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getToken, isTokenValid, clearAuthData } from '../../../utils/tokenUtils';
 
 interface User {
   _id: string;
@@ -35,8 +36,37 @@ interface Course {
   slug?: string;
 }
 
+function isAxiosErrorWithMessage(err: unknown): err is { response: { data: { message: string } } } {
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'response' in err &&
+    typeof (err as { response?: unknown }).response === 'object' &&
+    (err as { response?: unknown }).response !== null
+  ) {
+    const response = (err as { response: unknown }).response;
+    if (
+      typeof response === 'object' &&
+      response !== null &&
+      'data' in response &&
+      typeof (response as { data?: unknown }).data === 'object' &&
+      (response as { data?: unknown }).data !== null
+    ) {
+      const data = (response as { data: unknown }).data;
+      return (
+        typeof data === 'object' &&
+        data !== null &&
+        'message' in data &&
+        typeof (data as { message?: unknown }).message === 'string'
+      );
+    }
+  }
+  return false;
+}
+
 const UserProfile: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -48,6 +78,27 @@ const UserProfile: React.FC = () => {
   const [createdCourses, setCreatedCourses] = useState<Course[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
   const [showAllCourses, setShowAllCourses] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(Boolean(getToken() && isTokenValid()));
+
+  useEffect(() => {
+    const handleStorage = () => {
+      const valid = Boolean(getToken() && isTokenValid());
+      setIsLoggedIn(valid);
+      if (!valid) {
+        clearAuthData();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  useEffect(() => {
+    const valid = Boolean(getToken() && isTokenValid());
+    setIsLoggedIn(valid);
+    if (!valid) {
+      clearAuthData();
+    }
+  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -67,6 +118,7 @@ const UserProfile: React.FC = () => {
   }, [slug]);
 
   useEffect(() => {
+    if (!isLoggedIn) return;
     // Lấy user hiện tại để kiểm tra trạng thái follow
     const fetchCurrentUser = async () => {
       try {
@@ -77,10 +129,10 @@ const UserProfile: React.FC = () => {
       }
     };
     fetchCurrentUser();
-  }, []);
+  }, [isLoggedIn]);
 
   useEffect(() => {
-    if (!currentUserId || !user) return;
+    if (!isLoggedIn || !currentUserId || !user) return;
     const checkFollow = async () => {
       try {
         const res = await config.get(`/users/${user._id}/followers`);
@@ -91,7 +143,13 @@ const UserProfile: React.FC = () => {
       }
     };
     checkFollow();
-  }, [currentUserId, user]);
+  }, [isLoggedIn, currentUserId, user]);
+
+  useEffect(() => {
+    if (currentUserId && user && currentUserId === user._id) {
+      navigate('/profile', { replace: true });
+    }
+  }, [currentUserId, user, navigate]);
 
   const handleFollow = async () => {
     try {
@@ -99,8 +157,11 @@ const UserProfile: React.FC = () => {
       setIsFollowing(true);
       setFollowers(prev => [...prev, { ...user!, _id: currentUserId! }]);
       message.success('Đã theo dõi');
-    } catch {
-      message.error('Theo dõi thất bại');
+    } catch (err: unknown) {
+      const msg = isAxiosErrorWithMessage(err)
+        ? err.response.data.message
+        : 'Theo dõi thất bại';
+      message.error(msg);
     }
   };
 
@@ -186,7 +247,7 @@ const UserProfile: React.FC = () => {
               </button>
             </div>
             {/* Nút follow/unfollow */}
-            {currentUserId && currentUserId !== user._id && (
+            {isLoggedIn && currentUserId && currentUserId !== user._id && (
               isFollowing ? (
                 <Button danger shape="round" size="large" className="mb-2 px-8" onClick={handleUnfollow}>Bỏ theo dõi</Button>
               ) : (

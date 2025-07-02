@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { login } from "../../provider/authProvider";
+import { useCart } from '../../contexts/CartContext';
 
 type useLoginParams = {
     resource: string;
@@ -7,6 +8,7 @@ type useLoginParams = {
 
 const useLogin = ({ resource }: useLoginParams) => {
     const queryClient = useQueryClient();
+    const { updateCartCount } = useCart();
 
     return useMutation({
         mutationFn: (variables: any) => {
@@ -14,7 +16,7 @@ const useLogin = ({ resource }: useLoginParams) => {
             console.log("🧪 Login variables:", variables);
             return login({ resource, variables });
         },
-        onSuccess: (data: any) => {
+        onSuccess: async (data: any) => {
             // Lưu token vào localStorage
             if (data?.token) {
                 localStorage.setItem('token', data.token);
@@ -37,6 +39,8 @@ const useLogin = ({ resource }: useLoginParams) => {
             queryClient.invalidateQueries({
                 queryKey: ['user'],
             });
+            // Gọi cập nhật giỏ hàng ngay sau khi đăng nhập thành công
+            await updateCartCount();
         },
         onError: (error: any) => {
             // Optional: xử lý lỗi nếu cần

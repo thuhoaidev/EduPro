@@ -4,6 +4,9 @@ import { Layout, Input, Select, Card, Tag, Typography, Badge, Rate, Avatar, Butt
 import { SearchOutlined, FilterOutlined, UserOutlined, StarFilled, BookOutlined, TeamOutlined, TrophyOutlined, GlobalOutlined } from '@ant-design/icons';
 import { config } from '../../api/axios';
 import { useNavigate } from 'react-router-dom';
+import './InstructorsPage.css';
+import { getAllCategories } from '../../services/categoryService';
+import type { Category } from '../../interfaces/Category.interface';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -24,7 +27,7 @@ interface Instructor {
     isFeatured: boolean;
     isOnline: boolean;
     location: string;
-    education: string;
+    education: Array<{ degree: string }>;
     approvalStatus: string;
 }
 
@@ -70,64 +73,92 @@ const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
     rating: number;
     experience: number;
     priceRange: [number, number];
-    online?: boolean;
-    verified?: boolean;
-    featured?: boolean;
 }) => void }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [category, setCategory] = useState('Tất cả');
     const [rating, setRating] = useState(0);
     const [experience, setExperience] = useState(0);
     const [priceRange] = useState<[number, number]>([0, 1000000]);
-    const [online, setOnline] = useState(false);
-    const [verified, setVerified] = useState(false);
-    const [featured, setFeatured] = useState(false);
+    // State cho danh mục
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [loadingCategories, setLoadingCategories] = useState(false);
+
+    useEffect(() => {
+        setLoadingCategories(true);
+        getAllCategories()
+            .then(res => {
+                if (res.success) setCategories(res.data.filter(cat => cat.status === 'active'));
+            })
+            .finally(() => setLoadingCategories(false));
+    }, []);
 
     useEffect(() => {
         const handler = setTimeout(() => {
-            setFilters({ searchTerm, category, rating, experience, priceRange, online, verified, featured });
+            setFilters({ searchTerm, category, rating, experience, priceRange });
         }, 500);
         return () => clearTimeout(handler);
-    }, [searchTerm, category, rating, experience, priceRange, online, verified, featured, setFilters]);
+    }, [searchTerm, category, rating, experience, priceRange, setFilters]);
 
     return (
-        <Sider width={280} className="bg-white p-6" theme="light" style={{
+        <Sider width={300} className="bg-white p-0 shadow-lg rounded-3xl border border-blue-100 mr-4" theme="light" style={{
             position: 'sticky',
             top: 68,
             height: 'calc(100vh - 68px)',
-            overflowY: 'auto'
+            overflowY: 'auto',
+            minWidth: 260,
+            maxWidth: 340,
         }}>
-            <Title level={4} className="!mb-6"><FilterOutlined className="mr-2" />Bộ lọc giảng viên</Title>
-            
-            <div className="space-y-6">
-                <div>
-                    <Text strong>Tìm kiếm</Text>
+            <div className="p-6 pb-3 border-b border-blue-50 bg-gradient-to-r from-blue-50 to-white rounded-t-3xl flex items-center gap-2">
+                <FilterOutlined className="text-2xl text-blue-500 mr-2" />
+                <Title level={4} className="!mb-0 !text-blue-700 font-bold tracking-wide">Bộ lọc giảng viên</Title>
+            </div>
+            <div className="space-y-5 p-6 pt-4">
+                {/* Tìm kiếm */}
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100 flex flex-col gap-2 shadow-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                        <SearchOutlined className="text-blue-400" />
+                        <Text strong className="text-blue-700">Tìm kiếm</Text>
+                    </div>
                     <Input
                         size="large"
                         placeholder="Tên giảng viên..."
-                        prefix={<SearchOutlined />}
+                        prefix={<SearchOutlined className="text-blue-400" />}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="!mt-2"
+                        className="rounded-full border-blue-200 focus:border-blue-500 focus:shadow !mt-0"
                     />
                 </div>
-                <div>
-                    <Text strong>Chuyên môn</Text>
+                {/* Chuyên môn */}
+                <div className="bg-white rounded-xl p-4 border border-blue-50 flex flex-col gap-2 shadow-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                        <BookOutlined className="text-purple-400" />
+                        <Text strong className="text-blue-700">Chuyên môn</Text>
+                    </div>
                     <Select
                         size="large"
-                        defaultValue="Tất cả"
-                        className="w-full !mt-2"
+                        value={category}
+                        className="w-full rounded-full border-blue-200 focus:border-blue-500"
                         onChange={value => setCategory(value)}
+                        dropdownClassName="rounded-xl"
+                        loading={loadingCategories}
                     >
-                        {instructorCategories.map(cat => <Option key={cat} value={cat}>{cat}</Option>)}
+                        <Option value="Tất cả">Tất cả</Option>
+                        {categories.map(cat => (
+                            <Option key={cat._id} value={cat.name}>{cat.name}</Option>
+                        ))}
                     </Select>
                 </div>
-                <div>
-                    <Text strong>Đánh giá</Text>
+                {/* Đánh giá */}
+                <div className="bg-white rounded-xl p-4 border border-blue-50 flex flex-col gap-2 shadow-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                        <StarFilled className="text-yellow-400" />
+                        <Text strong className="text-blue-700">Đánh giá</Text>
+                    </div>
                     <Select
                         size="large"
                         defaultValue={0}
-                        className="w-full !mt-2"
+                        className="w-full rounded-full border-blue-200 focus:border-blue-500"
                         onChange={value => setRating(value)}
+                        dropdownClassName="rounded-xl"
                     >
                         <Option value={0}>Tất cả</Option>
                         <Option value={4.5}><Rate disabled allowHalf defaultValue={4.5} style={{fontSize: 14}}/> & 4.5 sao trở lên</Option>
@@ -135,33 +166,24 @@ const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
                         <Option value={3.5}><Rate disabled defaultValue={3.5} style={{fontSize: 14}}/> & 3.5 sao trở lên</Option>
                     </Select>
                 </div>
-                <div>
-                    <Text strong>Kinh nghiệm (năm)</Text>
+                {/* Kinh nghiệm */}
+                <div className="bg-white rounded-xl p-4 border border-blue-50 flex flex-col gap-2 shadow-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                        <TrophyOutlined className="text-green-400" />
+                        <Text strong className="text-blue-700">Kinh nghiệm (năm)</Text>
+                    </div>
                     <Select
                         size="large"
                         defaultValue={0}
-                        className="w-full !mt-2"
+                        className="w-full rounded-full border-blue-200 focus:border-blue-500"
                         onChange={value => setExperience(value)}
+                        dropdownClassName="rounded-xl"
                     >
                         <Option value={0}>Tất cả</Option>
                         <Option value={5}>5+ năm</Option>
                         <Option value={3}>3+ năm</Option>
                         <Option value={1}>1+ năm</Option>
                     </Select>
-                </div>
-                <div>
-                    <Text strong>Trạng thái</Text>
-                    <div className="flex flex-col gap-2 mt-2">
-                        <Button type={online ? 'primary' : 'default'} size="small" onClick={() => setOnline(v => !v)} icon={<UserOutlined />}>
-                            Đang online
-                        </Button>
-                        <Button type={verified ? 'primary' : 'default'} size="small" onClick={() => setVerified(v => !v)} icon={<TrophyOutlined />}>
-                            Đã xác thực
-                        </Button>
-                        <Button type={featured ? 'primary' : 'default'} size="small" onClick={() => setFeatured(v => !v)} icon={<StarFilled />}>
-                            Nổi bật
-                        </Button>
-                    </div>
                 </div>
             </div>
         </Sider>
@@ -171,7 +193,6 @@ const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
 const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
     const [isHovered, setIsHovered] = useState(false);
     const navigate = useNavigate();
-
     return (
         <motion.div
             className="h-full"
@@ -179,6 +200,7 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
             onHoverStart={() => setIsHovered(true)}
             onHoverEnd={() => setIsHovered(false)}
             style={{ cursor: 'pointer', transition: 'box-shadow 0.3s, transform 0.3s' }}
+            onClick={() => navigate(`/users/${instructor.slug}`)}
         >
             <Card
                 className="h-full instructor-card border-0 shadow-xl rounded-3xl transition-all duration-300"
@@ -236,7 +258,7 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                         <Text className="text-sm">{instructor.totalStudents || 0}</Text>
                     </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="grid grid-cols-2 gap-3 mb-4">
                     <div className="text-center p-2 bg-blue-50 rounded-xl">
                         <div className="text-lg font-bold text-blue-600">{instructor.totalCourses || 0}</div>
                         <Text className="text-xs">Khóa học</Text>
@@ -244,10 +266,6 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                     <div className="text-center p-2 bg-green-50 rounded-xl">
                         <div className="text-lg font-bold text-green-600">{instructor.experienceYears || 0}</div>
                         <Text className="text-xs">Năm KN</Text>
-                    </div>
-                    <div className="text-center p-2 bg-purple-50 rounded-xl">
-                        <div className="text-lg font-bold text-purple-600">Đã duyệt</div>
-                        <Text className="text-xs">{instructor.approvalStatus === 'approved' ? 'Có' : 'Chưa'}</Text>
                     </div>
                 </div>
                 <div className="mb-2">
@@ -274,18 +292,18 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                     </div>
                     <div className="flex items-center space-x-1">
                         <BookOutlined className="text-gray-400" />
-                        <Text type="secondary">{instructor.education || 'Chưa cập nhật'}</Text>
+                        <Text type="secondary">
+                            {Array.isArray(instructor.education) && instructor.education.length > 0
+                                ? instructor.education
+                                    .map(edu => edu.degree)
+                                    .sort((a, b) => {
+                                        const order = ['Tiến sĩ', 'Thạc sĩ', 'Cử nhân', 'Kỹ sư', 'Khác'];
+                                        return order.indexOf(a) - order.indexOf(b);
+                                    })[0]
+                                : 'Chưa cập nhật'}
+                        </Text>
                     </div>
                 </div>
-                <Button
-                    type="primary"
-                    block
-                    className="mt-2 rounded-full font-semibold"
-                    icon={<UserOutlined />}
-                    onClick={e => { e.stopPropagation(); navigate(`/users/${instructor.slug}`); }}
-                >
-                    Xem chi tiết
-                </Button>
             </Card>
         </motion.div>
     );
@@ -301,9 +319,6 @@ const InstructorsPage = () => {
         rating: 0,
         experience: 0,
         priceRange: [0, 1000000] as [number, number],
-        online: false,
-        verified: false,
-        featured: false
     });
     const [currentPage, setCurrentPage] = useState(1);
     const [pagination, setPagination] = useState({
@@ -347,7 +362,9 @@ const InstructorsPage = () => {
                 isFeatured: instructor.isFeatured || false,
                 isOnline: instructor.isOnline || false,
                 location: instructor.location || 'Chưa cập nhật',
-                education: instructor.education?.map(edu => `${edu.degree} - ${edu.institution} - ${edu.year} - ${edu.major}`).join(', ') || 'Chưa cập nhật',
+                education: Array.isArray(instructor.education)
+                    ? instructor.education.map(edu => ({ degree: edu.degree }))
+                    : [],
                 approvalStatus: 'approved'
             }));
 
@@ -402,16 +419,6 @@ const InstructorsPage = () => {
             filtered = filtered.filter(instructor => instructor.experienceYears >= filters.experience);
         }
 
-        if (filters.online) {
-            filtered = filtered.filter(i => i.isOnline);
-        }
-        if (filters.verified) {
-            filtered = filtered.filter(i => i.isVerified);
-        }
-        if (filters.featured) {
-            filtered = filtered.filter(i => i.isFeatured);
-        }
-
         setFilteredInstructors(filtered);
     }, [filters, instructors]);
 
@@ -456,17 +463,16 @@ const InstructorsPage = () => {
                                 ))}
                             </div>
                             <motion.div variants={itemVariants} className="text-center mt-10">
-                                <Pagination
-                                    current={currentPage}
-                                    total={pagination.total}
-                                    pageSize={instructorsPerPage}
-                                    onChange={page => setCurrentPage(page)}
-                                    showSizeChanger={false}
-                                    showTotal={(total, range) => 
-                                        `${range[0]}-${range[1]} của ${total} giảng viên`
-                                    }
-                                    className="rounded-xl shadow border border-blue-100 px-4 py-2 bg-white"
-                                />
+                                <div className="inline-block px-6 py-4 bg-white rounded-2xl shadow-lg border border-blue-200">
+                                    <Pagination
+                                        current={currentPage}
+                                        total={pagination.total}
+                                        pageSize={instructorsPerPage}
+                                        onChange={page => setCurrentPage(page)}
+                                        showSizeChanger={false}
+                                        className="custom-pagination"
+                                    />
+                                </div>
                             </motion.div>
                         </motion.div>
                     ) : (

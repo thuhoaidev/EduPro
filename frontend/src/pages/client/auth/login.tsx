@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Form, Input, Button, Checkbox, Modal, message } from "antd";
 import { Link, useNavigate } from "react-router-dom";
 import useLogin from "../../../hooks/Auths/useLogin";
@@ -157,6 +157,16 @@ export default function LoginPage(): React.ReactElement {
 
   const storedUser = localStorage.getItem('user');
   // console.log('User từ localStorage:', storedUser);
+
+  useEffect(() => {
+    if (notification.isVisible && notification.type === 'success' && notification.title.includes('Đăng nhập thành công')) {
+      // Chuyển hướng sau khi thông báo đăng nhập thành công
+      const timer = setTimeout(() => {
+        navigate('/');
+      }, 1200); // Đợi animation hoặc thông báo hoàn thành
+      return () => clearTimeout(timer);
+    }
+  }, [notification, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4 py-8 relative">

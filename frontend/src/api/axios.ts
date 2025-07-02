@@ -50,8 +50,9 @@ config.interceptors.response.use(
     },
     async (error) => {
         const originalRequest = error.config;
-        
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+            // Log lỗi chi tiết
+            console.error('Lỗi xác thực (401/403):', error, error.response?.data);
             // Nếu đang ở trang login thì chỉ xóa token, không redirect
             if (window.location.pathname === '/login') {
                 localStorage.removeItem('token');
@@ -61,7 +62,6 @@ config.interceptors.response.use(
             }
             originalRequest._retry = true;
             isRefreshing = true;
-            
             try {
                 const newToken = await refreshAccessToken();
                 if (newToken) {
@@ -70,7 +70,6 @@ config.interceptors.response.use(
                     processQueue(null, newToken);
                     return config(originalRequest);
                 } else {
-                    // Nếu không refresh được token, xóa token và redirect
                     processQueue(error, null);
                     redirectToLogin();
                     return Promise.reject(error);
@@ -78,14 +77,12 @@ config.interceptors.response.use(
             } catch (refreshError) {
                 console.error('Failed to refresh token:', refreshError);
                 processQueue(refreshError, null);
-                // Xóa token và redirect đến trang login
                 redirectToLogin();
                 return Promise.reject(error);
             } finally {
                 isRefreshing = false;
             }
         }
-        
         return Promise.reject(error);
     }
 );

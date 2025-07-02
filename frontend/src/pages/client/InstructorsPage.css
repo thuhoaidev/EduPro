@@ -1,0 +1,60 @@
+/* Custom Pagination Styles for InstructorsPage */
+.custom-pagination .ant-pagination {
+  font-size: 18px;
+  gap: 8px;
+}
+.custom-pagination .ant-pagination-item {
+  min-width: 44px;
+  height: 44px;
+  line-height: 44px;
+  border-radius: 50%;
+  border: 2px solid #e0e7ef;
+  background: #f8fafc;
+  margin: 0 4px;
+  font-weight: 600;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(24,144,255,0.06);
+}
+.custom-pagination .ant-pagination-item-active {
+  border-color: #1890ff;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #1890ff;
+  box-shadow: 0 4px 16px rgba(24,144,255,0.12);
+}
+.custom-pagination .ant-pagination-item:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+  background: #e6f7ff;
+}
+.custom-pagination .ant-pagination-prev, .custom-pagination .ant-pagination-next {
+  min-width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid #e0e7ef;
+  background: #f8fafc;
+  font-size: 20px;
+  transition: all 0.2s;
+  margin: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.custom-pagination .ant-pagination-prev:hover, .custom-pagination .ant-pagination-next:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+  background: #e6f7ff;
+}
+.custom-pagination .ant-pagination-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (max-width: 600px) {
+  .custom-pagination .ant-pagination-item,
+  .custom-pagination .ant-pagination-prev,
+  .custom-pagination .ant-pagination-next {
+    min-width: 36px;
+    height: 36px;
+    line-height: 36px;
+    font-size: 15px;
+  }
+} 
