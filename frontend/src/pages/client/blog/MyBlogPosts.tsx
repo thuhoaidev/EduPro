@@ -8,7 +8,6 @@ import {
   Empty, 
   Spin, 
   Tag, 
-  Avatar, 
   Dropdown, 
   Modal, 
   message,
@@ -24,9 +23,7 @@ import {
   EyeOutlined,
   MoreOutlined,
   PlusOutlined,
-  SearchOutlined,
   CalendarOutlined,
-  UserOutlined,
   HeartOutlined,
   MessageOutlined,
   ShareAltOutlined,
@@ -34,14 +31,13 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
-
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
 const { Option } = Select;
 
 interface BlogPost {
-  id: string;
+  _id: string;
   title: string;
   content: string;
   excerpt: string;
@@ -54,7 +50,14 @@ interface BlogPost {
   comments: number;
   tags: string[];
   category: string;
+  author: {
+    _id: string;
+    name: string;
+    avatar?: string;
+  };
 }
+
+const API_BASE_URL = 'http://localhost:5000/api';
 
 const MyBlogPosts = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -66,94 +69,42 @@ const MyBlogPosts = () => {
   const [totalPosts, setTotalPosts] = useState(0);
   const navigate = useNavigate();
 
-  // Mock data - thay thế bằng API thực tế
-  const mockPosts: BlogPost[] = [
-    {
-      id: '1',
-      title: 'Hướng dẫn học React từ cơ bản đến nâng cao',
-      content: 'Nội dung chi tiết về React...',
-      excerpt: 'React là một thư viện JavaScript mạnh mẽ để xây dựng giao diện người dùng. Trong bài viết này, chúng ta sẽ tìm hiểu từ những khái niệm cơ bản nhất...',
-      thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=200&fit=crop',
-      status: 'published',
-      createdAt: '2024-01-15',
-      updatedAt: '2024-01-15',
-      views: 1250,
-      likes: 89,
-      comments: 23,
-      tags: ['React', 'JavaScript', 'Frontend'],
-      category: 'Lập trình'
-    },
-    {
-      id: '2',
-      title: 'Tối ưu hóa hiệu suất ứng dụng web',
-      content: 'Nội dung về tối ưu hóa...',
-      excerpt: 'Hiệu suất ứng dụng web là yếu tố quan trọng quyết định trải nghiệm người dùng. Bài viết này sẽ chia sẻ những techniques...',
-      thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=200&fit=crop',
-      status: 'published',
-      createdAt: '2024-01-10',
-      updatedAt: '2024-01-12',
-      views: 856,
-      likes: 67,
-      comments: 15,
-      tags: ['Performance', 'Web Development', 'Optimization'],
-      category: 'Lập trình'
-    },
-    {
-      id: '3',
-      title: 'Thiết kế UI/UX cho ứng dụng mobile',
-      content: 'Nội dung về UI/UX...',
-      excerpt: 'Thiết kế giao diện cho ứng dụng mobile có những đặc thù riêng. Chúng ta cần chú ý đến trải nghiệm người dùng...',
-      thumbnail: 'https://images.unsplash.com/photo-1559028006-448665bd7c7f?w=400&h=200&fit=crop',
-      status: 'draft',
-      createdAt: '2024-01-08',
-      updatedAt: '2024-01-08',
-      views: 0,
-      likes: 0,
-      comments: 0,
-      tags: ['UI/UX', 'Mobile', 'Design'],
-      category: 'Thiết kế'
-    },
-    {
-      id: '4',
-      title: 'Xu hướng công nghệ 2024',
-      content: 'Nội dung về xu hướng...',
-      excerpt: 'Năm 2024 đánh dấu nhiều bước tiến quan trọng trong ngành công nghệ. AI, blockchain, và metaverse tiếp tục...',
-      thumbnail: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=200&fit=crop',
-      status: 'pending',
-      createdAt: '2024-01-05',
-      updatedAt: '2024-01-06',
-      views: 432,
-      likes: 34,
-      comments: 8,
-      tags: ['Technology', 'Trends', '2024'],
-      category: 'Công nghệ'
-    }
-  ];
-
   useEffect(() => {
     fetchMyPosts();
-  }, [currentPage]);
+  }, [currentPage, statusFilter]);
 
   const fetchMyPosts = async () => {
-    setLoading(true);
-    try {
-      // Thay thế bằng API call thực tế
-      // const response = await config.get('/blog/my-posts', {
-      //   params: { page: currentPage, limit: pageSize }
-      // });
-      
-      // Mock API response
-      setTimeout(() => {
-        setPosts(mockPosts);
-        setTotalPosts(mockPosts.length);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-      message.error('Không thể tải bài viết');
-      setLoading(false);
+  setLoading(true);
+  try {
+    const response = await fetch(`${API_BASE_URL}/blogs`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch posts');
     }
-  };
+
+    const data = await response.json();
+    const allPosts = data.data || data;
+
+    // Nếu muốn chỉ hiện bài viết của mình thì lọc ở đây (nếu backend có gán req.user._id vào mỗi blog):
+    const myUserId = JSON.parse(localStorage.getItem('user') || '{}')._id;
+    const filtered = allPosts.filter((post: BlogPost) => post.author._id === myUserId);
+
+    setPosts(filtered);
+    setTotalPosts(filtered.length);
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    message.error('Không thể tải bài viết');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleDeletePost = (postId: string) => {
     Modal.confirm({
@@ -164,14 +115,57 @@ const MyBlogPosts = () => {
       cancelText: 'Hủy',
       onOk: async () => {
         try {
-          // await config.delete(`/blog/posts/${postId}`);
-          setPosts(posts.filter(post => post.id !== postId));
+          const response = await fetch(`${API_BASE_URL}/blogs/${postId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to delete post');
+          }
+
+          setPosts(posts.filter(post => post._id !== postId));
+          setTotalPosts(prev => prev - 1);
           message.success('Xóa bài viết thành công');
         } catch (error) {
+          console.error('Error deleting post:', error);
           message.error('Không thể xóa bài viết');
         }
       }
     });
+  };
+
+  const handleLikePost = async (postId: string, isLiked: boolean) => {
+    try {
+      const endpoint = isLiked ? 'unlike' : 'like';
+      const response = await fetch(`${API_BASE_URL}/blogs/${postId}/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${endpoint} post`);
+      }
+
+      // Update post likes count in local state
+      setPosts(posts.map(post => 
+        post._id === postId 
+          ? { ...post, likes: isLiked ? post.likes - 1 : post.likes + 1 }
+          : post
+      ));
+    } catch (error) {
+      console.error('Error liking/unliking post:', error);
+      message.error('Không thể thực hiện hành động này');
+    }
+  };
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchMyPosts();
   };
 
   const getStatusColor = (status: string) => {
@@ -193,17 +187,14 @@ const MyBlogPosts = () => {
   };
 
   const filteredPosts = posts.filter(post => {
-    const matchesSearch = post.title.toLowerCase().includes(searchText.toLowerCase()) ||
-                         post.excerpt.toLowerCase().includes(searchText.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || post.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    if (!searchText) return true;
+    return post.title.toLowerCase().includes(searchText.toLowerCase()) ||
+           post.excerpt?.toLowerCase().includes(searchText.toLowerCase());
   });
-
-  const paginatedPosts = filteredPosts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const renderPostCard = (post: BlogPost) => (
     <Card
-      key={post.id}
+      key={post._id}
       hoverable
       style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden' }}
       styles={{ body: { padding: 0 } }}
@@ -259,7 +250,7 @@ const MyBlogPosts = () => {
 
             <div style={{ marginBottom: 16 }}>
               <Space wrap>
-                {post.tags.map(tag => (
+                {post.tags?.map(tag => (
                   <Tag key={tag} style={{ margin: '2px 4px 2px 0' }}>
                     {tag}
                   </Tag>
@@ -270,9 +261,9 @@ const MyBlogPosts = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, color: '#666', fontSize: 13 }}>
                 <span><CalendarOutlined /> {new Date(post.createdAt).toLocaleDateString('vi-VN')}</span>
-                <span><EyeOutlined /> {post.views}</span>
-                <span><HeartOutlined /> {post.likes}</span>
-                <span><MessageOutlined /> {post.comments}</span>
+                <span><EyeOutlined /> {post.views || 0}</span>
+                <span><HeartOutlined /> {post.likes || 0}</span>
+                <span><MessageOutlined /> {post.comments || 0}</span>
               </div>
               
               <Dropdown
@@ -289,7 +280,7 @@ const MyBlogPosts = () => {
                       block
                       style={{ textAlign: 'left', marginBottom: 4 }}
                       icon={<EyeOutlined />}
-                      onClick={() => navigate(`/blog/post/${post.id}`)}
+                      onClick={() => navigate(`/blog/post/${post._id}`)}
                     >
                       Xem bài viết
                     </Button>
@@ -298,7 +289,7 @@ const MyBlogPosts = () => {
                       block
                       style={{ textAlign: 'left', marginBottom: 4 }}
                       icon={<EditOutlined />}
-                      onClick={() => navigate(`/blog/edit/${post.id}`)}
+                      onClick={() => navigate(`/blog/edit/${post._id}`)}
                     >
                       Chỉnh sửa
                     </Button>
@@ -307,6 +298,10 @@ const MyBlogPosts = () => {
                       block
                       style={{ textAlign: 'left', marginBottom: 4 }}
                       icon={<ShareAltOutlined />}
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/blog/post/${post._id}`);
+                        message.success('Đã sao chép link bài viết');
+                      }}
                     >
                       Chia sẻ
                     </Button>
@@ -316,7 +311,7 @@ const MyBlogPosts = () => {
                       danger
                       style={{ textAlign: 'left' }}
                       icon={<DeleteOutlined />}
-                      onClick={() => handleDeletePost(post.id)}
+                      onClick={() => handleDeletePost(post._id)}
                     >
                       Xóa bài viết
                     </Button>
@@ -373,6 +368,7 @@ const MyBlogPosts = () => {
                   allowClear
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
+                  onSearch={handleSearch}
                   style={{ width: '100%' }}
                 />
               </Col>
@@ -393,7 +389,7 @@ const MyBlogPosts = () => {
               <Col xs={24} sm={24} md={10}>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16 }}>
                   <Text type="secondary">
-                    Tổng cộng: {filteredPosts.length} bài viết
+                    Tổng cộng: {totalPosts} bài viết
                   </Text>
                 </div>
               </Col>
@@ -408,15 +404,15 @@ const MyBlogPosts = () => {
                 <Text type="secondary">Đang tải bài viết...</Text>
               </div>
             </div>
-          ) : paginatedPosts.length > 0 ? (
+          ) : filteredPosts.length > 0 ? (
             <>
-              {paginatedPosts.map(renderPostCard)}
+              {filteredPosts.map(renderPostCard)}
               
-              {filteredPosts.length > pageSize && (
+              {totalPosts > pageSize && (
                 <div style={{ textAlign: 'center', marginTop: 32 }}>
                   <Pagination
                     current={currentPage}
-                    total={filteredPosts.length}
+                    total={totalPosts}
                     pageSize={pageSize}
                     onChange={setCurrentPage}
                     showSizeChanger={false}

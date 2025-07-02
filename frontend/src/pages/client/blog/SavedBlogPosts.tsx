@@ -5,7 +5,6 @@ import {
   EyeOutlined,
   MoreOutlined,
   SearchOutlined,
-  CalendarOutlined,
   UserOutlined,
   HeartOutlined,
   HeartFilled,
@@ -13,7 +12,6 @@ import {
   ShareAltOutlined,
   FilterOutlined,
   ClockCircleOutlined,
-  StarOutlined,
   SendOutlined,
   ReloadOutlined
 } from '@ant-design/icons';
@@ -38,9 +36,7 @@ import {
   Tooltip, 
   Typography,
   message,
-  Divider,
-  List,
-  notification
+  List
 } from 'antd';
 
 const { Content } = Layout;
@@ -93,12 +89,11 @@ interface Comment {
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Utility functions
-const getAuthToken = () => localStorage.getItem('authToken');
+const getAuthToken = () => localStorage.getItem('token');
 const getCurrentUserId = () => localStorage.getItem('userId') || '60d5ecp74b24c72f5c8e4e3a';
 
-// API Service
+// API Service - Optimized with correct endpoints
 const apiService = {
-  // Auth headers
   getHeaders: () => ({
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${getAuthToken()}`
@@ -106,24 +101,25 @@ const apiService = {
 
   // Fetch saved posts
   fetchSavedPosts: async () => {
-    const response = await fetch(`${apiUrl}/blogs/saved-posts`, {
-      method: 'GET',
-      headers: apiService.getHeaders()
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    return await response.json();
-  },
+  const response = await fetch(`${apiUrl}/blogs/saved-posts`, {
+    method: 'GET',
+    headers: apiService.getHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const res = await response.json();
+  return res.data; // <-- chỉ lấy mảng data
+},
+
 
   // Like post
   likePost: async (postId: string) => {
     const response = await fetch(`${apiUrl}/blogs/${postId}/like`, {
       method: 'POST',
-      headers: apiService.getHeaders(),
-      body: JSON.stringify({ userId: getCurrentUserId() })
+      headers: apiService.getHeaders()
     });
 
     if (!response.ok) {
@@ -137,8 +133,7 @@ const apiService = {
   unlikePost: async (postId: string) => {
     const response = await fetch(`${apiUrl}/blogs/${postId}/unlike`, {
       method: 'DELETE',
-      headers: apiService.getHeaders(),
-      body: JSON.stringify({ userId: getCurrentUserId() })
+      headers: apiService.getHeaders()
     });
 
     if (!response.ok) {
@@ -166,15 +161,26 @@ const apiService = {
   },
 
   // Add comment
-  addComment: async (postId: string, content: string, parentId?: string) => {
-    const response = await fetch(`${apiUrl}/blogs/${postId}/comments`, {
+  addComment: async (postId: string, content: string) => {
+    const response = await fetch(`${apiUrl}/blogs/${postId}/comment`, {
       method: 'POST',
       headers: apiService.getHeaders(),
-      body: JSON.stringify({ 
-        content, 
-        parentId,
-        userId: getCurrentUserId()
-      })
+      body: JSON.stringify({ content })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  },
+
+  // Reply to comment
+  replyToComment: async (commentId: string, content: string) => {
+    const response = await fetch(`${apiUrl}/blogs/comment/${commentId}/reply`, {
+      method: 'POST',
+      headers: apiService.getHeaders(),
+      body: JSON.stringify({ content })
     });
 
     if (!response.ok) {
@@ -233,10 +239,37 @@ const SavedBlogPosts = () => {
   const [replyContent, setReplyContent] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [commentsPage, setCommentsPage] = useState(1);
-  const [hasMoreComments, setHasMoreComments] = useState(false);
   
   const navigate = useNavigate();
+ 
+  useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const user = await apiService.getCurrentUser();
+      setCurrentUser(user?.data || null);
+
+      const posts = await apiService.fetchSavedPosts();
+      if (Array.isArray(posts)) {
+        setSavedPosts(posts);
+
+        // Gợi ý lọc tất cả danh mục từ các post
+        const uniqueCategories = Array.from(
+          new Set(posts.map(p => p.post.category))
+        );
+        setCategories(uniqueCategories);
+      } else {
+        setSavedPosts([]);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải bài viết đã lưu:', error);
+      message.error('Không thể tải bài viết đã lưu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
 
   // Load initial data
   useEffect(() => {
@@ -260,7 +293,6 @@ const SavedBlogPosts = () => {
       setCurrentUser(userData);
     } catch (error) {
       console.error('Error fetching current user:', error);
-      // Fallback user data
       setCurrentUser({
         id: getCurrentUserId(),
         fullname: 'Người dùng',
@@ -275,11 +307,7 @@ const SavedBlogPosts = () => {
       const data = await apiService.fetchSavedPosts();
       setSavedPosts(data.savedPosts || data);
       
-      notification.success({
-        message: 'Thành công',
-        description: `Đã tải ${data.savedPosts?.length || data.length} bài viết đã lưu`,
-        duration: 2
-      });
+      message.success(`Đã tải ${data.savedPosts?.length || data.length} bài viết đã lưu`);
     } catch (error) {
       console.error('Error fetching saved posts:', error);
       
@@ -305,36 +333,10 @@ const SavedBlogPosts = () => {
             views: 2340,
             likes: 156,
             comments: 42,
-            tags: ['React', 'Performance', 'JavaScript', 'Frontend'],
+            tags: ['React', 'Performance', 'JavaScript'],
             category: 'Lập trình',
             readingTime: 8,
             isLiked: false
-          }
-        },
-        {
-          id: '2',
-          postId: '68547db672358427a53d9ece2',
-          savedAt: '2024-01-18T14:20:00Z',
-          post: {
-            id: '68547db672358427a53d9ece2',
-            title: 'Thiết kế Database cho ứng dụng E-commerce',
-            content: 'Nội dung về database design...',
-            excerpt: 'Thiết kế cơ sở dữ liệu cho hệ thống thương mại điện tử đòi hỏi sự cân nhắc kỹ lưỡng về hiệu suất, khả năng mở rộng và tính nhất quán của dữ liệu...',
-            thumbnail: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=400&h=200&fit=crop',
-            author: {
-              id: 'author2',
-              fullname: 'Trần Thị B',
-              avatar: 'https://ui-avatars.com/api/?name=Tran+Thi+B&background=f56565&color=fff&size=32',
-              nickname: 'tranthib'
-            },
-            createdAt: '2024-01-12T16:30:00Z',
-            views: 1890,
-            likes: 134,
-            comments: 28,
-            tags: ['Database', 'E-commerce', 'SQL', 'Architecture'],
-            category: 'Backend',
-            readingTime: 12,
-            isLiked: true
           }
         }
       ];
@@ -426,23 +428,15 @@ const SavedBlogPosts = () => {
   }, []);
 
   // Comment functions
-  const fetchComments = async (postId: string, page: number = 1) => {
+  const fetchComments = async (postId: string) => {
     setLoadingComments(true);
     try {
-      const data = await apiService.fetchComments(postId, page, 10);
-      
-      if (page === 1) {
-        setComments(data.comments || []);
-      } else {
-        setComments(prev => [...prev, ...(data.comments || [])]);
-      }
-      
-      setHasMoreComments(data.hasMore || false);
-      setCommentsPage(page);
+      const data = await apiService.fetchComments(postId);
+      setComments(data.comments || []);
     } catch (error) {
       console.error('Error fetching comments:', error);
       
-      // Fallback mock comments for development
+      // Mock comments for development
       const mockComments: Comment[] = [
         {
           id: '1',
@@ -466,24 +460,11 @@ const SavedBlogPosts = () => {
               createdAt: '2024-01-21T10:30:00Z'
             }
           ]
-        },
-        {
-          id: '3',
-          content: 'Có thể chia sẻ thêm về các best practices không?',
-          author: {
-            id: 'user2',
-            fullname: 'Phạm Thị D',
-            avatar: 'https://ui-avatars.com/api/?name=Pham+Thi+D&background=faad14&color=fff&size=32'
-          },
-          createdAt: '2024-01-21T11:45:00Z',
-          repliesCount: 0
         }
       ];
       
-      if (page === 1) {
-        setComments(mockComments);
-        message.warning('Không thể tải bình luận từ server, đang hiển thị dữ liệu mẫu');
-      }
+      setComments(mockComments);
+      message.warning('Không thể tải bình luận từ server, đang hiển thị dữ liệu mẫu');
     } finally {
       setLoadingComments(false);
     }
@@ -538,7 +519,7 @@ const SavedBlogPosts = () => {
     }
     
     try {
-      const replyData = await apiService.addComment(currentPostId, replyContent, commentId);
+      const replyData = await apiService.replyToComment(commentId, replyContent);
       
       // Add reply to the comment
       const newReply: Comment = {
@@ -582,14 +563,7 @@ const SavedBlogPosts = () => {
   const openCommentModal = (postId: string) => {
     setCurrentPostId(postId);
     setCommentModalVisible(true);
-    setCommentsPage(1);
-    fetchComments(postId, 1);
-  };
-
-  const loadMoreComments = () => {
-    if (hasMoreComments && !loadingComments) {
-      fetchComments(currentPostId, commentsPage + 1);
-    }
+    fetchComments(postId);
   };
 
   const handleUnsavePost = (savedPostId: string, postTitle: string) => {
@@ -612,10 +586,6 @@ const SavedBlogPosts = () => {
     });
   };
 
-  const refreshPosts = () => {
-    fetchSavedPosts();
-  };
-
   // Filtering and sorting
   const filteredAndSortedPosts = () => {
     const filtered = savedPosts.filter(item => {
@@ -635,8 +605,6 @@ const SavedBlogPosts = () => {
           return new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime();
         case 'post_newest':
           return new Date(b.post.createdAt).getTime() - new Date(a.post.createdAt).getTime();
-        case 'post_oldest':
-          return new Date(a.post.createdAt).getTime() - new Date(b.post.createdAt).getTime();
         case 'most_liked':
           return b.post.likes - a.post.likes;
         case 'most_viewed':
@@ -895,16 +863,26 @@ const SavedBlogPosts = () => {
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <Avatar 
-          size={isReply ? 28 : 32}
+          size={32}
           src={comment.author.avatar}
           icon={<UserOutlined />}
+          style={{ cursor: 'pointer', flexShrink: 0 }}
+          onClick={() => navigate(`/profile/${comment.author.id}`)}
         />
         <div style={{ flex: 1 }}>
           <div style={{ marginBottom: 8 }}>
-            <Text strong style={{ fontSize: 14 }}>
+            <Text 
+              strong 
+              style={{ 
+                fontSize: 14,
+                cursor: 'pointer',
+                marginRight: 8
+              }}
+              onClick={() => navigate(`/profile/${comment.author.id}`)}
+            >
               {comment.author.fullname}
             </Text>
-            <Text style={{ fontSize: 12, color: '#999', marginLeft: 8 }}>
+            <Text style={{ fontSize: 12, color: '#999' }}>
               {formatDate(comment.createdAt)}
             </Text>
           </div>
@@ -914,60 +892,52 @@ const SavedBlogPosts = () => {
           </Paragraph>
           
           {!isReply && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <Button
                 type="text"
                 size="small"
                 onClick={() => setReplyTo(replyTo === comment.id ? '' : comment.id)}
-                style={{ padding: '2px 8px', height: 'auto', fontSize: 12 }}
+                style={{ padding: 0, height: 'auto', fontSize: 12, color: '#666' }}
               >
                 Trả lời
               </Button>
+              
               {comment.repliesCount && comment.repliesCount > 0 && (
                 <Text style={{ fontSize: 12, color: '#666' }}>
-                  {comment.repliesCount} phản hồi
+                  {comment.repliesCount} trả lời
                 </Text>
               )}
             </div>
           )}
           
           {replyTo === comment.id && (
-            <div style={{ marginTop: 12, background: '#f8f9fa', padding: 12, borderRadius: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                <Avatar 
-                  size={24}
-                  src={currentUser?.avatar}
-                  icon={<UserOutlined />}
-                />
-                <div style={{ flex: 1 }}>
-                  <TextArea
-                    placeholder={`Trả lời ${comment.author.fullname}...`}
-                    value={replyContent}
-                    onChange={(e) => setReplyContent(e.target.value)}
-                    rows={2}
-                    style={{ marginBottom: 8 }}
-                  />
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                    <Button 
-                      size="small" 
-                      onClick={() => {
-                        setReplyTo('');
-                        setReplyContent('');
-                      }}
-                    >
-                      Hủy
-                    </Button>
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<SendOutlined />}
-                      onClick={() => handleSubmitReply(comment.id)}
-                      disabled={!replyContent.trim()}
-                    >
-                      Gửi
-                    </Button>
-                  </div>
-                </div>
+            <div style={{ marginTop: 12, padding: 12, background: '#f8f9fa', borderRadius: 8 }}>
+              <TextArea
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="Viết trả lời..."
+                autoSize={{ minRows: 2, maxRows: 4 }}
+                style={{ marginBottom: 8 }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <Button 
+                  size="small" 
+                  onClick={() => {
+                    setReplyTo('');
+                    setReplyContent('');
+                  }}
+                >
+                  Hủy
+                </Button>
+                <Button 
+                  type="primary" 
+                  size="small"
+                  icon={<SendOutlined />}
+                  onClick={() => handleSubmitReply(comment.id)}
+                  disabled={!replyContent.trim()}
+                >
+                  Gửi
+                </Button>
               </div>
             </div>
           )}
@@ -984,62 +954,42 @@ const SavedBlogPosts = () => {
     </div>
   );
 
-  if (loading) {
-    return (
-      <Layout style={{ minHeight: '100vh', background: '#f5f5f5' }}>
-        <Content style={{ padding: '24px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
-          <div style={{ textAlign: 'center', padding: '50px 0' }}>
-            <Spin size="large" />
-            <div style={{ marginTop: 16, fontSize: 16, color: '#666' }}>
-              Đang tải bài viết đã lưu...
-            </div>
-          </div>
-        </Content>
-      </Layout>
-    );
-  }
-
+  // Main render
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f5f5f5' }}>
-      <Content style={{ padding: '24px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
+    <div style={{ padding: '24px 0', minHeight: '100vh', background: '#f5f5f5' }}>
+      <Content style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
         {/* Header */}
-        <div style={{ 
-          padding: '32px', 
-          borderRadius: 16, 
-          marginBottom: 24,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: '#fff'
-        }}>
-          <Title level={2} style={{ margin: 0, marginBottom: 8, color: '#fff' }}>
-            <BookOutlined style={{ marginRight: 12 }} />
+        <div style={{ marginBottom: 32 }}>
+          <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
             Bài viết đã lưu
           </Title>
-          <Text style={{ fontSize: 16, color: 'rgba(255,255,255,0.9)' }}>
-            Quản lý và xem lại những bài viết bạn đã lưu
+          <Text style={{ color: '#666', fontSize: 16 }}>
+            Quản lý và xem lại các bài viết bạn đã lưu
           </Text>
         </div>
 
-        {/* Filters and Controls */}
+        {/* Filters and Search */}
         <Card style={{ marginBottom: 24, borderRadius: 12 }}>
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={12} md={8}>
               <Search
-                placeholder="Tìm kiếm bài viết, tác giả, tag..."
+                placeholder="Tìm kiếm bài viết..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                style={{ width: '100%' }}
+                onSearch={(value) => setSearchText(value)}
                 enterButton={<SearchOutlined />}
                 allowClear
+                size="large"
               />
             </Col>
             
-            <Col xs={12} sm={6} md={4}>
+            <Col xs={24} sm={6} md={4}>
               <Select
+                placeholder="Danh mục"
                 value={categoryFilter}
                 onChange={setCategoryFilter}
                 style={{ width: '100%' }}
-                placeholder="Danh mục"
+                size="large"
                 suffixIcon={<FilterOutlined />}
               >
                 <Option value="all">Tất cả danh mục</Option>
@@ -1049,98 +999,120 @@ const SavedBlogPosts = () => {
               </Select>
             </Col>
             
-            <Col xs={12} sm={6} md={4}>
+            <Col xs={24} sm={6} md={4}>
               <Select
+                placeholder="Sắp xếp"
                 value={sortBy}
                 onChange={setSortBy}
                 style={{ width: '100%' }}
-                placeholder="Sắp xếp"
+                size="large"
               >
-                <Option value="saved_newest">Mới lưu nhất</Option>
-                <Option value="saved_oldest">Cũ lưu nhất</Option>
+                <Option value="saved_newest">Lưu gần nhất</Option>
+                <Option value="saved_oldest">Lưu cũ nhất</Option>
                 <Option value="post_newest">Bài viết mới nhất</Option>
-                <Option value="post_oldest">Bài viết cũ nhất</Option>
-                <Option value="most_liked">Nhiều thích nhất</Option>
-                <Option value="most_viewed">Nhiều xem nhất</Option>
+                <Option value="most_liked">Nhiều like nhất</Option>
+                <Option value="most_viewed">Nhiều view nhất</Option>
               </Select>
             </Col>
             
-            <Col xs={24} sm={12} md={8}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ color: '#666' }}>
-                  Hiển thị {paginatedPosts.length} trong tổng số {processedPosts.length} bài viết
-                </Text>
-                <Button
+            <Col xs={24} sm={12} md={8} style={{ textAlign: 'right' }}>
+              <Space>
+                <Button 
                   icon={<ReloadOutlined />}
-                  onClick={refreshPosts}
-                  type="text"
-                  style={{ marginLeft: 8 }}
+                  onClick={fetchSavedPosts}
+                  loading={loading}
                 >
                   Làm mới
                 </Button>
-              </div>
+                <Text style={{ color: '#666' }}>
+                  {processedPosts.length} bài viết
+                </Text>
+              </Space>
             </Col>
           </Row>
         </Card>
 
-        {/* Posts Grid */}
-        {processedPosts.length === 0 ? (
-          <Card style={{ textAlign: 'center', padding: '50px 0', borderRadius: 12 }}>
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                <div>
-                  <Text style={{ fontSize: 16, color: '#666', marginBottom: 16, display: 'block' }}>
-                    {searchText || categoryFilter !== 'all' 
-                      ? 'Không tìm thấy bài viết nào phù hợp với bộ lọc'
-                      : 'Bạn chưa lưu bài viết nào'
-                    }
-                  </Text>
-                  {!searchText && categoryFilter === 'all' && (
-                    <Button 
-                      type="primary" 
-                      size="large"
-                      onClick={() => navigate('/blog')}
-                      style={{ borderRadius: 8 }}
-                    >
-                      Khám phá bài viết
-                    </Button>
-                  )}
-                </div>
-              }
-            />
-          </Card>
+        {/* Loading State */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 60 }}>
+            <Spin size="large" />
+            <div style={{ marginTop: 16, color: '#666' }}>
+              Đang tải bài viết đã lưu...
+            </div>
+          </div>
         ) : (
           <>
-            <div style={{ marginBottom: 24 }}>
-              {paginatedPosts.map(renderSavedPostCard)}
-            </div>
+            {/* Posts List */}
+            {paginatedPosts.length > 0 ? (
+              <>
+                <div>
+                  {paginatedPosts.map(renderSavedPostCard)}
+                </div>
 
-            {processedPosts.length > pageSize && (
-              <div style={{ textAlign: 'center', marginTop: 32 }}>
-                <Pagination
-                  current={currentPage}
-                  total={processedPosts.length}
-                  pageSize={pageSize}
-                  onChange={setCurrentPage}
-                  showSizeChanger={false}
-                  showQuickJumper
-                  showTotal={(total, range) => 
-                    `${range[0]}-${range[1]} của ${total} bài viết`
-                  }
-                  style={{ 
-                    padding: '16px',
-                    background: '#fff',
-                    borderRadius: 12,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                  }}
-                />
-              </div>
+                {/* Pagination */}
+                {processedPosts.length > pageSize && (
+                  <div style={{ textAlign: 'center', marginTop: 32 }}>
+                    <Pagination
+                      current={currentPage}
+                      total={processedPosts.length}
+                      pageSize={pageSize}
+                      onChange={(page) => setCurrentPage(page)}
+                      showSizeChanger={false}
+                      showQuickJumper
+                      showTotal={(total, range) => 
+                        `${range[0]}-${range[1]} của ${total} bài viết`
+                      }
+                      style={{ 
+                        display: 'inline-block',
+                        padding: '16px 24px',
+                        background: '#fff',
+                        borderRadius: 8,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                      }}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <div>
+                    <Title level={4} style={{ color: '#999' }}>
+                      {searchText || categoryFilter !== 'all' 
+                        ? 'Không tìm thấy bài viết nào' 
+                        : 'Chưa có bài viết đã lưu'}
+                    </Title>
+                    <Text style={{ color: '#999' }}>
+                      {searchText || categoryFilter !== 'all'
+                        ? 'Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc'
+                        : 'Bắt đầu lưu những bài viết yêu thích để xem lại sau'}
+                    </Text>
+                  </div>
+                }
+                style={{ 
+                  padding: '60px 20px',
+                  background: '#fff',
+                  borderRadius: 12,
+                  margin: '20px 0'
+                }}
+              >
+                {(!searchText && categoryFilter === 'all') && (
+                  <Button 
+                    type="primary" 
+                    size="large"
+                    onClick={() => navigate('/blog')}
+                    style={{ marginTop: 16 }}
+                  >
+                    Khám phá bài viết
+                  </Button>
+                )}
+              </Empty>
             )}
           </>
         )}
 
-        {/* Comments Modal */}
+        {/* Comment Modal */}
         <Modal
           title={
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1159,75 +1131,79 @@ const SavedBlogPosts = () => {
           footer={null}
           width={700}
           style={{ top: 20 }}
-          styles={{ body: { padding: 0, maxHeight: '70vh', overflow: 'hidden' } }}
+          styles={{ body: { maxHeight: '70vh', overflow: 'auto' } }}
         >
-          <div style={{ padding: '16px 24px', borderBottom: '1px solid #f0f0f0' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          {/* Add Comment Section */}
+          <div style={{ marginBottom: 24, padding: 16, background: '#f8f9fa', borderRadius: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
               <Avatar 
                 size={36}
                 src={currentUser?.avatar}
                 icon={<UserOutlined />}
               />
               <div style={{ flex: 1 }}>
-                <TextArea
-                  placeholder="Viết bình luận của bạn..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  rows={3}
-                  style={{ marginBottom: 12 }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button
-                    type="primary"
-                    icon={<SendOutlined />}
-                    onClick={handleSubmitComment}
-                    loading={submittingComment}
-                    disabled={!newComment.trim()}
-                  >
-                    Gửi bình luận
-                  </Button>
-                </div>
+                <Text strong style={{ fontSize: 14 }}>
+                  {currentUser?.fullname || 'Bạn'}
+                </Text>
               </div>
+            </div>
+            
+            <TextArea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Viết bình luận của bạn..."
+              autoSize={{ minRows: 3, maxRows: 6 }}
+              style={{ marginBottom: 12 }}
+            />
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button 
+                type="primary"
+                icon={<SendOutlined />}
+                onClick={handleSubmitComment}
+                loading={submittingComment}
+                disabled={!newComment.trim()}
+              >
+                Đăng bình luận
+              </Button>
             </div>
           </div>
 
-          <div style={{ maxHeight: 'calc(70vh - 150px)', overflow: 'auto', padding: '16px 0' }}>
-            {loadingComments && comments.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                <Spin />
-                <div style={{ marginTop: 12, color: '#666' }}>Đang tải bình luận...</div>
+          {/* Comments List */}
+          {loadingComments ? (
+            <div style={{ textAlign: 'center', padding: 40 }}>
+              <Spin size="large" />
+              <div style={{ marginTop: 16, color: '#666' }}>
+                Đang tải bình luận...
               </div>
-            ) : comments.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px 0', color: '#666' }}>
-                <MessageOutlined style={{ fontSize: 24, marginBottom: 8 }} />
-                <div>Chưa có bình luận nào</div>
-                <div style={{ fontSize: 14, marginTop: 4 }}>Hãy là người đầu tiên bình luận!</div>
-              </div>
-            ) : (
-              <>
-                <div style={{ padding: '0 24px' }}>
-                  {comments.map(comment => (
-                    <CommentItem key={comment.id} comment={comment} />
-                  ))}
-                </div>
-
-                {hasMoreComments && (
-                  <div style={{ textAlign: 'center', padding: '16px 0', borderTop: '1px solid #f0f0f0' }}>
-                    <Button
-                      type="link"
-                      loading={loadingComments}
-                      onClick={loadMoreComments}
-                    >
-                      Xem thêm bình luận
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div>
+              {comments.length > 0 ? (
+                <List
+                  dataSource={comments}
+                  renderItem={(comment) => (
+                    <List.Item style={{ padding: 0, border: 'none' }}>
+                      <CommentItem comment={comment} />
+                    </List.Item>
+                  )}
+                />
+              ) : (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="Chưa có bình luận nào"
+                  style={{ padding: 40 }}
+                >
+                  <Text style={{ color: '#999' }}>
+                    Hãy là người đầu tiên bình luận về bài viết này
+                  </Text>
+                </Empty>
+              )}
+            </div>
+          )}
         </Modal>
       </Content>
-    </Layout>
+    </div>
   );
 };
 
