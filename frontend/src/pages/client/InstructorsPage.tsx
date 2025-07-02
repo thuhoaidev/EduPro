@@ -54,25 +54,41 @@ interface ApiInstructor {
 
 const instructorCategories = ['Tất cả', 'Full-Stack Development', 'UI/UX Design', 'Data Science', 'Mobile Development', 'DevOps', 'Digital Marketing'];
 
+const InstructorBanner = () => (
+  <div className="rounded-3xl bg-gradient-to-r from-blue-100 via-blue-50 to-white p-8 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg">
+    <div>
+      <Title level={2} className="!mb-2 !text-blue-700 font-extrabold">Đội ngũ Giảng viên Chất lượng</Title>
+      <Text className="text-lg text-gray-700">Khám phá và kết nối với các chuyên gia hàng đầu trong nhiều lĩnh vực. Tất cả giảng viên đều được kiểm duyệt kỹ lưỡng về chuyên môn và kinh nghiệm thực tiễn.</Text>
+    </div>
+    <img src="/vite.svg" alt="Instructors" className="w-32 h-32 md:w-40 md:h-40 object-contain" />
+  </div>
+);
+
 const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
     searchTerm: string;
     category: string;
     rating: number;
     experience: number;
     priceRange: [number, number];
+    online?: boolean;
+    verified?: boolean;
+    featured?: boolean;
 }) => void }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [category, setCategory] = useState('Tất cả');
     const [rating, setRating] = useState(0);
     const [experience, setExperience] = useState(0);
     const [priceRange] = useState<[number, number]>([0, 1000000]);
+    const [online, setOnline] = useState(false);
+    const [verified, setVerified] = useState(false);
+    const [featured, setFeatured] = useState(false);
 
     useEffect(() => {
         const handler = setTimeout(() => {
-            setFilters({ searchTerm, category, rating, experience, priceRange });
+            setFilters({ searchTerm, category, rating, experience, priceRange, online, verified, featured });
         }, 500);
         return () => clearTimeout(handler);
-    }, [searchTerm, category, rating, experience, priceRange, setFilters]);
+    }, [searchTerm, category, rating, experience, priceRange, online, verified, featured, setFilters]);
 
     return (
         <Sider width={280} className="bg-white p-6" theme="light" style={{
@@ -133,6 +149,20 @@ const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
                         <Option value={1}>1+ năm</Option>
                     </Select>
                 </div>
+                <div>
+                    <Text strong>Trạng thái</Text>
+                    <div className="flex flex-col gap-2 mt-2">
+                        <Button type={online ? 'primary' : 'default'} size="small" onClick={() => setOnline(v => !v)} icon={<UserOutlined />}>
+                            Đang online
+                        </Button>
+                        <Button type={verified ? 'primary' : 'default'} size="small" onClick={() => setVerified(v => !v)} icon={<TrophyOutlined />}>
+                            Đã xác thực
+                        </Button>
+                        <Button type={featured ? 'primary' : 'default'} size="small" onClick={() => setFeatured(v => !v)} icon={<StarFilled />}>
+                            Nổi bật
+                        </Button>
+                    </div>
+                </div>
             </div>
         </Sider>
     );
@@ -145,38 +175,37 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
     return (
         <motion.div
             className="h-full"
-            whileHover={{ y: -8, scale: 1.03, boxShadow: '0 8px 32px rgba(24,144,255,0.15)' }}
+            whileHover={{ y: -8, scale: 1.04, boxShadow: '0 12px 32px rgba(24,144,255,0.18)' }}
             onHoverStart={() => setIsHovered(true)}
             onHoverEnd={() => setIsHovered(false)}
-            onClick={() => navigate(`/users/${instructor.slug}`)}
             style={{ cursor: 'pointer', transition: 'box-shadow 0.3s, transform 0.3s' }}
         >
             <Card
-                className="h-full instructor-card transition-all duration-300 border-0 shadow-lg rounded-2xl"
+                className="h-full instructor-card border-0 shadow-xl rounded-3xl transition-all duration-300"
                 style={{
                     background: isHovered ? 'linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)' : '#fff',
-                    boxShadow: isHovered ? '0 8px 32px rgba(24,144,255,0.15)' : '0 2px 8px rgba(0,0,0,0.08)',
-                    borderRadius: 24,
+                    boxShadow: isHovered ? '0 12px 32px rgba(24,144,255,0.18)' : '0 2px 8px rgba(0,0,0,0.08)',
+                    borderRadius: 32,
                     border: 'none',
                 }}
-                bodyStyle={{ padding: 24 }}
+                bodyStyle={{ padding: 28 }}
             >
-                {/* Header with Avatar and Status */}
                 <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
                         <div className="relative">
                             <Avatar
-                                size={80}
+                                size={88}
                                 src={instructor.avatar}
                                 icon={<UserOutlined />}
                                 style={{
-                                    border: isHovered ? '3px solid #1890ff' : '3px solid #e0e7ef',
-                                    boxShadow: isHovered ? '0 0 0 4px #bae6fd' : 'none',
+                                    border: isHovered ? '4px solid #1890ff' : '4px solid #e0e7ef',
+                                    boxShadow: isHovered ? '0 0 0 6px #bae6fd' : 'none',
                                     transition: 'all 0.3s',
+                                    background: '#fff',
                                 }}
                             />
                             {instructor.isOnline && (
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
+                                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white"></div>
                             )}
                         </div>
                         <div>
@@ -193,13 +222,9 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                         </div>
                     </div>
                 </div>
-
-                {/* Bio */}
                 <div className="mb-4">
                     <Text className="text-sm text-gray-600 line-clamp-3">{instructor.bio || 'Chưa có thông tin giới thiệu'}</Text>
                 </div>
-
-                {/* Rating and Stats */}
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
                         <Rate disabled allowHalf defaultValue={instructor.rating || 0} style={{ fontSize: 16 }} />
@@ -211,8 +236,6 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                         <Text className="text-sm">{instructor.totalStudents || 0}</Text>
                     </div>
                 </div>
-
-                {/* Stats Grid */}
                 <div className="grid grid-cols-3 gap-3 mb-4">
                     <div className="text-center p-2 bg-blue-50 rounded-xl">
                         <div className="text-lg font-bold text-blue-600">{instructor.totalCourses || 0}</div>
@@ -227,8 +250,6 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                         <Text className="text-xs">{instructor.approvalStatus === 'approved' ? 'Có' : 'Chưa'}</Text>
                     </div>
                 </div>
-
-                {/* Specializations */}
                 <div className="mb-2">
                     <Text strong className="text-sm mb-2 block">Chuyên môn:</Text>
                     <div className="flex flex-wrap gap-1">
@@ -246,8 +267,6 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                         )}
                     </div>
                 </div>
-
-                {/* Location and Education */}
                 <div className="flex items-center justify-between text-sm mb-2">
                     <div className="flex items-center space-x-1">
                         <GlobalOutlined className="text-gray-400" />
@@ -258,6 +277,15 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                         <Text type="secondary">{instructor.education || 'Chưa cập nhật'}</Text>
                     </div>
                 </div>
+                <Button
+                    type="primary"
+                    block
+                    className="mt-2 rounded-full font-semibold"
+                    icon={<UserOutlined />}
+                    onClick={e => { e.stopPropagation(); navigate(`/users/${instructor.slug}`); }}
+                >
+                    Xem chi tiết
+                </Button>
             </Card>
         </motion.div>
     );
@@ -272,7 +300,10 @@ const InstructorsPage = () => {
         category: 'Tất cả',
         rating: 0,
         experience: 0,
-        priceRange: [0, 1000000] as [number, number]
+        priceRange: [0, 1000000] as [number, number],
+        online: false,
+        verified: false,
+        featured: false
     });
     const [currentPage, setCurrentPage] = useState(1);
     const [pagination, setPagination] = useState({
@@ -371,6 +402,16 @@ const InstructorsPage = () => {
             filtered = filtered.filter(instructor => instructor.experienceYears >= filters.experience);
         }
 
+        if (filters.online) {
+            filtered = filtered.filter(i => i.isOnline);
+        }
+        if (filters.verified) {
+            filtered = filtered.filter(i => i.isVerified);
+        }
+        if (filters.featured) {
+            filtered = filtered.filter(i => i.isFeatured);
+        }
+
         setFilteredInstructors(filtered);
     }, [filters, instructors]);
 
@@ -390,30 +431,31 @@ const InstructorsPage = () => {
     return (
         <Layout>
             <FilterSidebar setFilters={setFilters} />
-            <Content className="p-8 bg-gray-50 min-h-screen">
+            <Content className="p-4 md:p-8 bg-gray-50 min-h-screen">
+                <InstructorBanner />
                 <motion.div
                     className="w-full"
                     initial="hidden"
                     animate="visible"
                     variants={containerVariants}
                 >
-                    <motion.div variants={itemVariants} className="flex justify-between items-center mb-6">
+                    <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <Title level={2} className="!mb-0">Giảng viên ({pagination.total})</Title>
                     </motion.div>
 
                     {loading ? (
                         <div className="text-center py-16">
                             <Spin size="large" />
-                            <div className="mt-4">Đang tải danh sách giảng viên...</div>
+                            <div className="mt-4 text-blue-600 font-semibold animate-pulse">Đang tải danh sách giảng viên...</div>
                         </div>
                     ) : filteredInstructors.length > 0 ? (
                         <motion.div variants={containerVariants}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {filteredInstructors.map(instructor => (
                                     <InstructorCard key={instructor.id} instructor={instructor} />
                                 ))}
                             </div>
-                            <motion.div variants={itemVariants} className="text-center mt-8">
+                            <motion.div variants={itemVariants} className="text-center mt-10">
                                 <Pagination
                                     current={currentPage}
                                     total={pagination.total}
@@ -423,6 +465,7 @@ const InstructorsPage = () => {
                                     showTotal={(total, range) => 
                                         `${range[0]}-${range[1]} của ${total} giảng viên`
                                     }
+                                    className="rounded-xl shadow border border-blue-100 px-4 py-2 bg-white"
                                 />
                             </motion.div>
                         </motion.div>
