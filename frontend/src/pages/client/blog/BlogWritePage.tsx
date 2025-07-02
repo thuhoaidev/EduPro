@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Button, 
   Input, 
@@ -166,14 +167,14 @@ const BlogWritePage = () => {
     const fetchCategories = async () => {
       try {
         setLoadingCategories(true);
-        console.log('Đang tải danh mục từ API...');
+        // console.log('Đang tải danh mục từ API...');
         
         const response = await blogAPI.getCategories();
-        console.log('Response từ API:', response);
+        // console.log('Response từ API:', response);
         
         // Xử lý dữ liệu từ API
         const backendCategories = response.data || response;
-        console.log('Backend categories:', backendCategories);
+        // console.log('Backend categories:', backendCategories);
         
         const formattedCategories = backendCategories.map((cat, index) => ({
           id: cat._id,
@@ -185,7 +186,7 @@ const BlogWritePage = () => {
           color: `hsl(${(index * 50) % 360}, 60%, 60%)` // Tạo màu động
         }));
         
-        console.log('Formatted categories:', formattedCategories);
+        // console.log('Formatted categories:', formattedCategories);
         setCategories(formattedCategories);
         
         message.success(`Đã tải ${formattedCategories.length} danh mục`);
@@ -337,6 +338,7 @@ const BlogWritePage = () => {
   };
 
   // Publish blog
+  const navigate = useNavigate();
   const handlePublish = async () => {
     if (!title.trim()) {
       message.error('Vui lòng nhập tiêu đề bài viết');
@@ -373,8 +375,8 @@ const BlogWritePage = () => {
       }
 
       setTimeout(() => {
-        resetForm();
-      }, 2000);
+       navigate('/blog/mine');
+       }, 2000);
 
     } catch (error) {
       message.error('Có lỗi xảy ra khi đăng bài: ' + error.message);
