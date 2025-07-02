@@ -32,8 +32,13 @@ const ChangePassword: React.FC = () => {
   };
 
   const validatePassword = (_: any, value: string) => {
-    if (value && !/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(value)) {
-      return Promise.reject('Mật khẩu phải có ít nhất 8 ký tự và chứa cả chữ và số');
+    if (
+      value &&
+      !/^(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(value)
+    ) {
+      return Promise.reject(
+        'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ thường, số và ký tự đặc biệt'
+      );
     }
     return Promise.resolve();
   };
