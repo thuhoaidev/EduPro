@@ -21,6 +21,7 @@ import {
   ExclamationCircleOutlined,
   InfoCircleOutlined,
   ClockCircleOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import AuthNotification from '../../components/common/AuthNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
@@ -182,7 +183,7 @@ const AppHeader = () => {
     const fetchUser = async () => {
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
-        const userData = JSON.parse(storedUser);
+        let userData = JSON.parse(storedUser);
         if (userData && typeof userData.role === 'string') {
           userData.role = { name: userData.role };
           localStorage.setItem('user', JSON.stringify(userData));
@@ -278,6 +279,13 @@ const AppHeader = () => {
               { key: '/blog/write', icon: <EditOutlined />, label: 'Viết blog' },
               { key: '/blog/mine', icon: <ProfileOutlined />, label: 'Bài viết của tôi' },
               { key: '/blog/saved', icon: <BookOutlined />, label: 'Bài viết đã lưu' },
+            ],
+          },
+          {
+            type: 'group' as const,
+            label: 'Báo cáo',
+            children: [
+              { key: '/report', icon: <BarChartOutlined  />, label: 'Báo cáo!' }
             ],
           },
           { type: 'divider' as const },
