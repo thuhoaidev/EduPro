@@ -96,13 +96,13 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({ isVisible, onClose 
             </motion.div>
             <motion.h2 
               className="text-2xl font-bold text-gray-800 mb-2"
-              variants={itemVariants}
+              
             >
               Chọn loại tài khoản
             </motion.h2>
             <motion.p 
               className="text-gray-600"
-              variants={itemVariants}
+              
             >
               Bạn muốn tạo tài khoản để làm gì?
             </motion.p>
@@ -111,10 +111,8 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({ isVisible, onClose 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Student Account Option */}
             <motion.div
-              variants={itemVariants}
               whileHover="hover"
               whileTap="tap"
-              variants={cardVariants}
               onClick={() => handleAccountTypeSelect('student')}
               className="group cursor-pointer"
             >
@@ -138,10 +136,9 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({ isVisible, onClose 
 
             {/* Instructor Account Option */}
             <motion.div
-              variants={itemVariants}
+              
               whileHover="hover"
               whileTap="tap"
-              variants={cardVariants}
               onClick={() => handleAccountTypeSelect('instructor')}
               className="group cursor-pointer"
             >
@@ -165,7 +162,7 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({ isVisible, onClose 
           </div>
 
           <motion.div 
-            variants={itemVariants}
+            
             className="text-center mt-6"
           >
             <button
