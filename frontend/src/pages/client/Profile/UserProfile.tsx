@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { config } from '../../../api/axios';
+import axios from 'axios';
 import { Button, Modal, List, Avatar, message, Card, List as AntList } from 'antd';
 import { UserOutlined, TeamOutlined, BookOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
 import CourseCard from '../../../components/course/CourseCard';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getToken, isTokenValid, clearAuthData } from '../../../utils/tokenUtils';
+import { getToken, isTokenValid } from '../../../utils/tokenUtils';
 
 interface User {
   _id: string;
@@ -84,9 +84,6 @@ const UserProfile: React.FC = () => {
     const handleStorage = () => {
       const valid = Boolean(getToken() && isTokenValid());
       setIsLoggedIn(valid);
-      if (!valid) {
-        clearAuthData();
-      }
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
@@ -95,16 +92,13 @@ const UserProfile: React.FC = () => {
   useEffect(() => {
     const valid = Boolean(getToken() && isTokenValid());
     setIsLoggedIn(valid);
-    if (!valid) {
-      clearAuthData();
-    }
   }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
       setLoading(true);
       try {
-        const res = await config.get(`/users/slug/${slug}`);
+        const res = await axios.get(`/api/users/slug/${slug}`);
         setUser(res.data.data);
         setCreatedCourses(res.data.data.createdCourses || []);
         setEnrolledCourses(res.data.data.enrolledCourses || []);
@@ -122,7 +116,7 @@ const UserProfile: React.FC = () => {
     // Lấy user hiện tại để kiểm tra trạng thái follow
     const fetchCurrentUser = async () => {
       try {
-        const res = await config.get('/users/me');
+        const res = await axios.get('/api/users/me');
         setCurrentUserId(res.data.data._id);
       } catch {
         // nothing
@@ -135,7 +129,7 @@ const UserProfile: React.FC = () => {
     if (!isLoggedIn || !currentUserId || !user) return;
     const checkFollow = async () => {
       try {
-        const res = await config.get(`/users/${user._id}/followers`);
+        const res = await axios.get(`/api/users/${user._id}/followers`);
         setFollowers(res.data.data);
         setIsFollowing(res.data.data.some((u: User) => u._id === currentUserId));
       } catch {
@@ -153,7 +147,7 @@ const UserProfile: React.FC = () => {
 
   const handleFollow = async () => {
     try {
-      await config.post(`/users/${user?._id}/follow`);
+      await axios.post(`/api/users/${user?._id}/follow`);
       setIsFollowing(true);
       setFollowers(prev => [...prev, { ...user!, _id: currentUserId! }]);
       message.success('Đã theo dõi');
@@ -167,7 +161,7 @@ const UserProfile: React.FC = () => {
 
   const handleUnfollow = async () => {
     try {
-      await config.delete(`/users/${user?._id}/follow`);
+      await axios.delete(`/api/users/${user?._id}/follow`);
       setIsFollowing(false);
       setFollowers(prev => prev.filter(u => u._id !== currentUserId));
       message.success('Đã bỏ theo dõi');
@@ -178,7 +172,7 @@ const UserProfile: React.FC = () => {
 
   const fetchFollowing = async () => {
     try {
-      const res = await config.get(`/users/${user?._id}/following`);
+      const res = await axios.get(`/api/users/${user?._id}/following`);
       setFollowing(res.data.data);
       setShowFollowing(true);
     } catch {
