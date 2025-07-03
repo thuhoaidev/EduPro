@@ -19,7 +19,7 @@ import ReportsPage from "./pages/admin/reports/Reports";
 import LoginPage from "./pages/client/auth/login";
 import RegisterPage from "./pages/client/auth/register";
 import ForgotPassword from "./pages/client/auth/forgotPassword";
-import ResetPassword from "./pages/client/auth/ResetPassword";
+import ResetPassword from "./pages/client/auth/resetPassword";
 import VerifyEmail from "./pages/verifyEmail";
 import { VerifyInstructorEmail } from "./pages/client/auth/verifyInstructorEmail";
 import Earnings from "./pages/client/earnings/Earnings";
@@ -54,7 +54,9 @@ import MyEarnings from './pages/instructor/earnings/MyEarnings';
 import CourseDetail from './pages/instructor/course/CourseDetail';
 import LessonVideoPage from './pages/client/lessons/LessonVideoPage';
 import LessonQuizPage from './pages/client/lessons/LessonQuizPage';
-import UserProfile from './pages/client/Profile/UserProfile';
+import CourseList from "./pages/instructor/course/CourseList";
+import UserReportPage from "./pages/client/UserReportPage";
+import UserReportRoute from "./pages/client/UserReportRoute";
 
 const queryClient = new QueryClient();
 
@@ -118,7 +120,7 @@ function App() {
         { path: "orders", element: <OrdersPage /> },
         { path: "/lessons/:lessonId/video", element: <LessonVideoPage /> },
         { path: "/lessons/:lessonId/quiz", element: <LessonQuizPage /> },
-        { path: 'users/:slug', element: <UserProfile /> },
+        { path: "report", element: <UserReportRoute /> }
       ]
     },
     {
@@ -146,13 +148,15 @@ function App() {
         { path: "reports", element: <ReportsPage /> },
         { path: "system/vouchers", element: <CouponManagement /> },
         { path: "history", element: <TransactionHistory /> },
-        { path: "vouchers", element: <VoucherPage />}
+        { path: "vouchers", element: <VoucherPage />},
+        { path: "courses", element: <CourseList />},
       ],
     },
     {
       path: "/moderator",
       element: <ModeratorLayout />,
       children: [
+        { path: "reports", element: <ReportsPage /> },
       ],
     },
     {
@@ -187,5 +191,6 @@ function App() {
     </ErrorBoundary>
   );
 }
+
 
 export default App;

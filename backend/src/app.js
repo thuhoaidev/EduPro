@@ -29,7 +29,7 @@ const progressRoutes = require('./routes/progress.routes');
 const lessonCommentRoutes = require('./routes/lessonComment.routes');
 const certificateRoutes = require('./routes/certificate.routes');
 const courseReviewRoutes = require('./routes/courseReview.routes');
-
+const report = require('./routes/report.routes');
 
 // Khởi tạo app
 const app = express();
@@ -102,6 +102,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/lesson-comments', lessonCommentRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/course-reviews', courseReviewRoutes);
+app.use('/api/reports', report);
 
 // Error handling middleware
 app.use((err, req, res, _next) => {
