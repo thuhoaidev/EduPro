@@ -9,6 +9,7 @@ const {
   deleteLesson,
   getLessonsBySection,
   updateLessonsOrder,
+  getLessonById,
 } = require('../controllers/lesson.controller');
 
 // Tất cả các routes đều yêu cầu xác thực
@@ -37,5 +38,8 @@ router.put('/section/:section_id/order', requireAuth(['admin', 'instructor']), (
 
 // Route cho tất cả người dùng đã xác thực
 router.get('/section/:section_id', getLessonsBySection);
+
+// Route lấy thông tin 1 bài học theo id
+router.get('/:id', getLessonById);
 
 module.exports = router; 

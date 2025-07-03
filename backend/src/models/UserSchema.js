@@ -78,8 +78,8 @@ const UserSchema = new mongoose.Schema({
   },
   approval_status: {
     type: String,
-    enum: [null, 'pending', 'approved', 'rejected'],
-    default: null,
+    enum: ['pending', 'approved'],
+    default: 'pending',
   },
   avatar: {
     type: String,
@@ -227,10 +227,10 @@ const UserSchema = new mongoose.Schema({
       },
     }],
     // Trạng thái duyệt
-    approval_status: {
+    instructor_profile_status: {
       type: String,
-      enum: [null, 'pending', 'approved', 'rejected'],
-      default: null,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
     },
     approval_date: {
       type: Date,
@@ -244,6 +244,10 @@ const UserSchema = new mongoose.Schema({
       trim: true,
       maxlength: [1000, 'Lý do từ chối không được quá 1000 ký tự'],
     },
+    application_date: {
+    type: Date,
+    default: Date.now,
+  }, 
   },
 }, {
   timestamps: {
@@ -252,6 +256,7 @@ const UserSchema = new mongoose.Schema({
   },
   toJSON: { virtuals: true },
   toObject: { virtuals: true },
+  suppressReservedKeysWarning: true,
 });
 
 module.exports = UserSchema;

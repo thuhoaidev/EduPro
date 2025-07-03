@@ -1,130 +1,143 @@
-import React from 'react';
-import { Card, Row, Col, Statistic, Table, Typography, Progress, Tooltip, Avatar } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Card, Row, Col, Statistic, Table, Typography, Progress, Tooltip, Avatar, Spin, Alert } from 'antd';
 import {
   UserOutlined,
   BookOutlined,
   DollarOutlined,
   TeamOutlined,
   ArrowUpOutlined,
-  ArrowDownOutlined,
   ClockCircleOutlined,
   StarOutlined,
 } from '@ant-design/icons';
 import styles from './Dashboard.module.css';
+import { config } from '../../../api/axios';
 
 const { Title, Text } = Typography;
 
 const Dashboard: React.FC = () => {
-  // Dữ liệu mẫu cho bảng khóa học mới
-  const newCoursesData = [
-    {
-      key: '1',
-      name: 'React.js Cơ Bản đến Nâng Cao',
-      instructor: 'Nguyễn Văn A',
-      students: 45,
-      rating: 4.8,
-      duration: '20 giờ',
-      lastUpdated: '2 ngày trước',
-    },
-    {
-      key: '2',
-      name: 'Node.js và Express từ Zero đến Hero',
-      instructor: 'Trần Thị B',
-      students: 38,
-      rating: 4.6,
-      duration: '15 giờ',
-      lastUpdated: '3 ngày trước',
-    },
-    {
-      key: '3',
-      name: 'TypeScript cho người mới bắt đầu',
-      instructor: 'Lê Văn C',
-      students: 52,
-      rating: 4.9,
-      duration: '18 giờ',
-      lastUpdated: '1 ngày trước',
-    },
-    {
-      key: '4',
-      name: 'Docker và Kubernetes cơ bản',
-      instructor: 'Phạm Thị D',
-      students: 35,
-      rating: 4.7,
-      duration: '25 giờ',
-      lastUpdated: '4 ngày trước',
-    },
-  ];
+  // State lưu trữ dữ liệu
+  const [courses, setCourses] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [instructors, setInstructors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Cột cho bảng khóa học mới
+  // Lấy dữ liệu từ API khi component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [coursesRes, usersRes, instructorsRes] = await Promise.all([
+          config.get('/courses'),
+          config.get('/users'),
+          config.get('/users/instructors'),
+        ]);
+        setCourses(Array.isArray(coursesRes.data.data) ? coursesRes.data.data : []);
+        setUsers(Array.isArray(usersRes.data.data?.users) ? usersRes.data.data.users : []);
+        setInstructors(Array.isArray(instructorsRes.data.data?.instructors) ? instructorsRes.data.data.instructors : []);
+        // Debug dữ liệu
+        console.log('courses:', coursesRes.data.data);
+        console.log('users:', usersRes.data.data);
+        console.log('instructors:', instructorsRes.data.data);
+      } catch (err: any) {
+        setCourses([]);
+        setUsers([]);
+        setInstructors([]);
+        setError('Không thể lấy dữ liệu từ server hoặc token không hợp lệ!');
+      }
+      setLoading(false);
+    };
+    fetchData();
+  }, []);
+
+  // Lọc chỉ lấy giảng viên đã duyệt
+  const approvedInstructors = (instructors || []).filter(
+    (ins: any) => ins.approvalStatus === 'approved' || ins.approval_status === 'approved'
+  );
+  // Debug danh sách giảng viên đã duyệt
+  console.log('approvedInstructors:', approvedInstructors.map(i => i._id || i.id));
+
+  // Gộp tất cả user và instructor đã duyệt lại để tìm kiếm
+  const allPeople = [...(users || []), ...approvedInstructors];
+
+  // Hàm lấy tên và avatar từ object, ObjectId hoặc ID string
+  const getInfo = (ins: any) => {
+    if (!ins) return { name: 'Không rõ', avatar: undefined };
+    // Nếu là object đã populate từ backend
+    if (typeof ins === 'object' && (ins.fullname || ins.name)) {
+      return {
+        name: ins.fullname || ins.name,
+        avatar: ins.avatar,
+      };
+    }
+    // Nếu là object có _id hoặc id
+    if (typeof ins === 'object' && (ins._id || ins.id)) {
+      const idStr = String(ins._id || ins.id);
+      const found = allPeople.find(
+        u => u && (String(u._id) === idStr || String(u.id) === idStr)
+      );
+      return found
+        ? { name: found.fullname || found.name, avatar: found.avatar }
+        : { name: 'Không rõ', avatar: undefined };
+    }
+    // Nếu là ObjectId hoặc string
+    const idStr = String(ins);
+    const found = allPeople.find(
+      u => u && (String(u._id) === idStr || String(u.id) === idStr)
+    );
+    return found
+      ? { name: found.fullname || found.name, avatar: found.avatar }
+      : { name: 'Không rõ', avatar: undefined };
+  };
+
+  // Cột cho bảng khóa học
+ // ... existing code ...
   const columns = [
     {
       title: 'Tên khóa học',
-      dataIndex: 'name',
-      key: 'name',
+      dataIndex: 'title',
+      key: 'title',
       render: (text: string) => (
-        <Text strong className={styles.courseName}>
-          {text}
-        </Text>
+        <Text strong className={styles.courseName}>{text}</Text>
       ),
     },
+    // Thêm các cột mới theo yêu cầu
     {
-      title: 'Giảng viên',
-      dataIndex: 'instructor',
-      key: 'instructor',
+      title: 'Mô tả',
+      dataIndex: 'description',
+      key: 'description',
       render: (text: string) => (
-        <div className={styles.instructorCell}>
-          <Avatar size="small" icon={<UserOutlined />} className={styles.instructorAvatar} />
-          <Text>{text}</Text>
-        </div>
+        <Tooltip title={text}><Text ellipsis style={{ maxWidth: 200, display: 'block' }}>{text}</Text></Tooltip>
       ),
     },
     {
-      title: 'Thời lượng',
-      dataIndex: 'duration',
-      key: 'duration',
-      render: (text: string) => (
-        <Tooltip title="Tổng thời lượng khóa học">
-          <div className={styles.durationCell}>
-            <ClockCircleOutlined className={styles.durationIcon} />
-            <Text>{text}</Text>
-          </div>
-        </Tooltip>
+      title: 'Ảnh',
+      dataIndex: 'thumbnail',
+      key: 'thumbnail',
+      render: (url: string) => (
+        url ? <img src={url} alt="thumbnail" style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4 }} /> : 'Không có'
       ),
     },
     {
-      title: 'Học viên',
-      dataIndex: 'students',
-      key: 'students',
-      render: (value: number) => (
-        <Tooltip title="Số học viên đã đăng ký">
-          <div className={styles.studentsCell}>
-            <TeamOutlined className={styles.studentsIcon} />
-            <Text>{value}</Text>
-          </div>
-        </Tooltip>
-      ),
+      title: 'Ngôn ngữ',
+      dataIndex: 'language',
+      key: 'language',
+      render: (text: string) => <Text>{text}</Text>,
     },
     {
-      title: 'Đánh giá',
-      dataIndex: 'rating',
-      key: 'rating',
-      render: (rating: number) => (
-        <div className={styles.ratingCell}>
-          <StarOutlined className={styles.ratingIcon} />
-          <Text strong>{rating}</Text>
-        </div>
-      ),
+      title: 'Giá',
+      dataIndex: 'price',
+      key: 'price',
+      render: (value: number) => <Text>{value?.toLocaleString('vi-VN')} ₫</Text>,
     },
+    {
+      title: 'Giảm giá',
+      dataIndex: 'discount',
+      key: 'discount',
+      render: (value: number) => <Text>{value}%</Text>,
+    }
   ];
-
-  // Dữ liệu cho biểu đồ doanh thu
-  const revenueData = [
-    { category: 'Lập trình Web', students: 450, revenue: 125000000, growth: 15 },
-    { category: 'Mobile Development', students: 380, revenue: 98000000, growth: 12 },
-    { category: 'Machine Learning', students: 280, revenue: 85000000, growth: 8 },
-    { category: 'DevOps', students: 220, revenue: 65000000, growth: 10 },
-  ];
-
   return (
     <div className={styles.dashboard}>
       <div className={styles.dashboardHeader}>
@@ -133,166 +146,149 @@ const Dashboard: React.FC = () => {
           Cập nhật lần cuối: Hôm nay, 15:30
         </Text>
       </div>
-      
-      {/* Thống kê tổng quan */}
-      <Row gutter={[24, 24]} className={styles.statsRow}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className={styles.statCard}>
-            <Statistic
-              title={
-                <div className={styles.cardTitle}>
-                  <UserOutlined className={styles.cardIcon} />
-                  <span>Tổng số học viên</span>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40 }}>
+          <Spin size="large" />
+        </div>
+      ) : error ? (
+        <Alert message={error} type="error" showIcon style={{ margin: 24 }} />
+      ) : (
+        <>
+          {/* Thống kê tổng quan */}
+          <Row gutter={[24, 24]} className={styles.statsRow}>
+            <Col xs={24} sm={12} lg={6}>
+              <Card variant="outlined" className={styles.statCard}>
+                <Statistic
+                  title={
+                    <div className={styles.cardTitle}>
+                      <UserOutlined className={styles.cardIcon} />
+                      <span>Tổng số học viên</span>
+                    </div>
+                  }
+                  value={users.length}
+                  valueStyle={{ color: 'var(--primary-color)' }}
+                  suffix={
+                    <Tooltip title="Tăng 12% so với tháng trước">
+                      <span className={styles.trendUp}>
+                        <ArrowUpOutlined style={{ color: 'var(--primary-color)' }} /> 12%
+                      </span>
+                    </Tooltip>
+                  }
+                />
+                <div className={styles.cardFooter}>
+                  <Text type="secondary">So với tháng trước</Text>
+                  <Progress percent={12} size="small" showInfo={false} strokeColor="var(--primary-color)" />
                 </div>
-              }
-              value={1234}
-              valueStyle={{ color: '#1890ff' }}
-              suffix={
-                <Tooltip title="Tăng 12% so với tháng trước">
-                  <span className={styles.trendUp}>
-                    <ArrowUpOutlined /> 12%
-                  </span>
-                </Tooltip>
-              }
-            />
-            <div className={styles.cardFooter}>
-              <Text type="secondary">So với tháng trước</Text>
-              <Progress percent={12} size="small" showInfo={false} strokeColor="#1890ff" />
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className={styles.statCard}>
-            <Statistic
-              title={
-                <div className={styles.cardTitle}>
-                  <BookOutlined className={styles.cardIcon} />
-                  <span>Khóa học</span>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card variant="outlined" className={styles.statCard}>
+                <Statistic
+                  title={
+                    <div className={styles.cardTitle}>
+                      <BookOutlined className={styles.cardIcon} />
+                      <span>Khóa học</span>
+                    </div>
+                  }
+                  value={courses.length}
+                  valueStyle={{ color: 'var(--primary-color)' }}
+                  suffix={
+                    <Tooltip title="Tăng 8% so với tháng trước">
+                      <span className={styles.trendUp}>
+                        <ArrowUpOutlined style={{ color: 'var(--primary-color)' }} /> 8%
+                      </span>
+                    </Tooltip>
+                  }
+                />
+                <div className={styles.cardFooter}>
+                  <Text type="secondary">{courses.length > 0 ? `${courses.length} khóa học` : 'Không có dữ liệu'}</Text>
+                  <Progress percent={8} size="small" showInfo={false} strokeColor="var(--primary-color)" />
                 </div>
-              }
-              value={56}
-              valueStyle={{ color: '#52c41a' }}
-              suffix={
-                <Tooltip title="Tăng 8% so với tháng trước">
-                  <span className={styles.trendUp}>
-                    <ArrowUpOutlined /> 8%
-                  </span>
-                </Tooltip>
-              }
-            />
-            <div className={styles.cardFooter}>
-              <Text type="secondary">4 khóa học mới trong tháng</Text>
-              <Progress percent={8} size="small" showInfo={false} strokeColor="#52c41a" />
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className={styles.statCard}>
-            <Statistic
-              title={
-                <div className={styles.cardTitle}>
-                  <DollarOutlined className={styles.cardIcon} />
-                  <span>Doanh thu tháng</span>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card variant="outlined" className={styles.statCard}>
+                <Statistic
+                  title={
+                    <div className={styles.cardTitle}>
+                      <DollarOutlined className={styles.cardIcon} />
+                      <span>Doanh thu tháng</span>
+                    </div>
+                  }
+                  value={45600000}
+                  valueStyle={{ color: 'var(--primary-color)' }}
+                  formatter={(value) => `${value.toLocaleString('vi-VN')} ₫`}
+                />
+                <div className={styles.cardFooter}>
+                  <Text type="secondary">Tăng 15% so với tháng trước</Text>
+                  <Progress percent={15} size="small" showInfo={false} strokeColor="var(--primary-color)" />
                 </div>
-              }
-              value={45600000}
-              valueStyle={{ color: '#faad14' }}
-              formatter={(value) => `${value.toLocaleString('vi-VN')} ₫`}
-            />
-            <div className={styles.cardFooter}>
-              <Text type="secondary">Tăng 15% so với tháng trước</Text>
-              <Progress percent={15} size="small" showInfo={false} strokeColor="#faad14" />
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className={styles.statCard}>
-            <Statistic
-              title={
-                <div className={styles.cardTitle}>
-                  <TeamOutlined className={styles.cardIcon} />
-                  <span>Giảng viên</span>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card variant="outlined" className={styles.statCard}>
+                <Statistic
+                  title={
+                    <div className={styles.cardTitle}>
+                      <TeamOutlined className={styles.cardIcon} />
+                      <span>Giảng viên</span>
+                    </div>
+                  }
+                  value={approvedInstructors.length}
+                  valueStyle={{ color: 'var(--primary-color)' }}
+                  suffix={
+                    <Tooltip title="Tăng 5% so với tháng trước">
+                      <span className={styles.trendUp}>
+                        <ArrowUpOutlined style={{ color: 'var(--primary-color)' }} /> 5%
+                      </span>
+                    </Tooltip>
+                  }
+                />
+                <div className={styles.cardFooter}>
+                  <Text type="secondary">{approvedInstructors.length > 0 ? `${approvedInstructors.length} giảng viên` : 'Không có dữ liệu'}</Text>
+                  <Progress percent={5} size="small" showInfo={false} strokeColor="var(--primary-color)" />
                 </div>
-              }
-              value={28}
-              valueStyle={{ color: '#722ed1' }}
-              suffix={
-                <Tooltip title="Tăng 5% so với tháng trước">
-                  <span className={styles.trendUp}>
-                    <ArrowUpOutlined /> 5%
-                  </span>
-                </Tooltip>
-              }
-            />
-            <div className={styles.cardFooter}>
-              <Text type="secondary">2 giảng viên mới trong tháng</Text>
-              <Progress percent={5} size="small" showInfo={false} strokeColor="#722ed1" />
-            </div>
-          </Card>
-        </Col>
-      </Row>
+              </Card>
+            </Col>
+          </Row>
 
-      {/* Thống kê chi tiết */}
-      <Row gutter={[24, 24]} className={styles.detailsRow}>
-        <Col xs={24} lg={16}>
-          <Card 
-            title={
-              <div className={styles.cardHeader}>
-                <Text strong>Khóa học mới cập nhật</Text>
-                <Text type="secondary">4 khóa học</Text>
-              </div>
-            } 
-            bordered={false}
-            className={styles.tableCard}
-          >
-            <Table
-              dataSource={newCoursesData}
-              columns={columns}
-              pagination={false}
-              className={styles.coursesTable}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} lg={8}>
-          <Card 
-            title={
-              <div className={styles.cardHeader}>
-                <Text strong>Danh mục phổ biến</Text>
-                <Text type="secondary">Theo doanh thu</Text>
-              </div>
-            } 
-            bordered={false}
-            className={styles.categoryCard}
-          >
-            <div className={styles.categoryStats}>
-              {revenueData.map((item, index) => (
-                <div key={index} className={styles.categoryItem}>
-                  <div className={styles.categoryHeader}>
-                    <Text strong>{item.category}</Text>
-                    <Text type="secondary">{item.revenue.toLocaleString('vi-VN')} ₫</Text>
-                  </div>
-                  <Progress 
-                    percent={Math.round((item.revenue / 150000000) * 100)} 
-                    strokeColor={{
-                      '0%': '#1890ff',
-                      '100%': '#52c41a',
-                    }}
-                    showInfo={false}
-                  />
-                  <div className={styles.categoryFooter}>
-                    <Text type="secondary">{item.students} học viên</Text>
-                    <Text className={styles.growth} type="success">
-                      <ArrowUpOutlined /> {item.growth}%
-                    </Text>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </Col>
-      </Row>
+          {/* Thống kê chi tiết */}
+          <Row className={styles.detailsRow} justify="center">
+  <Col >
+    <Card
+      title={
+        <div className={styles.cardHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text strong style={{ fontSize: 18 }}>Khóa học mới cập nhật</Text>
+          <Text type="secondary" style={{ fontSize: 15 }}>{courses.length} khóa học</Text>
+        </div>
+      }
+      bordered={false}
+      className={styles.tableCard}
+      style={{
+        borderRadius: 16,
+        boxShadow: '0 2px 12px #f0f1f2',
+        marginTop: 24,
+        padding: 0,
+      }}
+      bodyStyle={{ padding: 0 }}
+    >
+      <Table
+        dataSource={courses}
+        columns={columns}
+        pagination={{ pageSize: 8, showSizeChanger: false }}
+        className={styles.coursesTable}
+        rowKey="_id"
+        scroll={{ x: 1100 }}
+        bordered
+        rowClassName={(_, idx) => idx % 2 === 0 ? styles.evenRow : styles.oddRow}
+      />
+    </Card>
+  </Col>
+</Row>
+        </>
+      )}
     </div>
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

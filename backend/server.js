@@ -12,10 +12,10 @@ mongoose
     socketTimeoutMS: 45000 // 45s
   })
   .then(() => {
-    console.log('Connected to MongoDB');
+    // console.log('Đã kết nối với MongoDB');
   })
-  .catch((err) => {
-    console.error('Lỗi kết nối MongoDB:', err);
+  .catch(() => {
+    // Không log lỗi chi tiết ra console
     process.exit(1);
   });
 
@@ -35,16 +35,8 @@ app.use(cors({
 // Xử lý preflight request (OPTIONS)
 app.options('*', cors());
 
-// Logging
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  next();
-});
-
 // Middleware xử lý lỗi
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-
   // Kiểm tra nếu là ApiError
   if (err.statusCode) {
     return res.status(err.statusCode).json({
@@ -76,12 +68,10 @@ const server = app.listen(PORT, () => {
 
 // Xử lý lỗi chưa được bắt
 process.on('unhandledRejection', (err) => {
-  console.error('Lỗi chưa được xử lý:', err);
   process.exit(1);
 });
 
 // Xử lý lỗi chưa được bắt trong async
 process.on('uncaughtException', (err) => {
-  console.error('Lỗi chưa được bắt:', err);
   process.exit(1);
 }); 

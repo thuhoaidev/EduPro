@@ -16,7 +16,8 @@ import {
   Tag, 
   Checkbox,
   Spin,
-  Input
+  Input,
+  Popconfirm
 } from 'antd';
 import { 
   DeleteOutlined, 
@@ -26,8 +27,11 @@ import {
   SafetyOutlined, 
   CheckCircleOutlined 
 } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { config as apiClient } from '../../api/axios';
+import { useCart } from '../../contexts/CartContext';
+import voucherService from '../../services/voucher.service';
+import type { ValidateVoucherResponse } from '../../services/voucher.service';
 
 const { Title, Text } = Typography;
 
@@ -58,7 +62,12 @@ const CartPage: React.FC = () => {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [voucher, setVoucher] = useState('');
   const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
+  const [voucherValidation, setVoucherValidation] = useState<ValidateVoucherResponse | null>(null);
+  const [voucherError, setVoucherError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const { updateCartCount } = useCart();
+  const navigate = useNavigate();
 
   const formatCurrency = (amount: number) => 
     new Intl.NumberFormat('vi-VN', { 
@@ -69,8 +78,17 @@ const CartPage: React.FC = () => {
   const fetchCart = async () => {
     try {
       setLoading(true);
+      
+      // Kiểm tra token trước khi gọi API
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('Không có token, không thể tải giỏ hàng');
+        setCartItems([]);
+        return;
+      }
+      
       const res = await apiClient.get('/carts');
-      const items = res.data.items.map((item: any) => {
+      const items = res.data.items.map((item: { _id: string, course: any, addedAt: string }) => {
         const course = item.course;
         const discount = course.discount || 0;
         const finalPrice = Math.round(course.price * (1 - discount / 100));
@@ -91,31 +109,41 @@ const CartPage: React.FC = () => {
       });
       setCartItems(items);
       setSelectedItems(items.map((item: { id: any; }) => item.id));
-    } catch (err) {
-      console.error('Lỗi tải giỏ hàng:', err);
-      message.error('Không thể tải giỏ hàng');
+    } catch (error) {
+      console.error('Error fetching cart:', error);
+      message.error('Lỗi khi tải giỏ hàng');
     } finally {
       setLoading(false);
     }
   };
 
-  const removeItem = async (id: string) => {
-    try {
-      await apiClient.delete(`/carts/${id}`);
-      message.success('Đã xóa khỏi giỏ hàng');
-      setCartItems(cartItems.filter(item => item.id !== id));
-      setSelectedItems(selectedItems.filter(itemId => itemId !== id));
-    } catch (err) {
-      console.error('Lỗi khi xóa:', err);
-      message.error('Không thể xóa khóa học');
-    }
-  };
+  useEffect(() => {
+    fetchCart();
 
-  const handleSelectItem = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedItems([...selectedItems, id]);
-    } else {
-      setSelectedItems(selectedItems.filter(itemId => itemId !== id));
+    // Kiểm tra và áp dụng voucher đã lưu
+    const savedVoucherData = localStorage.getItem('cartVoucherData');
+    if (savedVoucherData) {
+      try {
+        const { voucher: savedVoucher, voucherValidation: savedValidation } = JSON.parse(savedVoucherData);
+        setVoucher(savedVoucher);
+        setVoucherValidation(savedValidation);
+        // Xóa dữ liệu voucher đã lưu sau khi đã áp dụng
+        localStorage.removeItem('cartVoucherData');
+      } catch (error) {
+        console.error('Error parsing saved voucher data:', error);
+      }
+    }
+  }, []);
+
+  const removeItem = async (itemId: string) => {
+    try {
+      await apiClient.delete(`/carts/${itemId}`);
+      message.success('Đã xóa khóa học khỏi giỏ hàng');
+      fetchCart();
+      updateCartCount();
+    } catch (error) {
+      console.error('Error removing item:', error);
+      message.error('Lỗi khi xóa khóa học');
     }
   };
 
@@ -127,22 +155,11 @@ const CartPage: React.FC = () => {
     }
   };
 
-  const handleRemoveSelected = async () => {
-    if (selectedItems.length === 0) {
-      message.warning('Vui lòng chọn ít nhất một khóa học để xóa!');
-      return;
-    }
-    
-    try {
-      await Promise.all(
-        selectedItems.map(id => apiClient.delete(`/carts/${id}`))
-      );
-      setCartItems(cartItems.filter(item => !selectedItems.includes(item.id)));
-      setSelectedItems([]);
-      message.success(`Đã xóa ${selectedItems.length} khóa học khỏi giỏ hàng!`);
-    } catch (err) {
-      console.error('Lỗi khi xóa nhiều:', err);
-      message.error('Có lỗi xảy ra khi xóa các khóa học');
+  const handleSelectItem = (itemId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedItems(prev => [...prev, itemId]);
+    } else {
+      setSelectedItems(prev => prev.filter(id => id !== itemId));
     }
   };
 
@@ -151,70 +168,122 @@ const CartPage: React.FC = () => {
       message.warning('Vui lòng nhập mã giảm giá!');
       return;
     }
+
+    if (!localStorage.getItem('token')) {
+      message.error('Vui lòng đăng nhập để sử dụng voucher!');
+      return;
+    }
+
+    if (selectedItems.length === 0) {
+      message.warning('Vui lòng chọn ít nhất một khóa học để áp dụng voucher!');
+      return;
+    }
     
     setIsApplyingVoucher(true);
-    // Giả lập gọi API
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    if (voucher === 'WELCOME50') {
-      message.success('Áp dụng mã giảm giá thành công! Giảm 50% tổng đơn hàng');
-    } else {
-      message.error('Mã giảm giá không hợp lệ!');
+    setVoucherError('');
+    setVoucherValidation(null);
+
+    try {
+      // Tính tổng tiền đơn hàng
+      const selectedCartItems = cartItems.filter(item => selectedItems.includes(item.id));
+      const orderAmount = selectedCartItems.reduce((acc, item) => acc + item.priceAtAddition * item.quantity, 0);
+
+      // Validate voucher
+      const validationResult = await voucherService.validate(
+        { code: voucher.trim(), orderAmount },
+        (localStorage.getItem('token') || '') as string
+      );
+
+      setVoucherValidation(validationResult);
+      message.success('Áp dụng mã giảm giá thành công!');
+      
+    } catch (error: any) {
+      console.error('Voucher validation error:', error);
+      setVoucherError(error.response?.data?.message || 'Mã giảm giá không hợp lệ!');
+      message.error(error.response?.data?.message || 'Mã giảm giá không hợp lệ!');
+    } finally {
+      setIsApplyingVoucher(false);
     }
-    setIsApplyingVoucher(false);
+  };
+
+  const handleRemoveVoucher = () => {
+    setVoucher('');
+    setVoucherValidation(null);
+    setVoucherError('');
+    message.info('Đã xóa mã giảm giá');
+  };
+
+  const handleCheckout = async () => {
+    if (!localStorage.getItem('token')) {
+      message.error('Vui lòng đăng nhập để thanh toán!');
+      return;
+    }
+
+    if (selectedItems.length === 0) {
+      message.warning('Vui lòng chọn ít nhất một khóa học để thanh toán!');
+      return;
+    }
+
+    setIsCheckingOut(true);
+
+    try {
+      // Chuẩn bị dữ liệu đơn hàng, lưu đầy đủ thông tin khóa học
+      const selectedCartItems = cartItems.filter(item => selectedItems.includes(item.id));
+      
+      // Lưu thông tin đơn hàng vào localStorage để checkout page sử dụng
+      const checkoutData = {
+        items: selectedCartItems.map(item => ({
+          courseId: item.course.id,
+          title: item.course.title,
+          thumbnail: item.course.thumbnail,
+          price: item.priceAtAddition,
+          quantity: item.quantity
+        })),
+        voucherCode: voucherValidation ? voucherValidation.voucher.code : undefined,
+        voucherValidation: voucherValidation,
+        subtotal: selectedCartItems.reduce((acc, item) => acc + item.priceAtAddition * item.quantity, 0),
+        discount: voucherValidation ? voucherValidation.discountAmount : 0,
+        total: selectedCartItems.reduce((acc, item) => acc + item.priceAtAddition * item.quantity, 0) - (voucherValidation ? voucherValidation.discountAmount : 0)
+      };
+
+      localStorage.setItem('checkoutData', JSON.stringify(checkoutData));
+      
+      // Chuyển đến trang checkout
+      navigate('/checkout');
+      
+    } catch (error) {
+      console.error('Checkout error:', error);
+      message.error('Lỗi khi chuẩn bị thanh toán');
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
+
+  // Thêm hàm xóa tất cả mục đã chọn
+  const handleRemoveSelected = async () => {
+    if (selectedItems.length === 0) {
+      message.warning('Vui lòng chọn ít nhất một mục để xóa!');
+      return;
+    }
+    try {
+      await Promise.all(selectedItems.map(id => apiClient.delete(`/carts/${id}`)));
+      message.success('Đã xóa các mục đã chọn khỏi giỏ hàng');
+      fetchCart();
+      updateCartCount();
+    } catch (error) {
+      message.error('Lỗi khi xóa các mục đã chọn');
+    }
   };
 
   // Tính toán các giá trị
-  const selectedCartItems = cartItems.filter(item => selectedItems.includes(item.id));
+  const selectedCartItems = cartItems.filter((item: CartItem) => selectedItems.includes(item.id));
   const subtotal = selectedCartItems.reduce((acc, item) => acc + item.priceAtAddition * item.quantity, 0);
-  const discount = voucher === 'WELCOME50' ? subtotal * 0.5 : 0;
+  const discount = voucherValidation ? voucherValidation.discountAmount : 0;
   const total = subtotal - discount;
-  const savings = selectedCartItems.reduce((acc, item) => 
-    acc + (item.course.price - item.priceAtAddition) * item.quantity, 0);
-
-  const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { 
-        duration: 0.6,
-        staggerChildren: 0.1 
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, x: -30, scale: 0.95 },
-    visible: { 
-      opacity: 1, 
-      x: 0, 
-      scale: 1,
-      transition: { duration: 0.5 }
-    },
-    exit: { 
-      opacity: 0, 
-      x: 30, 
-      scale: 0.95,
-      transition: { duration: 0.3 }
-    }
-  };
-
-  const cardVariants = {
-    hover: { 
-      y: -5, 
-      boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
-      transition: { duration: 0.3 }
-    }
-  };
-
-  useEffect(() => {
-    fetchCart();
-  }, []);
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: 50 }}>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Spin size="large" />
       </div>
     );
@@ -222,338 +291,324 @@ const CartPage: React.FC = () => {
 
   if (cartItems.length === 0) {
     return (
-      <motion.div 
-        className="flex items-center justify-center min-h-[60vh] bg-gradient-to-br from-blue-50 to-indigo-50"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
+      <div className="min-h-screen bg-gradient-to-br from-cyan-50 to-purple-100 flex items-center justify-center p-4">
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="text-center bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8 lg:p-12 max-w-2xl w-full"
         >
-          <Empty
-            image={<ShoppingCartOutlined style={{ fontSize: 80, color: '#1890ff' }} />}
-            description={
-              <Title level={4} type="secondary" className="!mt-4">
-                Giỏ hàng của bạn đang trống
-              </Title>
-            }
+          <motion.div
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Link to="/courses">
-                <Button type="primary" size="large" className="!h-12 !px-8">
-                  Tiếp tục mua sắm
-                </Button>
-              </Link>
-            </motion.div>
-          </Empty>
+            <ShoppingCartOutlined className="text-7xl lg:text-8xl text-cyan-400 drop-shadow-lg" />
+          </motion.div>
+
+          <Title level={2} className="!mt-8 !mb-3 !text-gray-800 font-bold">
+            Giỏ hàng của bạn đang trống
+          </Title>
+          <Text className="text-gray-600 text-lg max-w-md mx-auto block">
+            Có vẻ như bạn chưa chọn khóa học nào. Hãy bắt đầu khám phá ngay thôi!
+          </Text>
+
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="mt-10"
+          >
+            <Link to="/courses">
+              <Button
+                type="primary"
+                size="large"
+                icon={<ArrowLeftOutlined />}
+                className="!h-14 !px-8 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-full"
+              >
+                Khám phá khóa học
+              </Button>
+            </Link>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-      <motion.div
-        className="max-w-screen-xl mx-auto p-4 md:p-8"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {/* Header Section */}
-        <motion.div variants={itemVariants} className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <motion.div
-              whileHover={{ rotate: 360 }}
-              transition={{ duration: 0.6 }}
-            >
-              <Badge count={cartItems.length} size="small">
-                <ShoppingCartOutlined style={{ fontSize: 32, color: '#1890ff' }} />
-              </Badge>
-            </motion.div>
-            <div>
-              <Title level={2} className="!mb-1 !text-gray-800">Giỏ hàng của bạn</Title>
-              <Text className="text-gray-600">{cartItems.length} khóa học trong giỏ hàng</Text>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6"
+        >
+          {/* Header Gradient */}
+          <div className="flex items-center justify-between bg-gradient-to-r from-cyan-500 to-purple-500 rounded-2xl shadow-xl p-6 mb-6">
+            <div className="flex items-center gap-4">
+              <ShoppingCartOutlined className="text-4xl text-white drop-shadow-lg" />
+              <Title level={2} className="!mb-0 !text-white drop-shadow-lg">Giỏ hàng</Title>
+              <Badge count={cartItems.length} showZero style={{ background: '#fff', color: '#7c3aed', fontWeight: 700, boxShadow: '0 2px 8px rgba(56,189,248,0.10)' }} />
             </div>
           </div>
-          
-          {/* Selection Controls */}
-          <Card className="mb-6 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <Checkbox 
-                  checked={selectedItems.length === cartItems.length && cartItems.length > 0}
-                  indeterminate={selectedItems.length > 0 && selectedItems.length < cartItems.length}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                >
-                  <Text strong>Chọn tất cả ({cartItems.length})</Text>
-                </Checkbox>
-                <Text type="secondary">
-                  Đã chọn {selectedItems.length} khóa học
-                </Text>
-              </div>
-              {selectedItems.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                >
-                  <Button 
-                    danger 
-                    icon={<DeleteOutlined />}
-                    onClick={handleRemoveSelected}
-                    size="small"
-                  >
-                    Xóa đã chọn ({selectedItems.length})
-                  </Button>
-                </motion.div>
-              )}
-            </div>
-          </Card>
-          
-          {/* Savings Banner */}
-          {savings > 0 && selectedItems.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-4 rounded-lg mb-6"
-            >
-              <div className="flex items-center gap-3">
-                <CheckCircleOutlined style={{ fontSize: 24 }} />
-                <div>
-                  <Text strong className="text-white">Tiết kiệm được {formatCurrency(savings)}</Text>
-                  <br />
-                  <Text className="text-green-100">
-                    Bạn đã tiết kiệm được {Math.round(
-                      (savings / selectedCartItems.reduce((acc, item) => 
-                        acc + item.course.price * item.quantity, 0) * 100)
-                    )}% so với giá gốc!
-                  </Text>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
 
-        <Row gutter={[32, 32]}>
-          {/* Cart Items Column */}
-          <Col xs={24} lg={16}>
-            <motion.div variants={itemVariants}>
-              <AnimatePresence>
-                {cartItems.map((item) => (
-                  <motion.div
-                    key={item.id}
-                    variants={itemVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    layout
-                  >
-                    <motion.div
-                      variants={cardVariants}
-                      whileHover="hover"
-                      className="mb-6"
+          <Row gutter={24}>
+            {/* Cart Items Column */}
+            <Col xs={24} lg={16}>
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex items-center justify-between mb-6 pb-4 border-b">
+                  <Title level={4} className="!mb-0 text-cyan-700">Khóa học trong giỏ</Title>
+                  <div className="flex items-center gap-4">
+                    <Checkbox 
+                      checked={selectedItems.length === cartItems.length && cartItems.length > 0}
+                      indeterminate={selectedItems.length > 0 && selectedItems.length < cartItems.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
                     >
-                      <Card 
-                        className={`shadow-lg hover:shadow-xl transition-all duration-300 border-0 overflow-hidden ${
-                          selectedItems.includes(item.id) ? 'ring-2 ring-blue-500' : ''
-                        }`}
-                        styles={{ body: { padding: 0 } }}
-                      >
-                        <div className="flex flex-col md:flex-row">
-                          <div className="relative">
-                            <div className="absolute top-2 left-2 z-10">
-                              <Checkbox 
-                                checked={selectedItems.includes(item.id)}
-                                onChange={(e) => handleSelectItem(item.id, e.target.checked)}
-                                className="!bg-white !rounded-full"
-                              />
-                            </div>
-                            <img 
-                              src={item.course.thumbnail} 
-                              alt={item.course.title}
-                              className="w-full md:w-48 h-32 md:h-40 object-cover"
-                            />
-                            <div className="absolute top-2 right-2">
-                              <Tag color="red" className="!border-0">
-                                {item.course.level}
-                              </Tag>
-                            </div>
-                            <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs">
-                              {item.course.duration}
-                            </div>
-                          </div>
-                          
-                          <div className="flex-1 p-6">
-                            <div className="flex flex-col h-full justify-between">
-                              <div>
-                                <Title level={4} className="!mb-2 !text-gray-800 line-clamp-2">
-                                  {item.course.title}
-                                </Title>
-                                <Text type="secondary" className="text-sm mb-2">
-                                  bởi <Text strong>{item.course.instructor?.name || 'Không rõ'}</Text>
-                                </Text>
-                                
-                                <div className="flex items-center gap-4 mb-3">
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-yellow-500">★</span>
-                                    <Text strong>{item.course.rating}</Text>
-                                    <Text type="secondary">({item.course.students?.toLocaleString()} học viên)</Text>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-baseline gap-2">
-                                  <Text strong className="text-xl text-red-500">
-                                    {formatCurrency(item.priceAtAddition)}
-                                  </Text>
-                                  {item.course.discount && (
-                                    <>
-                                      <Text delete type="secondary">
-                                        {formatCurrency(item.course.price)}
-                                      </Text>
-                                      <Tag color="red">Giảm {item.course.discount}%</Tag>
-                                    </>
-                                  )}
-                                </div>
-                                
-                                <motion.div
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                >
-                                  <Button 
-                                    type="text" 
-                                    danger 
-                                    icon={<DeleteOutlined />} 
-                                    onClick={() => removeItem(item.id)}
-                                    className="!h-10 !px-4"
-                                  >
-                                    Xóa
-                                  </Button>
-                                </motion.div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    </motion.div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
-          </Col>
-          
-          {/* Order Summary Column */}
-          <Col xs={24} lg={8}>
-            <motion.div variants={itemVariants}>
-              <Card 
-                title={
-                  <div className="flex items-center gap-2">
-                    <CreditCardOutlined style={{ color: '#1890ff' }} />
-                    <span>Tóm tắt đơn hàng</span>
-                  </div>
-                } 
-                className="shadow-xl border-0 sticky top-24"
-                headStyle={{ 
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  border: 'none'
-                }}
-              >
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Text>Tạm tính ({selectedItems.length} khóa học):</Text>
-                    <Text strong className="text-lg">{formatCurrency(subtotal)}</Text>
-                  </div>
-                  
-                  {discount > 0 && (
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="flex justify-between items-center bg-green-50 p-3 rounded-lg"
-                    >
-                      <Text className="text-green-600">Giảm giá:</Text>
-                      <Text strong className="text-green-600 text-lg">-{formatCurrency(discount)}</Text>
-                    </motion.div>
-                  )}
-                  
-                  <Divider className="my-4" />
-                  
-                  <div className="flex justify-between items-baseline">
-                    <Title level={4} className="!mb-0">Tổng cộng:</Title>
-                    <Title level={2} className="!mb-0 text-red-500">{formatCurrency(total)}</Title>
-                  </div>
-                  
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="flex gap-2 mb-3">
-                      <Input 
-                        placeholder="Nhập mã giảm giá" 
-                        value={voucher}
-                        onChange={(e) => setVoucher(e.target.value.toUpperCase())}
-                        className="flex-1"
-                      />
-                      <Button 
-                        onClick={handleApplyVoucher}
-                        loading={isApplyingVoucher}
-                        type="primary"
-                      >
-                        Áp dụng
-                      </Button>
-                    </div>
-                    <Text type="secondary" className="text-xs">
-                      Thử mã: <Text code>WELCOME50</Text> để giảm 50%
-                    </Text>
-                  </div>
-
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <Button 
-                      type="primary" 
-                      size="large" 
-                      block 
-                      className="!h-14 !text-lg !font-semibold"
-                      icon={<SafetyOutlined />}
+                      Chọn tất cả ({selectedItems.length})
+                    </Checkbox>
+                    <Popconfirm
+                      title="Bạn có chắc muốn xóa các mục đã chọn?"
+                      onConfirm={handleRemoveSelected}
+                      okText="Xóa"
+                      cancelText="Hủy"
                       disabled={selectedItems.length === 0}
-                      onClick={() => {
-                        // Lưu thông tin đơn hàng vào state hoặc localStorage trước khi chuyển trang
-                        window.location.href = '/checkout';
-                      }}
-                    >
-                      Tiến hành thanh toán
-                    </Button>
-                  </motion.div>
-                  
-                  <Link to="/courses">
-                    <motion.div
-                      whileHover={{ x: -5 }}
-                      whileTap={{ scale: 0.95 }}
                     >
                       <Button 
-                        type="link" 
-                        block 
-                        icon={<ArrowLeftOutlined />}
-                        className="!h-10"
+                        type="primary"
+                        danger 
+                        disabled={selectedItems.length === 0} 
+                        icon={<DeleteOutlined />} 
+                        className="transition-all duration-300"
                       >
-                        Tiếp tục mua sắm
+                        Xóa mục đã chọn
+                      </Button>
+                    </Popconfirm>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {cartItems.map((item) => (
+                    <motion.div
+                      key={item.id}
+                      layout
+                      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -50, scale: 0.9 }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
+                      className="grid grid-cols-12 items-center gap-6 mb-6 p-4 rounded-xl hover:shadow-lg hover:bg-cyan-50 transition-all duration-300 border"
+                    >
+                      {/* Checkbox & Image */}
+                      <div className="col-span-3 flex items-center gap-4">
+                        <Checkbox
+                          checked={selectedItems.includes(item.id)}
+                          onChange={(e) => handleSelectItem(item.id, e.target.checked)}
+                          className="self-start mt-2"
+                        />
+                        <img 
+                          src={item.course.thumbnail} 
+                          alt={item.course.title}
+                          className="w-32 h-20 object-cover rounded-lg shadow-md"
+                        />
+                      </div>
+                      
+                      {/* Course Info */}
+                      <div className="col-span-5">
+                        <Link to={`/courses/${item.course.slug}`} className="hover:underline">
+                          <Title level={5} className="!mb-2 !text-gray-800 font-semibold truncate">
+                            {item.course.title}
+                          </Title>
+                        </Link>
+                        <Text type="secondary" className="text-sm">
+                          Bởi {item.course.instructor?.name || 'EduPro'}
+                        </Text>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                          <Tag color="yellow">⭐ {item.course.rating}</Tag>
+                          <Tag color="blue">👥 {item.course.students?.toLocaleString()}</Tag>
+                          <Tag color="purple">⏱️ {item.course.duration}</Tag>
+                        </div>
+                      </div>
+
+                      {/* Price */}
+                      <div className="col-span-3 text-right">
+                        <Text strong className="text-xl text-red-600 block">
+                          {formatCurrency(item.priceAtAddition)}
+                        </Text>
+                        {item.course.discount && (
+                          <Text delete type="secondary" className="block">
+                            {formatCurrency(item.course.price)}
+                          </Text>
+                        )}
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="col-span-1 text-center">
+                        <Popconfirm
+                          title="Xóa khóa học này?"
+                          onConfirm={() => removeItem(item.id)}
+                          okText="Xóa"
+                          cancelText="Không"
+                        >
+                          <Button 
+                            type="text" 
+                            danger 
+                            shape="circle" 
+                            icon={<DeleteOutlined className="text-xl" />} 
+                            className="hover:bg-red-100 transition-colors"
+                          />
+                        </Popconfirm>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </Col>
+            
+            {/* Order Summary Column */}
+            <Col xs={24} lg={8}>
+              <motion.div variants={itemVariants}>
+                <Card 
+                  title={
+                    <div className="flex items-center gap-2">
+                      <CreditCardOutlined style={{ color: '#1890ff' }} />
+                      <span>Tóm tắt đơn hàng</span>
+                    </div>
+                  } 
+                  className="shadow-xl border-0 sticky top-24"
+                  styles={{
+                    header: {
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none'
+                    }
+                  }}
+                >
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <Text>Tạm tính ({selectedItems.length} khóa học):</Text>
+                      <Text strong className="text-lg">{formatCurrency(subtotal)}</Text>
+                    </div>
+                    
+                    {discount > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="flex justify-between items-center bg-green-50 p-3 rounded-lg"
+                      >
+                        <Text className="text-green-600">Giảm giá:</Text>
+                        <Text strong className="text-green-600 text-lg">-{formatCurrency(discount)}</Text>
+                      </motion.div>
+                    )}
+                    
+                    <Divider className="my-4" />
+                    
+                    <div className="flex justify-between items-baseline">
+                      <Title level={4} className="!mb-0">Tổng cộng:</Title>
+                      <Title level={2} className="!mb-0 text-red-500">{formatCurrency(total)}</Title>
+                    </div>
+                    
+                    {/* Voucher Section */}
+                    <div className="border-t pt-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                        <Text strong>Mã giảm giá</Text>
+                      </div>
+                      
+                      {voucherValidation ? (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-green-50 p-3 rounded-lg border border-green-200"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <Text strong className="text-green-600">
+                              {voucherValidation.voucher.code}
+                            </Text>
+                            <Button 
+                              type="text" 
+                              size="small" 
+                              onClick={handleRemoveVoucher}
+                              className="text-red-500"
+                            >
+                              Xóa
+                            </Button>
+                          </div>
+                          <Text className="text-sm text-green-600">
+                            {voucherValidation.voucher.title}
+                          </Text>
+                        </motion.div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Nhập mã giảm giá"
+                              value={voucher}
+                              onChange={(e) => setVoucher(e.target.value)}
+                              onPressEnter={handleApplyVoucher}
+                              disabled={isApplyingVoucher}
+                            />
+                            <Button 
+                              type="primary"
+                              onClick={handleApplyVoucher}
+                              loading={isApplyingVoucher}
+                              disabled={!voucher.trim() || selectedItems.length === 0}
+                            >
+                              Áp dụng
+                            </Button>
+                          </div>
+                          {voucherError && (
+                            <Text type="danger" className="text-sm">
+                              {voucherError}
+                            </Text>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Button 
+                        type="primary" 
+                        size="large" 
+                        block 
+                        className="!h-14 !text-lg !font-semibold"
+                        icon={<SafetyOutlined />}
+                        disabled={selectedItems.length === 0 || isCheckingOut}
+                        loading={isCheckingOut}
+                        onClick={handleCheckout}
+                      >
+                        {isCheckingOut ? 'Đang xử lý...' : 'Tiến hành thanh toán'}
                       </Button>
                     </motion.div>
-                  </Link>
-                </div>
-              </Card>
-            </motion.div>
-          </Col>
-        </Row>
-      </motion.div>
+                    
+                    <Link to="/courses">
+                      <motion.div
+                        whileHover={{ x: -5 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Button 
+                          type="link" 
+                          block 
+                          icon={<ArrowLeftOutlined />}
+                          className="!h-10"
+                        >
+                          Tiếp tục mua sắm
+                        </Button>
+                      </motion.div>
+                    </Link>
+                  </div>
+                </Card>
+              </motion.div>
+            </Col>
+          </Row>
+        </motion.div>
+      </div>
     </div>
   );
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
 };
 
 export default CartPage;

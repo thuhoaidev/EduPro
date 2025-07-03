@@ -181,4 +181,18 @@ exports.updateLessonsOrder = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+};
+
+// Lấy thông tin 1 bài học theo id
+exports.getLessonById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const lesson = await Lesson.findById(id);
+    if (!lesson) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài học' });
+    }
+    res.json({ success: true, data: lesson });
+  } catch (error) {
+    next(error);
+  }
 }; 

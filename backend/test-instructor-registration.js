@@ -5,7 +5,7 @@ const path = require('path');
 
 // Cấu hình
 const API_BASE_URL = 'http://localhost:5000/api';
-const TEST_EMAIL = `test-instructor-${Date.now()}@example.com`;
+const TEST_EMAIL = `test-instructor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}@example.com`;
 
 // Tạo file test tạm thời
 function createTestFile(content, filename) {
@@ -68,7 +68,7 @@ async function testInstructorRegistration() {
     console.log('📤 Gửi request đến API...');
     
     // Gọi API
-    const response = await axios.post(`${API_BASE_URL}/users/instructor-register`, formData, {
+    const response = await axios.post(`${API_BASE_URL}/auth/instructor-register`, formData, {
       headers: {
         ...formData.getHeaders(),
       },
@@ -122,7 +122,7 @@ async function testValidationErrors() {
     formData.append('email', 'invalid-email');
     formData.append('password', '123'); // Too short
     
-    const response = await axios.post(`${API_BASE_URL}/users/instructor-register`, formData, {
+    const response = await axios.post(`${API_BASE_URL}/auth/instructor-register`, formData, {
       headers: {
         ...formData.getHeaders(),
       },

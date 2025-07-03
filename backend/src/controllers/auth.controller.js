@@ -262,14 +262,25 @@ exports.login = async (req, res, next) => {
     await validateSchema(loginSchema, req.body);
 
     const { identifier, password } = req.body;
-
-    // Tìm user theo identifier (có thể là email hoặc nickname)
     const user = await User.findOne({
       $or: [
-        { email: req.body.identifier },
-        { nickname: req.body.identifier }
+        { email: identifier },
+        { nickname: identifier }
       ]
     }).select('+password').populate('role_id');
+    if (!user) {
+      console.log('Không tìm thấy user với identifier:', identifier);
+    } else {
+       console.log('✅ Đã tìm thấy user:', user.email);
+  console.log('🔑 Password trong DB:', user.password);
+  console.log('🔒 So sánh với password nhập:', password);
+      const isMatch = await user.matchPassword(password);
+      if (!isMatch) {
+        console.log('Sai mật khẩu cho user:', user.email, 'Hash trong DB:', user.password, 'Mật khẩu nhập:', password);
+      } else {
+        console.log('Đăng nhập thành công cho user:', user.email);
+      }
+    }
 
     // Nếu không tìm thấy user hoặc mật khẩu không đúng, trả về thông báo chung
     if (!user || !(await user.matchPassword(password))) {
@@ -291,29 +302,42 @@ exports.login = async (req, res, next) => {
       });
     }
 
+    // Kiểm tra điều kiện riêng cho giảng viên
+    if (user.role_id && user.role_id.name === 'instructor') {
+      // Kiểm tra instructor_profile_status trong instructorInfo
+      const profileStatus = user.instructorInfo?.instructor_profile_status;
+      if (profileStatus === 'pending') {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài khoản giảng viên của bạn đang trong thời gian xét duyệt. Vui lòng quay lại sau!',
+        });
+      }
+      if (profileStatus === 'rejected') {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài khoản giảng viên của bạn không phù hợp. Bạn có thể đăng kí tài khoản học tập để tiếp tục sử dụng.',
+        });
+      }
+      if (profileStatus !== 'approved') {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài khoản giảng viên chưa được duyệt',
+        });
+      }
+      if (user.status !== 'active') {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài khoản giảng viên chưa được kích hoạt',
+        });
+      }
+    }
+
     // Kiểm tra trạng thái tài khoản
     if (user.status === 'blocked') {
       return res.status(403).json({
         success: false,
         message: 'Tài khoản đã bị khóa',
       });
-    }
-
-    // Kiểm tra trạng thái phê duyệt cho giảng viên
-    if (user.role_id && user.role_id.name === 'instructor') {
-      switch (user.approval_status) {
-        case null:
-        case 'pending':
-          return res.status(403).json({
-            success: false,
-            message: 'Tài khoản giảng viên đang chờ xét duyệt',
-          });
-        case 'rejected':
-          return res.status(403).json({
-            success: false,
-            message: 'Tài khoản giảng viên đã bị từ chối. Vui lòng liên hệ quản trị viên để biết thêm chi tiết.',
-          });
-      }
     }
 
     // Cập nhật thời gian đăng nhập cuối cùng

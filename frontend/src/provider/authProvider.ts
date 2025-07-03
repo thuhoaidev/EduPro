@@ -15,6 +15,7 @@ const authProvider = {
         return response.data;
     },
     login: async ({ resource, variables }: loginType) => {
+        console.log("🚀 Sending login request:", variables);
         const response = await config.post(`/auth/${resource}`, variables);
         return response.data.data; 
     }

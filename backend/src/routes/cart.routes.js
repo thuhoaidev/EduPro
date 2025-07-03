@@ -16,7 +16,7 @@ const calculateFinalPrice = (price, discount) => {
 };
 
 // @desc    Lấy giỏ hàng
-// @route   GET /api/cart
+// @route   GET /api/carts
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
@@ -70,7 +70,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // @desc    Thêm khóa học vào giỏ hàng
-// @route   POST /api/cart
+// @route   POST /api/carts
 // @access  Private
 router.post('/', auth, async (req, res) => {
   const session = await mongoose.startSession();
@@ -166,69 +166,8 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// @desc    Xóa khóa học khỏi giỏ hàng
-// @route   DELETE /api/cart/:itemId
-// @access  Private
-router.delete('/:itemId', auth, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const cart = await Cart.findOne({ user: req.user._id }).session(session);
-    
-    if (!cart) {
-      await session.abortTransaction();
-      return res.status(404).json({
-        success: false,
-        error: 'Không tìm thấy giỏ hàng'
-      });
-    }
-
-    const initialCount = cart.items.length;
-    
-    // Lọc bỏ item
-    cart.items = cart.items.filter(
-      item => item._id.toString() !== req.params.itemId
-    );
-
-    if (cart.items.length === initialCount) {
-      await session.abortTransaction();
-      return res.status(404).json({
-        success: false,
-        error: 'Không tìm thấy sản phẩm trong giỏ hàng'
-      });
-    }
-
-    await cart.save({ session });
-    await session.commitTransaction();
-    
-    const populatedCart = await cart.populate({
-      path: 'items.course',
-      select: 'title price thumbnail'
-    });
-
-    res.json({
-      success: true,
-      data: {
-        itemCount: populatedCart.items.length,
-        total: calculateCartTotal(populatedCart.items)
-      }
-    });
-
-  } catch (err) {
-    await session.abortTransaction();
-    console.error('Error removing from cart:', err);
-    res.status(500).json({
-      success: false,
-      error: 'Lỗi server khi xóa khỏi giỏ hàng'
-    });
-  } finally {
-    session.endSession();
-  }
-});
-
 // @desc    Xóa toàn bộ giỏ hàng
-// @route   DELETE /api/cart
+// @route   DELETE /api/carts
 // @access  Private
 router.delete('/', auth, async (req, res) => {
   try {
@@ -254,6 +193,152 @@ router.delete('/', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Lỗi server khi xóa giỏ hàng'
+    });
+  }
+});
+
+// @desc    Xóa nhiều khóa học khỏi giỏ hàng
+// @route   DELETE /api/carts/bulk
+// @access  Private
+router.delete('/bulk', auth, async (req, res) => {
+  try {
+    const { itemIds } = req.body;
+    
+    if (!itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Danh sách ID sản phẩm không hợp lệ'
+      });
+    }
+
+    console.log('Bulk deleting items:', itemIds);
+    console.log('User ID:', req.user._id);
+
+    // Sử dụng findOneAndUpdate để xóa nhiều items cùng lúc
+    const result = await Cart.findOneAndUpdate(
+      { 
+        user: req.user._id,
+        'items._id': { $in: itemIds }
+      },
+      { 
+        $pull: { 
+          items: { _id: { $in: itemIds } } 
+        } 
+      },
+      { 
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!result) {
+      console.log('Cart not found for user:', req.user._id);
+      return res.status(404).json({
+        success: false,
+        error: 'Không tìm thấy giỏ hàng'
+      });
+    }
+
+    console.log('Successfully deleted items:', itemIds);
+    console.log('Remaining items count:', result.items.length);
+
+    // Populate để lấy thông tin course
+    const populatedCart = await result.populate({
+      path: 'items.course',
+      select: 'title price thumbnail'
+    });
+
+    res.json({
+      success: true,
+      data: {
+        deletedCount: itemIds.length,
+        itemCount: populatedCart.items.length,
+        total: calculateCartTotal(populatedCart.items)
+      }
+    });
+
+  } catch (err) {
+    console.error('Error bulk removing from cart:', err);
+    
+    // Kiểm tra loại lỗi cụ thể
+    if (err.name === 'CastError' && err.kind === 'ObjectId') {
+      return res.status(400).json({
+        success: false,
+        error: 'Một hoặc nhiều ID sản phẩm không hợp lệ'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Lỗi server khi xóa khỏi giỏ hàng'
+    });
+  }
+});
+
+// @desc    Xóa khóa học khỏi giỏ hàng
+// @route   DELETE /api/carts/:itemId
+// @access  Private
+router.delete('/:itemId', auth, async (req, res) => {
+  try {
+    console.log('Deleting cart item:', req.params.itemId);
+    console.log('User ID:', req.user._id);
+
+    // Sử dụng findOneAndUpdate thay vì session để tránh race condition
+    const result = await Cart.findOneAndUpdate(
+      { 
+        user: req.user._id,
+        'items._id': req.params.itemId 
+      },
+      { 
+        $pull: { 
+          items: { _id: req.params.itemId } 
+        } 
+      },
+      { 
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!result) {
+      console.log('Cart or item not found for user:', req.user._id);
+      return res.status(404).json({
+        success: false,
+        error: 'Không tìm thấy giỏ hàng hoặc sản phẩm'
+      });
+    }
+
+    console.log('Successfully deleted item:', req.params.itemId);
+    console.log('Remaining items count:', result.items.length);
+
+    // Populate để lấy thông tin course
+    const populatedCart = await result.populate({
+      path: 'items.course',
+      select: 'title price thumbnail'
+    });
+
+    res.json({
+      success: true,
+      data: {
+        itemCount: populatedCart.items.length,
+        total: calculateCartTotal(populatedCart.items)
+      }
+    });
+
+  } catch (err) {
+    console.error('Error removing from cart:', err);
+    
+    // Kiểm tra loại lỗi cụ thể
+    if (err.name === 'CastError' && err.kind === 'ObjectId') {
+      return res.status(400).json({
+        success: false,
+        error: 'ID sản phẩm không hợp lệ'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Lỗi server khi xóa khỏi giỏ hàng'
     });
   }
 });

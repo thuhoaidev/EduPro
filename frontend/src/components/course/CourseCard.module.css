@@ -130,20 +130,28 @@
 
 .footerContainer {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 12px;
     margin-top: 1.2rem;
-    gap: 1rem;
-    flex-wrap: nowrap;
-    min-height: 56px;
+    min-height: 80px;
 }
 
 .priceBlock {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    min-width: 110px;
+    gap: 4px;
+}
+
+.priceContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.priceRow {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
 }
 
 .price {
@@ -153,71 +161,129 @@
     margin-right: 0.25rem;
 }
 
+.priceBig {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #e11d48;
+    line-height: 1.2;
+}
+
 .oldPrice {
     font-size: 1rem;
     color: #94a3b8;
     text-decoration: line-through;
-    margin-left: 0.1rem;
     font-weight: 500;
 }
 
 .priceFree {
-    font-size: 1.35rem;
+    font-size: 1.5rem;
     font-weight: 800;
     color: #16a34a;
+    line-height: 1.2;
 }
 
-.buyBtn, .buyBtnFree {
-    white-space: nowrap;
-    flex-shrink: 0;
+.priceSubtitle {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.discountTag {
+    font-size: 0.75rem;
+    color: #dc2626;
+    font-weight: 600;
+    background: #fef2f2;
+    padding: 2px 6px;
+    border-radius: 4px;
+    align-self: flex-start;
+}
+
+.buttonContainer {
+    display: flex;
+    flex-direction: column;
+}
+
+.buyBtn, .buyBtnFree, .checkoutBtn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 12px;
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 48px;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
 }
 
 .buyBtn {
-    background: linear-gradient(90deg,#0ea5e9,#38bdf8);
-    border: 0;
-    font-weight: 700;
-    font-size: 15px;
+    background: linear-gradient(135deg, #0ea5e9, #38bdf8);
     color: white;
-    border-radius: 999px;
-    padding: 8px 22px;
-    box-shadow: 0 2px 8px rgba(14,165,233,0.10);
-    cursor: pointer;
-    transition: background 0.2s, transform 0.2s;
 }
+
 .buyBtn:hover {
-    background: linear-gradient(90deg,#38bdf8,#0ea5e9);
-    transform: translateY(-2px) scale(1.04);
+    background: linear-gradient(135deg, #0284c7, #0ea5e9);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(14,165,233,0.3);
 }
 
 .buyBtnFree {
-    background: linear-gradient(90deg,#22c55e,#16a34a);
-    border: 0;
-    font-weight: 700;
-    font-size: 15px;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
     color: white;
-    border-radius: 999px;
-    padding: 8px 22px;
-    box-shadow: 0 2px 8px rgba(34,197,94,0.10);
-    cursor: pointer;
-    transition: background 0.2s, transform 0.2s;
 }
+
 .buyBtnFree:hover {
-    background: linear-gradient(90deg,#16a34a,#22c55e);
-    transform: translateY(-2px) scale(1.04);
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(34,197,94,0.3);
+}
+
+.checkoutBtn {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.checkoutBtn:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(16,185,129,0.3);
+}
+
+.checkoutBtn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.buyBtn:disabled, .buyBtnFree:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.buttonText {
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.buttonSubtext {
+    font-size: 0.7rem;
+    font-weight: 500;
+    opacity: 0.9;
+    line-height: 1.2;
+    margin-top: 2px;
 }
 
 .vnd {
-    font-size: 1.3rem;
-    font-weight: 700;
-    margin-left: 2px;
-}
-
-.priceBig {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 4px;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #0ea5e9;
-    letter-spacing: 0.5px;
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-left: 0.1rem;
 } 

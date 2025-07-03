@@ -164,4 +164,18 @@ exports.updateSectionsOrder = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+};
+
+// Lấy thông tin 1 section theo id
+exports.getSectionById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const section = await Section.findById(id);
+        if (!section) {
+            throw new ApiError(404, 'Không tìm thấy chương');
+        }
+        res.json({ success: true, data: section });
+    } catch (error) {
+        next(error);
+    }
 }; 

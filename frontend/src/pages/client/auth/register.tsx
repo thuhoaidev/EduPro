@@ -1,8 +1,7 @@
 import {
   Button,
   Form,
-  Input,
-  Modal,
+  Input
 } from "antd";
 import { UserOutlined } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
@@ -10,7 +9,7 @@ import useRegister from "../../../hooks/Auths/useRegister";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { EyeInvisibleOutlined, EyeTwoTone, UserOutlined as UserIcon, LockOutlined, MailOutlined, ReadOutlined, TeamOutlined, BookOutlined, TrophyOutlined, SafetyCertificateOutlined, ArrowLeftOutlined } from "@ant-design/icons";
+import { EyeInvisibleOutlined, EyeTwoTone, UserOutlined as UserIcon, LockOutlined, MailOutlined, TeamOutlined, BookOutlined, TrophyOutlined, SafetyCertificateOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import AuthNotification from "../../../components/common/AuthNotification";
 
 // Custom CSS for reCAPTCHA
@@ -49,7 +48,7 @@ export function RegisterPage() {
         message: ''
       });
 
-      const onFinish = (formData: any) => {
+      const onFinish = (formData: { fullName: string; nickname: string; email: string; password: string }) => {
             console.log('Form submit data:', formData);
             if (!captchaToken) {
                   setNotification({
@@ -72,21 +71,27 @@ export function RegisterPage() {
             setLoading(true);
 
             mutate(newObject, {
-                  onSuccess: () => {
+                  onSuccess: (data) => {
                         setNotification({
                           isVisible: true,
                           type: 'success',
                           title: 'Tạo tài khoản thành công!',
                           message: 'Tài khoản của bạn đã được tạo thành công! Vui lòng xác minh email để đăng nhập.'
                         });
-                        
-                        // Navigate after notification
+                        // Nếu backend trả về token và user, lưu vào localStorage
+                        if (data?.token) {
+                              localStorage.setItem('token', data.token);
+                        }
+                        if (data?.user) {
+                              localStorage.setItem('user', JSON.stringify(data.user));
+                        }
                         setTimeout(() => {
-                          navigate("/");
+                              navigate("/");
                         }, 2500);
                   },
-                  onError: (error: any) => {
-                        const errorMessage = error?.response?.data?.message || "Đã xảy ra lỗi.";
+                  onError: (error: unknown) => {
+                        const err = error as { response?: { data?: { message?: string } } };
+                        const errorMessage = err?.response?.data?.message || "Đã xảy ra lỗi.";
                         setNotification({
                           isVisible: true,
                           type: 'error',
@@ -292,7 +297,7 @@ export function RegisterPage() {
                                                                   <div className="relative bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 shadow-lg">
                                                                         <ReCAPTCHA
                                                                               sitekey="6LffdUYrAAAAALJWWmP223n903IMwvy7KFj3exxT"
-                                                                              onChange={(token: any) => setCaptchaToken(token)}
+                                                                              onChange={(token: string | null) => setCaptchaToken(token)}
                                                                         />
                                                                   </div>
                                                             </motion.div>

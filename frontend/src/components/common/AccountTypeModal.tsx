@@ -136,7 +136,6 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({ isVisible, onClose 
 
             {/* Instructor Account Option */}
             <motion.div
-              
               whileHover="hover"
               whileTap="tap"
               onClick={() => handleAccountTypeSelect('instructor')}

@@ -204,7 +204,7 @@ const CartPage: React.FC = () => {
       ) : (
         <Row gutter={24}>
           <Col xs={24} lg={16}>
-            <Card bordered={false}>
+            <Card variant="outlined">
               <Table 
                 columns={columns} 
                 dataSource={cartItems} 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Row, Col, Card, Typography, Button, Rate, Tag, Image, Space, Divider, Statistic, Tabs, Spin, message, Badge, Tooltip, Carousel, Avatar } from "antd";
-import { motion, useAnimation } from 'framer-motion';
+import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import {
   PlayCircleOutlined,
@@ -24,6 +24,9 @@ import {
 } from "@ant-design/icons";
 import "../styles/courseCard.css";
 import { courseService, type Course as ApiCourse } from '../services/apiService';
+import voucherService from '../services/voucher.service';
+import type { Voucher } from '../services/voucher.service';
+import CourseCard from '../components/course/CourseCard';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -38,7 +41,7 @@ interface Testimonial {
   rating: number;
 }
 
-interface Voucher {
+interface VoucherDisplay {
   id: string;
   code: string;
   title: string;
@@ -56,6 +59,8 @@ interface Voucher {
   isNew?: boolean;
   isExpired: boolean;
   daysLeft: number;
+  status?: 'available' | 'unavailable';
+  statusMessage?: string;
 }
 
 const CustomArrow = ({ currentSlide, slideCount, children, ...rest }) => (
@@ -95,7 +100,7 @@ const Homepage = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-  const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [vouchers, setVouchers] = useState<VoucherDisplay[]>([]);
   const [loading, setLoading] = useState({
     courses: true,
     testimonials: true,
@@ -119,62 +124,99 @@ const Homepage = () => {
         }));
         setTestimonials(mappedTestimonials);
 
-        const mockVouchers: Voucher[] = [
-          {
-            id: '1',
-            code: 'WELCOME50',
-            title: 'Giảm 50% cho người mới',
-            description: 'Áp dụng cho tất cả khóa học, tối đa 500K',
-            discount: 50,
-            discountType: 'percentage',
-            minAmount: 100000,
-            maxDiscount: 500000,
-            validFrom: '2024-01-01',
-            validTo: '2024-12-31',
-            usageLimit: 1000,
-            usedCount: 234,
-            category: 'new-user',
-            isHot: true,
-            isNew: true,
-            isExpired: false,
-            daysLeft: 45
-          },
-          {
-            id: '2',
-            code: 'FLASH200K',
-            title: 'Giảm 200K cho khóa học IT',
-            description: 'Áp dụng cho khóa học Công nghệ thông tin',
-            discount: 200000,
-            discountType: 'fixed',
-            minAmount: 500000,
-            validFrom: '2024-01-01',
-            validTo: '2024-06-30',
-            usageLimit: 500,
-            usedCount: 156,
-            category: 'it-courses',
-            isHot: true,
-            isExpired: false,
-            daysLeft: 12
-          },
-          {
-            id: '3',
-            code: 'SUMMER30',
-            title: 'Giảm 30% mùa hè',
-            description: 'Áp dụng cho tất cả khóa học',
-            discount: 30,
-            discountType: 'percentage',
-            minAmount: 200000,
-            maxDiscount: 300000,
-            validFrom: '2024-06-01',
-            validTo: '2024-08-31',
-            usageLimit: 2000,
-            usedCount: 892,
-            category: 'seasonal',
-            isExpired: false,
-            daysLeft: 78
-          },
-        ];
-        setVouchers(mockVouchers);
+        // Fetch vouchers from API
+        try {
+          const voucherResponse = await voucherService.getAvailable();
+          if (voucherResponse.success) {
+            const mappedVouchers = voucherResponse.data.map((v: Voucher) => ({
+              id: v.id,
+              code: v.code,
+              title: v.title,
+              description: v.description,
+              discount: v.discountValue,
+              discountType: v.discountType,
+              minAmount: v.minOrderValue,
+              maxDiscount: v.maxDiscount,
+              validFrom: v.startDate,
+              validTo: v.endDate || '',
+              usageLimit: v.usageLimit,
+              usedCount: v.usedCount,
+              category: v.categories && v.categories.length > 0 ? v.categories[0] : 'all',
+              isHot: v.isHot,
+              isNew: v.isNew,
+              isExpired: v.endDate ? new Date(v.endDate) < new Date() : false,
+              daysLeft: v.endDate ? Math.max(0, Math.ceil((new Date(v.endDate).getTime() - Date.now()) / (1000*60*60*24))) : 999,
+              status: v.status || 'available',
+              statusMessage: v.statusMessage || 'Có thể sử dụng'
+            }));
+            setVouchers(mappedVouchers);
+          }
+        } catch (voucherError) {
+          console.error('Error fetching vouchers:', voucherError);
+          // Fallback to mock data if API fails
+          const mockVouchers: VoucherDisplay[] = [
+            {
+              id: '1',
+              code: 'WELCOME50',
+              title: 'Giảm 50% cho người mới',
+              description: 'Áp dụng cho tất cả khóa học, tối đa 500K',
+              discount: 50,
+              discountType: 'percentage',
+              minAmount: 100000,
+              maxDiscount: 500000,
+              validFrom: '2024-01-01',
+              validTo: '2024-12-31',
+              usageLimit: 1000,
+              usedCount: 234,
+              category: 'new-user',
+              isHot: true,
+              isNew: true,
+              isExpired: false,
+              daysLeft: 45,
+              status: 'available',
+              statusMessage: 'Có thể sử dụng'
+            },
+            {
+              id: '2',
+              code: 'FLASH200K',
+              title: 'Giảm 200K cho khóa học IT',
+              description: 'Áp dụng cho khóa học Công nghệ thông tin',
+              discount: 200000,
+              discountType: 'fixed',
+              minAmount: 500000,
+              validFrom: '2024-01-01',
+              validTo: '2024-06-30',
+              usageLimit: 500,
+              usedCount: 156,
+              category: 'it-courses',
+              isHot: true,
+              isExpired: false,
+              daysLeft: 12,
+              status: 'available',
+              statusMessage: 'Có thể sử dụng'
+            },
+            {
+              id: '3',
+              code: 'SUMMER30',
+              title: 'Giảm 30% mùa hè',
+              description: 'Áp dụng cho tất cả khóa học',
+              discount: 30,
+              discountType: 'percentage',
+              minAmount: 200000,
+              maxDiscount: 300000,
+              validFrom: '2024-06-01',
+              validTo: '2024-08-31',
+              usageLimit: 2000,
+              usedCount: 892,
+              category: 'seasonal',
+              isExpired: false,
+              daysLeft: 78,
+              status: 'available',
+              statusMessage: 'Có thể sử dụng'
+            },
+          ];
+          setVouchers(mockVouchers);
+        }
 
       } catch (err) {
         if (err instanceof Error) {
@@ -190,9 +232,11 @@ const Homepage = () => {
     fetchData();
   }, []);
 
-  const freeCourses = courses.filter((course) => course.price === "Miễn phí");
-  const paidCourses = courses.filter((course) => course.price !== "Miễn phí");
-  const popularCourses = [...courses].sort(() => Math.random() - 0.5).slice(0, 4);
+  const freeCourses = courses.filter((course) => course.isFree === true);
+  const paidCourses = courses.filter((course) => course.isFree === false);
+  const popularCourses = [...courses]
+    .sort((a, b) => b.reviews - a.reviews || b.rating - a.rating)
+    .slice(0, 4);
 
   const copyToClipboard = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -217,7 +261,7 @@ const Homepage = () => {
     return colors[category] || 'default';
   };
 
-  const formatDiscount = (voucher: Voucher) => {
+  const formatDiscount = (voucher: VoucherDisplay) => {
     if (voucher.discountType === 'percentage') {
       return `${voucher.discount}%`;
     }
@@ -317,7 +361,17 @@ const Homepage = () => {
                 <Card
                   hoverable
                   variant="borderless"
-                  style={{ borderRadius: "16px", overflow: "hidden", border: 'none', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', width: '100%', display: 'flex', flexDirection: 'column', height: '100%' }}
+                  style={{ 
+                    borderRadius: "16px", 
+                    overflow: "hidden", 
+                    border: 'none', 
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.08)', 
+                    width: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    height: '100%',
+                    opacity: voucher.status === 'unavailable' ? 0.6 : 1
+                  }}
                   styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', flex: 1 } }}
                 >
                   <div style={{ background: "linear-gradient(135deg, #ef4444, #f87171)", padding: '24px', color: 'white', textAlign: 'center' }}>
@@ -329,29 +383,66 @@ const Homepage = () => {
                       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                         <Text type='secondary'>Mã giảm giá</Text>
                         <div
-                          style={{ border: '2px dashed #d1d5db', padding: '8px 16px', borderRadius: '8px', margin: '8px auto', display: 'inline-block', cursor: 'pointer' }}
-                          onClick={() => copyToClipboard(voucher.code)}
+                          style={{ 
+                            border: '2px dashed #d1d5db', 
+                            padding: '8px 16px', 
+                            borderRadius: '8px', 
+                            margin: '8px auto', 
+                            display: 'inline-block', 
+                            cursor: voucher.status === 'available' ? 'pointer' : 'not-allowed',
+                            opacity: voucher.status === 'available' ? 1 : 0.5
+                          }}
+                          onClick={() => voucher.status === 'available' && copyToClipboard(voucher.code)}
                         >
                           <Text strong style={{ fontSize: '20px', letterSpacing: '2px', color: '#1e3a8a' }}>{voucher.code}</Text>
-                          <Tooltip title="Sao chép mã">
-                            <CopyOutlined style={{ marginLeft: '12px', color: '#6b7280' }} />
-                          </Tooltip>
+                          {voucher.status === 'available' && (
+                            <Tooltip title="Sao chép mã">
+                              <CopyOutlined style={{ marginLeft: '12px', color: '#6b7280' }} />
+                            </Tooltip>
+                          )}
                         </div>
                       </div>
+
+                      {/* Status Message */}
+                      {voucher.status === 'unavailable' && (
+                        <div style={{ 
+                          background: '#fef2f2', 
+                          border: '1px solid #fecaca', 
+                          borderRadius: '8px', 
+                          padding: '8px 12px', 
+                          marginBottom: '16px',
+                          textAlign: 'center'
+                        }}>
+                          <Text style={{ color: '#dc2626', fontSize: '12px' }}>
+                            {voucher.statusMessage}
+                          </Text>
+                        </div>
+                      )}
 
                       <Space direction="vertical" size="small" style={{ width: "100%"}}>
                         {voucher.minAmount && <Text type="secondary"><Tag color='blue'>Điều kiện</Tag> Đơn hàng từ {voucher.minAmount.toLocaleString()}đ</Text>}
                         {voucher.maxDiscount && voucher.discountType === 'percentage' && <Text type="secondary"><Tag color='blue'>Tối đa</Tag> Giảm đến {voucher.maxDiscount.toLocaleString()}đ</Text>}
                         <Text type="secondary"><ClockIcon style={{ marginRight: "4px" }} />Hạn sử dụng: {new Date(voucher.validTo).toLocaleDateString('vi-VN')}</Text>
+                        <Text type="secondary"><Tag color='orange'>Đã sử dụng</Tag> {voucher.usedCount}/{voucher.usageLimit}</Text>
                       </Space>
                     </div>
 
-                    <Button type="primary" block size="large" style={{ background: '#1e3a8a', height: '48px', marginTop: '24px' }}>
-                      Lưu mã
+                    <Button 
+                      type="primary" 
+                      block 
+                      size="large" 
+                      style={{ 
+                        background: voucher.status === 'available' ? '#1e3a8a' : '#9ca3af', 
+                        height: '48px', 
+                        marginTop: '24px' 
+                      }}
+                      disabled={voucher.status === 'unavailable'}
+                    >
+                      {voucher.status === 'available' ? 'Lưu mã' : 'Hết voucher'}
                     </Button>
                   </div>
-                  {voucher.isExpired && (
-                    <Badge.Ribbon text="Đã hết hạn" color="red" />
+                  {voucher.status === 'unavailable' && (
+                    <Badge.Ribbon text="Hết voucher" color="red" />
                   )}
                 </Card>
               </motion.div>
@@ -381,50 +472,91 @@ const Homepage = () => {
           defaultActiveKey="free"
           size="large"
           centered
+          renderTabBar={(props, DefaultTabBar) => (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <DefaultTabBar {...props} />
+            </motion.div>
+          )}
           items={[
             {
               key: 'free',
               label: 'Miễn phí',
               children: (
-                <Row gutter={[24, 24]}>
-                  {freeCourses.map((course, idx) => (
-                    <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>
-                      <CourseCard course={course} />
-                    </Col>
-                  ))}
-                </Row>
+                <AnimatePresence mode="wait">
+                  <Row gutter={[24, 24]}>
+                    {freeCourses.map((course, idx) => (
+                      <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>
+                        <motion.div
+                          initial={{ opacity: 0, y: 30 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 30 }}
+                          transition={{ duration: 0.5, delay: idx * 0.08 }}
+                        >
+                          <CourseCard course={course} isEnrolled={false} />
+                        </motion.div>
+                      </Col>
+                    ))}
+                  </Row>
+                </AnimatePresence>
               )
             },
             {
               key: 'popular',
               label: 'Phổ biến',
               children: (
-                <Row gutter={[24, 24]}>
-                  {popularCourses.map((course, idx) => (
-                    <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>
-                      <CourseCard course={course} />
-                    </Col>
-                  ))}
-                </Row>
+                <AnimatePresence mode="wait">
+                  <Row gutter={[24, 24]}>
+                    {popularCourses.map((course, idx) => (
+                      <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>
+                        <motion.div
+                          initial={{ opacity: 0, y: 30 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 30 }}
+                          transition={{ duration: 0.5, delay: idx * 0.08 }}
+                        >
+                          <CourseCard course={course} isEnrolled={false} />
+                        </motion.div>
+                      </Col>
+                    ))}
+                  </Row>
+                </AnimatePresence>
               )
             },
             {
               key: 'paid',
               label: 'Có phí',
               children: (
-                <Row gutter={[24, 24]}>
-                  {paidCourses.map((course, idx) => (
-                    <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>
-                      <CourseCard course={course} />
-                    </Col>
-                  ))}
-                </Row>
+                <AnimatePresence mode="wait">
+                  <Row gutter={[24, 24]}>
+                    {paidCourses.map((course, idx) => (
+                      <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>
+                        <motion.div
+                          initial={{ opacity: 0, y: 30 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 30 }}
+                          transition={{ duration: 0.5, delay: idx * 0.08 }}
+                        >
+                          <CourseCard course={course} isEnrolled={false} />
+                        </motion.div>
+                      </Col>
+                    ))}
+                  </Row>
+                </AnimatePresence>
               )
             }
           ]}
         />
         <div style={{ textAlign: "center", marginTop: "48px" }}>
-          <Button type="default" size="large" style={{ height: '48px', padding: '0 32px' }}>
+          <Button 
+            type="default" 
+            size="large" 
+            style={{ height: '48px', padding: '0 32px' }}
+            onClick={() => navigate('/courses')}
+          >
             Xem tất cả khóa học
           </Button>
         </div>
@@ -483,79 +615,6 @@ const Homepage = () => {
         </Button>
       </SectionWrapper>
     </div>
-  );
-};
-
-const CourseCard = ({ course }: { course: Course }) => {
-  return (
-    <motion.div
-      whileHover={{ y: -8, scale: 1.03, boxShadow: '0 12px 32px 0 rgba(56,189,248,0.12)' }}
-      transition={{ duration: 0.3 }}
-      style={{ height: '100%' }}
-    >
-      <Card
-        className="course-card"
-        hoverable
-        variant="borderless"
-        style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid #e5e7eb', boxShadow: '0 4px 16px rgba(56,189,248,0.08)', height: '100%', padding: 0 }}
-        styles={{ body: { padding: 20, display: 'flex', flexDirection: 'column', height: '100%' } }}
-        cover={
-          <div style={{ position: "relative" }}>
-            <Image
-              src={course.Image || "/placeholder.svg"}
-              alt={course.title}
-              preview={false}
-              style={{ height: "180px", objectFit: "cover", borderTopLeftRadius: 20, borderTopRightRadius: 20, transition: 'transform 0.4s', width: '100%' }}
-            />
-            <div style={{ position: 'absolute', inset: 0, borderTopLeftRadius: 20, borderTopRightRadius: 20, background: 'linear-gradient(to top, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 60%)' }} />
-            {course.isFree ? (
-              <Tag color="green" style={{ position: "absolute", top: 12, left: 12, fontWeight: 600, fontSize: 13, borderRadius: 999, padding: '4px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>Miễn phí</Tag>
-            ) : course.oldPrice && course.oldPrice > course.price ? (
-              <Tag color="red" style={{ position: "absolute", top: 12, left: 12, fontWeight: 700, fontSize: 15, borderRadius: 999, padding: '4px 18px', letterSpacing: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
-                -{Math.round(((course.oldPrice - course.price) / course.oldPrice) * 100)}% | {course.price.toLocaleString('vi-VN')} VND
-              </Tag>
-            ) : null}
-          </div>
-        }
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <Avatar src={course.author.avatar} size={32} icon={<UserOutlined />} />
-          <span style={{ fontWeight: 500, color: '#334155', fontSize: 15 }}>{course.author.name}</span>
-        </div>
-        <Typography.Title level={5} ellipsis={{ rows: 2 }} style={{ minHeight: 48, marginBottom: 8, fontWeight: 700, fontSize: 20, color: '#1e293b', lineHeight: 1.3 }}>
-          {course.title}
-        </Typography.Title>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#64748b', marginBottom: 8 }}>
-          <BookOutlined style={{ marginRight: 4 }} /> {course.lessons || 30} bài
-          <span style={{ color: '#cbd5e1' }}>|</span>
-          <span><ClockIcon style={{ marginRight: 4 }} />{course.duration || '15 giờ'}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <Rate value={course.rating} disabled allowHalf style={{ fontSize: 15, color: '#f59e0b' }} />
-          <span style={{ fontWeight: 600, color: '#f59e0b', fontSize: 14 }}>{course.rating.toFixed(1)}</span>
-          <span style={{ color: '#64748b', fontSize: 13 }}>({course.reviews})</span>
-        </div>
-        <div style={{ borderTop: '1px solid #f1f5f9', margin: '10px 0 16px' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            {course.isFree ? (
-              <span style={{ fontWeight: 800, fontSize: 20, color: '#16a34a' }}>Miễn phí</span>
-            ) : course.oldPrice && course.oldPrice > course.price ? (
-              <>
-                <span style={{ fontWeight: 800, fontSize: 20, color: '#1e3a8a' }}>{course.price.toLocaleString('vi-VN')} VND</span>
-                <span style={{ textDecoration: 'line-through', color: '#94a3b8', fontSize: 15 }}>{course.oldPrice.toLocaleString('vi-VN')} VND</span>
-                <Tag color="red" style={{ marginLeft: 8, fontWeight: 700, fontSize: 14, borderRadius: 999, padding: '2px 12px', letterSpacing: 1, display: 'inline-flex', alignItems: 'center' }}>
-                  -{Math.round(((course.oldPrice - course.price) / course.oldPrice) * 100)}%
-                </Tag>
-              </>
-            ) : (
-              <span style={{ fontWeight: 800, fontSize: 20, color: '#1e3a8a' }}>{course.price.toLocaleString('vi-VN')} VND</span>
-            )}
-          </div>
-          <Button type="primary" shape="round" size="middle" style={{ background: 'linear-gradient(90deg,#06b6d4,#6366f1)', border: 0, fontWeight: 600, fontSize: 15, boxShadow: '0 2px 8px rgba(56,189,248,0.10)' }} onClick={() => window.location.href = `/courses/${course.slug}`}>Xem chi tiết</Button>
-        </div>
-      </Card>
-    </motion.div>
   );
 };
 

@@ -7,6 +7,7 @@ import CategoryNav from '../../components/common/CategoryNav';
 import SearchBar from '../../components/common/SearchBar';
 import CourseCard from '../../components/course/CourseCard';
 import { motion } from 'framer-motion';
+import { config } from '../../api/axios';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -19,6 +20,7 @@ const CoursesPage: React.FC = () => {
     const navigate = useNavigate();
     const categoryId = searchParams.get('category');
     const searchTerm = searchParams.get('search') || '';
+    const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -34,9 +36,7 @@ const CoursesPage: React.FC = () => {
                     fetchedCourses = await courseService.getAllCourses();
                 }
                 
-                // Chỉ hiển thị khóa học có status archived
-                const archivedCourses = fetchedCourses.filter(course => course.status === 'archived');
-                setCourses(archivedCourses);
+                setCourses(fetchedCourses);
             } catch (err) {
                 setError('Không thể tải danh sách khóa học. Vui lòng thử lại sau.');
                 console.error(err);
@@ -46,6 +46,25 @@ const CoursesPage: React.FC = () => {
         };
 
         fetchCourses();
+    }, [categoryId, searchTerm]);
+
+    useEffect(() => {
+        // Lấy danh sách khóa học đã đăng ký
+        const fetchEnrollments = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                setEnrolledCourseIds([]);
+                return;
+            }
+            try {
+                const response = await config.get('/users/me/enrollments');
+                const ids = (response.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
+                setEnrolledCourseIds(ids);
+            } catch {
+                // Không cần xử lý lỗi ở đây
+            }
+        };
+        fetchEnrollments();
     }, [categoryId, searchTerm]);
 
     const handleSearch = (value: string) => {
@@ -115,7 +134,7 @@ const CoursesPage: React.FC = () => {
                 <Row gutter={[24, 24]}>
                     {courses.map(course => (
                         <Col key={course.id} xs={24} sm={12} md={8} lg={6}>
-                            <CourseCard course={course} />
+                            <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id)} />
                         </Col>
                     ))}
                 </Row>

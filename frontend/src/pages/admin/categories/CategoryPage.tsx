@@ -87,6 +87,7 @@ const FilterSection = ({
 );
 
 const CategoryPage = () => {
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState("");
@@ -127,7 +128,6 @@ const CategoryPage = () => {
       const params = {
         page,
         limit,
-        search,
         status: selectedStatus,
         startDate: dateRange?.[0]?.format('YYYY-MM-DD'),
         endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
@@ -137,22 +137,19 @@ const CategoryPage = () => {
       console.log('API Response:', response); // Debug log
 
       if (response.success) {
-        // Ensure categories is an array
         const categoriesData = Array.isArray(response.data) 
           ? response.data 
           : [];
-
         // Sort categories by creation date
         const sortedCategories = [...categoriesData].sort((a: Category, b: Category) => {
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
-
         // Map and add sequence number
         const mappedCategories = sortedCategories.map((category: Category, index: number) => ({
           ...category,
           number: (page - 1) * limit + index + 1,
         }));
-
+        setAllCategories(mappedCategories);
         setCategories(mappedCategories);
         setPagination({
           ...pagination,
@@ -178,6 +175,16 @@ const CategoryPage = () => {
       setLoading(false);
     }
   };
+
+  // Lọc categories khi searchInput hoặc selectedStatus thay đổi
+  useEffect(() => {
+    const filtered = allCategories.filter(category => {
+      const matchName = category.name.toLowerCase().includes(searchInput.toLowerCase());
+      const matchStatus = selectedStatus ? category.status === selectedStatus : true;
+      return matchName && matchStatus;
+    });
+    setCategories(filtered);
+  }, [searchInput, selectedStatus, allCategories]);
 
   // Fetch categories when search or filters change
   useEffect(() => {

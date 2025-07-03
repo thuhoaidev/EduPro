@@ -21,9 +21,11 @@ import {
   ExclamationCircleOutlined,
   InfoCircleOutlined,
   ClockCircleOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import AuthNotification from '../../components/common/AuthNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
+import { useCart } from '../../contexts/CartContext';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
@@ -49,6 +51,7 @@ interface Notification {
 
 const AppHeader = () => {
   const getRoleName = (user: User): string => user?.role?.name || 'student';
+  const { cartCount } = useCart();
 
   const [user, setUser] = useState<User | null | false>(null); // null: loading, User: logged in, false: not logged in
   const [loading, setLoading] = useState(true);
@@ -128,10 +131,7 @@ const AppHeader = () => {
       message: 'Bạn đã đăng xuất khỏi hệ thống. Hẹn gặp lại!'
     });
     
-    // Navigate after notification
-    setTimeout(() => {
-      navigate('/');
-    }, 2000);
+    // Không chuyển hướng ngay, để thông báo tự động chuyển hướng
   };
 
   const handleRegisterClick = () => {
@@ -202,12 +202,11 @@ const AppHeader = () => {
 
       try {
         const response = await config.get('/auth/me');
-        const userData = response.data.data; // Assuming user data is in response.data.data
+        const userData = response.data.data;
         setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
-        localStorage.removeItem('token'); // Clear invalid token
+        // Không xóa token ở đây nữa
         setUser(false);
       } finally {
         setLoading(false);
@@ -280,6 +279,13 @@ const AppHeader = () => {
               { key: '/blog/write', icon: <EditOutlined />, label: 'Viết blog' },
               { key: '/blog/mine', icon: <ProfileOutlined />, label: 'Bài viết của tôi' },
               { key: '/blog/saved', icon: <BookOutlined />, label: 'Bài viết đã lưu' },
+            ],
+          },
+          {
+            type: 'group' as const,
+            label: 'Báo cáo',
+            children: [
+              { key: '/report', icon: <BarChartOutlined  />, label: 'Báo cáo!' }
             ],
           },
           { type: 'divider' as const },
@@ -756,7 +762,7 @@ const AppHeader = () => {
                   whileTap={{ scale: 0.9 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Badge count={0} showZero size="small">
+                  <Badge count={cartCount} showZero size="small">
                     <Button 
                       onClick={() => navigate('/cart')} 
                       className="header-action-button" 
@@ -793,7 +799,7 @@ const AppHeader = () => {
                   transition={{ duration: 0.2 }}
                 >
                   <Button 
-                    href="/login" 
+                    onClick={() => navigate('/login')} 
                     size="middle" 
                     className="auth-button login-button"
                     style={{ height: '40px', padding: '0 20px' }}

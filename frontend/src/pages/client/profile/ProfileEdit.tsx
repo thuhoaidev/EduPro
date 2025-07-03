@@ -117,9 +117,6 @@ const ProfileEdit = () => {
 
       if (response.data.success) {
         message.success('Cập nhật thông tin thành công');
-        // Update localStorage with new user data
-        const updatedUser = response.data.data;
-        localStorage.setItem('user', JSON.stringify(updatedUser));
         window.dispatchEvent(new Event('user-updated'));
         navigate('/profile');
       } else {

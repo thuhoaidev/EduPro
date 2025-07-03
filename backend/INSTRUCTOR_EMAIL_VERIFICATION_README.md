@@ -149,7 +149,7 @@ Response:
   },
   approval_status: {
     type: String,
-    enum: [null, 'pending', 'approved', 'rejected'],
+    enum: [null, 'pending', 'approved', ''],
     default: null,
   },
   

@@ -7,7 +7,6 @@ import {
   HistoryOutlined,
   BarChartOutlined,
   WarningOutlined,
-  LogoutOutlined,
   ProfileOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -87,7 +86,7 @@ const AdminLayout = () => {
       try {
         // Reverted to /auth/me and response.data
         const response = await config.get('/auth/me');
-        let userData = response.data;
+        const userData = response.data;
         if (userData && typeof userData.role === 'string') {
           userData.role = { name: userData.role };
         }
@@ -95,8 +94,6 @@ const AdminLayout = () => {
         localStorage.setItem('user', JSON.stringify(userData));
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
         setUser(null);
         navigate("/login");
       } finally {
@@ -113,15 +110,6 @@ const AdminLayout = () => {
       navigate("/");
     }
   }, [user, loading, navigate]);
-
-  // --- Logout ---
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
-    message.success("Đăng xuất thành công!");
-    navigate("/login");
-  };
 
   // --- Menu Items ---
   const menuItems: MenuProps["items"] = useMemo(
@@ -197,14 +185,6 @@ const AdminLayout = () => {
       icon: <HomeOutlined />,
       label: "Quay lại trang chủ",
       onClick: () => navigate("/"),
-    },
-    { type: "divider" },
-    {
-      key: "logout",
-      icon: <LogoutOutlined />,
-      label: "Đăng xuất",
-      onClick: handleLogout,
-      danger: true,
     },
   ];
 

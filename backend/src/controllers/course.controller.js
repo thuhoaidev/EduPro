@@ -2,10 +2,11 @@ const Course = require('../models/Course');
 const InstructorProfile = require('../models/InstructorProfile');
 const { uploadBufferToCloudinary, getPublicIdFromUrl, deleteFromCloudinary } = require('../utils/cloudinary');
 const { validateSchema } = require('../utils/validateSchema');
-const { createCourseSchema, updateCourseSchema, updateCourseStatusSchema } = require('../validations/course.validation');
+const { createCourseSchema, updateCourseSchema } = require('../validations/course.validation');
 const ApiError = require('../utils/ApiError');
 const Section = require('../models/Section');
 const User = require('../models/User');
+const Enrollment = require('../models/Enrollment');
 
 // Tạo khóa học mới
 exports.createCourse = async (req, res, next) => {
@@ -14,11 +15,6 @@ exports.createCourse = async (req, res, next) => {
         if (!req.user.roles.includes('instructor') && !req.user.roles.includes('admin')) {
             throw new ApiError(403, 'Bạn không có quyền tạo khóa học');
         }
-
-        // Log thông tin user
-        console.log('\n=== DEBUG INSTRUCTOR PROFILE ===');
-        console.log('User ID:', req.user._id);
-        console.log('User roles:', req.user.roles);
 
         // Nếu là admin, bỏ qua kiểm tra instructor profile
         if (req.user.roles.includes('admin')) {
@@ -39,7 +35,6 @@ exports.createCourse = async (req, res, next) => {
                 // Kiểm tra và xóa record với user_id null nếu có
                 const nullProfile = await InstructorProfile.findOne({ user: null });
                 if (nullProfile) {
-                    console.log('Found and removing profile with null user_id...');
                     await nullProfile.remove();
                 }
                 instructorProfile = new InstructorProfile({
@@ -501,7 +496,17 @@ exports.getCourses = async (req, res, next) => {
 
         // Xây dựng query
         const query = {};
-        if (status) query.status = status;
+        if (status) {
+            // Hỗ trợ multiple status values được phân tách bằng dấu phẩy
+            if (status.includes(',')) {
+                query.status = { $in: status.split(',').map(s => s.trim()) };
+            } else {
+                query.status = status;
+            }
+        } else {
+            // Mặc định chỉ lấy khóa học đã được phê duyệt
+            query.status = { $in: ['published', 'active'] };
+        }
         if (category) query.category = category;
         if (level) query.level = level;
         if (search) {
@@ -650,6 +655,15 @@ exports.getCourseById = async (req, res, next) => {
             throw new ApiError(404, 'Không tìm thấy khóa học');
         }
 
+        // Lấy danh sách chương học và bài học
+        const sections = await Section.find({ course_id: id })
+            .sort({ position: 1 })
+            .populate({
+                path: 'lessons',
+                select: 'title position is_preview',
+                options: { sort: { position: 1 } },
+            });
+
         // Tăng lượt xem
         course.views = (course.views || 0) + 1;
         await course.save();
@@ -670,7 +684,10 @@ exports.getCourseById = async (req, res, next) => {
 
         res.json({
             success: true,
-            data: formattedCourse
+            data: {
+                ...formattedCourse,
+                sections
+            }
         });
 
     } catch (error) {
@@ -830,4 +847,36 @@ exports.searchCourses = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+};
+
+// Tham gia khóa học
+exports.enrollCourse = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const courseId = req.params.courseId;
+
+    const course = await Course.findById(courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    // Kiểm tra miễn phí hoặc đã mua (giả sử có trường price)
+    const isFree = course.price === 0;
+    // TODO: Thay thế đoạn này bằng logic kiểm tra đã mua thực tế
+    const hasPurchased = isFree ? true : false; // Tạm thời chỉ cho phép miễn phí
+
+    if (!isFree && !hasPurchased) {
+      return res.status(403).json({ message: 'Bạn cần mua khóa học này' });
+    }
+
+    // Đã enroll chưa?
+    const alreadyEnrolled = await Enrollment.findOne({ student: userId, course: courseId });
+    if (alreadyEnrolled) {
+      return res.status(400).json({ message: 'Bạn đã tham gia khóa học này' });
+    }
+
+    // Tạo enrollment
+    await Enrollment.create({ student: userId, course: courseId });
+    res.json({ message: 'Tham gia thành công' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };

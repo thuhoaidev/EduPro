@@ -50,6 +50,8 @@ exports.auth = async (req, res, next) => {
         roles.push('admin');
       } else if (user.role_id.name === 'instructor') {
         roles.push('instructor');
+      } else if (user.role_id.name === 'student') {
+        roles.push('student');
       }
     }
 
@@ -61,7 +63,8 @@ exports.auth = async (req, res, next) => {
     // Thêm thông tin role_id vào user
     user.role_id = {
       name: roles.includes('admin') ? 'admin' :
-        roles.includes('instructor') ? 'instructor' : 'guest',
+        roles.includes('instructor') ? 'instructor' :
+        roles.includes('student') ? 'student' : 'guest',
     };
 
     // Gán user vào request

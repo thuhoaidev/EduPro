@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Form, Input, Button, Checkbox, Modal } from "antd";
+import React, { useState, useEffect } from "react";
+import { Form, Input, Button, Checkbox, Modal, message } from "antd";
 import { Link, useNavigate } from "react-router-dom";
 import useLogin from "../../../hooks/Auths/useLogin";
 import { config } from "../../../api/axios";
@@ -9,6 +9,8 @@ import AuthNotification from "../../../components/common/AuthNotification";
 import AccountTypeModal from "../../../components/common/AccountTypeModal";
 
 export default function LoginPage(): React.ReactElement {
+  console.log('🔍 LoginPage component is rendering...');
+  
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const { mutate } = useLogin({ resource: "login" });
@@ -30,19 +32,29 @@ export default function LoginPage(): React.ReactElement {
   });
 
   const onFinish = (values: { identifier: string; password: string }) => {
+    console.log('🔍 Form submitted:', values);
     setIsLoading(true);
     mutate(values, {
-      onSuccess: (data: { user?: { isEmailVerified?: boolean }, token?: string }) => {
-        if (data?.user?.isEmailVerified === false) {
-          setVerificationEmail(values.identifier);
-          setShowVerificationModal(true);
-        } else {
-          if (data?.token) {
-            localStorage.setItem('token', data.token);
-          }
-          if (data?.user) {
-            localStorage.setItem('user', JSON.stringify(data.user));
-          }
+      onSuccess: (data) => {
+        console.log('Login response:', data);
+        localStorage.removeItem('token');
+        // Thử lấy token ở nhiều vị trí khác nhau
+        let token = null;
+        if (data?.data?.token) {
+          token = data.data.token;
+        } else if (data?.token) {
+          token = data.token;
+        } else if (data?.access_token) {
+          token = data.access_token;
+        } else if (data?.data?.access_token) {
+          token = data.data.access_token;
+        }
+        
+        if (token) {
+          localStorage.setItem('token', token);
+          console.log('Token after login:', localStorage.getItem('token'));
+          
+          // Hiển thị thông báo thành công
           setNotification({
             isVisible: true,
             type: 'success',
@@ -50,19 +62,33 @@ export default function LoginPage(): React.ReactElement {
             message: 'Chào mừng bạn trở lại!'
           });
           
-          setTimeout(() => {
-            navigate("/");
-          }, 1500);
+          // Không chuyển hướng ngay, để thông báo tự động chuyển hướng
+        } else {
+          console.warn('Không tìm thấy token trong response!', data);
+          // Nếu không có token, vẫn hiển thị thông báo thành công
+          setNotification({
+            isVisible: true,
+            type: 'success',
+            title: 'Đăng nhập thành công!',
+            message: 'Chào mừng bạn trở lại!'
+          });
         }
+        
+        // Kiểm tra email verification nếu cần
+        if (data?.user?.isEmailVerified === false) {
+          setVerificationEmail(values.identifier);
+          setShowVerificationModal(true);
+        }
+        
         setIsLoading(false);
       },
       onError: (error: { response?: { data?: { message?: string } } }) => {
-        const errorMessage = error?.response?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại.";
+        // Luôn hiển thị thông báo chung khi đăng nhập sai
         setNotification({
           isVisible: true,
           type: 'error',
           title: 'Lỗi đăng nhập!',
-          message: errorMessage
+          message: 'Sai email hoặc mật khẩu!'
         });
         setIsLoading(false);
       }
@@ -118,16 +144,29 @@ export default function LoginPage(): React.ReactElement {
   };
 
   const buttonVariants = {
-    hover: { 
+    hover: {
       scale: 1.05,
       boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
       transition: { duration: 0.2 }
     },
-    tap: { 
+    tap: {
       scale: 0.95,
       transition: { duration: 0.1 }
     }
   };
+
+  const storedUser = localStorage.getItem('user');
+  // console.log('User từ localStorage:', storedUser);
+
+  useEffect(() => {
+    if (notification.isVisible && notification.type === 'success' && notification.title.includes('Đăng nhập thành công')) {
+      // Chuyển hướng sau khi thông báo đăng nhập thành công
+      const timer = setTimeout(() => {
+        navigate('/');
+      }, 1200); // Đợi animation hoặc thông báo hoàn thành
+      return () => clearTimeout(timer);
+    }
+  }, [notification, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4 py-8 relative">
@@ -162,14 +201,14 @@ export default function LoginPage(): React.ReactElement {
         </motion.button>
       </motion.div>
 
-      <motion.div 
+      <motion.div
         className="flex bg-white/80 backdrop-blur-sm shadow-2xl rounded-2xl overflow-hidden w-full max-w-6xl min-h-[600px] border border-white/20"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
         {/* Left Side - Form */}
-        <motion.div 
+        <motion.div
           className="w-full lg:w-1/2 p-8 lg:p-12 flex flex-col justify-center relative"
           variants={itemVariants}
         >
@@ -181,13 +220,13 @@ export default function LoginPage(): React.ReactElement {
             variants={itemVariants}
             className="relative z-10"
           >
-            <motion.h2 
+            <motion.h2
               className="text-4xl font-bold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600"
               variants={itemVariants}
             >
               Đăng Nhập
             </motion.h2>
-            <motion.p 
+            <motion.p
               className="text-center text-gray-600 mb-8"
               variants={itemVariants}
             >
@@ -240,7 +279,7 @@ export default function LoginPage(): React.ReactElement {
                 </Form.Item>
               </motion.div>
 
-              <motion.div 
+              <motion.div
                 className="flex justify-between items-center"
                 variants={itemVariants}
               >
@@ -249,8 +288,8 @@ export default function LoginPage(): React.ReactElement {
                     Lưu cho lần đăng nhập sau
                   </Checkbox>
                 </Form.Item>
-                <Link 
-                  to="/forgot-password" 
+                <Link
+                  to="/forgot-password"
                   className="text-cyan-600 hover:text-purple-600 text-sm font-medium transition-colors duration-300 hover:underline"
                 >
                   Quên mật khẩu?
@@ -271,12 +310,12 @@ export default function LoginPage(): React.ReactElement {
                 </Form.Item>
               </motion.div>
 
-              <motion.div 
+              <motion.div
                 className="text-center text-base mt-6"
                 variants={itemVariants}
               >
                 <span className="text-gray-600">Bạn chưa có tài khoản? </span>
-                <button 
+                <button
                   onClick={handleRegisterClick}
                   className="text-cyan-600 hover:text-purple-600 font-medium transition-colors duration-300 hover:underline"
                 >
@@ -288,24 +327,24 @@ export default function LoginPage(): React.ReactElement {
         </motion.div>
 
         {/* Right Side - Features & Info */}
-        <motion.div 
+        <motion.div
           className="hidden lg:flex flex-col w-1/2 p-8 relative overflow-hidden"
           variants={itemVariants}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-purple-500/10"></div>
-          
+
           {/* Welcome Section */}
-          <motion.div 
+          <motion.div
             className="relative z-10 flex-1 flex flex-col justify-center"
             variants={itemVariants}
           >
-            <motion.h3 
+            <motion.h3
               className="text-3xl font-bold text-gray-800 mb-8 text-center"
               variants={itemVariants}
             >
               Chào mừng trở lại!
             </motion.h3>
-            
+
             <div className="grid grid-cols-1 gap-6">
               <motion.div
                 variants={itemVariants}
@@ -369,7 +408,7 @@ export default function LoginPage(): React.ReactElement {
             </div>
 
             {/* Bottom Text */}
-            <motion.div 
+            <motion.div
               className="relative z-10 text-center text-gray-700 mt-8"
               variants={itemVariants}
             >
@@ -390,8 +429,8 @@ export default function LoginPage(): React.ReactElement {
           open={showVerificationModal}
           onCancel={() => setShowVerificationModal(false)}
           footer={[
-            <Button 
-              key="cancel" 
+            <Button
+              key="cancel"
               onClick={() => setShowVerificationModal(false)}
               className="hover:border-cyan-500 hover:text-cyan-500"
             >
@@ -418,7 +457,7 @@ export default function LoginPage(): React.ReactElement {
       </motion.div>
 
       {/* Shared Auth Notification */}
-      <AuthNotification 
+      <AuthNotification
         isVisible={notification.isVisible}
         onComplete={() => setNotification(prev => ({ ...prev, isVisible: false }))}
         type={notification.type}

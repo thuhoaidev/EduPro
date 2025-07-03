@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Table,
   Input,
@@ -14,12 +14,13 @@ import {
   Descriptions,
   Divider,
   Typography,
+  Button,
+  message,
 } from "antd";
 import {
   SearchOutlined,
   CheckCircleOutlined,
   UserOutlined,
-  ClockCircleOutlined,
   CloseCircleOutlined,
   TeamOutlined,
   UserSwitchOutlined,
@@ -27,12 +28,12 @@ import {
 import { UserStatus, type User } from "../../../interfaces/Admin.interface";
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
+import { useRef } from "react";
 import styles from "../Users/UserPage.module.css";
 import type { TablePaginationConfig } from 'antd/es/table';
-
+import { config } from "../../../api/axios";
 dayjs.locale("vi");
 
-const { RangePicker } = DatePicker;
 const { Paragraph, Link: AntdLink } = Typography;
 
 // Extend User with instructor-specific fields
@@ -57,13 +58,23 @@ interface Instructor extends User {
   website: string;
   applicationDate: string;
   password: string;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
 }
 
 // --- Helper Components ---
 
-const StatCards = ({ stats }: { stats: { total: number; active: number; inactive: number } }) => (
+const StatCards = ({
+  stats,
+}: {
+  stats: {
+    total: number;
+    approved: number;
+    pending: number;
+    rejected: number;
+  };
+}) => (
   <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
-    <Col xs={24} sm={12} md={8}>
+    <Col xs={24} sm={12} md={6}>
       <Card className={styles.statsCard}>
         <Statistic
           title="Tổng số giảng viên"
@@ -72,20 +83,29 @@ const StatCards = ({ stats }: { stats: { total: number; active: number; inactive
         />
       </Card>
     </Col>
-    <Col xs={24} sm={12} md={8}>
+    <Col xs={24} sm={12} md={6}>
       <Card className={styles.statsCard}>
         <Statistic
-          title="Đang hoạt động"
-          value={stats.active}
-          prefix={<UserSwitchOutlined className={styles.statIcon} style={{ color: "#52c41a" }} />}
+          title="Giảng viên đã duyệt"
+          value={stats.approved}
+          prefix={<CheckCircleOutlined className={styles.statIcon} style={{ color: "#52c41a" }} />}
         />
       </Card>
     </Col>
-    <Col xs={24} sm={12} md={8}>
+    <Col xs={24} sm={12} md={6}>
       <Card className={styles.statsCard}>
         <Statistic
-          title="Không hoạt động"
-          value={stats.inactive}
+          title="Chờ duyệt"
+          value={stats.pending}
+          prefix={<UserSwitchOutlined className={styles.statIcon} style={{ color: "#faad14" }} />}
+        />
+      </Card>
+    </Col>
+    <Col xs={24} sm={12} md={6}>
+      <Card className={styles.statsCard}>
+        <Statistic
+          title="Bị từ chối"
+          value={stats.rejected}
           prefix={<CloseCircleOutlined className={styles.statIcon} style={{ color: "#ff4d4f" }} />}
         />
       </Card>
@@ -93,19 +113,20 @@ const StatCards = ({ stats }: { stats: { total: number; active: number; inactive
   </Row>
 );
 
+
 const FilterSection = ({
   searchInput,
   setSearchInput,
   setSearch,
-  selectedStatus,
-  setSelectedStatus,
+  selectedApprovalStatus,
+  setSelectedApprovalStatus,
   setDateRange,
 }: {
   searchInput: string;
   setSearchInput: (value: string) => void;
   setSearch: (value: string) => void;
-  selectedStatus: UserStatus | undefined;
-  setSelectedStatus: (status: UserStatus | undefined) => void;
+  selectedApprovalStatus: string | undefined;
+  setSelectedApprovalStatus: (status: string | undefined) => void;
   setDateRange: (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => void;
 }) => (
   <div className={styles.filterGroup}>
@@ -119,16 +140,18 @@ const FilterSection = ({
       allowClear
     />
     <Select
-      placeholder="Lọc theo trạng thái"
-      value={selectedStatus}
-      onChange={setSelectedStatus}
+      placeholder="Lọc theo trạng thái duyệt"
+      value={selectedApprovalStatus}
+      onChange={(val) => setSelectedApprovalStatus(val || undefined)}
       className={styles.filterSelect}
       allowClear
     >
-      <Select.Option value={UserStatus.ACTIVE}>Hoạt động</Select.Option>
-      <Select.Option value={UserStatus.INACTIVE}>Không hoạt động</Select.Option>
+      <Select.Option value="">Tất cả</Select.Option>
+      <Select.Option value="pending">Chờ duyệt</Select.Option>
+      <Select.Option value="approved">Đã duyệt</Select.Option>
+      <Select.Option value="rejected">Từ chối</Select.Option>
     </Select>
-    <RangePicker
+    <DatePicker.RangePicker
       placeholder={["Từ ngày", "Đến ngày"]}
       onChange={(dates) => setDateRange(dates)}
       className={styles.filterDateRange}
@@ -137,106 +160,11 @@ const FilterSection = ({
   </div>
 );
 
-const mockInstructors: Instructor[] = [
-  {
-    id: "1",
-    fullname: "Nguyễn Văn A",
-    email: "a@edu.vn",
-    avatar: "https://i.pravatar.cc/150?img=11",
-    status: UserStatus.ACTIVE,
-    createdAt: dayjs().subtract(10, "day").toISOString(),
-    updatedAt: dayjs().subtract(2, "day").toISOString(),
-    phone: "0123456789",
-    address: "Hà Nội",
-    dob: dayjs().subtract(30, "year").toISOString(),
-    gender: "Nam",
-    role: "instructor",
-    degree: "Tiến sĩ",
-    university: "Đại học Bách Khoa Hà Nội",
-    major: "Khoa học máy tính",
-    graduationYear: 2018,
-    expertise: ["React", "NodeJS", "SQL"],
-    experienceYears: 7,
-    experienceDescription: "Đã giảng dạy các khóa lập trình web, phát triển ứng dụng React và NodeJS tại nhiều trung tâm lớn. Tham gia xây dựng giáo trình và mentor cho nhiều dự án thực tế.",
-    cvUrl: "https://example.com/cv-nguyenvana.pdf",
-    certificates: [
-      { name: "Chứng chỉ AWS", url: "https://example.com/aws-cert.pdf" },
-      { name: "Chứng chỉ React", url: "https://example.com/react-cert.jpg" },
-    ],
-    demoVideoUrl: "https://www.youtube.com/watch?v=ysz5S6PUM-U",
-    bio: "Tôi là tiến sĩ chuyên ngành Khoa học máy tính, đam mê giảng dạy và phát triển phần mềm.",
-    github: "https://github.com/nguyenvana",
-    facebook: "https://facebook.com/nguyenvana",
-    website: "https://nguyenvana.dev",
-    applicationDate: dayjs().subtract(12, "day").toISOString(),
-    password: "12345678",
-  },
-  {
-    id: "2",
-    fullname: "Trần Thị B",
-    email: "b@edu.vn",
-    avatar: "https://i.pravatar.cc/150?img=12",
-    status: UserStatus.INACTIVE,
-    createdAt: dayjs().subtract(20, "day").toISOString(),
-    updatedAt: dayjs().subtract(5, "day").toISOString(),
-    phone: "0987654321",
-    address: "TP.HCM",
-    dob: dayjs().subtract(28, "year").toISOString(),
-    gender: "Nữ",
-    role: "instructor",
-    degree: "Thạc sĩ",
-    university: "Đại học Khoa học Tự nhiên TP.HCM",
-    major: "Công nghệ thông tin",
-    graduationYear: 2016,
-    expertise: ["PHP", "SQL"],
-    experienceYears: 5,
-    experienceDescription: "Giảng dạy các lớp PHP, MySQL, xây dựng hệ thống quản lý dữ liệu cho doanh nghiệp. Có kinh nghiệm làm việc thực tế tại các công ty phần mềm.",
-    cvUrl: "https://example.com/cv-tranthib.docx",
-    certificates: [
-      { name: "Chứng chỉ PHP", url: "https://example.com/php-cert.pdf" },
-    ],
-    demoVideoUrl: "https://vimeo.com/123456789",
-    bio: "Tôi yêu thích chia sẻ kiến thức về lập trình backend và quản trị cơ sở dữ liệu.",
-    github: "https://github.com/tranthib",
-    facebook: "https://facebook.com/tranthib",
-    website: "https://tranthib.com",
-    applicationDate: dayjs().subtract(22, "day").toISOString(),
-    password: "87654321",
-  },
-  {
-    id: "3",
-    fullname: "Lê Văn C",
-    email: "c@edu.vn",
-    avatar: "https://i.pravatar.cc/150?img=13",
-    status: UserStatus.ACTIVE,
-    createdAt: dayjs().subtract(5, "day").toISOString(),
-    updatedAt: dayjs().subtract(1, "day").toISOString(),
-    phone: "0911222333",
-    address: "Đà Nẵng",
-    dob: dayjs().subtract(35, "year").toISOString(),
-    gender: "Nam",
-    role: "instructor",
-    degree: "Cử nhân",
-    university: "Đại học Đà Nẵng",
-    major: "Kỹ thuật phần mềm",
-    graduationYear: 2012,
-    expertise: ["React"],
-    experienceYears: 10,
-    experienceDescription: "10 năm kinh nghiệm phát triển front-end, từng làm leader tại nhiều dự án lớn.",
-    cvUrl: "https://example.com/cv-levanc.pdf",
-    certificates: [],
-    demoVideoUrl: "",
-    bio: "Luôn cập nhật công nghệ mới và truyền cảm hứng học tập cho học viên.",
-    github: "",
-    facebook: "",
-    website: "",
-    applicationDate: dayjs().subtract(6, "day").toISOString(),
-    password: "password123",
-  },
-];
 
 const InstructorList = () => {
-  const [instructors] = useState<Instructor[]>(mockInstructors);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [loading, setLoading] = useState(false);
+  const rejectReasonRef = useRef<string>('');
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [isDetailsModalVisible, setIsDetailsModalVisible] = useState(false);
@@ -244,32 +172,21 @@ const InstructorList = () => {
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
-    total: mockInstructors.length,
+    total: 0,
   });
-  const [selectedStatus, setSelectedStatus] = useState<UserStatus | undefined>(undefined);
+
+  const [selectedApprovalStatus, setSelectedApprovalStatus] = useState<string | undefined>(undefined);
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 
-  // Filter logic (mock)
-  const filteredInstructors = instructors.filter((inst) => {
-    const matchesSearch =
-      !search ||
-      inst.fullname.toLowerCase().includes(search.toLowerCase()) ||
-      inst.email.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus =
-      !selectedStatus || inst.status === selectedStatus;
-    const matchesDate =
-      !dateRange ||
-      (!dateRange[0] || dayjs(inst.createdAt).isAfter(dateRange[0].startOf("day"))) &&
-      (!dateRange[1] || dayjs(inst.createdAt).isBefore(dateRange[1].endOf("day")));
-    return matchesSearch && matchesStatus && matchesDate;
-  });
 
   // Stats
   const stats = {
-    total: filteredInstructors.length,
-    active: filteredInstructors.filter((u) => u.status === UserStatus.ACTIVE).length,
-    inactive: filteredInstructors.filter((u) => u.status === UserStatus.INACTIVE).length,
+    total: instructors.length,
+    approved: instructors.filter((u) => u.approvalStatus === 'approved').length,
+    pending: instructors.filter((u) => u.approvalStatus === 'pending').length,
+    rejected: instructors.filter((u) => u.approvalStatus === 'rejected').length,
   };
+
 
   // Handlers
   const handleViewDetails = (inst: Instructor) => {
@@ -280,20 +197,112 @@ const InstructorList = () => {
   const handleTableChange = (pag: TablePaginationConfig) => {
     setPagination((prev) => ({ ...prev, current: pag.current || 1, pageSize: pag.pageSize || 10 }));
   };
+  const fetchInstructors = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: any = {};
+      if (search) params.search = search;
+      if (selectedApprovalStatus) params.approvalStatus = selectedApprovalStatus;
+      if (dateRange?.[0]) params.from = dateRange[0].toISOString();
+      if (dateRange?.[1]) params.to = dateRange[1].toISOString();
 
-  // Status tag
-  const getStatusTag = (status: UserStatus) => {
-    const statusMap = {
-      [UserStatus.ACTIVE]: { color: "success", label: "Hoạt động", icon: <CheckCircleOutlined /> },
-      [UserStatus.INACTIVE]: { color: "default", label: "Không hoạt động", icon: <ClockCircleOutlined /> },
-    };
-    const tag = statusMap[status] || { color: "default", label: status, icon: null };
-    return (
-      <Tag color={tag.color} icon={tag.icon} className={styles.statusTag}>
-        {tag.label}
-      </Tag>
-    );
+      const response = await config.get("/users/instructors", { params });
+      console.log("API Response:", response.data);
+      const rawInstructors = response.data.data.instructors || [];
+      const mappedInstructors = rawInstructors.map((inst: any) => ({
+        ...inst,
+        approvalStatus: inst.approvalStatus || inst.approval_status || 'pending',
+      }));
+      console.log("Mapped Instructors:", mappedInstructors);
+      setInstructors(mappedInstructors);
+    } catch (error) {
+      console.error("Error fetching instructors:", error);
+      message.error("Không thể lấy danh sách giảng viên");
+    } finally {
+      setLoading(false);
+    }
+  }, [search, selectedApprovalStatus, dateRange]);
+
+  useEffect(() => {
+    fetchInstructors();
+  }, [fetchInstructors, pagination.current]);
+
+  const handleApprove = async (instructor: Instructor) => {
+    Modal.confirm({
+      title: "Xác nhận duyệt giảng viên?",
+      content: `Bạn có chắc chắn muốn duyệt giảng viên "${instructor.fullname}"?`,
+      okText: "Duyệt",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          await config.put(`/users/instructors/${instructor.id}/approval`, {
+            status: "approved",
+          });
+          message.success(`Đã duyệt giảng viên: ${instructor.fullname}`);
+          
+          setInstructors(prev => prev.map(inst => 
+            inst.id === instructor.id 
+              ? { ...inst, approvalStatus: 'approved' }
+              : inst
+          ));
+          
+          await fetchInstructors();
+        } catch (error) {
+          console.error("Error approving instructor:", error);
+          message.error("Duyệt thất bại");
+        }
+      },
+    });
   };
+
+  const handleReject = async (instructor: Instructor) => {
+    rejectReasonRef.current = "";
+
+    Modal.confirm({
+      title: "Từ chối giảng viên",
+      content: (
+        <div>
+          <p>Nhập lý do từ chối:</p>
+          <Input.TextArea
+            placeholder="Lý do từ chối"
+            rows={4}
+            onChange={(e) =>
+              (rejectReasonRef.current = e.target.value)
+            }
+          />
+        </div>
+      ),
+      okText: "Từ chối",
+      cancelText: "Hủy",
+      onOk: async () => {
+        if (!rejectReasonRef.current.trim()) {
+          message.warning("Vui lòng nhập lý do từ chối");
+          return Promise.reject();
+        }
+        try {
+          await config.put(`/users/instructors/${instructor.id}/approval`, {
+            status: "rejected",
+            rejection_reason: rejectReasonRef.current,
+          });
+          message.success(`Đã từ chối giảng viên: ${instructor.fullname}`);
+          
+          setInstructors(prev => prev.map(inst => 
+            inst.id === instructor.id 
+              ? { ...inst, approvalStatus: 'rejected' }
+              : inst
+          ));
+          
+          await fetchInstructors();
+        } catch (error) {
+          console.error("Lỗi từ chối:", error);
+          message.error("Từ chối thất bại");
+        }
+      }
+
+    });
+  };
+
+
 
   return (
     <div className={styles.userPageContainer}>
@@ -308,21 +317,22 @@ const InstructorList = () => {
         searchInput={searchInput}
         setSearchInput={setSearchInput}
         setSearch={setSearch}
-        selectedStatus={selectedStatus}
-        setSelectedStatus={setSelectedStatus}
+        selectedApprovalStatus={selectedApprovalStatus}
+        setSelectedApprovalStatus={setSelectedApprovalStatus}
         setDateRange={setDateRange}
       />
       <Card className={styles.userTableCard}>
         <Table
+          loading={loading}
           rowKey="id"
-          dataSource={filteredInstructors.map((u, idx) => ({ ...u, number: idx + 1 })) as Instructor[]}
+          dataSource={instructors.map((u, idx) => ({ ...u, number: idx + 1 }))}
           pagination={pagination}
           onChange={handleTableChange}
           className={styles.userTable}
           scroll={{ x: true }}
           title={() => (
             <div className={styles.tableHeader}>
-              <h4 className={styles.tableTitle}>Danh sách giảng viên</h4>
+              <h4 className={styles.tableTitle}>Danh sách hồ sơ giảng viên chờ duyệt</h4>
             </div>
           )}
           onRow={(record) => {
@@ -338,10 +348,12 @@ const InstructorList = () => {
               title: "STT",
               dataIndex: "number",
               width: 70,
+              align: 'center',
             },
             {
               title: "Giảng viên",
               dataIndex: "fullname",
+              align: 'left',
               render: (_: unknown, record: Instructor) => (
                 <div className={styles.avatarCell}>
                   <Avatar src={record.avatar} icon={<UserOutlined />} />
@@ -353,17 +365,66 @@ const InstructorList = () => {
               ),
             },
             {
-              title: "Trạng thái",
-              dataIndex: "status",
-              render: (status: UserStatus) => getStatusTag(status),
-              width: 150,
-            },
+              title: "Trạng thái duyệt",
+              dataIndex: "approvalStatus",
+              align: 'center',
+              width: 120,
+              render: (_: any, record: Instructor) => {
+                const status = record.approvalStatus;
+                if (status === "approved") return <Tag color="green">Đã duyệt</Tag>;
+                if (status === "rejected") return <Tag color="red">Từ chối</Tag>;
+                return <Tag color="gold">Chờ duyệt</Tag>;
+              },
+            }
+            ,
             {
-              title: "Ngày tạo",
-              dataIndex: "createdAt",
+              title: "Ngày nộp hồ sơ",
+              dataIndex: "applicationDate",
               render: (date: string) => dayjs(date).format("DD/MM/YYYY HH:mm"),
               width: 150,
+              align: 'center',
             },
+            {
+              title: "Thao tác",
+              key: "action",
+              width: 160,
+              align: "center",
+              render: (_: unknown, record: Instructor) => {
+                if (record.approvalStatus === "pending") {
+                  return (
+                    <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                      <Button
+                        type="primary"
+                        icon={<CheckCircleOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleApprove(record);
+                        }}
+                      >
+                        Duyệt
+                      </Button>
+
+                      <Button
+                        danger
+                        icon={<CloseCircleOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReject(record);
+                        }}
+                      >
+                        Từ chối
+                      </Button>
+                    </div>
+                  );
+                }
+
+                // Đã xử lý: return null để ô này trống
+                return null;
+              }
+            }
+
+
+
           ]}
         />
       </Card>
@@ -393,20 +454,19 @@ const InstructorList = () => {
               <Descriptions.Item label="Giới tính">{viewingInstructor.gender || "Chưa cập nhật"}</Descriptions.Item>
               <Descriptions.Item label="Ngày sinh">{viewingInstructor.dob ? dayjs(viewingInstructor.dob).format("DD/MM/YYYY") : "Chưa cập nhật"}</Descriptions.Item>
               <Descriptions.Item label="Địa chỉ">{viewingInstructor.address || "Chưa cập nhật"}</Descriptions.Item>
-              <Descriptions.Item label="Mật khẩu">{viewingInstructor.password ? <span style={{ fontFamily: 'monospace' }}>{viewingInstructor.password}</span> : "Chưa cập nhật"}</Descriptions.Item>
             </Descriptions>
             <Divider orientation="left">Học vấn & Chuyên môn</Divider>
             <Descriptions column={2} bordered size="small">
-              <Descriptions.Item label="Bằng cấp">{viewingInstructor.degree}</Descriptions.Item>
-              <Descriptions.Item label="Trường đào tạo">{viewingInstructor.university}</Descriptions.Item>
-              <Descriptions.Item label="Chuyên ngành">{viewingInstructor.major}</Descriptions.Item>
-              <Descriptions.Item label="Năm tốt nghiệp">{viewingInstructor.graduationYear}</Descriptions.Item>
+              <Descriptions.Item label="Bằng cấp">{viewingInstructor.degree || "Chưa cập nhật"}</Descriptions.Item>
+              <Descriptions.Item label="Trường đào tạo">{viewingInstructor.university || "Chưa cập nhật"}</Descriptions.Item>
+              <Descriptions.Item label="Chuyên ngành">{viewingInstructor.major || "Chưa cập nhật"}</Descriptions.Item>
+              <Descriptions.Item label="Năm tốt nghiệp">{viewingInstructor.graduationYear || "Chưa cập nhật"}</Descriptions.Item>
               <Descriptions.Item label="Lĩnh vực chuyên môn">
                 {viewingInstructor.expertise && viewingInstructor.expertise.length > 0 ? viewingInstructor.expertise.map((exp) => <Tag key={exp}>{exp}</Tag>) : "Chưa cập nhật"}
               </Descriptions.Item>
-              <Descriptions.Item label="Số năm kinh nghiệm">{viewingInstructor.experienceYears}</Descriptions.Item>
+              <Descriptions.Item label="Số năm kinh nghiệm">{viewingInstructor.experienceYears || 0} năm</Descriptions.Item>
               <Descriptions.Item label="Mô tả kinh nghiệm" span={2}>
-                <Paragraph style={{ marginBottom: 0 }}>{viewingInstructor.experienceDescription}</Paragraph>
+                <Paragraph style={{ marginBottom: 0 }}>{viewingInstructor.experienceDescription || "Chưa cập nhật"}</Paragraph>
               </Descriptions.Item>
             </Descriptions>
             <Divider orientation="left">Hồ sơ & Tài liệu</Divider>
@@ -419,9 +479,11 @@ const InstructorList = () => {
               <Descriptions.Item label="Chứng chỉ">
                 {viewingInstructor.certificates && viewingInstructor.certificates.length > 0 ? (
                   <ul style={{ paddingLeft: 16, margin: 0 }}>
-                    {viewingInstructor.certificates.map((cert) => (
-                      <li key={cert.url}>
-                        <AntdLink href={cert.url} target="_blank" rel="noopener noreferrer">{cert.name}</AntdLink>
+                    {viewingInstructor.certificates.map((cert, index) => (
+                      <li key={index}>
+                        <AntdLink href={cert.file || cert.url} target="_blank" rel="noopener noreferrer">
+                          {cert.name || cert.original_name || `Chứng chỉ ${index + 1}`}
+                        </AntdLink>
                       </li>
                     ))}
                   </ul>
