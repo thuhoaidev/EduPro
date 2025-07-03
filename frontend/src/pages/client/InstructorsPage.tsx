@@ -138,7 +138,7 @@ const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
                         value={category}
                         className="w-full rounded-full border-blue-200 focus:border-blue-500"
                         onChange={value => setCategory(value)}
-                        dropdownClassName="rounded-xl"
+                        classNames={{ popup: { root: 'rounded-xl' } }}
                         loading={loadingCategories}
                     >
                         <Option value="Tất cả">Tất cả</Option>
@@ -158,7 +158,7 @@ const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
                         defaultValue={0}
                         className="w-full rounded-full border-blue-200 focus:border-blue-500"
                         onChange={value => setRating(value)}
-                        dropdownClassName="rounded-xl"
+                        classNames={{ popup: { root: 'rounded-xl' } }}
                     >
                         <Option value={0}>Tất cả</Option>
                         <Option value={4.5}><Rate disabled allowHalf defaultValue={4.5} style={{fontSize: 14}}/> & 4.5 sao trở lên</Option>
@@ -177,7 +177,7 @@ const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
                         defaultValue={0}
                         className="w-full rounded-full border-blue-200 focus:border-blue-500"
                         onChange={value => setExperience(value)}
-                        dropdownClassName="rounded-xl"
+                        classNames={{ popup: { root: 'rounded-xl' } }}
                     >
                         <Option value={0}>Tất cả</Option>
                         <Option value={5}>5+ năm</Option>
@@ -210,7 +210,7 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                     borderRadius: 32,
                     border: 'none',
                 }}
-                bodyStyle={{ padding: 28 }}
+                styles={{ body: { padding: 28 } }}
             >
                 <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
