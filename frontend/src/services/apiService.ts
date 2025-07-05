@@ -86,6 +86,7 @@ export interface Course {
   discountPercent?: number;
   status: string;
   language: string;
+  level: string;
 }
 
 export interface Section {
@@ -136,7 +137,8 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
     hasDiscount,
     discountPercent: hasDiscount ? apiCourse.discount : undefined,
     status: apiCourse.status,
-    language: apiCourse.language
+    language: apiCourse.language,
+    level: apiCourse.level
   };
 };
 
@@ -179,7 +181,11 @@ export const courseService = {
 
   getInstructorCourses: async (instructorId: string): Promise<Course[]> => {
     try {
-      const response = await apiClient.get<ApiResponse<ApiCourse[]>>(`/courses?instructor=${instructorId}`);
+      // Truyền thêm status để lấy tất cả trạng thái
+      const allStatuses = 'draft,pending,published,rejected,archived';
+      const response = await apiClient.get<ApiResponse<ApiCourse[]>>(
+        `/courses?instructor=${instructorId}&status=${allStatuses}`
+      );
       return response.data?.success && Array.isArray(response.data.data)
         ? response.data.data.map(mapApiCourseToAppCourse)
         : [];
@@ -241,6 +247,15 @@ export const courseService = {
   },
 
   mapApiCourseToAppCourse,
+
+  updateCourseStatus: async (courseId: string, status: string) => {
+    try {
+      const response = await apiClient.patch(`/courses/${courseId}/status`, { status });
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data || error;
+    }
+  },
 };
 
 // Instructor Registration Interfaces
@@ -341,3 +356,5 @@ export const instructorService = {
     }
   }
 };
+
+export { mapApiCourseToAppCourse };

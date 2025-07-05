@@ -8,7 +8,7 @@ const { enrollCourse } = require('../controllers/course.controller');
 // Routes
 router.post('/', auth, requireAuth(['instructor']), uploadCourseAvatar, handleUploadError, courseController.createCourse);
 router.put('/:id', auth, requireAuth(['instructor']), uploadCourseAvatar, handleUploadError, courseController.updateCourse);
-router.patch('/:id/status', auth, requireAuth(['instructor']), courseController.updateCourseStatus);
+router.patch('/:id/status', auth, requireAuth(['instructor', 'admin', 'moderator']), courseController.updateCourseStatus);
 router.delete('/:id', auth, requireAuth(['instructor']), courseController.deleteCourse);
 // Lấy danh sách khóa học
 router.get('/', courseController.getCourses);

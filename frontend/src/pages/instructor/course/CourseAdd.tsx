@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Form,
   Input,
@@ -13,10 +13,12 @@ import {
   Steps,
   Row,
   Col,
+  Tag,
 } from "antd";
-import { UploadOutlined, PlusOutlined, MinusCircleOutlined, BookOutlined } from "@ant-design/icons";
-
-const { TextArea } = Input;
+import { PlusOutlined, MinusCircleOutlined, BookOutlined } from "@ant-design/icons";
+import { courseService } from '../../../services/apiService';
+import { getAllCategories } from '../../../services/categoryService';
+import { useNavigate } from 'react-router-dom';
 
 const levels = [
   { label: "Beginner", value: "beginner" },
@@ -29,26 +31,109 @@ const languages = [
   { label: "English", value: "en" },
 ];
 
-const statuses = [
-  { label: "Nháp", value: "draft" },
-  { label: "Công khai", value: "published" },
-];
-
-// Tạm thời mock danh mục
-const categories = [
-  { label: "Frontend", value: 1 },
-  { label: "Backend", value: 2 },
-  { label: "UI/UX", value: 3 },
-];
-
 const CreateCourse: React.FC = () => {
   const [form] = Form.useForm();
   const [currentStep, setCurrentStep] = useState(0);
+  const [categories, setCategories] = useState<{ label: string; value: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [requirementsPreview, setRequirementsPreview] = useState<string[]>([]);
+  const navigate = useNavigate();
 
-  const handleFinish = (values: any) => {
-    console.log("Dữ liệu gửi đi:", values);
-    message.success("Tạo khóa học thành công!");
-    form.resetFields();
+  useEffect(() => {
+    // Lấy danh mục từ backend
+    const fetchCategories = async () => {
+      const res = await getAllCategories();
+      if (res.success) {
+        setCategories(res.data.map(cat => ({ label: cat.name, value: cat._id })));
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Hàm upload ảnh lên cloud (giả sử backend có endpoint /api/upload)
+  const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    // Thay đổi endpoint này nếu backend của bạn khác
+    const res = await fetch('http://localhost:5000/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json();
+    if (data.success && data.url) return data.url;
+    throw new Error('Upload ảnh thất bại!');
+  };
+
+  const handleFinish = async (values: unknown) => {
+    const v = values as Record<string, any>;
+    console.log('Dữ liệu form FE gửi lên:', v);
+    try {
+      setLoading(true);
+      // Validate requirements
+      const reqs = Array.isArray(v.requirements) ? v.requirements.filter((r: string) => r && r.trim().length >= 3) : [];
+      if (reqs.length === 0) {
+        message.error('Phải có ít nhất 1 yêu cầu trước khóa học!');
+        setLoading(false);
+        return;
+      }
+      // Validate thumbnail
+      let thumbnailUrl = '';
+      if (v.thumbnail && v.thumbnail.fileList && v.thumbnail.fileList[0]) {
+        const fileObj = v.thumbnail.fileList[0].originFileObj;
+        if (fileObj) {
+          thumbnailUrl = await uploadImage(fileObj);
+        } else if (v.thumbnail.fileList[0].url) {
+          thumbnailUrl = v.thumbnail.fileList[0].url;
+        }
+      } else {
+        message.error('Vui lòng chọn ảnh đại diện cho khóa học!');
+        setLoading(false);
+        return;
+      }
+      // Chuẩn bị dữ liệu JSON đúng format backend
+      const body = {
+        title: v.title,
+        slug: v.slug,
+        description: v.description,
+        level: v.level,
+        language: v.language,
+        price: v.price,
+        discount: v.discount || 0,
+        status: 'draft',
+        category: v.category_id,
+        requirements: reqs,
+        thumbnail: thumbnailUrl
+      };
+      console.log('Dữ liệu gửi lên backend:', body);
+      const response = await courseService.createCourse(body);
+      console.log('Dữ liệu trả về từ backend:', response);
+      message.success('Tạo khóa học thành công!');
+      if (response && response.data && (response.data._id || response.data.id)) {
+        navigate(`/instructor/courses/${response.data._id || response.data.id}`);
+      } else {
+        form.resetFields();
+        setRequirementsPreview([]);
+      }
+    } catch (err: unknown) {
+      message.error((err as Error)?.message || 'Tạo khóa học thất bại!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Log lỗi validate rõ ràng
+  const handleFinishFailed = (errorInfo: unknown) => {
+    console.log('Lỗi validate:', errorInfo);
+    // Log chi tiết các trường bị lỗi nếu có
+    if (typeof errorInfo === 'object' && errorInfo && 'errorFields' in errorInfo) {
+      const ef = (errorInfo as any).errorFields;
+      if (Array.isArray(ef)) {
+        ef.forEach((field: any) => {
+          console.log(`Trường lỗi: ${field.name?.join('.')}, Thông báo: ${field.errors?.join(', ')}`);
+        });
+      }
+    }
+    message.error('Vui lòng nhập đầy đủ và đúng các trường bắt buộc!');
   };
 
   const steps = [
@@ -153,14 +238,6 @@ const CreateCourse: React.FC = () => {
                     formatter={(value) => `${value}đ`}
                   />
                 </Form.Item>
-
-                <Form.Item
-                  label="Trạng thái"
-                  name="status"
-                  rules={[{ required: true, message: "Chọn trạng thái!" }]}
-                >
-                  <Select options={statuses} size="large" />
-                </Form.Item>
               </Card>
             </Col>
           </Row>
@@ -177,149 +254,45 @@ const CreateCourse: React.FC = () => {
             <Form.List name="requirements">
               {(fields, { add, remove }) => (
                 <>
-                  {fields.map(({ key, name }) => (
-                    <Space key={key} align="baseline" className="mb-4 w-full">
+                  {fields.map(({ key, name }, idx) => (
+                    <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 8 }}>
                       <Form.Item
                         name={name}
-                        rules={[{ required: true, message: "Nhập nội dung yêu cầu" }]}
-                        className="flex-1"
+                        rules={[{ required: true, message: 'Nhập yêu cầu!' }, { min: 3, message: 'Tối thiểu 3 ký tự!' }]}
+                        style={{ marginBottom: 0 }}
                       >
-                        <Input 
-                          placeholder="VD: Có kiến thức cơ bản về JavaScript" 
-                          size="large"
+                        <Input
+                          placeholder="VD: Biết HTML/CSS cơ bản"
+                          onChange={() => {
+                            setTimeout(() => {
+                              const reqs = form.getFieldValue('requirements') || [];
+                              setRequirementsPreview(reqs.filter((r: string) => r && r.length >= 3));
+                            }, 0);
+                          }}
                         />
                       </Form.Item>
-                      <Button 
-                        type="text" 
-                        danger 
-                        icon={<MinusCircleOutlined />} 
-                        onClick={() => remove(name)}
-                        className="text-lg"
-                      />
+                      <MinusCircleOutlined onClick={() => {
+                        remove(name);
+                        setTimeout(() => {
+                          const reqs = form.getFieldValue('requirements') || [];
+                          setRequirementsPreview(reqs.filter((r: string) => r && r.length >= 3));
+                        }, 0);
+                      }} />
                     </Space>
                   ))}
                   <Form.Item>
-                    <Button
-                      type="dashed"
-                      onClick={() => add()}
-                      icon={<PlusOutlined />}
-                      block
-                      size="large"
-                    >
-                      Thêm yêu cầu
-                    </Button>
+                    <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />}>Thêm yêu cầu</Button>
                   </Form.Item>
                 </>
               )}
             </Form.List>
-
-            <Divider orientation="left">
-              <Space>
-                <BookOutlined />
-                <span>Chương trình học</span>
-              </Space>
-            </Divider>
-            <Form.List name="sections">
-              {(sectionFields, { add: addSection, remove: removeSection }) => (
-                <>
-                  {sectionFields.map(({ key, name }) => (
-                    <Card
-                      key={key}
-                      title={`Chương ${key + 1}`}
-                      className="mb-4 shadow-sm"
-                      extra={
-                        <Button 
-                          danger 
-                          type="link" 
-                          onClick={() => removeSection(name)}
-                          icon={<MinusCircleOutlined />}
-                        >
-                          Xóa chương
-                        </Button>
-                      }
-                    >
-                      <Form.Item
-                        name={[name, "title"]}
-                        label="Tiêu đề chương"
-                        rules={[{ required: true, message: "Nhập tiêu đề chương!" }]}
-                      >
-                        <Input placeholder="VD: Giới thiệu React" size="large" />
-                      </Form.Item>
-
-                      <Form.List name={[name, "lessons"]}>
-                        {(lessonFields, { add: addLesson, remove: removeLesson }) => (
-                          <>
-                            {lessonFields.map(({ key: lessonKey, name: lessonName }) => (
-                              <Card
-                                key={lessonKey}
-                                size="small"
-                                className="mb-2 shadow-sm"
-                                title={`Bài ${lessonKey + 1}`}
-                                extra={
-                                  <Button
-                                    danger
-                                    type="link"
-                                    onClick={() => removeLesson(lessonName)}
-                                    icon={<MinusCircleOutlined />}
-                                  >
-                                    Xóa bài
-                                  </Button>
-                                }
-                              >
-                                <Form.Item
-                                  name={[lessonName, "title"]}
-                                  label="Tiêu đề bài"
-                                  rules={[{ required: true, message: "Nhập tiêu đề bài!" }]}
-                                >
-                                  <Input placeholder="VD: JSX là gì?" size="large" />
-                                </Form.Item>
-
-                                <Form.Item
-                                  name={[lessonName, "is_preview"]}
-                                  label="Xem trước?"
-                                  valuePropName="checked"
-                                >
-                                  <Select
-                                    options={[
-                                      { label: "Có", value: true },
-                                      { label: "Không", value: false },
-                                    ]}
-                                    placeholder="Chọn"
-                                    size="large"
-                                  />
-                                </Form.Item>
-                              </Card>
-                            ))}
-                            <Form.Item>
-                              <Button
-                                type="dashed"
-                                icon={<PlusOutlined />}
-                                onClick={() => addLesson()}
-                                block
-                                size="large"
-                              >
-                                Thêm bài học
-                              </Button>
-                            </Form.Item>
-                          </>
-                        )}
-                      </Form.List>
-                    </Card>
-                  ))}
-                  <Form.Item>
-                    <Button
-                      type="dashed"
-                      icon={<PlusOutlined />}
-                      onClick={() => addSection()}
-                      block
-                      size="large"
-                    >
-                      Thêm chương
-                    </Button>
-                  </Form.Item>
-                </>
-              )}
-            </Form.List>
+            {requirementsPreview.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                {requirementsPreview.map((req) => (
+                  <Tag color="blue" key={req} style={{ marginBottom: 4 }}>{req}</Tag>
+                ))}
+              </div>
+            )}
           </Card>
         );
       case 2:
@@ -355,7 +328,12 @@ const CreateCourse: React.FC = () => {
         <p className="text-gray-500 mt-1">Thiết lập thông tin và nội dung cho khóa học của bạn</p>
       </div>
 
-      <Form form={form} layout="vertical" onFinish={handleFinish}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleFinish}
+        onFinishFailed={handleFinishFailed}
+      >
         <Card className="shadow-sm mb-6">
           <Steps
             current={currentStep}
@@ -378,9 +356,10 @@ const CreateCourse: React.FC = () => {
               <Button 
                 type="primary" 
                 size="large" 
-                onClick={() => setCurrentStep(currentStep + 1)}
+                loading={loading}
+                htmlType="submit"
               >
-                {currentStep === 1 ? "Tiếp tục" : "Tiếp theo"}
+                Tạo khóa học
               </Button>
             </Space>
           </div>

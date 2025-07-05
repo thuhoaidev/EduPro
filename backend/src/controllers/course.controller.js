@@ -448,31 +448,48 @@ exports.updateCourseStatus = async (req, res, next) => {
         const { id } = req.params;
         const { status } = req.body;
 
-        // Kiểm tra quyền
+        // Lấy user và course
         const user = await User.findById(req.user.id);
         if (!user) {
             throw new ApiError(404, 'Người dùng không tồn tại');
         }
-
-        if (!user.roles.includes('admin')) {
-            throw new ApiError(403, 'Bạn không có quyền cập nhật trạng thái khóa học');
-        }
-
-        // Cập nhật trạng thái
-        const course = await Course.findByIdAndUpdate(
-            id,
-            { status },
-            { new: true }
-        );
-
+        const course = await Course.findById(id);
         if (!course) {
             throw new ApiError(404, 'Không tìm thấy khóa học');
         }
 
-        res.json({
-            success: true,
-            data: course
-        });
+        // Instructor chỉ được gửi duyệt (draft -> pending)
+        if (user.roles.includes('instructor') && !user.roles.includes('admin') && !user.roles.includes('moderator')) {
+            if (course.status !== 'draft' || status !== 'pending') {
+                throw new ApiError(403, 'Giảng viên chỉ được gửi duyệt khóa học từ trạng thái draft sang pending');
+            }
+            course.status = 'pending';
+            await course.save();
+            return res.json({ success: true, data: course });
+        }
+
+        // Admin hoặc moderator được duyệt hoặc từ chối (pending -> published/rejected)
+        if (user.roles.includes('admin') || user.roles.includes('moderator')) {
+            if (course.status === 'pending' && (status === 'published' || status === 'rejected')) {
+                course.status = status;
+                await course.save();
+                return res.json({ success: true, data: course });
+            }
+            // Cho phép chuyển published -> archived, rejected -> draft nếu cần
+            if (course.status === 'published' && status === 'archived') {
+                course.status = 'archived';
+                await course.save();
+                return res.json({ success: true, data: course });
+            }
+            if (course.status === 'rejected' && status === 'draft') {
+                course.status = 'draft';
+                await course.save();
+                return res.json({ success: true, data: course });
+            }
+            throw new ApiError(403, 'Chỉ được duyệt/từ chối khóa học ở trạng thái pending, hoặc lưu trữ/khôi phục theo quy định');
+        }
+
+        throw new ApiError(403, 'Bạn không có quyền cập nhật trạng thái khóa học');
     } catch (error) {
         next(error);
     }
@@ -648,8 +665,15 @@ exports.getCourseById = async (req, res, next) => {
         const { id } = req.params;
 
         const course = await Course.findById(id)
-            .populate('instructor', 'userId bio expertise rating')
-            .populate('category', 'name');
+            .populate('category', 'name')
+            .populate({
+                path: 'instructor',
+                select: 'user bio expertise',
+                populate: {
+                    path: 'user',
+                    select: 'fullname avatar'
+                }
+            });
 
         if (!course) {
             throw new ApiError(404, 'Không tìm thấy khóa học');

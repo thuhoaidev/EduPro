@@ -25,6 +25,7 @@ import {
   PlusOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import { courseService } from '../../../services/apiService';
 
 export interface Course {
   id: string;
@@ -34,6 +35,7 @@ export interface Course {
   price: number;
   category: string;
   isNew?: boolean;
+  status: string;
 }
 
 export const getCourses = async (): Promise<Course[]> => {
@@ -46,6 +48,7 @@ export const getCourses = async (): Promise<Course[]> => {
       price: 0,
       category: "Frontend",
       isNew: true,
+      status: "published",
     },
     {
       id: "2",
@@ -55,6 +58,7 @@ export const getCourses = async (): Promise<Course[]> => {
       price: 499000,
       category: "Backend",
       isNew: false,
+      status: "published",
     },
     // ... thêm khóa học khác nếu muốn
   ];
@@ -63,6 +67,15 @@ export const getCourses = async (): Promise<Course[]> => {
 const { Meta } = Card;
 const { Search } = Input;
 const PAGE_SIZE = 8;
+
+// Thêm mapping màu cho trạng thái
+const statusColorMap = {
+  draft: 'default',
+  pending: 'orange',
+  published: 'green',
+  rejected: 'red',
+  archived: 'gray',
+};
 
 const CourseList: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -73,7 +86,8 @@ const CourseList: React.FC = () => {
 
   useEffect(() => {
     const fetchCourses = async () => {
-      const data = await getCourses();
+      // Lấy khóa học của instructor từ API
+      const data = await courseService.getInstructorCourses('me'); // 'me' sẽ được backend hiểu là instructor hiện tại
       setCourses(data);
     };
     fetchCourses();
@@ -132,6 +146,19 @@ const CourseList: React.FC = () => {
     freeCourses: courses.filter(course => course.price === 0).length,
     paidCourses: courses.filter(course => course.price > 0).length,
     totalStudents: 1234, // Mock data - replace with actual data
+  };
+
+  // Hàm gửi duyệt khóa học
+  const handleSendForApproval = async (courseId: string) => {
+    try {
+      await courseService.updateCourseStatus(courseId, 'pending');
+      message.success('Đã gửi duyệt khóa học!');
+      // Cập nhật lại danh sách
+      const data = await courseService.getInstructorCourses('me');
+      setCourses(data);
+    } catch (err) {
+      message.error('Gửi duyệt thất bại!');
+    }
   };
 
   return (
@@ -238,11 +265,11 @@ const CourseList: React.FC = () => {
                   <div className="relative">
                     <img
                       alt={course.title}
-                      src={course.thumbnail}
+                      src={course.thumbnail || course.Image}
                       className="h-[200px] w-full object-cover rounded-t-lg"
                     />
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-center py-2">
-                      <span className="text-sm font-medium">{course.category}</span>
+                      <span className="text-sm font-medium">{course.category || course.type}</span>
                     </div>
                   </div>
                 }
@@ -269,12 +296,33 @@ const CourseList: React.FC = () => {
                       onClick={() => handleDelete(course.id)}
                     />
                   </Tooltip>,
-                ]}
+                  // Thêm nút gửi duyệt nếu là draft
+                  course.status === 'draft' && (
+                    <Tooltip title="Gửi duyệt" key="send-approval">
+                      <Button 
+                        type="primary"
+                        onClick={() => handleSendForApproval(course.id)}
+                        size="small"
+                        className="bg-orange-500"
+                      >
+                        Gửi duyệt
+                      </Button>
+                    </Tooltip>
+                  )
+                ].filter(Boolean)}
               >
                 <Meta
                   title={
                     <div className="text-lg font-medium text-gray-800 line-clamp-2">
                       {course.title}
+                      {/* Hiển thị trạng thái */}
+                      <Tag color={statusColorMap[course.status] || 'default'} className="ml-2">
+                        {course.status === 'draft' && 'Nháp'}
+                        {course.status === 'pending' && 'Chờ duyệt'}
+                        {course.status === 'published' && 'Đã duyệt'}
+                        {course.status === 'rejected' && 'Bị từ chối'}
+                        {course.status === 'archived' && 'Lưu trữ'}
+                      </Tag>
                     </div>
                   }
                   description={
@@ -288,7 +336,7 @@ const CourseList: React.FC = () => {
                           </Tag>
                         )}
                       </span>
-                      <span className="text-sm text-gray-500">{course.author}</span>
+                      <span className="text-sm text-gray-500">{course.author?.name || course.author}</span>
                     </div>
                   }
                 />

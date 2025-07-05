@@ -18,7 +18,7 @@ import {
   Rate,
 } from "antd";
 import { ArrowLeftOutlined, BookOutlined, UserOutlined, CalendarOutlined, ClockCircleOutlined, TeamOutlined, StarFilled, DollarOutlined } from "@ant-design/icons";
-import { courseService } from '../../../services/apiService';
+import { courseService, mapApiCourseToAppCourse } from '../../../services/apiService';
 import { motion } from 'framer-motion';
 
 const { Title, Text, Paragraph } = Typography;
@@ -79,15 +79,16 @@ const CourseDetail: React.FC = () => {
       setLoading(true);
       try {
         let courseData = null;
-    if (id) {
-          courseData = await courseService.getCourseById(id);
+        if (id) {
+          const rawData = await courseService.getCourseById(id);
+          courseData = rawData ? mapApiCourseToAppCourse(rawData) : null;
         }
         setCourse(courseData);
       } catch {
         message.error('Không thể lấy chi tiết khóa học.');
       } finally {
         setLoading(false);
-    }
+      }
     };
     fetchData();
   }, [id]);
@@ -231,16 +232,27 @@ const CourseDetail: React.FC = () => {
                       <Tag color="orange" style={{ fontWeight: 600 }}>{finalPrice?.toLocaleString()}đ</Tag>
                     </>
                   )}
-            </div>
+                </div>
                 <div className="course-meta-item"><TeamOutlined style={{ color: '#1a73e8' }} />{Math.floor(Math.random() * 500) + 50} học viên</div>
                 <div className="course-meta-item"><StarFilled style={{ color: '#faad14' }} />{course.rating || 4.5} <span style={{ color: '#888', fontWeight: 400 }}>({course.reviews || 0} đánh giá)</span></div>
                 <div className="course-meta-item"><BookOutlined style={{ color: '#1a73e8' }} />{totalLessons} bài học</div>
                 <div className="course-meta-item"><ClockCircleOutlined style={{ color: '#1a73e8' }} />{Math.floor(totalDuration / 60)}h {totalDuration % 60}m</div>
-          </div>
+              </div>
               <Divider style={{ margin: '16px 0' }} />
               <Row gutter={16} style={{ marginBottom: 12 }}>
-                <Col><Text strong>Yêu cầu: </Text>{Array.isArray(course.requirements) && course.requirements.length > 0 ? course.requirements.join(', ') : 'Không có'}</Col>
-        </Row>
+                <Col>
+                  <Text strong>Yêu cầu: </Text>
+                  {Array.isArray(course.requirements) && course.requirements.length > 0 ? (
+                    <Space wrap>
+                      {course.requirements.map((req, idx) => (
+                        <Tag color="blue" key={idx}>{req}</Tag>
+                      ))}
+                    </Space>
+                  ) : (
+                    <Text type="secondary">Không có</Text>
+                  )}
+                </Col>
+              </Row>
               <Divider orientation="left" style={{ color: '#1a73e8', fontWeight: 600 }}>Nội dung khóa học</Divider>
               {sections.length === 0 ? <Text type="secondary">Chưa có chương nào.</Text> : (
                 <div>
@@ -251,17 +263,17 @@ const CourseDetail: React.FC = () => {
                         dataSource={section.lessons || []}
                         renderItem={(lesson: any) => (
                           <List.Item className="lesson-item">
-              <Space>
+                            <Space>
                               <UserOutlined style={{ color: '#1a73e8' }} />
                               <Text>{lesson.title}</Text>
                               {lesson.is_preview && <Badge color="#1a73e8" text="Preview" />}
-              </Space>
-                </List.Item>
-              )}
-            />
-          </Card>
+                            </Space>
+                          </List.Item>
+                        )}
+                      />
+                    </Card>
                   ))}
-                          </div>
+                </div>
               )}
             </Col>
             <Col xs={24} md={8}>
@@ -270,7 +282,7 @@ const CourseDetail: React.FC = () => {
                   <Title level={5} style={{ color: '#23272f', marginBottom: 12 }}>Giảng viên</Title>
                   <Space align="start" style={{ width: '100%' }}>
                     <Tooltip title={author?.fullname || author?.name || ''}>
-                      <Avatar src={author?.avatar || ''} size={72} className="author-avatar" />
+                      <Avatar size={64} src={course.author?.avatar} icon={<UserOutlined />} />
                     </Tooltip>
                     <div style={{ flex: 1 }}>
                       <Text strong style={{ color: '#1a73e8', fontSize: 18 }}>{author?.fullname || author?.name || ''}</Text>
@@ -284,12 +296,12 @@ const CourseDetail: React.FC = () => {
                       )}
                     </div>
                   </Space>
-          </Card>
+                </Card>
               </motion.div>
-        </Col>
-      </Row>
+            </Col>
+          </Row>
         </Card>
-    </div>
+      </div>
     </motion.div>
   );
 };

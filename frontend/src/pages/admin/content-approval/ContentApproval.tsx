@@ -28,6 +28,7 @@ import {
 import type { ContentItem, ContentStatus } from "../../../interfaces/Admin.interface";
 import { useNavigate } from "react-router-dom";
 import type { ChangeEvent } from "react";
+import { courseService } from '../../../services/apiService';
 
 
 const mockContents: ContentItem[] = [
@@ -85,18 +86,32 @@ const getStatusConfig = (status: ContentStatus) => {
 };
 
 const ContentApprovalPage: React.FC = () => {
-  const [contents, setContents] = useState<ContentItem[]>(mockContents);
+  const [courses, setCourses] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<ContentStatus | "all">("pending"); // Default to pending
+  const [filterStatus, setFilterStatus] = useState<string | "all">("pending");
   const [page, setPage] = useState(1);
-  const pageSize = 8; // Increased pageSize for better view
+  const pageSize = 8;
   const navigate = useNavigate();
 
-  const handleUpdateStatus = (id: number, newStatus: ContentStatus) => {
-    setContents((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: newStatus } : c))
-    );
-    message.success(`Đã cập nhật trạng thái thành ${getStatusConfig(newStatus).text}`);
+  useEffect(() => {
+    // Lấy danh sách khóa học pending từ API
+    const fetchCourses = async () => {
+      const allCourses = await courseService.getAllCourses();
+      setCourses(allCourses.filter((c: any) => c.status === 'pending'));
+    };
+    fetchCourses();
+  }, []);
+
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    try {
+      await courseService.updateCourseStatus(id, newStatus);
+      message.success(`Đã cập nhật trạng thái thành ${newStatus === 'published' ? 'Đã duyệt' : 'Từ chối'}`);
+      // Cập nhật lại danh sách
+      const allCourses = await courseService.getAllCourses();
+      setCourses(allCourses.filter((c: any) => c.status === 'pending'));
+    } catch (err) {
+      message.error('Cập nhật trạng thái thất bại!');
+    }
   };
 
   const handleViewDetails = (id: number) => {
@@ -105,28 +120,26 @@ const ContentApprovalPage: React.FC = () => {
     navigate(`/admin/content/${id}`); // Example route - Uncomment and adjust as needed
   };
 
-  const filteredContents = contents.filter(
+  const filteredCourses = courses.filter(
     (c) => {
       const matchesSearch =
         c.title.toLowerCase().includes(search.toLowerCase()) ||
-        c.authorName.toLowerCase().includes(search.toLowerCase());
-
+        c.author?.name?.toLowerCase().includes(search.toLowerCase());
       const matchesStatus = filterStatus === "all" || c.status === filterStatus;
-
       return matchesSearch && matchesStatus;
     }
   );
 
-  const paginatedContents = filteredContents.slice(
+  const paginatedCourses = filteredCourses.slice(
     (page - 1) * pageSize,
     page * pageSize
   );
 
   // Calculate statistics
   const stats = {
-    totalPending: contents.filter(t => t.status === 'pending').length,
-    totalApproved: contents.filter(t => t.status === 'approved').length,
-    totalRejected: contents.filter(t => t.status === 'rejected').length,
+    totalPending: courses.filter(t => t.status === 'pending').length,
+    totalApproved: 0, // Có thể lấy thêm nếu muốn
+    totalRejected: 0,
   };
 
   useEffect(() => {
@@ -134,7 +147,7 @@ const ContentApprovalPage: React.FC = () => {
     setPage(1);
   }, [search, filterStatus]);
 
-  const columns: ColumnsType<ContentItem> = [
+  const columns: ColumnsType<any> = [
     {
       title: "Tiêu đề",
       dataIndex: "title",
@@ -142,16 +155,17 @@ const ContentApprovalPage: React.FC = () => {
       className: "font-medium text-gray-800",
     },
     {
-      title: "Tác giả",
-      dataIndex: "authorName",
-      key: "authorName",
+      title: "Giảng viên",
+      dataIndex: ["author", "name"],
+      key: "author",
       className: "text-gray-600",
+      render: (_: any, record: any) => record.author?.name || 'N/A',
     },
     {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
-      render: (status: ContentStatus) => {
+      render: (status: string) => {
         const statusConfig = getStatusConfig(status);
         return (
           <Tag 
@@ -175,55 +189,42 @@ const ContentApprovalPage: React.FC = () => {
     {
       title: "Thao tác",
       key: "actions",
-      render: (_: void, record: ContentItem) => (
+      render: (_: void, record: any) => (
         <Space size="small">
-          {record.status === "pending" && (
-            <>
-              <Popconfirm
-                title="Phê duyệt nội dung"
-                description="Bạn có chắc chắn muốn phê duyệt nội dung này?"
-                onConfirm={() => handleUpdateStatus(record.id, "approved")}
-                okText="Phê duyệt"
-                cancelText="Hủy"
-                okButtonProps={{ type: "primary" }}
-              >
-                <Button
-                  type="primary"
-                  icon={<CheckOutlined />}
-                  size="small"
-                  className="flex items-center"
-                >
-                  Phê duyệt
-                </Button>
-              </Popconfirm>
-              <Popconfirm
-                title="Từ chối nội dung"
-                description="Bạn có chắc chắn muốn từ chối nội dung này?"
-                onConfirm={() => handleUpdateStatus(record.id, "rejected")}
-                okText="Từ chối"
-                cancelText="Hủy"
-                okButtonProps={{ danger: true }}
-              >
-                <Button
-                  danger
-                  icon={<CloseOutlined />}
-                  size="small"
-                  className="flex items-center"
-                >
-                  Từ chối
-                </Button>
-              </Popconfirm>
-            </>
-          )}
-           <Button 
-            type="default"
-            icon={<EyeOutlined />}
-            size="small"
-            onClick={() => handleViewDetails(record.id)}
-            className="flex items-center"
+          <Popconfirm
+            title="Phê duyệt khóa học"
+            description="Bạn có chắc chắn muốn phê duyệt khóa học này?"
+            onConfirm={() => handleUpdateStatus(record.id, "published")}
+            okText="Phê duyệt"
+            cancelText="Hủy"
+            okButtonProps={{ type: "primary" }}
           >
-            Chi tiết
-          </Button>
+            <Button
+              type="primary"
+              icon={<CheckOutlined />}
+              size="small"
+              className="flex items-center"
+            >
+              Phê duyệt
+            </Button>
+          </Popconfirm>
+          <Popconfirm
+            title="Từ chối khóa học"
+            description="Bạn có chắc chắn muốn từ chối khóa học này?"
+            onConfirm={() => handleUpdateStatus(record.id, "rejected")}
+            okText="Từ chối"
+            cancelText="Hủy"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              danger
+              icon={<CloseOutlined />}
+              size="small"
+              className="flex items-center"
+            >
+              Từ chối
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -287,7 +288,7 @@ const ContentApprovalPage: React.FC = () => {
           <Select
             defaultValue="pending"
             style={{ width: 150 }}
-            onChange={(value: ContentStatus | "all") => setFilterStatus(value)}
+            onChange={(value: string | "all") => setFilterStatus(value)}
             options={[
               { value: "all", label: "Tất cả" },
               { value: "pending", label: "Chờ duyệt" },
@@ -303,7 +304,7 @@ const ContentApprovalPage: React.FC = () => {
         <Table
           rowKey="id"
           columns={columns}
-          dataSource={paginatedContents}
+          dataSource={paginatedCourses}
           pagination={false}
           className="content-approval-table"
         />
@@ -311,7 +312,7 @@ const ContentApprovalPage: React.FC = () => {
             <Pagination
               current={page}
               pageSize={pageSize}
-              total={filteredContents.length}
+              total={filteredCourses.length}
               onChange={(newPage) => setPage(newPage)}
               showSizeChanger={false}
               showTotal={(total) => `Tổng số ${total} nội dung`}

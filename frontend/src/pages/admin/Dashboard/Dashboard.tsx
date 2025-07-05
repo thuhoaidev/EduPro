@@ -92,49 +92,37 @@ const Dashboard: React.FC = () => {
   };
 
   // Cột cho bảng khóa học
- // ... existing code ...
   const columns = [
     {
       title: 'Tên khóa học',
       dataIndex: 'title',
       key: 'title',
+      width: 250,
       render: (text: string) => (
         <Text strong className={styles.courseName}>{text}</Text>
-      ),
-    },
-    // Thêm các cột mới theo yêu cầu
-    {
-      title: 'Mô tả',
-      dataIndex: 'description',
-      key: 'description',
-      render: (text: string) => (
-        <Tooltip title={text}><Text ellipsis style={{ maxWidth: 200, display: 'block' }}>{text}</Text></Tooltip>
       ),
     },
     {
       title: 'Ảnh',
       dataIndex: 'thumbnail',
       key: 'thumbnail',
+      width: 80,
       render: (url: string) => (
         url ? <img src={url} alt="thumbnail" style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4 }} /> : 'Không có'
       ),
     },
     {
-      title: 'Ngôn ngữ',
-      dataIndex: 'language',
-      key: 'language',
-      render: (text: string) => <Text>{text}</Text>,
-    },
-    {
       title: 'Giá',
       dataIndex: 'price',
       key: 'price',
+      width: 120,
       render: (value: number) => <Text>{value?.toLocaleString('vi-VN')} ₫</Text>,
     },
     {
       title: 'Giảm giá',
       dataIndex: 'discount',
       key: 'discount',
+      width: 100,
       render: (value: number) => <Text>{value}%</Text>,
     }
   ];
