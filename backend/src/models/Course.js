@@ -69,8 +69,7 @@ const courseSchema = new mongoose.Schema({
     discount: {
         type: Number,
         default: 0,
-        min: [0, 'Giảm giá không được âm'],
-        max: [100, 'Giảm giá không được vượt quá 100%']
+        min: [0, 'Giảm giá không được âm']
     },
     status: {
         type: String,

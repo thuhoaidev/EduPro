@@ -119,7 +119,8 @@ exports.createCourse = async (req, res, next) => {
             thumbnail: thumbnailUrl,
             price: Number(req.body.price),
             discount: Number(req.body.discount || 0),
-            requirements: Array.isArray(req.body.requirements) ? req.body.requirements : [],
+            requirements: Array.isArray(req.body.requirements) ? req.body.requirements : 
+                         (typeof req.body.requirements === 'string' && req.body.requirements.trim()) ? [req.body.requirements.trim()] : [],
             category: req.body.category
         };
 
@@ -145,6 +146,46 @@ exports.createCourse = async (req, res, next) => {
             try {
                 const course = new Course(validatedData);
                 await course.save();
+
+                // Tạo sections nếu có
+                if (req.body.sections && Array.isArray(req.body.sections)) {
+                    const Section = require('../models/Section');
+                    const sectionsToCreate = [];
+                    
+                    for (let i = 0; i < req.body.sections.length; i++) {
+                        const sectionData = req.body.sections[i];
+                        if (typeof sectionData === 'string') {
+                            try {
+                                const parsedSection = JSON.parse(sectionData);
+                                if (parsedSection.title && parsedSection.title.trim()) {
+                                    sectionsToCreate.push({
+                                        course_id: course._id,
+                                        title: parsedSection.title.trim(),
+                                        position: i
+                                    });
+                                }
+                            } catch (parseError) {
+                                console.error('Lỗi parse section data:', parseError);
+                            }
+                        } else if (sectionData.title && sectionData.title.trim()) {
+                            sectionsToCreate.push({
+                                course_id: course._id,
+                                title: sectionData.title.trim(),
+                                position: i
+                            });
+                        }
+                    }
+                    
+                    if (sectionsToCreate.length > 0) {
+                        try {
+                            await Section.insertMany(sectionsToCreate);
+                            console.log(`Đã tạo ${sectionsToCreate.length} chương cho khóa học`);
+                        } catch (sectionError) {
+                            console.error('Lỗi khi tạo sections:', sectionError);
+                            // Không throw error vì course đã được tạo thành công
+                        }
+                    }
+                }
 
                 // Trả về kết quả
                 res.status(201).json({
@@ -508,11 +549,24 @@ exports.getCourses = async (req, res, next) => {
             level,
             search,
             minPrice,
-            maxPrice
+            maxPrice,
+            instructor,
+            includeDraft
         } = req.query;
 
         // Xây dựng query
         const query = {};
+        
+        // Xử lý filter theo instructor
+        if (instructor === 'true' && req.user) {
+            // Tìm instructor profile của user hiện tại
+            const InstructorProfile = require('../models/InstructorProfile');
+            const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+            if (instructorProfile) {
+                query.instructor = instructorProfile._id;
+            }
+        }
+        
         if (status) {
             // Hỗ trợ multiple status values được phân tách bằng dấu phẩy
             if (status.includes(',')) {
@@ -520,6 +574,9 @@ exports.getCourses = async (req, res, next) => {
             } else {
                 query.status = status;
             }
+        } else if (instructor === 'true' && includeDraft === 'true') {
+            // Nếu lấy khóa học của instructor và bao gồm draft, lấy tất cả trạng thái
+            query.status = { $in: ['draft', 'pending', 'published', 'rejected', 'archived'] };
         } else {
             // Mặc định chỉ lấy khóa học đã được phê duyệt
             query.status = { $in: ['published', 'active'] };

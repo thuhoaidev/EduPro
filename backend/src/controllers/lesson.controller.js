@@ -10,14 +10,43 @@ exports.createLesson = async (req, res, next) => {
     try {
         const { section_id, title, is_preview } = req.body;
 
+        console.log('Creating lesson with data:', { section_id, title, is_preview });
+        console.log('User:', req.user);
+
         // Kiểm tra section tồn tại
         const section = await Section.findById(section_id);
         if (!section) {
             throw new ApiError(404, 'Không tìm thấy chương');
         }
 
+        // Kiểm tra khóa học tồn tại
+        const course = await Course.findById(section.course_id);
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+
+        // Kiểm tra quyền
+        const userRole = req.user.role_id;
+        const userRoles = req.user.roles || [];
+        console.log('User role:', userRole);
+        console.log('User roles:', userRoles);
+        console.log('Course instructor:', course.instructor);
+        console.log('User ID:', req.user._id);
+
+        if (!userRoles.includes('admin') && !userRoles.includes('instructor')) {
+            throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
+        }
+
+        // Kiểm tra nếu là instructor thì phải là người tạo khóa học
+        if (userRoles.includes('instructor') && !userRoles.includes('admin')) {
+            if (!course.instructor || course.instructor.toString() !== req.user._id.toString()) {
+                throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
+            }
+        }
+
         // Validate dữ liệu
         const validatedData = await validateSchema(createLessonSchema, { section_id, title, is_preview });
+        console.log('Validated data:', validatedData);
 
         // Tạo lesson mới
         const lesson = new Lesson(validatedData);
@@ -105,13 +134,37 @@ exports.getLessonsBySection = async (req, res, next) => {
             throw new ApiError(404, 'Không tìm thấy chương');
         }
 
-        // Lấy danh sách bài học
+        // Lấy danh sách bài học với thông tin video và quiz
         const lessons = await Lesson.find({ section_id })
             .sort({ position: 1 });
 
+        // Lấy thông tin video và quiz cho từng lesson
+        const Video = require('../models/Video');
+        const Quiz = require('../models/Quiz');
+        
+        const lessonsWithDetails = await Promise.all(
+            lessons.map(async (lesson) => {
+                const video = await Video.findOne({ lesson_id: lesson._id });
+                const quiz = video ? await Quiz.findOne({ video_id: video._id }) : null;
+                
+                return {
+                    ...lesson.toObject(),
+                    video: video ? {
+                        _id: video._id,
+                        url: video.url,
+                        duration: video.duration
+                    } : null,
+                    quiz: quiz ? {
+                        _id: quiz._id,
+                        questions: quiz.questions
+                    } : null
+                };
+            })
+        );
+
         res.json({
             success: true,
-            data: lessons
+            data: lessonsWithDetails
         });
     } catch (error) {
         next(error);
@@ -141,17 +194,19 @@ exports.updateLessonsOrder = async (req, res, next) => {
 
         // Kiểm tra quyền
         const userRole = req.user.role_id;
-        console.log('User role name:', userRole?.name);
-        console.log('Course instructor:', course.instructor_id);
+        const userRoles = req.user.roles || [];
+        console.log('User role:', userRole);
+        console.log('User roles:', userRoles);
+        console.log('Course instructor:', course.instructor);
         console.log('User ID:', req.user._id);
 
-        if (!userRole || !['admin', 'instructor'].includes(userRole.name)) {
+        if (!userRoles.includes('admin') && !userRoles.includes('instructor')) {
             throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
         }
 
         // Kiểm tra nếu là instructor thì phải là người tạo khóa học
-        if (userRole.name === 'instructor') {
-            if (!course.instructor_id || course.instructor_id.toString() !== req.user._id.toString()) {
+        if (userRoles.includes('instructor') && !userRoles.includes('admin')) {
+            if (!course.instructor || course.instructor.toString() !== req.user._id.toString()) {
                 throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
             }
         }

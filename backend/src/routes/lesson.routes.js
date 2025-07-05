@@ -15,12 +15,13 @@ const {
 // Tất cả các routes đều yêu cầu xác thực
 router.use(auth);
 
+// Test endpoint
+router.get('/test', (req, res) => {
+  res.json({ success: true, message: 'Lesson routes working' });
+});
+
 // Routes cho giảng viên và admin
-router.post('/', requireAuth(['admin', 'instructor']), (req, res, next) => {
-  validateSchema(createLessonSchema, req.body)
-    .then(() => next())
-    .catch(next);
-}, createLesson);
+router.post('/', requireAuth(['admin', 'instructor']), createLesson);
 
 router.put('/:id', requireAuth(['admin', 'instructor']), (req, res, next) => {
   validateSchema(updateLessonSchema, req.body)

@@ -100,9 +100,42 @@ exports.getSectionsByCourse = async (req, res, next) => {
                 options: { sort: { position: 1 } }
             });
 
+        // Lấy thông tin video và quiz cho từng lesson
+        const Video = require('../models/Video');
+        const Quiz = require('../models/Quiz');
+        
+        const sectionsWithDetails = await Promise.all(
+            sections.map(async (section) => {
+                const lessonsWithDetails = await Promise.all(
+                    section.lessons.map(async (lesson) => {
+                        const video = await Video.findOne({ lesson_id: lesson._id });
+                        const quiz = video ? await Quiz.findOne({ video_id: video._id }) : null;
+                        
+                        return {
+                            ...lesson.toObject(),
+                            video: video ? {
+                                _id: video._id,
+                                url: video.url,
+                                duration: video.duration
+                            } : null,
+                            quiz: quiz ? {
+                                _id: quiz._id,
+                                questions: quiz.questions
+                            } : null
+                        };
+                    })
+                );
+                
+                return {
+                    ...section.toObject(),
+                    lessons: lessonsWithDetails
+                };
+            })
+        );
+
         res.json({
             success: true,
-            data: sections
+            data: sectionsWithDetails
         });
     } catch (error) {
         next(error);
@@ -129,7 +162,7 @@ exports.updateSectionsOrder = async (req, res, next) => {
 
         // Kiểm tra nếu là instructor thì phải là người tạo khóa học
         if (userRole.name === 'instructor') {
-            if (!course.instructor_id || course.instructor_id.toString() !== req.user._id.toString()) {
+            if (!course.instructor || course.instructor.toString() !== req.user._id.toString()) {
                 throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
             }
         }
@@ -157,9 +190,39 @@ exports.updateSectionsOrder = async (req, res, next) => {
                 options: { sort: { position: 1 } },
             });
 
+        // Lấy thông tin video và quiz cho từng lesson
+        const sectionsWithDetails = await Promise.all(
+            updatedSections.map(async (section) => {
+                const lessonsWithDetails = await Promise.all(
+                    section.lessons.map(async (lesson) => {
+                        const video = await Video.findOne({ lesson_id: lesson._id });
+                        const quiz = video ? await Quiz.findOne({ video_id: video._id }) : null;
+                        
+                        return {
+                            ...lesson.toObject(),
+                            video: video ? {
+                                _id: video._id,
+                                url: video.url,
+                                duration: video.duration
+                            } : null,
+                            quiz: quiz ? {
+                                _id: quiz._id,
+                                questions: quiz.questions
+                            } : null
+                        };
+                    })
+                );
+                
+                return {
+                    ...section.toObject(),
+                    lessons: lessonsWithDetails
+                };
+            })
+        );
+
         res.json({
             success: true,
-            data: updatedSections,
+            data: sectionsWithDetails,
         });
     } catch (error) {
         next(error);

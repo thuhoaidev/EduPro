@@ -52,12 +52,10 @@ const createCourseSchema = Joi.object({
         }),
     discount: Joi.number()
         .min(0)
-        .max(100)
         .default(0)
         .messages({
             'number.base': 'Giảm giá phải là số',
-            'number.min': 'Giảm giá không được âm',
-            'number.max': 'Giảm giá không được vượt quá 100%'
+            'number.min': 'Giảm giá không được âm'
         }),
     requirements: Joi.array()
         .items(Joi.string().min(3))

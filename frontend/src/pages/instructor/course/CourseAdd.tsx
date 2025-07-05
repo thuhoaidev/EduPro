@@ -65,12 +65,18 @@ const CreateCourse: React.FC = () => {
   };
 
   const handleFinish = async (values: unknown) => {
-    const v = values as Record<string, any>;
+          const v = values as Record<string, unknown>;
     console.log('Dữ liệu form FE gửi lên:', v);
     try {
       setLoading(true);
       // Validate requirements
-      const reqs = Array.isArray(v.requirements) ? v.requirements.filter((r: string) => r && r.trim().length >= 3) : [];
+      let reqs: string[] = [];
+      if (Array.isArray(v.requirements)) {
+        reqs = v.requirements.filter((r: string) => r && r.trim().length >= 3);
+      } else if (typeof v.requirements === 'string' && v.requirements.trim().length >= 3) {
+        reqs = [v.requirements.trim()];
+      }
+      
       if (reqs.length === 0) {
         message.error('Phải có ít nhất 1 yêu cầu trước khóa học!');
         setLoading(false);
@@ -115,7 +121,25 @@ const CreateCourse: React.FC = () => {
         setRequirementsPreview([]);
       }
     } catch (err: unknown) {
-      message.error((err as Error)?.message || 'Tạo khóa học thất bại!');
+      console.error('Lỗi khi tạo khóa học:', err);
+      
+      // Cải thiện error handling
+      let errorMessage = 'Tạo khóa học thất bại!';
+      
+      if (err && typeof err === 'object') {
+        if ('message' in err && typeof err.message === 'string') {
+          errorMessage = err.message;
+        } else if ('response' in err && err.response && typeof err.response === 'object') {
+          const response = err.response as Record<string, unknown>;
+          if (response.data && typeof response.data === 'object' && response.data && 'message' in response.data) {
+            errorMessage = response.data.message as string;
+          } else if (response.status) {
+            errorMessage = `Lỗi ${response.status}: ${(response.statusText as string) || 'Không thể tạo khóa học'}`;
+          }
+        }
+      }
+      
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }

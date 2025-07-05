@@ -351,6 +351,15 @@ exports.login = async (req, res, next) => {
       { expiresIn: '24h' }
     );
 
+    // Tạo roles array
+    let roles = [];
+    if (user.role_id) {
+      roles.push(user.role_id.name);
+    }
+    if (user.isInstructor) {
+      roles.push('instructor');
+    }
+    
     // Trả về thông tin user và token
     res.json({
       success: true,
@@ -363,6 +372,7 @@ exports.login = async (req, res, next) => {
           fullname: user.fullname,
           nickname: user.nickname,
           role: user.role_id.name,
+          roles: roles,
           avatar: user.avatar,
           status: user.status,
           approval_status: user.approval_status,

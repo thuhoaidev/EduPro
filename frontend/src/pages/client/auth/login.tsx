@@ -54,6 +54,15 @@ export default function LoginPage(): React.ReactElement {
           localStorage.setItem('token', token);
           console.log('Token after login:', localStorage.getItem('token'));
           
+          // Lưu user info nếu có
+          if (data?.user) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+            console.log('User info saved:', data.user);
+          } else if (data?.data?.user) {
+            localStorage.setItem('user', JSON.stringify(data.data.user));
+            console.log('User info saved:', data.data.user);
+          }
+          
           // Hiển thị thông báo thành công
           setNotification({
             isVisible: true,
