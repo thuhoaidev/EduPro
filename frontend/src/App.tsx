@@ -40,7 +40,6 @@ import VouchersPage from "./pages/client/VouchersPage";
 import VoucherPage from "./pages/admin/Vouchers/VouchersPage";
 import CoursesPage from './pages/client/CoursesPage';
 import InstructorsPage from './pages/client/InstructorsPage';
-import BlogPage from './pages/client/BlogPage';
 import CartPage from './pages/client/CartPage';
 import CheckoutPage from './pages/client/CheckoutPage';
 import OrdersPage from './pages/client/OrdersPage';
@@ -57,6 +56,7 @@ import LessonQuizPage from './pages/client/lessons/LessonQuizPage';
 import CourseList from "./pages/instructor/course/CourseList";
 import UserReportPage from "./pages/client/UserReportPage";
 import UserReportRoute from "./pages/client/UserReportRoute";
+import BlogPage from "./pages/client/BlogPage";
 
 const queryClient = new QueryClient();
 
@@ -115,6 +115,7 @@ function App() {
         { path: "courses/slug/:slug", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
+        {path:  "/blog/:id", element: <BlogPage />},
         { path: "cart", element: <CartPage /> },
         { path: "checkout", element: <CheckoutPage /> },
         { path: "orders", element: <OrdersPage /> },

@@ -179,55 +179,87 @@ const AppHeader = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        let userData = JSON.parse(storedUser);
-        if (userData && typeof userData.role === 'string') {
-          userData.role = { name: userData.role };
-          localStorage.setItem('user', JSON.stringify(userData));
-        }
-        setUser(userData);
-        setLoading(false);
-        return;
-      }
+  // useEffect(() => {
+  //   const fetchUser = async () => {
+  //     const storedUser = localStorage.getItem('user');
+  //     if (storedUser) {
+  //       let userData = JSON.parse(storedUser);
+  //       if (userData && typeof userData.role === 'string') {
+  //         userData.role = { name: userData.role };
+  //         localStorage.setItem('user', JSON.stringify(userData));
+  //       }
+  //       setUser(userData);
+  //       setLoading(false);
+  //       return;
+  //     }
 
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setUser(false);
-        setLoading(false);
-        return;
-      }
+  //     const token = localStorage.getItem('token');
+  //     if (!token) {
+  //       setUser(false);
+  //       setLoading(false);
+  //       return;
+  //     }
 
-      try {
-        const response = await config.get('/auth/me');
-        const userData = response.data.data;
-        setUser(userData);
-      } catch (error) {
-        console.error('Lỗi lấy thông tin user:', error);
-        // Không xóa token ở đây nữa
-        setUser(false);
-      } finally {
-        setLoading(false);
-      }
-    };
+  //     try {
+  //       const response = await config.get('/auth/me');
+  //       const userData = response.data.data;
+  //       setUser(userData);
+  //     } catch (error) {
+  //       console.error('Lỗi lấy thông tin user:', error);
+  //       // Không xóa token ở đây nữa
+  //       setUser(false);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    const handleStorageChange = (event: StorageEvent) => {
-        if (event.key === 'user' || event.key === 'token') {
-            fetchUser();
-        }
-    };
+  //   const handleStorageChange = (event: StorageEvent) => {
+  //       if (event.key === 'user' || event.key === 'token') {
+  //           fetchUser();
+  //       }
+  //   };
     
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('user-updated', fetchUser);
-    fetchUser();
+  //   window.addEventListener('storage', handleStorageChange);
+  //   window.addEventListener('user-updated', fetchUser);
+  //   fetchUser();
 
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-        window.removeEventListener('user-updated', fetchUser);
+  //   return () => {
+  //       window.removeEventListener('storage', handleStorageChange);
+  //       window.removeEventListener('user-updated', fetchUser);
+  //   }
+  // }, []);
+  useEffect(() => {
+  const fetchUser = () => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      let userData = JSON.parse(storedUser);
+      if (userData && typeof userData.role === 'string') {
+        userData.role = { name: userData.role };
+        localStorage.setItem('user', JSON.stringify(userData));
+      }
+      setUser(userData);
+    } else {
+      setUser(false);
     }
-  }, []);
+    setLoading(false);
+  };
+
+  const handleStorageChange = (event: StorageEvent) => {
+    if (event.key === 'user' || event.key === 'token') {
+      fetchUser();
+    }
+  };
+
+  window.addEventListener('storage', handleStorageChange);
+  window.addEventListener('user-updated', fetchUser);
+  fetchUser();
+
+  return () => {
+    window.removeEventListener('storage', handleStorageChange);
+    window.removeEventListener('user-updated', fetchUser);
+  };
+}, []);
+
 
   const userMenu = user
     ? {

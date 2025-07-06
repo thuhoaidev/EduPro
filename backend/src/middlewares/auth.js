@@ -26,7 +26,8 @@ exports.auth = async (req, res, next) => {
     console.log('Decoded token:', decoded);
 
     // Tìm user trong database
-    const user = await User.findById(decoded.id).populate('role_id');
+    const user = await User.findById(decoded.id || decoded._id || decoded.sub);
+
 
     if (!user) {
       return res.status(401).json({
@@ -68,10 +69,11 @@ exports.auth = async (req, res, next) => {
     };
 
     // Gán user vào request
-    req.user = {
-      ...user.toObject(),
-      roles: roles,
-    };
+   req.user = {
+  ...user.toObject(),
+  roles: roles,
+  id: user._id.toString(), 
+};
 
     // Log thông tin user để debug
     console.log('Authenticated user:', {
