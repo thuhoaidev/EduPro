@@ -2,21 +2,26 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 require('dotenv').config();
+const fs = require('fs');
 
 const PORT = process.env.PORT || 5000;
 
 // Kết nối đến MongoDB
+console.log('About to connect to MongoDB...');
 mongoose
   .connect(process.env.MONGODB_URI || 'mongodb+srv://edupro:edupro123@cluster0.qjwuxzj.mongodb.net/edupro', {
     serverSelectionTimeoutMS: 30000, // 30s
     socketTimeoutMS: 45000 // 45s
   })
   .then(() => {
-    // console.log('Đã kết nối với MongoDB');
+    console.log('Đã kết nối với MongoDB thành công!');
   })
-  .catch(() => {
-    // Không log lỗi chi tiết ra console
-    process.exit(1);
+  .catch((error) => {
+    console.log('Inside catch block for MongoDB connection error');
+    console.error('Lỗi kết nối MongoDB:', error);
+    fs.appendFileSync('mongo_error.log', `\n${new Date().toISOString()}\n${error.stack || error}\n`);
+    console.log('Exiting due to MongoDB connection error.');
+    setTimeout(() => process.exit(1), 2000); // Wait 2s to flush error
   });
 
 // Import app từ src/app.js
