@@ -72,10 +72,33 @@ const handleUploadError = (error, req, res, next) => {
   
   next(error);
 };
+// 👇 Đặt ở trên cùng hoặc trước phần `module.exports`
+const { uploadBufferToCloudinary } = require('../utils/cloudinary');
+
+const processAvatarUpload = async (req, res, next) => {
+  try {
+    if (!req.file) return next();
+
+    const result = await uploadBufferToCloudinary(req.file.buffer, 'blog-images');
+    req.uploadedAvatar = {
+      url: result.secure_url,
+      public_id: result.public_id
+    };
+    next();
+  } catch (error) {
+    console.error('Lỗi upload ảnh lên Cloudinary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi upload ảnh lên Cloudinary',
+      error: error.message
+    });
+  }
+};
 
 module.exports = {
   uploadAvatar,
   uploadInstructorProfile,
   handleUploadError,
   uploadCourseAvatar,
+  processAvatarUpload
 }; 
