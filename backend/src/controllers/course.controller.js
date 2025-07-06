@@ -118,7 +118,8 @@ exports.createCourse = async (req, res, next) => {
             instructor: req.instructorProfile._id.toString(), // Chuyển đổi thành string
             thumbnail: thumbnailUrl,
             price: Number(req.body.price),
-            discount: Number(req.body.discount || 0),
+            discount_amount: Number(req.body.discount_amount || 0),
+            discount_percentage: Number(req.body.discount_percentage || 0),
             requirements: Array.isArray(req.body.requirements) ? req.body.requirements : 
                          (typeof req.body.requirements === 'string' && req.body.requirements.trim()) ? [req.body.requirements.trim()] : [],
             category: req.body.category
@@ -301,7 +302,8 @@ exports.updateCourse = async (req, res, next) => {
             instructor: instructorProfile._id.toString(), // Thêm instructor từ profile
             thumbnail: thumbnailUrl,
             price: req.body.price ? Number(req.body.price) : undefined,
-            discount: req.body.discount ? Number(req.body.discount) : undefined,
+            discount_amount: req.body.discount_amount ? Number(req.body.discount_amount) : undefined,
+            discount_percentage: req.body.discount_percentage ? Number(req.body.discount_percentage) : undefined,
             requirements: req.body.requirements ? (
                 Array.isArray(req.body.requirements) 
                     ? req.body.requirements 
@@ -751,8 +753,17 @@ exports.getCourseById = async (req, res, next) => {
 
         const formatCourse = (course) => {
             const obj = course.toObject();
-            obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
-            obj.discount = obj.discount || 0;
+            // Tính toán giá cuối cùng dựa trên discount_amount và discount_percentage
+            let finalPrice = obj.price;
+            if (obj.discount_percentage > 0) {
+                finalPrice = finalPrice * (1 - obj.discount_percentage / 100);
+            }
+            if (obj.discount_amount > 0) {
+                finalPrice = Math.max(0, finalPrice - obj.discount_amount);
+            }
+            obj.finalPrice = Math.round(finalPrice);
+            obj.discount_amount = obj.discount_amount || 0;
+            obj.discount_percentage = obj.discount_percentage || 0;
             obj.instructor = course.instructor ? {
                 bio: course.instructor.bio,
                 expertise: course.instructor.expertise,
@@ -805,7 +816,10 @@ exports.getAllCourses = async (req, res, next) => {
         if (minPrice) filter.price = { ...filter.price, $gte: Number(minPrice) };
         if (maxPrice) filter.price = { ...filter.price, $lte: Number(maxPrice) };
         if (isFree === 'true') filter.is_free = true;
-        if (hasDiscount === 'true') filter.discount = { $gt: 0 };
+        if (hasDiscount === 'true') filter.$or = [
+            { discount_amount: { $gt: 0 } },
+            { discount_percentage: { $gt: 0 } }
+        ];
 
         const courses = await Course.find(filter)
             .populate('category', 'name')
@@ -960,4 +974,60 @@ exports.enrollCourse = async (req, res, next) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
+};
+
+// Lấy danh sách khóa học của instructor hiện tại
+exports.getInstructorCourses = async (req, res, next) => {
+    try {
+        // Tìm instructor profile của user hiện tại
+        const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+        
+        if (!instructorProfile) {
+            throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên');
+        }
+
+        // Lấy tất cả khóa học của instructor này
+        const courses = await Course.find({ instructor: instructorProfile._id })
+            .populate('category', 'name')
+            .populate({
+                path: 'instructor',
+                select: 'user bio expertise',
+                populate: {
+                    path: 'user',
+                    select: 'fullname avatar'
+                }
+            })
+            .sort({ createdAt: -1 });
+
+        const formatCourse = (course) => {
+            const obj = course.toObject();
+            // Tính toán giá cuối cùng dựa trên discount_amount và discount_percentage
+            let finalPrice = obj.price;
+            if (obj.discount_percentage > 0) {
+                finalPrice = finalPrice * (1 - obj.discount_percentage / 100);
+            }
+            if (obj.discount_amount > 0) {
+                finalPrice = Math.max(0, finalPrice - obj.discount_amount);
+            }
+            obj.finalPrice = Math.round(finalPrice);
+            obj.discount_amount = obj.discount_amount || 0;
+            obj.discount_percentage = obj.discount_percentage || 0;
+            obj.instructor = course.instructor ? {
+                bio: course.instructor.bio,
+                expertise: course.instructor.expertise,
+                user: course.instructor.user
+            } : null;
+            return obj;
+        };
+
+        const formattedCourses = courses.map(formatCourse);
+
+        res.json({
+            success: true,
+            data: formattedCourses
+        });
+    } catch (error) {
+        console.error('Lỗi khi lấy danh sách khóa học của instructor:', error);
+        next(error);
+    }
 };

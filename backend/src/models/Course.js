@@ -66,10 +66,16 @@ const courseSchema = new mongoose.Schema({
         required: [true, 'Giá là bắt buộc'],
         min: [0, 'Giá không được âm']
     },
-    discount: {
+    discount_amount: {
         type: Number,
         default: 0,
-        min: [0, 'Giảm giá không được âm']
+        min: [0, 'Giảm giá theo số tiền không được âm']
+    },
+    discount_percentage: {
+        type: Number,
+        default: 0,
+        min: [0, 'Giảm giá theo phần trăm không được âm'],
+        max: [100, 'Giảm giá theo phần trăm không được vượt quá 100%']
     },
     status: {
         type: String,
@@ -130,7 +136,19 @@ courseSchema.pre('save', function (next) {
 
 // Virtual field cho giá sau khi giảm giá
 courseSchema.virtual('finalPrice').get(function () {
-    return this.price * (1 - this.discount / 100);
+    let finalPrice = this.price;
+    
+    // Áp dụng giảm giá theo phần trăm trước
+    if (this.discount_percentage > 0) {
+        finalPrice = finalPrice * (1 - this.discount_percentage / 100);
+    }
+    
+    // Sau đó áp dụng giảm giá theo số tiền
+    if (this.discount_amount > 0) {
+        finalPrice = Math.max(0, finalPrice - this.discount_amount);
+    }
+    
+    return Math.round(finalPrice);
 });
 
 // Tạo model

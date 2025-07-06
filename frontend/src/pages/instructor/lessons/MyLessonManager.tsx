@@ -137,7 +137,7 @@ const MyLessonManager: React.FC = () => {
         const data = await response.json();
         if (data.success) {
           setCourses(data.data);
-        } else {
+    } else {
           throw new Error(data.message || 'Không thể tải danh sách khóa học');
         }
       } catch (error) {
@@ -155,7 +155,7 @@ const MyLessonManager: React.FC = () => {
   useEffect(() => {
     const fetchSections = async () => {
       if (!selectedCourse) {
-        setSections([]);
+      setSections([]);
         return;
       }
 
@@ -214,7 +214,7 @@ const MyLessonManager: React.FC = () => {
   };
   
   const handleSectionChange = (value: string) => {
-    setSelectedSection(value);
+      setSelectedSection(value);
     form.setFieldsValue({ section_id: value });
     console.log('Section changed to:', value);
   };
@@ -516,7 +516,7 @@ const MyLessonManager: React.FC = () => {
               <Checkbox>Cho phép xem trước (Preview)</Checkbox> 
             </Form.Item>
             
-            <Divider>Video bài học</Divider>
+                <Divider>Video bài học</Divider>
             <Form.Item 
               label="File video" 
               name={["video", "file"]} 
@@ -554,10 +554,10 @@ const MyLessonManager: React.FC = () => {
             <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
               Tạo bài quiz để kiểm tra kiến thức học viên sau khi xem video. Mỗi câu hỏi cần có ít nhất 2 đáp án và tối đa 4 đáp án.
             </Text>
-            <Form.List name={["quiz", "questions"]}>
-              {(fields, { add, remove }) => (
-                <>
-                  {fields.map(({ key, name }) => (
+                <Form.List name={["quiz", "questions"]}>
+                {(fields, { add, remove }) => (
+                    <>
+                    {fields.map(({ key, name }) => (
                     <QuizQuestionForm 
                       key={key} 
                       name={name} 
@@ -574,9 +574,9 @@ const MyLessonManager: React.FC = () => {
                       Thêm câu hỏi
                     </Button> 
                   </Form.Item>
-                </>
-              )}
-            </Form.List>
+                            </>
+                            )}
+                        </Form.List>
             
             <Form.Item style={{ marginTop: 24 }}> 
               <Button 
@@ -589,7 +589,7 @@ const MyLessonManager: React.FC = () => {
                 Tạo bài học
               </Button> 
             </Form.Item>
-          </Form>
+            </Form>
         </Card>
       )}
 

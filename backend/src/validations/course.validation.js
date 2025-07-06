@@ -50,12 +50,21 @@ const createCourseSchema = Joi.object({
             'number.min': 'Giá không được âm',
             'any.required': 'Giá là bắt buộc'
         }),
-    discount: Joi.number()
+    discount_amount: Joi.number()
         .min(0)
         .default(0)
         .messages({
-            'number.base': 'Giảm giá phải là số',
-            'number.min': 'Giảm giá không được âm'
+            'number.base': 'Giảm giá theo số tiền phải là số',
+            'number.min': 'Giảm giá theo số tiền không được âm'
+        }),
+    discount_percentage: Joi.number()
+        .min(0)
+        .max(100)
+        .default(0)
+        .messages({
+            'number.base': 'Giảm giá theo phần trăm phải là số',
+            'number.min': 'Giảm giá theo phần trăm không được âm',
+            'number.max': 'Giảm giá theo phần trăm không được vượt quá 100%'
         }),
     requirements: Joi.array()
         .items(Joi.string().min(3))
@@ -83,7 +92,7 @@ const createCourseSchema = Joi.object({
 });
 
 const updateCourseSchema = createCourseSchema.fork(
-    ['title', 'description', 'category', 'level', 'language', 'price', 'requirements'],
+    ['title', 'description', 'category', 'level', 'language', 'price', 'requirements', 'discount_amount', 'discount_percentage'],
     schema => schema.optional()
 );
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Form,
   Input,
@@ -10,20 +10,24 @@ import {
   Card,
   Space,
   Divider,
+  Spin,
+  Alert,
 } from "antd";
 import {
   UploadOutlined,
   PlusOutlined,
   MinusCircleOutlined,
+  SaveOutlined,
 } from "@ant-design/icons";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import { getCourseById, updateCourse } from "../../../services/courseService";
 
 const { TextArea } = Input;
 
 const levels = [
-  { label: "Beginner", value: "beginner" },
-  { label: "Intermediate", value: "intermediate" },
-  { label: "Advanced", value: "advanced" },
+  { label: "Cơ bản", value: "beginner" },
+  { label: "Trung bình", value: "intermediate" },
+  { label: "Nâng cao", value: "advanced" },
 ];
 
 const languages = [
@@ -36,75 +40,142 @@ const statuses = [
   { label: "Công khai", value: "published" },
 ];
 
-const categories = [
-  { label: "Frontend", value: 1 },
-  { label: "Backend", value: 2 },
-  { label: "UI/UX", value: 3 },
+const discountTypes = [
+  { label: "Giảm theo số tiền (VNĐ)", value: "amount" },
+  { label: "Giảm theo phần trăm (%)", value: "percentage" },
 ];
 
 const EditCourse: React.FC = () => {
   const [form] = Form.useForm();
   const { id } = useParams();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [course, setCourse] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [discountType, setDiscountType] = useState<"amount" | "percentage">("amount");
 
   useEffect(() => {
     const fetchCourse = async () => {
+      if (!id) return;
+      
+      setLoading(true);
+      setError(null);
+      
       try {
-        // Giả lập dữ liệu từ API
-        const data = {
-          title: "React cơ bản",
-          slug: "react-co-ban",
-          description: "Khóa học nhập môn React",
-          category_id: 1,
-          thumbnail: null, // hoặc URL ảnh
-          level: "beginner",
-          language: "vi",
-          price: 990000,
-          discount: 490000,
-          status: "draft",
-          requirements: ["Biết HTML", "Cài đặt Node.js"],
-          sections: [
-            {
-              title: "Giới thiệu",
-              lessons: [
-                { title: "JSX là gì?", is_preview: true },
-                { title: "Component cơ bản", is_preview: false },
-              ],
-            },
-          ],
+        const data = await getCourseById(id);
+        setCourse(data);
+        
+        // Set discount type based on existing data
+        if (data.discount_percentage) {
+          setDiscountType("percentage");
+        } else if (data.discount_amount) {
+          setDiscountType("amount");
+        }
+        
+        // Format data for form
+        const formData = {
+          ...data,
+          discount: data.discount_percentage || data.discount_amount || 0,
+          requirements: data.requirements || [],
+          sections: data.sections || [],
         };
-
-        // Set dữ liệu vào form
-        form.setFieldsValue(data);
-      } catch (err) {
-        message.error("Lỗi khi tải dữ liệu khóa học!");
+        
+        form.setFieldsValue(formData);
+      } catch (err: any) {
+        setError(err.message || "Lỗi khi tải thông tin khóa học");
+        message.error(err.message || "Lỗi khi tải thông tin khóa học");
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchCourse();
   }, [form, id]);
 
-  const handleFinish = (values: any) => {
-    console.log("Cập nhật khóa học:", values);
-    message.success("Cập nhật khóa học thành công!");
+  const handleFinish = async (values: any) => {
+    setSaving(true);
+    
+    try {
+      // Format data for API
+      const courseData = {
+        ...values,
+        discount_amount: discountType === "amount" ? values.discount : 0,
+        discount_percentage: discountType === "percentage" ? values.discount : 0,
+      };
+      
+      // Remove the generic discount field
+      delete courseData.discount;
+      
+      await updateCourse(id!, courseData);
+      message.success("Cập nhật khóa học thành công!");
+      navigate("/instructor/courses");
+    } catch (err: any) {
+      message.error(err.message || "Lỗi khi cập nhật khóa học");
+    } finally {
+      setSaving(false);
+    }
   };
 
+  const handleDiscountTypeChange = (value: "amount" | "percentage") => {
+    setDiscountType(value);
+    // Reset discount value when changing type
+    form.setFieldsValue({ discount: 0 });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="max-w-4xl mx-auto mt-6">
+        <Alert
+          message="Lỗi"
+          description={error}
+          type="error"
+          showIcon
+          action={
+            <Button size="small" onClick={() => window.location.reload()}>
+              Thử lại
+            </Button>
+          }
+        />
+      </Card>
+    );
+  }
+
   return (
-    <Card title="Chỉnh sửa Khóa Học" className="max-w-4xl mx-auto mt-6">
-      <Form form={form} layout="vertical" onFinish={handleFinish}>
+    <Card 
+      title="Chỉnh sửa Khóa Học" 
+      className="max-w-4xl mx-auto mt-6"
+      extra={
+        <Button 
+          type="primary" 
+          icon={<SaveOutlined />}
+          loading={saving}
+          onClick={() => form.submit()}
+        >
+          Lưu thay đổi
+        </Button>
+      }
+    >
+      <Form 
+        form={form} 
+        layout="vertical" 
+        onFinish={handleFinish}
+        disabled={saving}
+      >
         <Form.Item
           label="Tiêu đề khóa học"
           name="title"
           rules={[{ required: true, message: "Vui lòng nhập tiêu đề!" }]}
         >
-          <Input />
-        </Form.Item>
-
-        <Form.Item
-          label="Slug (URL)"
-          name="slug"
-          rules={[{ required: true, message: "Vui lòng nhập slug!" }]}
-        >
-          <Input />
+          <Input placeholder="Nhập tiêu đề khóa học" />
         </Form.Item>
 
         <Form.Item
@@ -112,7 +183,10 @@ const EditCourse: React.FC = () => {
           name="description"
           rules={[{ required: true, message: "Vui lòng nhập mô tả!" }]}
         >
-          <TextArea rows={4} />
+          <TextArea 
+            rows={4} 
+            placeholder="Mô tả chi tiết về khóa học"
+          />
         </Form.Item>
 
         <Form.Item
@@ -120,7 +194,16 @@ const EditCourse: React.FC = () => {
           name="category_id"
           rules={[{ required: true, message: "Vui lòng chọn danh mục!" }]}
         >
-          <Select options={categories} />
+          <Select placeholder="Chọn danh mục">
+            <Select.Option value={1}>Frontend</Select.Option>
+            <Select.Option value={2}>Backend</Select.Option>
+            <Select.Option value={3}>UI/UX</Select.Option>
+            <Select.Option value={4}>Mobile</Select.Option>
+            <Select.Option value={5}>DevOps</Select.Option>
+            <Select.Option value={6}>Database</Select.Option>
+            <Select.Option value={7}>AI/ML</Select.Option>
+            <Select.Option value={8}>Other</Select.Option>
+          </Select>
         </Form.Item>
 
         <Form.Item label="Ảnh đại diện" name="thumbnail">
@@ -128,6 +211,7 @@ const EditCourse: React.FC = () => {
             listType="picture"
             maxCount={1}
             beforeUpload={() => false}
+            accept="image/*"
           >
             <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
           </Upload>
@@ -138,7 +222,13 @@ const EditCourse: React.FC = () => {
           name="level"
           rules={[{ required: true, message: "Chọn trình độ!" }]}
         >
-          <Select options={levels} />
+          <Select placeholder="Chọn trình độ">
+            {levels.map(level => (
+              <Select.Option key={level.value} value={level.value}>
+                {level.label}
+              </Select.Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Form.Item
@@ -146,7 +236,13 @@ const EditCourse: React.FC = () => {
           name="language"
           rules={[{ required: true, message: "Chọn ngôn ngữ!" }]}
         >
-          <Select options={languages} />
+          <Select placeholder="Chọn ngôn ngữ">
+            {languages.map(lang => (
+              <Select.Option key={lang.value} value={lang.value}>
+                {lang.label}
+              </Select.Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Form.Item
@@ -157,15 +253,41 @@ const EditCourse: React.FC = () => {
           <InputNumber
             style={{ width: "100%" }}
             min={0}
-            formatter={(value) => `${value}đ`}
+            placeholder="Nhập giá khóa học"
+            formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
           />
         </Form.Item>
 
-        <Form.Item label="Giảm giá (VNĐ)" name="discount">
+        <Form.Item label="Loại giảm giá">
+          <Select
+            value={discountType}
+            onChange={handleDiscountTypeChange}
+            placeholder="Chọn loại giảm giá"
+          >
+            {discountTypes.map(type => (
+              <Select.Option key={type.value} value={type.value}>
+                {type.label}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Form.Item 
+          label={discountType === "amount" ? "Giảm giá (VNĐ)" : "Giảm giá (%)"}
+          name="discount"
+        >
           <InputNumber
             style={{ width: "100%" }}
             min={0}
-            formatter={(value) => `${value}đ`}
+            max={discountType === "percentage" ? 100 : undefined}
+            placeholder={discountType === "amount" ? "Nhập số tiền giảm" : "Nhập phần trăm giảm"}
+            formatter={(value) => 
+              discountType === "amount" 
+                ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                : `${value}%`
+            }
+            parser={(value) => value!.replace(/[^\d]/g, '')}
           />
         </Form.Item>
 
@@ -174,7 +296,13 @@ const EditCourse: React.FC = () => {
           name="status"
           rules={[{ required: true, message: "Chọn trạng thái!" }]}
         >
-          <Select options={statuses} />
+          <Select placeholder="Chọn trạng thái">
+            {statuses.map(status => (
+              <Select.Option key={status.value} value={status.value}>
+                {status.label}
+              </Select.Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Divider orientation="left">Yêu cầu trước khóa học</Divider>
@@ -187,9 +315,15 @@ const EditCourse: React.FC = () => {
                     name={name}
                     rules={[{ required: true, message: "Nhập nội dung yêu cầu" }]}
                   >
-                    <Input placeholder="VD: Có kiến thức cơ bản về JavaScript" />
+                    <Input 
+                      placeholder="VD: Có kiến thức cơ bản về JavaScript" 
+                      style={{ width: 400 }}
+                    />
                   </Form.Item>
-                  <MinusCircleOutlined onClick={() => remove(name)} />
+                  <MinusCircleOutlined 
+                    onClick={() => remove(name)} 
+                    style={{ color: '#ff4d4f' }}
+                  />
                 </Space>
               ))}
               <Form.Item>
@@ -216,7 +350,12 @@ const EditCourse: React.FC = () => {
                   title={`Chương ${key + 1}`}
                   className="mb-4"
                   extra={
-                    <Button danger type="link" onClick={() => removeSection(name)}>
+                    <Button 
+                      danger 
+                      type="link" 
+                      onClick={() => removeSection(name)}
+                      disabled={saving}
+                    >
                       Xóa chương
                     </Button>
                   }
@@ -243,6 +382,7 @@ const EditCourse: React.FC = () => {
                                 danger
                                 size="small"
                                 onClick={() => removeLesson(lessonName)}
+                                disabled={saving}
                               >
                                 Xóa bài
                               </Button>
@@ -262,6 +402,7 @@ const EditCourse: React.FC = () => {
                               rules={[{ required: true, message: "Chọn trạng thái!" }]}
                             >
                               <Select
+                                placeholder="Chọn trạng thái xem trước"
                                 options={[
                                   { label: "Có", value: true },
                                   { label: "Không", value: false },
@@ -276,6 +417,7 @@ const EditCourse: React.FC = () => {
                             icon={<PlusOutlined />}
                             onClick={() => addLesson()}
                             block
+                            disabled={saving}
                           >
                             Thêm bài học
                           </Button>
@@ -291,6 +433,7 @@ const EditCourse: React.FC = () => {
                   icon={<PlusOutlined />}
                   onClick={() => addSection()}
                   block
+                  disabled={saving}
                 >
                   Thêm chương
                 </Button>
@@ -300,9 +443,19 @@ const EditCourse: React.FC = () => {
         </Form.List>
 
         <Form.Item>
-          <Button type="primary" htmlType="submit" block>
-            Cập nhật khóa học
-          </Button>
+          <Space>
+            <Button 
+              type="primary" 
+              htmlType="submit" 
+              loading={saving}
+              icon={<SaveOutlined />}
+            >
+              Cập nhật khóa học
+            </Button>
+            <Button onClick={() => navigate("/instructor/courses")}>
+              Hủy
+            </Button>
+          </Space>
         </Form.Item>
       </Form>
     </Card>

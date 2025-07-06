@@ -9,17 +9,17 @@ import {
   Button,
   Tag,
   Tooltip,
-  Modal,
   message,
-  Spin,
   Table,
   Space,
   Typography,
   Avatar,
+  Popconfirm,
+  Dropdown,
+  Menu,
 } from "antd";
 import {
   BookOutlined,
-  DollarOutlined,
   UserOutlined,
   PlusOutlined,
   EditOutlined,
@@ -46,6 +46,7 @@ const MyCourseList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -67,7 +68,7 @@ const MyCourseList: React.FC = () => {
         }
         const data = await courseService.getInstructorCourses(instructorId);
         setCourses(data);
-      } catch (err) {
+      } catch {
         setCourses([]);
         message.error('Không thể lấy danh sách khóa học.');
       } finally {
@@ -85,18 +86,39 @@ const MyCourseList: React.FC = () => {
     });
   }, [courses, searchTerm, statusFilter]);
 
-  const handleDelete = (id: string) => {
-    Modal.confirm({
-      title: "Xác nhận xóa",
-      content: "Bạn có chắc chắn muốn xóa khóa học này? Hành động này không thể hoàn tác.",
-      okText: "Xóa",
-      okType: "danger",
-      cancelText: "Hủy",
-      onOk: () => {
+  const handleDelete = async (id: string) => {
+    try {
+      setDeleteLoading(id);
+      const success = await courseService.deleteCourse(id);
+      if (success) {
         setCourses((prev) => prev.filter((course) => course.id !== id));
         message.success("Đã xóa khóa học thành công.");
-      },
-    });
+      } else {
+        message.error("Không thể xóa khóa học. Vui lòng thử lại.");
+      }
+    } catch (error: unknown) {
+      console.error('Lỗi khi xóa khóa học:', error);
+      const errorMessage = error instanceof Error ? error.message : "Có lỗi xảy ra khi xóa khóa học.";
+      message.error(errorMessage);
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
+
+  const handleStatusChange = async (courseId: string, newStatus: string) => {
+    try {
+      await courseService.updateCourseStatus(courseId, newStatus);
+      setCourses((prev) => 
+        prev.map((course) => 
+          course.id === courseId ? { ...course, status: newStatus } : course
+        )
+      );
+      message.success(`Đã cập nhật trạng thái khóa học thành ${newStatus === 'published' ? 'đã xuất bản' : newStatus === 'draft' ? 'bản nháp' : newStatus}`);
+    } catch (error: unknown) {
+      console.error('Lỗi khi cập nhật trạng thái:', error);
+      const errorMessage = error instanceof Error ? error.message : "Có lỗi xảy ra khi cập nhật trạng thái.";
+      message.error(errorMessage);
+    }
   };
 
   const columns: ColumnsType<Course> = [
@@ -127,7 +149,52 @@ const MyCourseList: React.FC = () => {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
-      render: (status: string) => <Tag color={status === 'published' ? 'blue' : 'orange'}>{status}</Tag>,
+      render: (status: string, record) => {
+        const statusColors: Record<string, string> = {
+          published: 'green',
+          draft: 'orange',
+          pending: 'blue',
+          rejected: 'red',
+          archived: 'default'
+        };
+        
+        const statusLabels: Record<string, string> = {
+          published: 'Đã xuất bản',
+          draft: 'Bản nháp',
+          pending: 'Chờ duyệt',
+          rejected: 'Từ chối',
+          archived: 'Lưu trữ'
+        };
+
+        return (
+          <Dropdown
+            overlay={
+              <Menu>
+                {status !== 'published' && (
+                  <Menu.Item key="publish" onClick={() => handleStatusChange(record.id, 'published')}>
+                    Xuất bản
+                  </Menu.Item>
+                )}
+                {status !== 'draft' && (
+                  <Menu.Item key="draft" onClick={() => handleStatusChange(record.id, 'draft')}>
+                    Chuyển thành bản nháp
+                  </Menu.Item>
+                )}
+                {status !== 'archived' && (
+                  <Menu.Item key="archive" onClick={() => handleStatusChange(record.id, 'archived')}>
+                    Lưu trữ
+                  </Menu.Item>
+                )}
+              </Menu>
+            }
+            trigger={['click']}
+          >
+            <Tag color={statusColors[status] || 'default'} style={{ cursor: 'pointer' }}>
+              {statusLabels[status] || status}
+            </Tag>
+          </Dropdown>
+        );
+      },
     },
     {
       title: "Cập nhật lần cuối",
@@ -140,9 +207,28 @@ const MyCourseList: React.FC = () => {
       key: "action",
       render: (_, record) => (
         <Space size="middle">
-          {/* <Tooltip title="Xem chi tiết"><Button icon={<EyeOutlined />} /></Tooltip> */}
-          <Tooltip title="Sửa"><Button icon={<EditOutlined />} onClick={() => navigate(`/instructor/courses/edit/${record.id}`)} /></Tooltip>
-          <Tooltip title="Xóa"><Button danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} /></Tooltip>
+          <Tooltip title="Sửa">
+            <Button 
+              icon={<EditOutlined />} 
+              onClick={() => navigate(`/instructor/courses/edit/${record.id}`)}
+            />
+          </Tooltip>
+          <Popconfirm
+            title="Xác nhận xóa"
+            description="Bạn có chắc chắn muốn xóa khóa học này? Hành động này không thể hoàn tác."
+            onConfirm={() => handleDelete(record.id)}
+            okText="Xóa"
+            cancelText="Hủy"
+            okType="danger"
+          >
+            <Tooltip title="Xóa">
+              <Button 
+                danger 
+                icon={<DeleteOutlined />} 
+                loading={deleteLoading === record.id}
+              />
+            </Tooltip>
+          </Popconfirm>
         </Space>
       ),
     },

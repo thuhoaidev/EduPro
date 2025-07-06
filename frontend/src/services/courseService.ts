@@ -332,3 +332,144 @@ export const getSectionById = async (sectionId: string) => {
   if (!response.ok) throw new Error('Không tìm thấy chương');
   return await response.json();
 };
+
+// Course CRUD operations
+export const getCourseById = async (courseId: string) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/courses/${courseId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Không tìm thấy khóa học');
+      }
+      throw new Error('Lỗi khi tải thông tin khóa học');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching course:', error);
+    throw error;
+  }
+};
+
+export const updateCourse = async (courseId: string, courseData: any) => {
+  try {
+    const token = localStorage.getItem('token');
+    
+    // Tạo FormData nếu có file upload
+    let body: string | FormData;
+    let headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+    };
+
+    if (courseData.thumbnail && courseData.thumbnail instanceof File) {
+      const formData = new FormData();
+      Object.keys(courseData).forEach(key => {
+        if (key === 'thumbnail') {
+          formData.append(key, courseData[key]);
+        } else if (key === 'requirements' && Array.isArray(courseData[key])) {
+          courseData[key].forEach((req: string) => {
+            formData.append('requirements[]', req);
+          });
+        } else if (key === 'sections' && Array.isArray(courseData[key])) {
+          formData.append('sections', JSON.stringify(courseData[key]));
+        } else {
+          formData.append(key, courseData[key]);
+        }
+      });
+      body = formData;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(courseData);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/courses/${courseId}`, {
+      method: 'PUT',
+      headers,
+      body,
+    });
+
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Lỗi khi cập nhật khóa học');
+      } else {
+        const errorText = await response.text();
+        console.error('Non-JSON response:', errorText);
+        throw new Error('Lỗi khi cập nhật khóa học');
+      }
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating course:', error);
+    throw error;
+  }
+};
+
+export const deleteCourse = async (courseId: string) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/courses/${courseId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Lỗi khi xóa khóa học');
+      } else {
+        const errorText = await response.text();
+        console.error('Non-JSON response:', errorText);
+        throw new Error('Lỗi khi xóa khóa học');
+      }
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error deleting course:', error);
+    throw error;
+  }
+};
+
+export const getInstructorCourses = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/courses/instructor`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Lỗi khi tải danh sách khóa học');
+      } else {
+        const errorText = await response.text();
+        console.error('Non-JSON response:', errorText);
+        throw new Error('Lỗi khi tải danh sách khóa học');
+      }
+    }
+
+    const result = await response.json();
+    return result.data || result; // Trả về data nếu có, không thì trả về toàn bộ result
+  } catch (error) {
+    console.error('Error fetching instructor courses:', error);
+    throw error;
+  }
+};

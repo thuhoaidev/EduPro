@@ -55,6 +55,7 @@ import CourseDetail from './pages/instructor/course/CourseDetail';
 import LessonVideoPage from './pages/client/lessons/LessonVideoPage';
 import LessonQuizPage from './pages/client/lessons/LessonQuizPage';
 import CourseList from "./pages/instructor/course/CourseList";
+import CourseEdit from "./pages/instructor/course/CourseEdit";
 import UserReportPage from "./pages/client/UserReportPage";
 import UserReportRoute from "./pages/client/UserReportRoute";
 
@@ -166,6 +167,7 @@ function App() {
         { path: "courses", element: <MyCourseList /> },
         { path: "courses/create", element: <MyCourseAdd /> },
         { path: "courses/:id", element: <CourseDetail /> },
+        { path: "courses/edit/:id", element: <CourseEdit /> },
         { path: "lessons", element: <MyLessonManager /> },
         { path: "students", element: <MyStudentStats /> },
         { path: "income", element: <MyEarnings /> },

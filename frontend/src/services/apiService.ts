@@ -256,6 +256,26 @@ export const courseService = {
       throw error.response?.data || error;
     }
   },
+
+  deleteCourse: async (courseId: string): Promise<boolean> => {
+    try {
+      const response = await apiClient.delete<ApiResponse<null>>(`/courses/${courseId}`);
+      return response.data?.success || false;
+    } catch (error: any) {
+      console.error('Lỗi khi xóa khóa học:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  updateCourse: async (courseId: string, courseData: Partial<ApiCourse>): Promise<ApiCourse | null> => {
+    try {
+      const response = await apiClient.put<ApiResponse<ApiCourse>>(`/courses/${courseId}`, courseData);
+      return response.data?.success ? response.data.data : null;
+    } catch (error: any) {
+      console.error('Lỗi khi cập nhật khóa học:', error);
+      throw error.response?.data || error;
+    }
+  },
 };
 
 // Instructor Registration Interfaces
