@@ -129,46 +129,31 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+
   // Thông tin học vấn
-  education: [{
-    degree: {
-      type: String,
-      trim: true,
-      required: true,
+  education: [
+    {
+      degree: { type: String, trim: true, required: true },
+      institution: { type: String, trim: true, required: true },
+      year: {
+        type: Number,
+        required: true,
+        min: [1950, 'Năm tốt nghiệp không hợp lệ'],
+        max: [new Date().getFullYear(), 'Năm tốt nghiệp không thể là tương lai'],
+      },
+      major: { type: String, trim: true, required: true },
     },
-    institution: {
-      type: String,
-      trim: true,
-      required: true,
-    },
-    year: {
-      type: Number,
-      required: true,
-      min: [1950, 'Năm tốt nghiệp không hợp lệ'],
-      max: [new Date().getFullYear(), 'Năm tốt nghiệp không thể là tương lai'],
-    },
-    major: {
-      type: String,
-      trim: true,
-      required: true,
-    },
-  }],
+  ],
+
+  // Hồ sơ giảng viên
   instructorInfo: {
-    // Thông tin cơ bản
-    is_approved: {
-      type: Boolean,
-      default: false,
-    },
+    is_approved: { type: Boolean, default: false },
     experience_years: {
       type: Number,
       min: [0, 'Số năm kinh nghiệm không thể âm'],
       max: [50, 'Số năm kinh nghiệm không thể quá 50'],
     },
-    specializations: [{
-      type: String,
-      trim: true,
-    }],
-    // Kinh nghiệm giảng dạy
+    specializations: [{ type: String, trim: true }],
     teaching_experience: {
       years: {
         type: Number,
@@ -181,75 +166,58 @@ const UserSchema = new mongoose.Schema({
         maxlength: [2000, 'Mô tả kinh nghiệm không được quá 2000 ký tự'],
       },
     },
-    // Bằng cấp & chứng chỉ (chỉ cần file, không cần năm/ngành/nơi cấp)
-    certificates: [{
-      name: {
-        type: String,
-        trim: true,
+    certificates: [
+      {
+        name: { type: String, trim: true },
+        file: { type: String, required: [true, 'File scan bằng cấp là bắt buộc'] },
+        original_name: { type: String, trim: true },
+        uploaded_at: { type: Date, default: Date.now },
       },
-      file: {
-        type: String,
-        required: [true, 'File scan bằng cấp là bắt buộc'],
+    ],
+    demo_video: { type: String, trim: true },
+    cv_file: { type: String, trim: true },
+    other_documents: [
+      {
+        name: { type: String, required: true, trim: true },
+        file: { type: String, required: true },
+        description: {
+          type: String,
+          trim: true,
+          maxlength: [500, 'Mô tả không được quá 500 ký tự'],
+        },
       },
-      original_name: {
-        type: String,
-        trim: true,
-      },
-      uploaded_at: {
-        type: Date,
-        default: Date.now,
-      },
-    }],
-    // Video demo dạy thử
-    demo_video: {
-      type: String,
-      trim: true,
-    },
-    // CV và hồ sơ khác
-    cv_file: {
-      type: String,
-      trim: true,
-    },
-    other_documents: [{
-      name: {
-        type: String,
-        required: [true, 'Tên hồ sơ là bắt buộc'],
-        trim: true,
-      },
-      file: {
-        type: String,
-        required: [true, 'File hồ sơ là bắt buộc'],
-      },
-      description: {
-        type: String,
-        trim: true,
-        maxlength: [500, 'Mô tả không được quá 500 ký tự'],
-      },
-    }],
-    // Trạng thái duyệt
+    ],
     instructor_profile_status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],
       default: 'pending',
     },
-    approval_date: {
-      type: Date,
-    },
-    approved_by: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    },
+    approval_date: { type: Date },
+    approved_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     rejection_reason: {
       type: String,
       trim: true,
       maxlength: [1000, 'Lý do từ chối không được quá 1000 ký tự'],
     },
-    application_date: {
-    type: Date,
-    default: Date.now,
-  }, 
+    application_date: { type: Date, default: Date.now },
   },
-}, {
+
+  // ✅ savedPosts - lưu bài viết
+  savedPosts: [
+    {
+      post: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Blog',
+        required: true,
+      },
+      savedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
+},
+{
   timestamps: {
     createdAt: 'created_at',
     updatedAt: 'updated_at',

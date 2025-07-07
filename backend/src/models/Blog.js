@@ -43,10 +43,19 @@ const blogSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  views: {
+  type: Number,
+  default: 0
+},
   comments_count: {
     type: Number,
     default: 0
   },
+  saves: [{
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User'
+}],
+
   rejected_reason: {
     type: String,
     default: ''

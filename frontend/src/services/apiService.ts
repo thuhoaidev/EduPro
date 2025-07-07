@@ -378,3 +378,62 @@ export const instructorService = {
 };
 
 export { mapApiCourseToAppCourse };
+const apiService = {
+  getCurrentUser: async () => {
+    try {
+      const res = await apiClient.get('/users/me');
+      return res.data;
+    } catch (err) {
+      console.error('Lỗi khi lấy thông tin người dùng:', err);
+      return null;
+    }
+  },
+
+  fetchSavedPosts: async () => {
+  try {
+    const res = await apiClient.get('/blogs/saved-posts');
+    if (res.data?.success === false) {
+      throw new Error(res.data.message || 'Lỗi từ API');
+    }
+    return res.data?.data || [];
+  } catch (err: any) {
+    console.error('❌ Lỗi khi lấy bài viết đã lưu:', err);
+    throw err;
+  }
+},
+
+
+  likePost: async (postId: string) => {
+  try {
+    const res = await apiClient.post(`/blogs/${postId}/like`);
+    return res.data; // trả về { liked, likes_count }
+  } catch (err: any) {
+    console.error(`❌ Lỗi khi like post ${postId}:`, err.response?.data || err.message);
+    throw err;
+  }
+},
+
+
+  unsavePost: async (savedPostId: string) => {
+    return apiClient.delete(`/blogs/${savedPostId}/unsave`);
+  },
+
+  fetchComments: async (postId: string) => {
+    const res = await apiClient.get(`/blogs/${postId}/comments`);
+    return res.data;
+  },
+
+  addComment: async (postId: string, content: string) => {
+    const res = await apiClient.post(`/blogs/${postId}/comments`, { content });
+    return res.data;
+  },
+
+  replyToComment: async (commentId: string, content: string) => {
+    const res = await apiClient.post(`/blogs/comments/${commentId}/reply`, { content });
+    return res.data;
+  }
+};
+
+export { apiClient, apiService };
+
+

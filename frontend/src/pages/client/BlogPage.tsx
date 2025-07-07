@@ -1,522 +1,610 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Layout, Input, Select, Card, Tag, Typography, Badge, Avatar, Button, message, Pagination } from 'antd';
-import { SearchOutlined, FilterOutlined, UserOutlined, EyeOutlined, LikeOutlined, CommentOutlined, BookOutlined, CalendarOutlined, FireOutlined, StarOutlined } from '@ant-design/icons';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Heart,
+  MessageCircle,
+  Send,
+  User,
+  Calendar,
+  Eye,
+  ArrowLeft,
+  Reply,
+  Bookmark,
+  BookmarkCheck,
+  Share2,
+  ThumbsUp,
+  MoreHorizontal,
+  Search,
+  Filter,
+  Sparkles,
+  Clock,
+  TrendingUp
+} from 'lucide-react';
 
-const { Title, Text, Paragraph } = Typography;
-const { Option } = Select;
-const { Sider, Content } = Layout;
+const API_BASE = 'http://localhost:5000/api';
 
-interface Blog {
-    id: string;
-    title: string;
-    excerpt: string;
-    content: string;
-    author: {
-        name: string;
-        avatar: string;
-        title: string;
-    };
-    category: string;
-    tags: string[];
-    publishDate: string;
-    readTime: number;
-    views: number;
-    likes: number;
-    comments: number;
-    isFeatured: boolean;
-    isHot: boolean;
-    isNew: boolean;
-    coverImage: string;
-    status: 'published' | 'draft' | 'archived';
-}
+const axiosClient = {
+  get: async (url: string) => {
+    const res = await fetch(`${API_BASE}${url}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
 
-const mockBlogs: Blog[] = [
-    {
-        id: '1',
-        title: 'Hướng dẫn React Hooks từ cơ bản đến nâng cao',
-        excerpt: 'Khám phá cách sử dụng React Hooks một cách hiệu quả để xây dựng các ứng dụng React hiện đại và tối ưu.',
-        content: 'React Hooks đã thay đổi cách chúng ta viết React components...',
-        author: {
-            name: 'Nguyễn Văn An',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=NguyenVanAn',
-            title: 'Senior React Developer'
-        },
-        category: 'React Development',
-        tags: ['React', 'Hooks', 'JavaScript', 'Frontend'],
-        publishDate: '2024-01-15',
-        readTime: 8,
-        views: 15420,
-        likes: 892,
-        comments: 156,
-        isFeatured: true,
-        isHot: true,
-        isNew: false,
-        coverImage: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=200&fit=crop',
-        status: 'published'
-    },
-    {
-        id: '2',
-        title: 'TypeScript vs JavaScript: Khi nào nên sử dụng?',
-        excerpt: 'So sánh chi tiết giữa TypeScript và JavaScript, giúp bạn đưa ra quyết định phù hợp cho dự án.',
-        content: 'TypeScript và JavaScript đều là những ngôn ngữ lập trình quan trọng...',
-        author: {
-            name: 'Trần Thị Bình',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=TranThiBinh',
-            title: 'Full-Stack Developer'
-        },
-        category: 'Programming',
-        tags: ['TypeScript', 'JavaScript', 'Programming', 'Web Development'],
-        publishDate: '2024-01-12',
-        readTime: 12,
-        views: 8920,
-        likes: 445,
-        comments: 89,
-        isFeatured: false,
-        isHot: true,
-        isNew: true,
-        coverImage: 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=400&h=200&fit=crop',
-        status: 'published'
-    },
-    {
-        id: '3',
-        title: 'UI/UX Design Principles cho Web Developers',
-        excerpt: 'Những nguyên tắc thiết kế UI/UX cơ bản mà mọi web developer nên biết để tạo ra sản phẩm tốt hơn.',
-        content: 'Thiết kế UI/UX không chỉ dành cho designers...',
-        author: {
-            name: 'Lê Minh Cường',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=LeMinhCuong',
-            title: 'UI/UX Designer'
-        },
-        category: 'Design',
-        tags: ['UI/UX', 'Design', 'Web Design', 'User Experience'],
-        publishDate: '2024-01-10',
-        readTime: 15,
-        views: 12340,
-        likes: 678,
-        comments: 134,
-        isFeatured: true,
-        isHot: false,
-        isNew: false,
-        coverImage: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=200&fit=crop',
-        status: 'published'
-    },
-    {
-        id: '4',
-        title: 'Node.js Performance Optimization Techniques',
-        excerpt: 'Các kỹ thuật tối ưu hóa hiệu suất cho ứng dụng Node.js từ cơ bản đến nâng cao.',
-        content: 'Hiệu suất là yếu tố quan trọng trong phát triển ứng dụng...',
-        author: {
-            name: 'Phạm Thị Dung',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=PhamThiDung',
-            title: 'Backend Developer'
-        },
-        category: 'Backend Development',
-        tags: ['Node.js', 'Performance', 'Backend', 'Optimization'],
-        publishDate: '2024-01-08',
-        readTime: 10,
-        views: 7650,
-        likes: 334,
-        comments: 67,
-        isFeatured: false,
-        isHot: false,
-        isNew: true,
-        coverImage: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&h=200&fit=crop',
-        status: 'published'
-    },
-    {
-        id: '5',
-        title: 'Machine Learning cho Beginners: Bắt đầu từ đâu?',
-        excerpt: 'Hướng dẫn chi tiết cho người mới bắt đầu học Machine Learning với các bước thực hành cụ thể.',
-        content: 'Machine Learning đang trở thành một kỹ năng quan trọng...',
-        author: {
-            name: 'Hoàng Văn Em',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=HoangVanEm',
-            title: 'Data Scientist'
-        },
-        category: 'Data Science',
-        tags: ['Machine Learning', 'AI', 'Python', 'Data Science'],
-        publishDate: '2024-01-05',
-        readTime: 20,
-        views: 18920,
-        likes: 1023,
-        comments: 234,
-        isFeatured: true,
-        isHot: true,
-        isNew: false,
-        coverImage: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=200&fit=crop',
-        status: 'published'
-    },
-    {
-        id: '6',
-        title: 'Docker và Kubernetes: Containerization cho Developers',
-        excerpt: 'Tìm hiểu về Docker và Kubernetes để triển khai ứng dụng một cách hiệu quả và scalable.',
-        content: 'Containerization đã thay đổi cách chúng ta triển khai ứng dụng...',
-        author: {
-            name: 'Vũ Thị Phương',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=VuThiPhuong',
-            title: 'DevOps Engineer'
-        },
-        category: 'DevOps',
-        tags: ['Docker', 'Kubernetes', 'DevOps', 'Containerization'],
-        publishDate: '2024-01-03',
-        readTime: 18,
-        views: 9870,
-        likes: 556,
-        comments: 123,
-        isFeatured: false,
-        isHot: true,
-        isNew: false,
-        coverImage: 'https://images.unsplash.com/photo-1605745341112-85968b19335b?w=400&h=200&fit=crop',
-        status: 'published'
+    const json = await res.json();
+
+    if (!res.ok) {
+      throw new Error(json.message || 'GET failed');
     }
-];
 
-const blogCategories = ['Tất cả', 'React Development', 'Programming', 'Design', 'Backend Development', 'Data Science', 'DevOps'];
+    return json;
+  },
 
-const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
-    searchTerm: string;
-    category: string;
-    sortBy: string;
-    readTime: number;
-}) => void }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [category, setCategory] = useState('Tất cả');
-    const [sortBy, setSortBy] = useState('latest');
-    const [readTime, setReadTime] = useState(0);
+ post: async (url: string, data: any) => {
+  const res = await fetch(`${API_BASE}${url}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+    },
+    body: JSON.stringify(data),
+  });
 
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            setFilters({ searchTerm, category, sortBy, readTime });
-        }, 500);
-        return () => clearTimeout(handler);
-    }, [searchTerm, category, sortBy, readTime, setFilters]);
+  const json = await res.json();
 
-    return (
-        <Sider width={280} className="bg-white p-6" theme="light" style={{
-            position: 'sticky',
-            top: 68,
-            height: 'calc(100vh - 68px)',
-            overflowY: 'auto'
-        }}>
-            <Title level={4} className="!mb-6"><FilterOutlined className="mr-2" />Bộ lọc bài viết</Title>
-            
-            <div className="space-y-6">
-                <div>
-                    <Text strong>Tìm kiếm</Text>
-                    <Input
-                        size="large"
-                        placeholder="Tiêu đề bài viết..."
-                        prefix={<SearchOutlined />}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="!mt-2"
-                    />
-                </div>
-                <div>
-                    <Text strong>Danh mục</Text>
-                    <Select
-                        size="large"
-                        defaultValue="Tất cả"
-                        className="w-full !mt-2"
-                        onChange={value => setCategory(value)}
-                    >
-                        {blogCategories.map(cat => <Option key={cat} value={cat}>{cat}</Option>)}
-                    </Select>
-                </div>
-                <div>
-                    <Text strong>Sắp xếp theo</Text>
-                    <Select
-                        size="large"
-                        defaultValue="latest"
-                        className="w-full !mt-2"
-                        onChange={value => setSortBy(value)}
-                    >
-                        <Option value="latest">Mới nhất</Option>
-                        <Option value="popular">Phổ biến nhất</Option>
-                        <Option value="views">Lượt xem cao nhất</Option>
-                        <Option value="likes">Lượt thích cao nhất</Option>
-                    </Select>
-                </div>
-                <div>
-                    <Text strong>Thời gian đọc</Text>
-                    <Select
-                        size="large"
-                        defaultValue={0}
-                        className="w-full !mt-2"
-                        onChange={value => setReadTime(value)}
-                    >
-                        <Option value={0}>Tất cả</Option>
-                        <Option value={5}>Dưới 5 phút</Option>
-                        <Option value={10}>5-10 phút</Option>
-                        <Option value={15}>10-15 phút</Option>
-                        <Option value={20}>Trên 15 phút</Option>
-                    </Select>
-                </div>
-            </div>
-        </Sider>
-    );
+  // ✅ Không throw theo status HTTP mà kiểm tra `json.success`
+  return json;
+}
 };
 
-const BlogCard = ({ blog }: { blog: Blog }) => {
-    const [isHovered, setIsHovered] = useState(false);
-
-    const handleLike = () => {
-        message.success('Đã thích bài viết!');
-    };
-
-    const handleSave = () => {
-        message.success('Đã lưu bài viết!');
-    };
-
-    return (
-        <motion.div
-            className="h-full"
-            whileHover={{ y: -8, transition: { duration: 0.3 } }}
-            onHoverStart={() => setIsHovered(true)}
-            onHoverEnd={() => setIsHovered(false)}
-        >
-            <Card
-                className="h-full cursor-pointer transition-all duration-300"
-                style={{
-                    border: isHovered ? '2px solid #1890ff' : '1px solid #f0f0f0',
-                    boxShadow: isHovered ? '0 8px 25px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.1)'
-                }}
-                cover={
-                    <div className="relative h-48 overflow-hidden">
-                        <img
-                            alt={blog.title}
-                            src={blog.coverImage}
-                            className="w-full h-full object-cover transition-transform duration-300"
-                            style={{
-                                transform: isHovered ? 'scale(1.05)' : 'scale(1)'
-                            }}
-                        />
-                        <div className="absolute top-3 left-3 flex gap-2">
-                            {blog.isFeatured && (
-                                <Badge count={<StarOutlined style={{ color: '#faad14' }} />} />
-                            )}
-                            {blog.isHot && (
-                                <Badge count={<FireOutlined style={{ color: '#ff4d4f' }} />} />
-                            )}
-                            {blog.isNew && (
-                                <Tag color="green">Mới</Tag>
-                            )}
-                        </div>
-                    </div>
-                }
-            >
-                <div className="flex flex-col h-full">
-                    {/* Category and Tags */}
-                    <div className="mb-3">
-                        <Tag color="blue" className="mb-2">{blog.category}</Tag>
-                        <div className="flex flex-wrap gap-1">
-                            {blog.tags.slice(0, 2).map((tag, index) => (
-                                <Tag key={index} color="default" className="text-xs">{tag}</Tag>
-                            ))}
-                            {blog.tags.length > 2 && (
-                                <Tag color="default" className="text-xs">+{blog.tags.length - 2}</Tag>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Title */}
-                    <Title level={4} className="!mb-2 line-clamp-2" style={{ minHeight: '56px' }}>{blog.title}</Title>
-
-                    {/* Excerpt */}
-                    <Paragraph className="text-gray-600 text-sm mb-4 line-clamp-3" style={{ minHeight: '63px' }}>
-                        {blog.excerpt}
-                    </Paragraph>
-
-                    {/* Author Info */}
-                    <div className="flex items-center space-x-2 mb-4">
-                        <Avatar size={32} src={blog.author.avatar} icon={<UserOutlined />} />
-                        <div className="flex-1">
-                            <Text strong className="text-sm">{blog.author.name}</Text>
-                            <div className="text-xs text-gray-500">{blog.author.title}</div>
-                        </div>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                        <div className="flex items-center space-x-4">
-                            <div className="flex items-center space-x-1">
-                                <CalendarOutlined />
-                                <span>{new Date(blog.publishDate).toLocaleDateString('vi-VN')}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                                <BookOutlined />
-                                <span>{blog.readTime} phút</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Engagement Stats */}
-                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                        <div className="flex items-center space-x-4">
-                            <div className="flex items-center space-x-1">
-                                <EyeOutlined />
-                                <span>{blog.views.toLocaleString()}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                                <LikeOutlined />
-                                <span>{blog.likes.toLocaleString()}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                                <CommentOutlined />
-                                <span>{blog.comments.toLocaleString()}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex space-x-2 mt-auto">
-                        <Button type="primary" className="flex-1">
-                            Đọc bài viết
-                        </Button>
-                        <Button 
-                            icon={<LikeOutlined />} 
-                            onClick={handleLike}
-                            className="flex-shrink-0"
-                        />
-                        <Button 
-                            icon={<BookOutlined />} 
-                            onClick={handleSave}
-                            className="flex-shrink-0"
-                        />
-                    </div>
-                </div>
-            </Card>
-        </motion.div>
-    );
-};
 
 const BlogPage = () => {
-    const [blogs, setBlogs] = useState<Blog[]>([]);
-    const [filteredBlogs, setFilteredBlogs] = useState<Blog[]>([]);
-    const [filters, setFilters] = useState({
-        searchTerm: '',
-        category: 'Tất cả',
-        sortBy: 'latest',
-        readTime: 0
+  const [blogs, setBlogs] = useState<any[]>([]);
+  const [selectedBlog, setSelectedBlog] = useState<any | null>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [savedBlogs, setSavedBlogs] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
+
+  const commentEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      commentEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
+  const loadBlogs = async () => {
+    try {
+      setLoading(true);
+      const res = await axiosClient.get('/blogs');
+      console.log('📥 Blogs:', res);
+      setBlogs(Array.isArray(res) ? res : res.data || []); // Tốt rồi ✅
+    } catch (err) {
+      console.error('Không thể tải bài viết');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDetail = async (id: string) => {
+    try {
+      setLoading(true);
+      const blog = await axiosClient.get(`/blogs/${id}`);
+      const cmts = await axiosClient.get(`/blogs/${id}/comments`);
+      setSelectedBlog(blog.data); // ✅ chỉ set phần data
+      setComments(cmts?.data || []);
+    } catch {
+      console.error('Lỗi khi tải chi tiết bài viết');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+const handleLike = async () => {
+  if (!selectedBlog || !selectedBlog._id) {
+    console.error('❌ selectedBlog hoặc _id không hợp lệ');
+    return;
+  }
+
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const res = await axiosClient.post(`/blogs/${selectedBlog._id}/like`, {
+      userId: user._id,
     });
-    const [currentPage, setCurrentPage] = useState(1);
-    const blogsPerPage = 6;
 
-    useEffect(() => {
-        setBlogs(mockBlogs);
-    }, []);
+    console.log('🟠 Like Response:', res);
 
-    useEffect(() => {
-        let filtered = blogs;
-
-        // Filter by search term
-        if (filters.searchTerm) {
-            filtered = filtered.filter(blog =>
-                blog.title.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-                blog.excerpt.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-                blog.author.name.toLowerCase().includes(filters.searchTerm.toLowerCase())
-            );
-        }
-
-        // Filter by category
-        if (filters.category !== 'Tất cả') {
-            filtered = filtered.filter(blog => blog.category === filters.category);
-        }
-
-        // Filter by read time
-        if (filters.readTime > 0) {
-            if (filters.readTime === 5) {
-                filtered = filtered.filter(blog => blog.readTime < 5);
-            } else if (filters.readTime === 10) {
-                filtered = filtered.filter(blog => blog.readTime >= 5 && blog.readTime <= 10);
-            } else if (filters.readTime === 15) {
-                filtered = filtered.filter(blog => blog.readTime >= 10 && blog.readTime <= 15);
-            } else if (filters.readTime === 20) {
-                filtered = filtered.filter(blog => blog.readTime > 15);
-            }
-        }
-
-        // Sort blogs
-        switch (filters.sortBy) {
-            case 'latest':
-                filtered.sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime());
-                break;
-            case 'popular':
-                filtered.sort((a, b) => b.views - a.views);
-                break;
-            case 'views':
-                filtered.sort((a, b) => b.views - a.views);
-                break;
-            case 'likes':
-                filtered.sort((a, b) => b.likes - a.likes);
-                break;
-        }
-
-        setFilteredBlogs(filtered);
-        setCurrentPage(1);
-    }, [filters, blogs]);
-
-    const paginatedBlogs = filteredBlogs.slice((currentPage - 1) * blogsPerPage, currentPage * blogsPerPage);
-
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        visible: {
-            opacity: 1,
-            transition: { duration: 0.5, staggerChildren: 0.05 }
-        }
-    };
-
-    const itemVariants = {
-        hidden: { opacity: 0, y: 20 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' as const } }
-    };
-
-    return (
-        <Layout>
-            <FilterSidebar setFilters={setFilters} />
-            <Content className="p-8 bg-gray-50 min-h-screen">
-                <motion.div
-                    className="w-full"
-                    initial="hidden"
-                    animate="visible"
-                    variants={containerVariants}
-                >
-                    {filteredBlogs.length > 0 ? (
-                        <motion.div variants={containerVariants}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {paginatedBlogs.map(blog => (
-                                    <BlogCard key={blog.id} blog={blog} />
-                                ))}
-                            </div>
-                            <motion.div variants={itemVariants} className="text-center mt-8">
-                                <Pagination
-                                    current={currentPage}
-                                    total={filteredBlogs.length}
-                                    pageSize={blogsPerPage}
-                                    onChange={page => setCurrentPage(page)}
-                                    showSizeChanger={false}
-                                />
-                            </motion.div>
-                        </motion.div>
-                    ) : (
-                        <motion.div variants={itemVariants}>
-                            <div className="text-center py-16">
-                                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <BookOutlined className="text-4xl text-gray-400" />
-                                </div>
-                                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                                    Không tìm thấy bài viết
-                                </h3>
-                                <p className="text-gray-600">
-                                    Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc khác
-                                </p>
-                            </div>
-                        </motion.div>
-                    )}
-                </motion.div>
-            </Content>
-        </Layout>
-    );
+    if (typeof res.liked === 'boolean') {
+      setSelectedBlog((prev: any) => ({
+        ...prev,
+        likes: res.likes_count,
+        isLiked: res.liked,
+      }));
+    } else {
+      console.warn('⚠️ Không rõ phản hồi like:', res);
+    }
+  } catch (err: any) {
+    console.error('❌ Không thể xử lý thích bài viết:', err.message || err);
+  }
 };
 
-export default BlogPage; 
+
+
+  const handleSave = async (blogId: string) => {
+  if (savedBlogs.has(blogId)) {
+    toast.info('📌 Bạn đã lưu bài viết này rồi.');
+    return;
+  }
+
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const res = await axiosClient.post(`/blogs/${blogId}/save`, {
+      userId: user._id,
+    });
+
+    if (res.success) {
+      toast.success('✅ Đã lưu bài viết!');
+      setSavedBlogs(prev => new Set(prev).add(blogId));
+    } else {
+      toast.info(res.message || '📌 Bài viết đã được lưu.');
+    }
+  } catch (err: any) {
+    console.error('❌ Không thể lưu bài viết:', err);
+    toast.error('⚠️ Đã xảy ra lỗi khi lưu bài viết.');
+  }
+};
+
+
+
+  const handleComment = async () => {
+  if (!newComment.trim()) return;
+
+  if (!selectedBlog || !selectedBlog._id) {
+    console.error('❌ selectedBlog hoặc _id không hợp lệ');
+    return;
+  }
+
+  try {
+    await axiosClient.post(`/blogs/${selectedBlog._id}/comment`, {
+      content: newComment,
+    });
+
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    setComments([
+      ...comments,
+      {
+        _id: Date.now().toString(),
+        content: newComment,
+        author: { name: user.fullname || 'Bạn' },
+        createdAt: new Date().toISOString(),
+        replies: [],
+      },
+    ]);
+    setNewComment('');
+    scrollToBottom();
+  } catch (error) {
+    console.error('❌ Error when commenting:', error);
+  }
+};
+
+
+  const handleReply = async () => {
+    if (!replyContent.trim() || !replyingTo) return;
+    try {
+      await axiosClient.post(`/blogs/comment/${replyingTo}/reply`, {
+        content: replyContent,
+      });
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const newReply = {
+        _id: Date.now().toString(),
+        content: replyContent,
+        author: { name: user.fullname || 'Bạn' },
+        createdAt: new Date().toISOString(),
+      };
+      setComments((prev) =>
+        prev.map((c) =>
+          c._id === replyingTo ? { ...c, replies: [...(c.replies || []), newReply] } : c
+        )
+      );
+      setReplyContent('');
+      setReplyingTo(null);
+      scrollToBottom();
+    } catch {
+      console.error('Không thể trả lời');
+    }
+  };
+
+  useEffect(() => {
+    loadBlogs();
+  }, []);
+
+  const formatDate = (date: string) =>
+    new Date(date).toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+  const filteredBlogs = blogs.filter(blog => {
+    const matchesSearch = blog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         blog.content.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (filterType === 'trending') return matchesSearch && blog.likes > 10;
+    if (filterType === 'recent') return matchesSearch && new Date(blog.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    if (filterType === 'saved') return matchesSearch && savedBlogs.has(blog._id);
+    
+    return matchesSearch;
+  });
+
+  if (loading)
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Đang tải nội dung...</p>
+        </div>
+      </div>
+    );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {!selectedBlog ? (
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+              Blog Community
+            </h1>
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+              Khám phá những câu chuyện thú vị, chia sẻ kiến thức và kết nối cộng đồng
+            </p>
+          </div>
+
+          {/* Search and Filter */}
+          <div className="flex flex-col md:flex-row gap-4 mb-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm bài viết..."
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              {[
+                { key: 'all', label: 'Tất cả', icon: Filter },
+                { key: 'trending', label: 'Thịnh hành', icon: TrendingUp },
+                { key: 'recent', label: 'Mới nhất', icon: Clock },
+                { key: 'saved', label: 'Đã lưu', icon: Bookmark }
+              ].map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilterType(key)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+                    filterType === key
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Blog Grid */}
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
+            {filteredBlogs.map((blog) => (
+              <div
+                key={blog._id}
+                className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-blue-200 cursor-pointer transform hover:-translate-y-1"
+                onClick={() => loadDetail(blog._id)}
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">{blog.author?.fullname}</p>
+                        <p className="text-sm text-gray-500 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {formatDate(blog.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSave(blog._id);
+                      }}
+                      className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                    >
+                      {savedBlogs.has(blog._id) ? (
+                        <BookmarkCheck className="w-5 h-5 text-blue-600" />
+                      ) : (
+                        <Bookmark className="w-5 h-5 text-gray-400" />
+                      )}
+                    </button>
+                  </div>
+                  
+                  <h2 className="font-bold text-xl mb-3 line-clamp-2 text-gray-800 group-hover:text-blue-600 transition-colors">
+                    {blog.title}
+                  </h2>
+                  <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed">
+                    {blog.content}
+                  </p>
+                  
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1 text-red-500 font-medium">
+                      <Heart className="w-4 h-4" />
+                      {blog.likes_count || 0}
+                    </span>
+                    <span className="flex items-center gap-1 text-blue-500 font-medium">
+                      <MessageCircle className="w-4 h-4" />
+                      {blog.comments_count || 0}
+                    </span>
+                    <span className="flex items-center gap-1 text-gray-500">
+                      <Eye className="w-4 h-4" />
+                      {blog.views || 0}
+                    </span>
+                    <span className="flex items-center gap-1 text-green-600">
+                      <BookmarkCheck className="w-4 h-4" />
+                      {blog.saves?.length || 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-yellow-500" />
+                    <span className="text-sm text-gray-500">Đọc thêm</span>
+                  </div>
+                </div>
+
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {filteredBlogs.length === 0 && (
+            <div className="text-center py-16">
+              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-600 mb-2">Không tìm thấy bài viết</h3>
+              <p className="text-gray-500">Thử tìm kiếm với từ khóa khác hoặc thay đổi bộ lọc</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          {/* Back Button */}
+          <button
+            onClick={() => setSelectedBlog(null)}
+            className="mb-8 flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-md hover:shadow-lg transition-all text-blue-600 font-medium"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Quay lại
+          </button>
+
+          {/* Article Header */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-8">
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <User className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">{selectedBlog.author?.fullname}</h3>
+                    <p className="text-gray-500 flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      {formatDate(selectedBlog.createdAt)}
+                    </p>
+                  </div>
+                </div>
+                <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                  <MoreHorizontal className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <h1 className="text-3xl font-bold text-gray-800 mb-6 leading-tight">
+                {selectedBlog.title}
+              </h1>
+
+              <div className="prose prose-lg max-w-none mb-8">
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {selectedBlog.content}
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={handleLike}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
+                      selectedBlog.isLiked
+                        ? 'bg-red-50 text-red-600 border border-red-200'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                    }`}
+                  >
+                    <Heart className={`w-5 h-5 ${selectedBlog.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
+                    <div className="flex items-center gap-6 text-sm text-gray-500 mt-4">
+                    <div className="flex items-center gap-2">
+                      <Heart className="w-4 h-4 text-red-500" />
+                      <span>{selectedBlog.likes_count || selectedBlog.likes || 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className="w-4 h-4 text-blue-500" />
+                      <span>{comments.length || 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <BookmarkCheck className="w-4 h-4 text-green-500" />
+                      <span>{selectedBlog?.saves?.length || 0}</span>
+                    </div>
+                  </div>
+
+                  </button>
+                  
+                  <button
+                    onClick={() => handleSave(selectedBlog._id)}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
+                      savedBlogs.has(selectedBlog._id)
+                        ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                    }`}
+                  >
+                    {savedBlogs.has(selectedBlog._id) ? (
+                      <BookmarkCheck className="w-5 h-5" />
+                    ) : (
+                      <Bookmark className="w-5 h-5" />
+                    )}
+                    Lưu
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-blue-600">
+                    <MessageCircle className="w-5 h-5" />
+                    <span className="font-medium">{comments.length} bình luận</span>
+                  </div>
+                  <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <Share2 className="w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Comment Section */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Bình luận</h2>
+            
+            {/* Add Comment */}
+            <div className="mb-8">
+              <textarea
+                className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                rows={4}
+                placeholder="Chia sẻ suy nghĩ của bạn..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+              />
+              <div className="flex justify-end mt-3">
+                <button
+                  onClick={handleComment}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+                >
+                  <Send className="w-4 h-4" />
+                  Gửi bình luận
+                </button>
+              </div>
+            </div>
+
+            {/* Comments List */}
+            <div className="space-y-6">
+              {comments.map((cmt) => (
+                <div key={cmt._id} className="bg-gray-50 rounded-xl p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-semibold text-gray-800">{cmt.author?.name}</span>
+                        <span className="text-sm text-gray-500">{formatDate(cmt.createdAt)}</span>
+                      </div>
+                      <p className="text-gray-700 mb-3 leading-relaxed">{cmt.content}</p>
+                      
+                      <div className="flex items-center gap-4">
+                        <button className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors">
+                          <ThumbsUp className="w-4 h-4" />
+                          <span className="text-sm">Thích</span>
+                        </button>
+                        <button
+                          onClick={() => setReplyingTo(cmt._id)}
+                          className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors"
+                        >
+                          <Reply className="w-4 h-4" />
+                          <span className="text-sm">Trả lời ({cmt.replies?.length || 0})</span>
+                        </button>
+                      </div>
+
+                      {replyingTo === cmt._id && (
+                        <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200">
+                          <textarea
+                            className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            rows={3}
+                            value={replyContent}
+                            onChange={(e) => setReplyContent(e.target.value)}
+                            placeholder="Nhập phản hồi..."
+                          />
+                          <div className="flex justify-end gap-2 mt-3">
+                            <button
+                              onClick={() => setReplyingTo(null)}
+                              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                            >
+                              Hủy
+                            </button>
+                            <button
+                              onClick={handleReply}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              Gửi
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {cmt.replies?.length > 0 && (
+                        <div className="mt-4 ml-6 space-y-4">
+                          {cmt.replies.map((reply: any) => (
+                            <div key={reply._id} className="bg-white rounded-xl p-4 border border-gray-200">
+                              <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <User className="w-4 h-4 text-white" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="font-medium text-gray-800">{reply.author?.name}</span>
+                                    <span className="text-xs text-gray-500">{formatDate(reply.createdAt)}</span>
+                                  </div>
+                                  <p className="text-gray-700 text-sm">{reply.content}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div ref={commentEndRef}></div>
+            </div>
+
+            {comments.length === 0 && (
+              <div className="text-center py-12">
+                <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-600 mb-2">Chưa có bình luận nào</h3>
+                <p className="text-gray-500">Hãy là người đầu tiên chia sẻ suy nghĩ của bạn!</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default BlogPage;
