@@ -26,76 +26,34 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateCartCount = async () => {
     try {
-      // Kiểm tra token trước khi gọi API
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.log('Không có token, bỏ qua cập nhật giỏ hàng');
-        setCartCount(0);
-        setCartItems([]);
-        return;
-      }
-
       const response = await config.get('/carts');
       const items = response.data.items || [];
       setCartCount(items.length);
       setCartItems(items);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching cart count:', error);
-      
-      // Nếu lỗi 401, có thể token đã hết hạn
-      if (error.response?.status === 401) {
-        console.log('Token không hợp lệ, reset giỏ hàng');
-        setCartCount(0);
-        setCartItems([]);
-        // Không xóa token ở đây vì axios interceptor sẽ xử lý
-      } else {
-        // Các lỗi khác, giữ nguyên trạng thái
-        console.log('Lỗi khác khi lấy giỏ hàng:', error.message);
-      }
+      setCartCount(0);
+      setCartItems([]);
     }
   };
 
   const addToCart = async (courseId: string): Promise<boolean> => {
     try {
-      // Kiểm tra token trước khi gọi API
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.log('Không có token, không thể thêm vào giỏ hàng');
-        return false;
-      }
-
       await config.post('/carts', { courseId });
       await updateCartCount();
       return true;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding to cart:', error);
-      
-      if (error.response?.status === 401) {
-        console.log('Token không hợp lệ khi thêm vào giỏ hàng');
-        return false;
-      }
-      
       return false;
     }
   };
 
   const removeFromCart = async (cartItemId: string) => {
     try {
-      // Kiểm tra token trước khi gọi API
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.log('Không có token, không thể xóa khỏi giỏ hàng');
-        return;
-      }
-
       await config.delete(`/carts/${cartItemId}`);
       await updateCartCount();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error removing from cart:', error);
-      
-      if (error.response?.status === 401) {
-        console.log('Token không hợp lệ khi xóa khỏi giỏ hàng');
-      }
     }
   };
 
@@ -104,11 +62,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Chỉ cập nhật giỏ hàng nếu có token
-    const token = localStorage.getItem('token');
-    if (token) {
-      updateCartCount();
-    }
+    updateCartCount();
   }, []);
 
   const value = {

@@ -9,7 +9,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import CouponManagement from "./pages/admin/Vouchers/VouchersPage";
 import TransactionHistory from "./pages/admin/Transaction/TransactionHistory";
 import { CartProvider } from "./contexts/CartContext";
-import AuthNotification from "./components/common/AuthNotification";
 
 import UserPage from "./pages/admin/Users/UserPage";
 import InstructorList from "./pages/admin/Instructors/InstructorList";
@@ -135,11 +134,9 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthNotification>
-        <CartProvider>
-          {element}
-        </CartProvider>
-      </AuthNotification>
+      <CartProvider>
+        {element}
+      </CartProvider>
     </QueryClientProvider>
   );
 }

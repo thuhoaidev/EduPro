@@ -71,15 +71,6 @@ const CartPage: React.FC = () => {
   const fetchCart = async () => {
     try {
       setLoading(true);
-      
-      // Kiểm tra token trước khi gọi API
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.log('Không có token, không thể tải giỏ hàng');
-        setCartItems([]);
-        return;
-      }
-      
       const res = await apiClient.get('/carts');
       const items = res.data.items.map((item: any) => {
         const course = item.course;
@@ -102,18 +93,9 @@ const CartPage: React.FC = () => {
       });
       setCartItems(items);
       setSelectedItems(items.map((item: { id: any; }) => item.id));
-    } catch (err: any) {
+    } catch (err) {
       console.error('Lỗi tải giỏ hàng:', err);
-      
-      if (err.response?.status === 401) {
-        console.log('Token không hợp lệ khi tải giỏ hàng');
-        message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-        // Không cần xóa token ở đây vì axios interceptor sẽ xử lý
-      } else {
-        message.error('Không thể tải giỏ hàng');
-      }
-      
-      setCartItems([]);
+      message.error('Không thể tải giỏ hàng');
     } finally {
       setLoading(false);
     }
@@ -121,25 +103,14 @@ const CartPage: React.FC = () => {
 
   const removeItem = async (id: string) => {
     try {
-      console.log('Removing item with ID:', id);
-      const response = await apiClient.delete(`/carts/${id}`);
-      console.log('Remove response:', response.data);
-      
+      await apiClient.delete(`/carts/${id}`);
       message.success('Đã xóa khỏi giỏ hàng');
       setCartItems(cartItems.filter(item => item.id !== id));
       setSelectedItems(selectedItems.filter(itemId => itemId !== id));
       await updateCartCount();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Lỗi khi xóa:', err);
-      console.error('Error response:', err.response?.data);
-      
-      if (err.response?.status === 404) {
-        message.error('Không tìm thấy sản phẩm trong giỏ hàng');
-      } else if (err.response?.status === 401) {
-        message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-      } else {
-        message.error('Không thể xóa khóa học');
-      }
+      message.error('Không thể xóa khóa học');
     }
   };
 
@@ -166,46 +137,16 @@ const CartPage: React.FC = () => {
     }
     
     try {
-      console.log('Removing selected items:', selectedItems);
-      
-      // Sử dụng bulk delete API
-      const response = await apiClient.delete('/carts/bulk', {
-        data: { itemIds: selectedItems }
-      });
-      
-      console.log('Bulk remove response:', response.data);
-      
-      if (response.data.success) {
-        const { deletedCount, itemCount } = response.data.data;
-        
-        // Cập nhật state
-        setCartItems(cartItems.filter(item => !selectedItems.includes(item.id)));
-        setSelectedItems([]);
-        
-        // Hiển thị thông báo
-        if (deletedCount === selectedItems.length) {
-          message.success(`Đã xóa ${deletedCount} khóa học khỏi giỏ hàng!`);
-        } else {
-          message.warning(`Đã xóa ${deletedCount}/${selectedItems.length} khóa học khỏi giỏ hàng`);
-        }
-        
-        // Cập nhật cart count
-        await updateCartCount();
-      } else {
-        message.error('Có lỗi xảy ra khi xóa các khóa học');
-      }
-      
-    } catch (err: any) {
+      await Promise.all(
+        selectedItems.map(id => apiClient.delete(`/carts/${id}`))
+      );
+      setCartItems(cartItems.filter(item => !selectedItems.includes(item.id)));
+      setSelectedItems([]);
+      message.success(`Đã xóa ${selectedItems.length} khóa học khỏi giỏ hàng!`);
+      await updateCartCount();
+    } catch (err) {
       console.error('Lỗi khi xóa nhiều:', err);
-      console.error('Error response:', err.response?.data);
-      
-      if (err.response?.status === 401) {
-        message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-      } else if (err.response?.status === 400) {
-        message.error(err.response.data.error || 'Dữ liệu không hợp lệ');
-      } else {
-        message.error('Có lỗi xảy ra khi xóa các khóa học');
-      }
+      message.error('Có lỗi xảy ra khi xóa các khóa học');
     }
   };
 
