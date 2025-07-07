@@ -1,7 +1,86 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// Course service implementation
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Mock data for testing UI
+const MOCK_SECTIONS = [
+  {
+    id: 1,
+    title: "Introduction to React",
+    description: "Learn the basics of React development",
+    order: 1,
+    isExpanded: true,
+    lessons: [
+      {
+        id: 1,
+        title: "What is React?",
+        duration: "10:30",
+        order: 1
+      },
+      {
+        id: 2,
+        title: "Setting up Development Environment",
+        duration: "15:45",
+        order: 2
+      },
+      {
+        id: 3,
+        title: "Your First Component",
+        duration: "20:15",
+        order: 3
+      }
+    ]
+  },
+  {
+    id: 2,
+    title: "React Components",
+    description: "Deep dive into React components",
+    order: 2,
+    isExpanded: false,
+    lessons: [
+      {
+        id: 4,
+        title: "Functional Components",
+        duration: "18:20",
+        order: 1
+      },
+      {
+        id: 5,
+        title: "Props and State",
+        duration: "25:10",
+        order: 2
+      }
+    ]
+  },
+  {
+    id: 3,
+    title: "Advanced React",
+    description: "Advanced React concepts and patterns",
+    order: 3,
+    isExpanded: false,
+    lessons: [
+      {
+        id: 6,
+        title: "React Hooks",
+        duration: "30:45",
+        order: 1
+      },
+      {
+        id: 7,
+        title: "Context API",
+        duration: "22:30",
+        order: 2
+      },
+      {
+        id: 8,
+        title: "Performance Optimization",
+        duration: "28:15",
+        order: 3
+      }
+    ]
+  }
+];
+
+// Toggle between mock and real API
+const USE_MOCK_DATA = true; // Set to false when backend is ready
 
 export const courseService = {
   // Get all sections with lessons
@@ -254,143 +333,43 @@ export const getSectionById = async (sectionId: string) => {
   return await response.json();
 };
 
-// Course CRUD operations
+// Lấy khóa học theo id
 export const getCourseById = async (courseId: string) => {
   try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/courses/${courseId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    
+    const response = await fetch(`${API_BASE_URL}/courses/${courseId}`);
     if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('Không tìm thấy khóa học');
-      }
-      throw new Error('Lỗi khi tải thông tin khóa học');
+      throw new Error('Không tìm thấy khóa học');
     }
-    
-    return await response.json();
+    const data = await response.json();
+    return data.data || data;
   } catch (error) {
     console.error('Error fetching course:', error);
     throw error;
   }
 };
 
+// Cập nhật khóa học
 export const updateCourse = async (courseId: string, courseData: any) => {
   try {
     const token = localStorage.getItem('token');
-    
-    // Tạo FormData nếu có file upload
-    let body: string | FormData;
-    let headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-    };
-
-    if (courseData.thumbnail && courseData.thumbnail instanceof File) {
-      const formData = new FormData();
-      Object.keys(courseData).forEach(key => {
-        if (key === 'thumbnail') {
-          formData.append(key, courseData[key]);
-        } else if (key === 'requirements' && Array.isArray(courseData[key])) {
-          courseData[key].forEach((req: string) => {
-            formData.append('requirements[]', req);
-          });
-        } else if (key === 'sections' && Array.isArray(courseData[key])) {
-          formData.append('sections', JSON.stringify(courseData[key]));
-        } else {
-          formData.append(key, courseData[key]);
-        }
-      });
-      body = formData;
-    } else {
-      headers['Content-Type'] = 'application/json';
-      body = JSON.stringify(courseData);
-    }
-
     const response = await fetch(`${API_BASE_URL}/courses/${courseId}`, {
       method: 'PUT',
-      headers,
-      body,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(courseData),
     });
-
+    
     if (!response.ok) {
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Lỗi khi cập nhật khóa học');
-      } else {
-        const errorText = await response.text();
-        console.error('Non-JSON response:', errorText);
-        throw new Error('Lỗi khi cập nhật khóa học');
-      }
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Lỗi khi cập nhật khóa học');
     }
-
-    return await response.json();
+    
+    const data = await response.json();
+    return data.data || data;
   } catch (error) {
     console.error('Error updating course:', error);
-    throw error;
-  }
-};
-
-export const deleteCourse = async (courseId: string) => {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/courses/${courseId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Lỗi khi xóa khóa học');
-      } else {
-        const errorText = await response.text();
-        console.error('Non-JSON response:', errorText);
-        throw new Error('Lỗi khi xóa khóa học');
-      }
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error deleting course:', error);
-    throw error;
-  }
-};
-
-export const getInstructorCourses = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/courses/instructor`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Lỗi khi tải danh sách khóa học');
-      } else {
-        const errorText = await response.text();
-        console.error('Non-JSON response:', errorText);
-        throw new Error('Lỗi khi tải danh sách khóa học');
-      }
-    }
-
-    const result = await response.json();
-    return result.data || result; // Trả về data nếu có, không thì trả về toàn bộ result
-  } catch (error) {
-    console.error('Error fetching instructor courses:', error);
     throw error;
   }
 };

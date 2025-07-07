@@ -97,146 +97,95 @@ const SectionWrapper = ({ children, style = {} }: { children: React.ReactNode, s
 };
 
 const Homepage = () => {
-  const navigate = useNavigate();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [freeCourses, setFreeCourses] = useState<Course[]>([]);
+  const [popularCourses, setPopularCourses] = useState<Course[]>([]);
+  const [paidCourses, setPaidCourses] = useState<Course[]>([]);
   const [vouchers, setVouchers] = useState<VoucherDisplay[]>([]);
-  const [loading, setLoading] = useState({
-    courses: true,
-    testimonials: true,
-    vouchers: true
-  });
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const coursesData = await courseService.getAllCourses() as Course[];
-        setCourses(coursesData);
+        setFreeCourses(coursesData.filter((course) => course.isFree === true));
+        setPaidCourses(coursesData.filter((course) => course.isFree === false));
+        
+        // Lấy popular courses dựa trên rating và reviews
+        const popular = [...coursesData]
+          .sort((a, b) => b.reviews - a.reviews || b.rating - a.rating)
+          .slice(0, 4);
+        setPopularCourses(popular);
         
         const response = await fetch('http://localhost:5000/api/blogs/68547db672358427a53d9ece/comments');
         const commentsData = await response.json();
-        
-        const mappedTestimonials = commentsData.data.map((comment: { user?: { name: string }, course?: { title: string }, content: string, rating?: number }) => ({
-          name: comment.user?.name || 'Ẩn danh',
-          role: `Học viên khóa ${comment.course?.title || 'EduPro'}`,
-          content: comment.content,
+        const mappedTestimonials: Testimonial[] = commentsData.map((comment: any) => ({
+          name: comment.user?.fullname || 'Học viên',
+          role: 'Sinh viên',
+          content: comment.content || 'Khóa học rất hay!',
           rating: comment.rating || 5
         }));
         setTestimonials(mappedTestimonials);
-
+        
         // Fetch vouchers from API
         try {
-          const voucherResponse = await voucherService.getAvailable();
-          if (voucherResponse.success) {
-            const mappedVouchers = voucherResponse.data.map((v: Voucher) => ({
-              id: v.id,
-              code: v.code,
-              title: v.title,
-              description: v.description,
-              discount: v.discountValue,
-              discountType: v.discountType,
-              minAmount: v.minOrderValue,
-              maxDiscount: v.maxDiscount,
-              validFrom: v.startDate,
-              validTo: v.endDate || '',
-              usageLimit: v.usageLimit,
-              usedCount: v.usedCount,
-              category: v.categories && v.categories.length > 0 ? v.categories[0] : 'all',
-              isHot: v.isHot,
-              isNew: v.isNew,
-              isExpired: v.endDate ? new Date(v.endDate) < new Date() : false,
-              daysLeft: v.endDate ? Math.max(0, Math.ceil((new Date(v.endDate).getTime() - Date.now()) / (1000*60*60*24))) : 999,
-              status: v.status || 'available',
-              statusMessage: v.statusMessage || 'Có thể sử dụng'
-            }));
-            setVouchers(mappedVouchers);
+          const vouchersResponse = await fetch('http://localhost:5000/api/vouchers');
+          if (vouchersResponse.ok) {
+            const vouchersData = await vouchersResponse.json();
+            const processedVouchers = vouchersData.map((voucher: any) => {
+              const now = new Date();
+              const validFrom = new Date(voucher.validFrom);
+              const validTo = new Date(voucher.validTo);
+              const isExpired = now > validTo;
+              const daysLeft = Math.ceil((validTo.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              
+              return {
+                ...voucher,
+                isExpired,
+                daysLeft: isExpired ? 0 : daysLeft,
+                status: isExpired || voucher.usedCount >= voucher.usageLimit ? 'unavailable' : 'available',
+                statusMessage: isExpired ? 'Đã hết hạn' : voucher.usedCount >= voucher.usageLimit ? 'Hết voucher' : 'Có thể sử dụng'
+              };
+            });
+            setVouchers(processedVouchers);
           }
         } catch (voucherError) {
           console.error('Error fetching vouchers:', voucherError);
-          // Fallback to mock data if API fails
-          const mockVouchers: VoucherDisplay[] = [
-            {
-              id: '1',
-              code: 'WELCOME50',
-              title: 'Giảm 50% cho người mới',
-              description: 'Áp dụng cho tất cả khóa học, tối đa 500K',
-              discount: 50,
-              discountType: 'percentage',
-              minAmount: 100000,
-              maxDiscount: 500000,
-              validFrom: '2024-01-01',
-              validTo: '2024-12-31',
-              usageLimit: 1000,
-              usedCount: 234,
-              category: 'new-user',
-              isHot: true,
-              isNew: true,
-              isExpired: false,
-              daysLeft: 45,
-              status: 'available',
-              statusMessage: 'Có thể sử dụng'
-            },
-            {
-              id: '2',
-              code: 'FLASH200K',
-              title: 'Giảm 200K cho khóa học IT',
-              description: 'Áp dụng cho khóa học Công nghệ thông tin',
-              discount: 200000,
-              discountType: 'fixed',
-              minAmount: 500000,
-              validFrom: '2024-01-01',
-              validTo: '2024-06-30',
-              usageLimit: 500,
-              usedCount: 156,
-              category: 'it-courses',
-              isHot: true,
-              isExpired: false,
-              daysLeft: 12,
-              status: 'available',
-              statusMessage: 'Có thể sử dụng'
-            },
-            {
-              id: '3',
-              code: 'SUMMER30',
-              title: 'Giảm 30% mùa hè',
-              description: 'Áp dụng cho tất cả khóa học',
-              discount: 30,
-              discountType: 'percentage',
-              minAmount: 200000,
-              maxDiscount: 300000,
-              validFrom: '2024-06-01',
-              validTo: '2024-08-31',
-              usageLimit: 2000,
-              usedCount: 892,
-              category: 'seasonal',
-              isExpired: false,
-              daysLeft: 78,
-              status: 'available',
-              statusMessage: 'Có thể sử dụng'
-            },
-          ];
-          setVouchers(mockVouchers);
         }
-
-      } catch (err) {
-        if (err instanceof Error) {
-          message.error('Có lỗi xảy ra khi tải dữ liệu: ' + err.message);
-        } else {
-          message.error('Có lỗi xảy ra khi tải dữ liệu.');
-        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
       } finally {
-        setLoading({ courses: false, testimonials: false, vouchers: false });
+        setLoading(false);
+      }
+    };
+
+    const fetchEnrollments = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setEnrolledCourseIds([]);
+        return;
+      }
+      try {
+        const response = await fetch('http://localhost:5000/api/users/me/enrollments', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const ids = (data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
+          setEnrolledCourseIds(ids);
+        }
+      } catch (error) {
+        console.error('Error fetching enrollments:', error);
       }
     };
 
     fetchData();
+    fetchEnrollments();
   }, []);
-
-  const freeCourses = courses.filter((course) => course.isFree === true);
-  const paidCourses = courses.filter((course) => course.isFree === false);
-  const popularCourses = [...courses]
-    .sort((a, b) => b.reviews - a.reviews || b.rating - a.rating)
-    .slice(0, 4);
 
   const copyToClipboard = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -268,7 +217,7 @@ const Homepage = () => {
     return `${voucher.discount.toLocaleString()}đ`;
   };
 
-  if (loading.courses || loading.testimonials || loading.vouchers) {
+  if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <Spin size="large">
@@ -496,7 +445,7 @@ const Homepage = () => {
                           exit={{ opacity: 0, y: 30 }}
                           transition={{ duration: 0.5, delay: idx * 0.08 }}
                         >
-                          <CourseCard course={course} isEnrolled={false} />
+                          <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id || course._id)} />
                         </motion.div>
                       </Col>
                     ))}
@@ -518,7 +467,7 @@ const Homepage = () => {
                           exit={{ opacity: 0, y: 30 }}
                           transition={{ duration: 0.5, delay: idx * 0.08 }}
                         >
-                          <CourseCard course={course} isEnrolled={false} />
+                          <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id || course._id)} />
                         </motion.div>
                       </Col>
                     ))}
@@ -540,7 +489,7 @@ const Homepage = () => {
                           exit={{ opacity: 0, y: 30 }}
                           transition={{ duration: 0.5, delay: idx * 0.08 }}
                         >
-                          <CourseCard course={course} isEnrolled={false} />
+                          <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id || course._id)} />
                         </motion.div>
                       </Col>
                     ))}

@@ -3,6 +3,7 @@ const router = express.Router();
 
 const {requireAuth, auth} = require('../middlewares/auth');
 const {
+  getMe,
   register,
   login,
   verifyEmail,
@@ -35,5 +36,7 @@ router.patch('/change-password', auth, requireAuth(), changePassword);
 router.post('/instructor-register', uploadInstructorFiles, processInstructorFilesUpload, registerInstructor);
 // Xác minh email cho instructor (KHÔNG cần đăng nhập)
 router.get('/verify-instructor-email/:token', verifyInstructorEmail);
+
+router.get('/me', auth, requireAuth(), getMe);
 
 module.exports = router; 

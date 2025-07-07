@@ -58,6 +58,7 @@ import CourseList from "./pages/instructor/course/CourseList";
 import CourseEdit from "./pages/instructor/course/CourseEdit";
 import UserReportRoute from "./pages/client/UserReportRoute";
 import UserProfile from "./pages/client/Profile/UserProfile";
+import CheckPayment from "./pages/client/CheckPayment";
 
 const queryClient = new QueryClient();
 
@@ -122,7 +123,9 @@ function App() {
         { path: "/lessons/:lessonId/video", element: <LessonVideoPage /> },
         { path: "/lessons/:lessonId/quiz", element: <LessonQuizPage /> },
         { path: "report", element: <UserReportRoute /> },
-        { path: "users/:slug", element: <UserProfile /> }
+        { path: "users/:slug", element: <UserProfile /> },
+        { path: "payment-result", element: <CheckPayment/> },
+        { path: "orders", element: <OrdersPage /> },
       ]
     },
     {

@@ -8,16 +8,34 @@ const { validateSchema } = require('../utils/validateSchema');
 const { loginSchema, registerSchema } = require('../validations/auth.validation');
 const slugify = require('slugify');
 
+
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server khi lấy thông tin user' });
+  }
+};
+
+
 // Tạo JWT token
 const createToken = (userId) => {
+  console.log('Creating token for user:', userId);
+  
+  // Đảm bảo userId là string
   const id = userId.toString();
+  console.log('Token ID:', id);
   
   try {
+    // Sử dụng Buffer và string literal cho secret
     const token = jwt.sign({ id }, Buffer.from('your-secret-key'), {
       expiresIn: '24h'
     });
+    console.log('Token created:', token);
     return token;
   } catch (error) {
+    console.error('Error creating token:', error);
     throw error;
   }
 };
@@ -25,11 +43,16 @@ const createToken = (userId) => {
 // Đăng ký tài khoản
 exports.register = async (req, res, next) => {
   try {
+    console.log('Received body:', JSON.stringify(req.body, null, 2));
     // Validate dữ liệu
     await validateSchema(registerSchema, req.body);
 
     const { nickname, email, password, role: requestedRole } = req.body;
     const fullname = req.body.fullName || req.body.fullname;
+    console.log('Received fullname:', fullname);
+
+    // Debug: Kiểm tra các giá trị sau khi destructuring
+    console.log('After destructuring:', { nickname, email, password, requestedRole, fullname });
 
     // Kiểm tra độ dài password
     if (password.length < 6) {
@@ -339,15 +362,6 @@ exports.login = async (req, res, next) => {
       { expiresIn: '24h' }
     );
 
-    // Tạo roles array
-    let roles = [];
-    if (user.role_id) {
-      roles.push(user.role_id.name);
-    }
-    if (user.isInstructor) {
-      roles.push('instructor');
-    }
-    
     // Trả về thông tin user và token
     res.json({
       success: true,
@@ -360,7 +374,6 @@ exports.login = async (req, res, next) => {
           fullname: user.fullname,
           nickname: user.nickname,
           role: user.role_id.name,
-          roles: roles,
           avatar: user.avatar,
           status: user.status,
           approval_status: user.approval_status,

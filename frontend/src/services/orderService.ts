@@ -12,13 +12,17 @@ export interface CreateOrderData {
   items: OrderItem[];
   voucherCode?: string;
   paymentMethod?: 'bank_transfer' | 'momo' | 'vnpay';
-  fullName?: string;
-  phone?: string;
-  email?: string;
+  shippingInfo?: {
+    fullName: string;
+    phone: string;
+    email: string;
+  };
   notes?: string;
 }
 
+
 export interface Order {
+  shippingAddress: any;
   id: string;
   items: Array<{
     courseId: {

@@ -38,6 +38,7 @@ const { Title, Text } = Typography;
 interface CartItem {
   id: string;
   course: {
+    _id: any;
     id: string;
     title: string;
     price: number;
@@ -233,7 +234,7 @@ const CartPage: React.FC = () => {
       // Lưu thông tin đơn hàng vào localStorage để checkout page sử dụng
       const checkoutData = {
         items: selectedCartItems.map(item => ({
-          courseId: item.course.id,
+          courseId: item.course._id,
           title: item.course.title,
           thumbnail: item.course.thumbnail,
           price: item.priceAtAddition,
