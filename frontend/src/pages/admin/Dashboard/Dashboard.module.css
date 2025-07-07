@@ -1,0 +1,210 @@
+.dashboard {
+  padding: 24px;
+  background-color: #f0f2f5;
+  min-height: 100vh;
+}
+
+.dashboardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.lastUpdated {
+  font-size: 14px;
+}
+
+.statsRow {
+  margin-bottom: 24px;
+}
+
+.statCard {
+  height: 100%;
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.statCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.cardIcon {
+  font-size: 16px;
+  opacity: 0.7;
+}
+
+.cardFooter {
+  margin-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 16px;
+}
+
+.trendUp {
+  color: #52c41a;
+  font-size: 14px;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trendDown {
+  color: #ff4d4f;
+  font-size: 14px;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.detailsRow {
+  margin-bottom: 24px;
+}
+
+.tableCard, .categoryCard {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Table styles */
+.coursesTable {
+  margin-top: -8px;
+}
+
+.coursesTable :global(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 600;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.coursesTable :global(.ant-table-tbody > tr:hover > td) {
+  background: #f5f5f5;
+}
+
+.courseName {
+  color: #1890ff;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.courseName:hover {
+  color: #40a9ff;
+}
+
+.instructorCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.instructorAvatar {
+  background-color: #f0f0f0;
+}
+
+.durationCell, .studentsCell, .ratingCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.durationIcon, .studentsIcon {
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+.ratingIcon {
+  color: #fadb14;
+  font-size: 14px;
+}
+
+/* Category stats styles */
+.categoryStats {
+  padding: 8px 0;
+}
+
+.categoryItem {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.categoryItem:hover {
+  background: #f5f5f5;
+  transform: translateX(4px);
+}
+
+.categoryItem:last-child {
+  margin-bottom: 0;
+}
+
+.categoryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.categoryFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.growth {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 16px;
+  }
+
+  .statsRow, .detailsRow {
+    margin-bottom: 16px;
+  }
+
+  .categoryItem {
+    margin-bottom: 16px;
+    padding: 12px;
+  }
+}
+
+/* Animation styles */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard {
+  animation: fadeIn 0.5s ease-out;
+} 
