@@ -94,7 +94,10 @@ const AdminLayout = () => {
         localStorage.setItem('user', JSON.stringify(userData));
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
         setUser(null);
+        message.error('Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.');
         navigate("/login");
       } finally {
         setLoading(false);
@@ -106,8 +109,10 @@ const AdminLayout = () => {
   // --- Role Check ---
   useEffect(() => {
     if (!loading && !checkRole(user, "admin")) {
-      message.error("Bạn không có quyền truy cập trang quản trị");
-      navigate("/");
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      message.error("Bạn không có quyền truy cập trang quản trị. Vui lòng đăng nhập bằng tài khoản admin.");
+      navigate("/login");
     }
   }, [user, loading, navigate]);
 

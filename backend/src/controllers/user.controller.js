@@ -27,6 +27,15 @@ exports.getCurrentUser = async (req, res) => {
     }
 
     let userObj = user.toJSON();
+    // Đảm bảo trả về role (object) và roles (mảng tên role)
+    if (user.role_id && user.role_id.name) {
+      userObj.role = { name: user.role_id.name };
+      userObj.roles = [user.role_id.name];
+    } else {
+      userObj.role = { name: 'guest' };
+      userObj.roles = ['guest'];
+    }
+    console.log('DEBUG userObj trả về:', userObj);
     if (instructorProfile) {
       userObj.instructorProfile = instructorProfile;
       // Gộp một số trường từ instructorProfile vào instructorInfo nếu cần
