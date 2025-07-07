@@ -27,6 +27,7 @@ const cartRoutes = require('./routes/cart.routes');
 const uploadRoutes = require('./routes/upload.route');
 const paymentRouter = require('./routes/paymentRouter');
 const orderRoutes = require('./routes/order.routes');
+const report = require('./routes/report.routes');
 
 // Khởi tạo app
 const app = express();
@@ -97,6 +98,8 @@ app.use('/api/carts', cartRoutes);
 app.use('/api', uploadRoutes);
 app.use('/', paymentRouter);
 app.use('/api/orders', orderRoutes);
+app.use('/api/reports', report);
+
 
 // Error handling middleware
 app.use((err, req, res, _next) => {
