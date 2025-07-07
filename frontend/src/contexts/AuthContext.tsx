@@ -1,6 +1,7 @@
 // contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { config } from '../api/axios';
+import { useCart } from './CartContext';
 
 interface User {
   _id: string;
@@ -38,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('token'));
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { clearCart } = useCart();
 
   const updateUser = async () => {
     try {
@@ -80,12 +82,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthToken(null);
     setUser(null);
     setIsAuthenticated(false);
+    clearCart();
   };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       updateUser();
+    } else {
+      clearCart();
     }
   }, []);
 
