@@ -10,21 +10,14 @@ const slugify = require('slugify');
 
 // Tạo JWT token
 const createToken = (userId) => {
-  console.log('Creating token for user:', userId);
-  
-  // Đảm bảo userId là string
   const id = userId.toString();
-  console.log('Token ID:', id);
   
   try {
-    // Sử dụng Buffer và string literal cho secret
     const token = jwt.sign({ id }, Buffer.from('your-secret-key'), {
       expiresIn: '24h'
     });
-    console.log('Token created:', token);
     return token;
   } catch (error) {
-    console.error('Error creating token:', error);
     throw error;
   }
 };
@@ -32,16 +25,11 @@ const createToken = (userId) => {
 // Đăng ký tài khoản
 exports.register = async (req, res, next) => {
   try {
-    console.log('Received body:', JSON.stringify(req.body, null, 2));
     // Validate dữ liệu
     await validateSchema(registerSchema, req.body);
 
     const { nickname, email, password, role: requestedRole } = req.body;
     const fullname = req.body.fullName || req.body.fullname;
-    console.log('Received fullname:', fullname);
-
-    // Debug: Kiểm tra các giá trị sau khi destructuring
-    console.log('After destructuring:', { nickname, email, password, requestedRole, fullname });
 
     // Kiểm tra độ dài password
     if (password.length < 6) {

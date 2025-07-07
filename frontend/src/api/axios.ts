@@ -34,7 +34,6 @@ const processQueue = (error: any, token: string | null = null) => {
 config.interceptors.request.use(
   (request) => {
     const token = localStorage.getItem('token');
-    console.log('Interceptor token:', token); // Log token trước mỗi request
     if (token) {
       request.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -51,8 +50,6 @@ config.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
         if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
-            // Log lỗi chi tiết
-            console.error('Lỗi xác thực (401/403):', error, error.response?.data);
             // Nếu đang ở trang login thì chỉ xóa token, không redirect
             if (window.location.pathname === '/login') {
                 localStorage.removeItem('token');
@@ -75,7 +72,6 @@ config.interceptors.response.use(
                     return Promise.reject(error);
                 }
             } catch (refreshError) {
-                console.error('Failed to refresh token:', refreshError);
                 processQueue(refreshError, null);
                 redirectToLogin();
                 return Promise.reject(error);
