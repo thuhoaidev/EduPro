@@ -32,9 +32,21 @@ const ChangePassword: React.FC = () => {
   };
 
   const validatePassword = (_: any, value: string) => {
-    if (value && !/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(value)) {
-      return Promise.reject('Mật khẩu phải có ít nhất 8 ký tự và chứa cả chữ và số');
+    // Lấy email từ localStorage (hoặc thay bằng context nếu cần)
+    const email = localStorage.getItem('userEmail') || '';
+    if (
+      value &&
+      !/^(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(value)
+    ) {
+      return Promise.reject(
+        'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ thường, số và ký tự đặc biệt'
+      );
     }
+    // Kiểm tra mật khẩu không chứa email
+    if (value && email && value.toLowerCase().includes(email.toLowerCase())) {
+      return Promise.reject('Mật khẩu không được chứa thông tin cá nhân (email)');
+    }
+    // TODO: Nếu muốn kiểm tra thêm tên người dùng, truyền biến tên vào đây và kiểm tra tương tự
     return Promise.resolve();
   };
 
@@ -206,7 +218,14 @@ const ChangePassword: React.FC = () => {
 
                 <Alert
                   message="Yêu cầu mật khẩu"
-                  description="Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ cái và số"
+                  description={
+                    <>
+                      <div>• Sử dụng mật khẩu dài ít nhất 8 ký tự</div>
+                      <div>• Có số và ký tự đặc biệt</div>
+                      <div>• Không sử dụng thông tin cá nhân trong mật khẩu (ví dụ: email, tên)</div>
+                      <div>• Thay đổi mật khẩu định kỳ để bảo vệ tài khoản</div>
+                    </>
+                  }
                   type="info"
                   showIcon
                   className="mb-4"
