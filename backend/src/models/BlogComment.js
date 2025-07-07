@@ -35,4 +35,8 @@ blogCommentSchema.virtual('replies', {
   foreignField: 'parent',
 });
 
-module.exports = mongoose.model('BlogComment', blogCommentSchema); 
+// 👇 Thêm 2 dòng này để virtual hoạt động khi populate
+blogCommentSchema.set('toObject', { virtuals: true });
+blogCommentSchema.set('toJSON', { virtuals: true });
+
+module.exports = mongoose.model('BlogComment', blogCommentSchema);

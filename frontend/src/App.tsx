@@ -57,6 +57,7 @@ import CourseList from "./pages/instructor/course/CourseList";
 import UserReportPage from "./pages/client/UserReportPage";
 import UserReportRoute from "./pages/client/UserReportRoute";
 import BlogPage from "./pages/client/BlogPage";
+import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
 
 const queryClient = new QueryClient();
 
@@ -158,6 +159,7 @@ function App() {
       element: <ModeratorLayout />,
       children: [
         { path: "reports", element: <ReportsPage /> },
+        { path: "blogs", element: <BlogModeration /> },
       ],
     },
     {

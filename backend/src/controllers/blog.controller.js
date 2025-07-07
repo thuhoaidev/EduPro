@@ -53,22 +53,59 @@ const createBlog = async (req, res) => {
 const getAllBlogs = async (req, res) => {
   try {
     const author = getUserId(req);
-    const query = author ? { author, status: 'approved' } : { status: 'approved' };
+    const query = { status: 'approved' };
 
     const blogs = await Blog.find(query)
       .sort({ createdAt: -1 })
-      .select('title image author likes_count comments_count saves views createdAt') // lấy đủ trường
-      .populate('author', 'fullname') // nếu cần
+      .populate('author', 'fullname');
 
-    // Map để thêm save_count nếu frontend dùng blog.saves.length
-    const blogsWithSaveCount = blogs.map(blog => ({
-      ...blog.toObject(),
-      save_count: blog.saves?.length || 0
-    }));
+    // === Lấy danh sách blogId mà user đã like
+    let likedBlogIds = [];
+    if (author) {
+      const liked = await BlogLike.find({ user: author }).select('blog');
+      likedBlogIds = liked.map(item => item.blog.toString());
+    }
 
-    res.json({ success: true, data: blogsWithSaveCount });
+    const blogsWithExtras = blogs.map(blog => {
+      const blogObj = blog.toObject();
+      return {
+        ...blogObj,
+        isLiked: likedBlogIds.includes(blog._id.toString()),
+        save_count: blog.saves?.length || 0
+      };
+    });
+
+    res.json({ success: true, data: blogsWithExtras });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi lấy danh sách blog', error: error.message });
+  }
+};
+
+// [GET] /api/blogs/my-posts
+const getMyPosts = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+
+    const blogs = await Blog.find({ author: userId })
+      .sort({ createdAt: -1 })
+      .populate('author', 'fullname avatar nickname')
+      .lean();
+
+    // Danh sách bài đã like
+    const liked = await BlogLike.find({ user: userId }).select('blog');
+    const likedBlogIds = liked.map(item => item.blog.toString());
+
+    // Gắn isLiked và likes_count
+    const result = blogs.map(blog => ({
+      ...blog,
+      isLiked: likedBlogIds.includes(blog._id.toString()),
+      likes_count: blog.likes_count || 0,
+      comments_count: blog.comments_count || 0,
+    }));
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi khi lấy blog cá nhân' });
   }
 };
 
@@ -221,21 +258,33 @@ const unsavePost = async (req, res) => {
 const getSavedPosts = async (req, res) => {
   try {
     const userId = getUserId(req);
+
     const saved = await BlogSave.find({ user: userId }).populate({
       path: 'blog',
-      populate: [{ path: 'author', select: 'fullname' }, { path: 'category' }]
+      populate: { path: 'author', select: 'fullname avatar nickname' }
     });
-    console.log('[DEBUG] userId:', userId);
-console.log('[DEBUG] typeof userId:', typeof userId);
-console.log('[DEBUG] isValidObjectId:', mongoose.Types.ObjectId.isValid(userId));
 
-    const blogs = saved.map(item => item.blog);
-    res.json({ success: true, data: blogs });
+    // Lấy danh sách blogId đã được like
+    const liked = await BlogLike.find({ user: userId }).select('blog');
+    const likedBlogIds = liked.map(item => item.blog.toString());
+
+    // Gắn thêm isLiked vào mỗi blog đã lưu
+    const savedWithLike = saved.map(item => {
+      const blog = item.blog.toObject();
+      return {
+        ...item.toObject(),
+        blog: {
+          ...blog,
+          isLiked: likedBlogIds.includes(blog._id.toString())
+        }
+      };
+    });
+
+    res.json({ success: true, savedPosts: savedWithLike });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi lấy blog đã lưu', error: error.message });
   }
 };
-
 // === ADMIN ===
 const approveOrRejectBlog = async (req, res) => {
   try {
@@ -285,16 +334,13 @@ const getAllApprovedBlogs = async (req, res) => {
 const getBlogById = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = getUserId(req);
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'ID blog không hợp lệ.' });
     }
 
-    const blog = await Blog.findByIdAndUpdate(
-      id,
-      { $inc: { views: 1 } }, // Tự tăng view
-      { new: true }
-    )
+    const blog = await Blog.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true })
       .populate('author', 'fullname nickname email')
       .populate('category')
       .lean();
@@ -303,19 +349,58 @@ const getBlogById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy blog.' });
     }
 
-    // Gắn thêm save_count (đếm mảng saves)
+    // Gắn thêm isLiked
+    if (userId) {
+      const existed = await BlogLike.findOne({ blog: id, user: userId });
+      blog.isLiked = !!existed;
+    } else {
+      blog.isLiked = false;
+    }
+
     blog.save_count = blog.saves?.length || 0;
 
     res.json({ success: true, data: blog });
   } catch (error) {
-    console.error('❌ Lỗi getBlogById:', error);
     res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }
 };
+const deleteBlog = async (req, res) => {
+  try {
+    const blogId = req.params.id;
+    const userId = getUserId(req);
 
+    if (!mongoose.Types.ObjectId.isValid(blogId)) {
+      return res.status(400).json({ success: false, message: 'ID bài viết không hợp lệ.' });
+    }
 
+    const blog = await Blog.findById(blogId);
+    if (!blog) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' });
+    }
+
+    // Kiểm tra quyền: chỉ tác giả hoặc admin mới được xóa
+    if (
+      blog.author.toString() !== userId &&
+      !(req.user.roles || []).includes('admin')
+    ) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa bài viết này.' });
+    }
+
+    // Xóa blog
+    await Blog.findByIdAndDelete(blogId);
+
+    // Xóa các liên kết phụ
+    await BlogComment.deleteMany({ blog: blogId });
+    await BlogLike.deleteMany({ blog: blogId });
+    await BlogSave.deleteMany({ blog: blogId });
+
+    res.json({ success: true, message: 'Đã xóa bài viết thành công.' });
+  } catch (error) {
+    console.error('❌ Lỗi khi xóa bài viết:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server khi xóa bài viết', error: error.message });
+  }
+};
 const updateBlog = async (req, res) => res.status(501).json({ success: false, message: 'Chưa triển khai.' });
-const deleteBlog = async (req, res) => res.status(501).json({ success: false, message: 'Chưa triển khai.' });
 const publishBlog = async (req, res) => res.status(501).json({ success: false, message: 'Chưa triển khai.' });
 
 // === EXPORT ===
@@ -336,6 +421,7 @@ module.exports = {
   getBlogById,
   updateBlog,
   deleteBlog,
+  getMyPosts,
   publishBlog
 };
 

@@ -8,9 +8,10 @@ const { auth } = require('../middlewares/auth');
 // === CRUD BLOG ===
 router.post('/', auth, upload.single('image'), blogController.createBlog);
 router.get('/', blogController.getAllBlogs);
+router.get('/my-posts', auth, blogController.getMyPosts);
 router.get('/:id', blogController.getBlogById);
 router.put('/:id', blogController.updateBlog);
-router.delete('/:id', blogController.deleteBlog);
+router.delete('/:id', auth, blogController.deleteBlog);
 router.patch('/:id/publish', blogController.publishBlog);
 router.patch('/:id/approve-reject', blogController.approveOrRejectBlog);
 
