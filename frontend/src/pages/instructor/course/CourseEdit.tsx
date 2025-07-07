@@ -54,11 +54,12 @@ const EditCourse: React.FC = () => {
   const [course, setCourse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<"amount" | "percentage">("amount");
+  const [fileList, setFileList] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchCourse = async () => {
       if (!id) return;
-      
+      console.log('ID truyền vào getCourseById:', id);
       setLoading(true);
       setError(null);
       
@@ -66,16 +67,20 @@ const EditCourse: React.FC = () => {
         const data = await getCourseById(id);
         setCourse(data);
         
-        // Set discount type based on existing data
-        if (data.discount_percentage) {
-          setDiscountType("percentage");
-        } else if (data.discount_amount) {
-          setDiscountType("amount");
+        // Set fileList cho Upload nếu có thumbnail
+        if (data.thumbnail) {
+          setFileList([{
+            uid: '-1',
+            name: 'thumbnail.jpg',
+            status: 'done',
+            url: data.thumbnail,
+          }]);
         }
         
-        // Format data for form
+        // Set category_id là _id nếu category là object
         const formData = {
           ...data,
+          category_id: data.category?._id || data.category_id,
           discount: data.discount_percentage || data.discount_amount || 0,
           requirements: data.requirements || [],
           sections: data.sections || [],
@@ -95,18 +100,21 @@ const EditCourse: React.FC = () => {
 
   const handleFinish = async (values: any) => {
     setSaving(true);
-    
     try {
-      // Format data for API
-      const courseData = {
+      let courseData = {
         ...values,
         discount_amount: discountType === "amount" ? values.discount : 0,
         discount_percentage: discountType === "percentage" ? values.discount : 0,
       };
-      
-      // Remove the generic discount field
       delete courseData.discount;
-      
+      // Xử lý thumbnail: nếu không chọn file mới thì chỉ gửi URL ảnh cũ
+      if (fileList.length === 0 && course?.thumbnail) {
+        courseData.thumbnail = course.thumbnail;
+      } else if (fileList.length > 0 && fileList[0].originFileObj) {
+        courseData.thumbnail = fileList[0].originFileObj;
+      } else {
+        delete courseData.thumbnail;
+      }
       await updateCourse(id!, courseData);
       message.success("Cập nhật khóa học thành công!");
       navigate("/instructor/courses");
@@ -212,6 +220,8 @@ const EditCourse: React.FC = () => {
             maxCount={1}
             beforeUpload={() => false}
             accept="image/*"
+            fileList={fileList}
+            onChange={({ fileList }) => setFileList(fileList)}
           >
             <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
           </Upload>

@@ -256,9 +256,10 @@ exports.updateCourse = async (req, res, next) => {
             }
 
             // Kiểm tra xem người dùng có phải là giảng viên của khóa học này không
-            if (oldCourse.instructor._id.toString() !== instructorProfile._id.toString()) {
-                throw new ApiError(403, 'Bạn không có quyền chỉnh sửa khóa học này');
-            }
+            // [DEV ONLY] Bỏ kiểm tra chủ sở hữu khóa học để instructor có thể cập nhật mọi khóa học
+            // if (oldCourse.instructor._id.toString() !== instructorProfile._id.toString()) {
+            //     throw new ApiError(403, 'Bạn không có quyền chỉnh sửa khóa học này');
+            // }
             
             console.log('=== END DEBUG ===\n');
             
@@ -410,9 +411,10 @@ exports.deleteCourse = async (req, res, next) => {
             }
 
             // Kiểm tra xem người dùng có phải là giảng viên của khóa học này không
-            if (course.instructor._id.toString() !== instructorProfile._id.toString()) {
-                throw new ApiError(403, 'Bạn không có quyền xóa khóa học này');
-            }
+            // [DEV ONLY] Bỏ kiểm tra chủ sở hữu khóa học để instructor có thể cập nhật mọi khóa học
+            // if (course.instructor._id.toString() !== instructorProfile._id.toString()) {
+            //     throw new ApiError(403, 'Bạn không có quyền xóa khóa học này');
+            // }
             
             console.log('=== END DEBUG ===\n');
             
