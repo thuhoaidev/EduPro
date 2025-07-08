@@ -397,8 +397,7 @@ const MyLessonManager: React.FC = () => {
       
       message.success("Tạo bài học thành công!");
       form.resetFields();
-      setSelectedSection("");
-      
+      // setSelectedSection(""); // XÓA DÒNG NÀY để giữ nguyên selectedSection
       // Refresh sections để hiển thị bài học mới
       if (selectedCourse) {
         const sectionsResponse = await fetch(`${apiUrl}/courses/${selectedCourse}/sections`, {
@@ -407,7 +406,6 @@ const MyLessonManager: React.FC = () => {
             'Content-Type': 'application/json'
           }
         });
-        
         if (sectionsResponse.ok) {
           const contentType = sectionsResponse.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
@@ -447,7 +445,7 @@ const MyLessonManager: React.FC = () => {
               >
                 {courses.map(course => (
                   <Option key={course._id} value={course._id}>
-                    {course.title} {course.status === 'draft' && '(Nháp)'}
+                    {course.title} {course.status === 'draft' && '(Chưa xuất bản)'}
                   </Option>
                 ))}
               </Select>
