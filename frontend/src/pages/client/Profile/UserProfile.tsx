@@ -7,6 +7,21 @@ import CourseCard from '../../../components/course/CourseCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getToken, isTokenValid } from '../../../utils/tokenUtils';
 
+// Tạo instance axios riêng cho file này
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+  withCredentials: true,
+  headers: { 'Content-Type': 'application/json' },
+});
+// Interceptor tự động gắn token
+api.interceptors.request.use((request) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    request.headers['Authorization'] = `Bearer ${token}`;
+  }
+  return request;
+}, (error) => Promise.reject(error));
+
 interface User {
   _id: string;
   avatar?: string;
@@ -98,7 +113,7 @@ const UserProfile: React.FC = () => {
     const fetchUser = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`/api/users/slug/${slug}`);
+        const res = await api.get(`/api/users/slug/${slug}`);
         setUser(res.data.data);
         setCreatedCourses(res.data.data.createdCourses || []);
         setEnrolledCourses(res.data.data.enrolledCourses || []);
@@ -116,7 +131,7 @@ const UserProfile: React.FC = () => {
     // Lấy user hiện tại để kiểm tra trạng thái follow
     const fetchCurrentUser = async () => {
       try {
-        const res = await axios.get('/api/users/me');
+        const res = await api.get('/api/users/me');
         setCurrentUserId(res.data.data._id);
       } catch {
         // nothing
@@ -126,18 +141,21 @@ const UserProfile: React.FC = () => {
   }, [isLoggedIn]);
 
   useEffect(() => {
-    if (!isLoggedIn || !currentUserId || !user) return;
-    const checkFollow = async () => {
+    if (!user) return;
+    const fetchFollowers = async () => {
       try {
-        const res = await axios.get(`/api/users/${user._id}/followers`);
+        const res = await api.get(`/api/users/${user._id}/followers`);
         setFollowers(res.data.data);
-        setIsFollowing(res.data.data.some((u: User) => u._id === currentUserId));
+        // Nếu đã đăng nhập, kiểm tra trạng thái follow
+        if (isLoggedIn && currentUserId) {
+          setIsFollowing(res.data.data.some((u: User) => u._id === currentUserId));
+        }
       } catch {
         // nothing
       }
     };
-    checkFollow();
-  }, [isLoggedIn, currentUserId, user]);
+    fetchFollowers();
+  }, [user, isLoggedIn, currentUserId]);
 
   useEffect(() => {
     if (currentUserId && user && currentUserId === user._id) {
@@ -147,7 +165,7 @@ const UserProfile: React.FC = () => {
 
   const handleFollow = async () => {
     try {
-      await axios.post(`/api/users/${user?._id}/follow`);
+      await api.post(`/api/users/${user?._id}/follow`);
       setIsFollowing(true);
       setFollowers(prev => [...prev, { ...user!, _id: currentUserId! }]);
       message.success('Đã theo dõi');
@@ -161,7 +179,7 @@ const UserProfile: React.FC = () => {
 
   const handleUnfollow = async () => {
     try {
-      await axios.delete(`/api/users/${user?._id}/follow`);
+      await api.delete(`/api/users/${user?._id}/follow`);
       setIsFollowing(false);
       setFollowers(prev => prev.filter(u => u._id !== currentUserId));
       message.success('Đã bỏ theo dõi');
@@ -172,7 +190,7 @@ const UserProfile: React.FC = () => {
 
   const fetchFollowing = async () => {
     try {
-      const res = await axios.get(`/api/users/${user?._id}/following`);
+      const res = await api.get(`/api/users/${user?._id}/following`);
       setFollowing(res.data.data);
       setShowFollowing(true);
     } catch {
@@ -230,7 +248,7 @@ const UserProfile: React.FC = () => {
               </div>
             )}
             {/* Stats */}
-            <div className="flex gap-8 mb-4">
+            <div className="flex gap-8 mb-4 items-center">
               <button className="flex flex-col items-center" onClick={() => setShowFollowers(true)}>
                 <span className="text-xl font-bold text-blue-600 flex items-center gap-1"><TeamOutlined />{followers.length}</span>
                 <span className="text-xs text-gray-500">Người theo dõi</span>
@@ -239,15 +257,15 @@ const UserProfile: React.FC = () => {
                 <span className="text-xl font-bold text-green-600 flex items-center gap-1"><TeamOutlined />{user.following_count ?? 0}</span>
                 <span className="text-xs text-gray-500">Đang theo dõi</span>
               </button>
+              {/* Nút theo dõi/hủy theo dõi nằm cạnh 2 nút trên */}
+              {isLoggedIn && currentUserId && currentUserId !== user._id && (
+                isFollowing ? (
+                  <Button danger shape="round" size="large" className="ml-4" onClick={handleUnfollow}>Bỏ theo dõi</Button>
+                ) : (
+                  <Button type="primary" shape="round" size="large" className="ml-4" onClick={handleFollow}>Theo dõi</Button>
+                )
+              )}
             </div>
-            {/* Nút follow/unfollow */}
-            {isLoggedIn && currentUserId && currentUserId !== user._id && (
-              isFollowing ? (
-                <Button danger shape="round" size="large" className="mb-2 px-8" onClick={handleUnfollow}>Bỏ theo dõi</Button>
-              ) : (
-                <Button type="primary" shape="round" size="large" className="mb-2 px-8" onClick={handleFollow}>Theo dõi</Button>
-              )
-            )}
           </div>
         )}
         {/* Right: Khóa học đã tạo & đã tham gia */}
@@ -292,6 +310,7 @@ const UserProfile: React.FC = () => {
                           requirements: [],
                           hasDiscount: false,
                           language: '',
+                          level: course.level || '',
                         }} />
                       </motion.div>
                     ))}
@@ -385,4 +404,4 @@ const UserProfile: React.FC = () => {
   );
 };
 
-export default UserProfile; 
+export default UserProfile;
