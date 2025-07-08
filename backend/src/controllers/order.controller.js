@@ -4,7 +4,9 @@ const Cart = require('../models/Cart');
 const Voucher = require('../models/Voucher');
 const VoucherUsage = require('../models/VoucherUsage');
 const Enrollment = require('../models/Enrollment');
+const TeacherWallet = require('../models/TeacherWallet');
 const Course = require('../models/Course'); // Nên thêm rõ ràng
+const InstructorProfile = require('../models/InstructorProfile');
 
 class OrderController {
   // Tạo đơn hàng
@@ -105,6 +107,35 @@ class OrderController {
       });
 
       await order.save({ session });
+
+      // Tự động chuyển trạng thái sang 'paid' và cộng tiền vào ví giảng viên
+      order.status = 'paid';
+      order.paymentStatus = 'paid';
+      order.paidAt = new Date();
+      await order.save({ session });
+
+      // Cộng tiền vào ví giáo viên cho từng khóa học trong đơn hàng
+      for (const item of orderItems) {
+        const course = await Course.findById(item.courseId).session(session);
+        if (!course) continue;
+        if (!course.instructor) continue;
+        const instructorProfile = await InstructorProfile.findById(course.instructor).session(session);
+        if (!instructorProfile || !instructorProfile.user) continue;
+        let wallet = await TeacherWallet.findOne({ teacherId: instructorProfile.user }).session(session);
+        if (!wallet) {
+          wallet = new TeacherWallet({ teacherId: instructorProfile.user, balance: 0, history: [] });
+        }
+        // Giáo viên nhận 40% giá gốc, không bị ảnh hưởng bởi voucher
+        const earning = Math.round(course.price * 0.4 * (item.quantity || 1));
+        wallet.balance += earning;
+        wallet.history.push({
+          type: 'earning',
+          amount: earning,
+          orderId: order._id,
+          note: `Bán khóa học: ${course.title} (40% giá gốc)`
+        });
+        await wallet.save({ session });
+      }
 
       // Ghi nhận voucher usage
       if (voucherId) {
@@ -328,6 +359,45 @@ class OrderController {
       order.paidAt = new Date();
       await order.save();
 
+      // Cộng tiền vào ví giáo viên cho từng khóa học trong đơn hàng
+      for (const item of order.items) {
+        const course = await Course.findById(item.courseId);
+        if (!course) {
+          console.log('Không tìm thấy course:', item.courseId);
+          continue;
+        }
+        if (!course.instructor) {
+          console.log('Course không có instructor:', course._id);
+          continue;
+        }
+        // Lấy InstructorProfile
+        const instructorProfile = await InstructorProfile.findById(course.instructor);
+        if (!instructorProfile) {
+          console.log('Không tìm thấy InstructorProfile:', course.instructor);
+          continue;
+        }
+        if (!instructorProfile.user) {
+          console.log('InstructorProfile không có user:', instructorProfile._id);
+          continue;
+        }
+        // Tìm hoặc tạo ví giáo viên
+        let wallet = await TeacherWallet.findOne({ teacherId: instructorProfile.user });
+        if (!wallet) {
+          wallet = new TeacherWallet({ teacherId: instructorProfile.user, balance: 0, history: [] });
+        }
+        // Giáo viên nhận 40% giá gốc, không bị ảnh hưởng bởi voucher
+        const earning = Math.round(course.price * 0.4 * (item.quantity || 1));
+        wallet.balance += earning;
+        wallet.history.push({
+          type: 'earning',
+          amount: earning,
+          orderId: order._id,
+          note: `Bán khóa học: ${course.title} (40% giá gốc)`
+        });
+        await wallet.save();
+        console.log(`Đã cộng ${earning} vào ví giáo viên ${instructorProfile.user} cho khóa học ${course.title}`);
+      }
+
       const enrollments = order.items.map(item => ({
         userId: order.userId,
         courseId: item.courseId,
@@ -341,6 +411,47 @@ class OrderController {
     } catch (err) {
       console.error('Complete payment error:', err);
       res.status(500).json({ success: false, message: 'Lỗi khi hoàn thành thanh toán', error: err.message });
+    }
+  }
+
+  static async getOrders(req, res) {
+    try {
+      const { page = 1, pageSize = 100 } = req.query;
+      const skip = (parseInt(page) - 1) * parseInt(pageSize);
+      const limit = parseInt(pageSize);
+
+      // Lấy roleName từ user
+      const roleName = req.user?.role_id?.name;
+
+      // Nếu là admin thì lấy tất cả, còn lại thì chỉ lấy đơn hàng của user đó
+      let query = {};
+      if (roleName !== 'admin') {
+        query.userId = req.user._id;
+      }
+
+      // Đếm tổng số đơn hàng khớp
+      const total = await Order.countDocuments(query);
+
+      // Truy vấn danh sách đơn hàng với phân trang
+      const orders = await Order.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate({
+          path: 'items.courseId',
+          select: 'title thumbnail',
+        });
+
+      res.json({
+        orders,
+        pagination: {
+          current: parseInt(page),
+          total,
+          pageSize: limit,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Lỗi lấy danh sách đơn hàng', error: error.message });
     }
   }
 }

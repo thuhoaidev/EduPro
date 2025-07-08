@@ -153,6 +153,30 @@ const handleSubmit = async (values: FormValues) => {
     setOrderId(response.order.id);
     setOrderSuccess(true);
     localStorage.removeItem('checkoutData');
+    // Cập nhật lại user sau khi thanh toán
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const res = await axios.get('http://localhost:5000/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        let userData = res.data.user || res.data;
+        // Đảm bảo luôn có user.role.name
+        if (!userData.role && userData.role_id && userData.role_id.name) {
+          userData.role = { name: userData.role_id.name };
+        }
+        localStorage.setItem('user', JSON.stringify(userData));
+        if (userData.role && userData.role.name) {
+          localStorage.setItem('role', userData.role.name);
+        } else if (typeof userData.role === 'string') {
+          localStorage.setItem('role', userData.role);
+        }
+        // Reload lại trang để context/layout nhận diện quyền mới nhất
+        window.location.reload();
+      }
+    } catch (err) {
+      // Không cần xử lý lỗi ở đây
+    }
     message.success('Thanh toán thành công!');
   } catch (error) {
     console.error('Create order error:', error);

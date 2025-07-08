@@ -28,6 +28,7 @@ const uploadRoutes = require('./routes/upload.route');
 const paymentRouter = require('./routes/paymentRouter');
 const orderRoutes = require('./routes/order.routes');
 const report = require('./routes/report.routes');
+const teacherWalletRoutes = require('./routes/teacherWallet.routes');
 
 // Khởi tạo app
 const app = express();
@@ -99,6 +100,7 @@ app.use('/api', uploadRoutes);
 app.use('/', paymentRouter);
 app.use('/api/orders', orderRoutes);
 app.use('/api/reports', report);
+app.use('/api/teacher-wallet', teacherWalletRoutes);
 
 
 // Error handling middleware

@@ -49,11 +49,18 @@ interface User {
     description?: string;
     permissions?: string[];
   };
+  role_id?: {
+    name: string;
+  };
   approval_status?: string;
 }
 
+const getRoleName = (user: User | null): string => {
+  return user?.role?.name || user?.role_id?.name || '';
+};
+
 const checkRole = (user: User | null, requiredRole: string): boolean => {
-  return user?.role?.name === requiredRole;
+  return getRoleName(user) === requiredRole;
 };
 
 const InstructorLayout = () => {

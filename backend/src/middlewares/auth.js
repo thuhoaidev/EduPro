@@ -35,50 +35,20 @@ exports.auth = async (req, res, next) => {
       });
     }
 
-    // Kiểm tra xem user có roles không
-    let roles = user.roles || [];
-
-    // Nếu user.isInstructor là true, thêm 'instructor' vào roles
-    if (user.isInstructor) {
-      roles.push('instructor');
-    }
-
-    // Kiểm tra role_id để xác định roles
-    if (user.role_id) {
-      // Kiểm tra role name thay vì hardcode ObjectId
-      if (user.role_id.name === 'admin') {
-        roles.push('admin');
-      } else if (user.role_id.name === 'instructor') {
-        roles.push('instructor');
-      } else if (user.role_id.name === 'student') {
-        roles.push('student');
-      }
-    }
-
-    // Nếu không có roles nào, gán là 'guest'
-    if (roles.length === 0) {
-      roles = ['guest'];
-    }
-
-    // Thêm thông tin role_id vào user
-    user.role_id = {
-      name: roles.includes('admin') ? 'admin' :
-        roles.includes('instructor') ? 'instructor' :
-        roles.includes('student') ? 'student' : 'guest',
-    };
-
-    // Gán user vào request
+    // Gán role cho user
     req.user = {
       ...user.toObject(),
-      roles: roles,
+      role: user.role_id && user.role_id.name ? user.role_id.name : 'guest',
+      role_id: user.role_id,
+      roles: [user.role_id && user.role_id.name ? user.role_id.name : 'guest'],
     };
 
     // Log thông tin user để debug
     console.log('Authenticated user:', {
       id: user._id,
-      roles: roles,
-      role_id: user.role_id,
-      originalRoleId: user.role_id,
+      role: req.user.role,
+      role_id: req.user.role_id,
+      roles: req.user.roles,
     });
 
     next();

@@ -59,6 +59,7 @@ import CourseEdit from "./pages/instructor/course/CourseEdit";
 import UserReportRoute from "./pages/client/UserReportRoute";
 import UserProfile from "./pages/client/Profile/UserProfile";
 import CheckPayment from "./pages/client/CheckPayment";
+import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
 
 const queryClient = new QueryClient();
 
@@ -157,6 +158,7 @@ function App() {
         { path: "vouchers", element: <VoucherPage />},
         { path: "courses", element: <CourseList />},
         { path: "transactions", element: <TransactionHistory /> },
+        { path: "earnings", element: <WithdrawRequestsAdmin />},
       ],
     },
     {
