@@ -18,7 +18,8 @@ import {
   Pagination,
   Select,
   Space,
-  Modal
+  Modal,
+  Input
 } from 'antd';
 import { 
   ShoppingOutlined, 
@@ -45,6 +46,7 @@ const OrdersPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [orderSearch, setOrderSearch] = useState('');
   const { token } = useAuth();
   const navigate = useNavigate();
 
@@ -196,21 +198,13 @@ const OrdersPage: React.FC = () => {
               <ShoppingOutlined className="text-2xl text-blue-600" />
               <Title level={2} className="!mb-0">Đơn hàng của tôi</Title>
             </div>
-            
-            <Space>
-              <Select
-                placeholder="Lọc theo trạng thái"
-                allowClear
-                style={{ width: 200 }}
-                onChange={handleStatusFilterChange}
-                value={statusFilter}
-              >
-                <Option value="pending">Chờ xử lý</Option>
-                <Option value="paid">Đã thanh toán</Option>
-                <Option value="cancelled">Đã hủy</Option>
-                <Option value="refunded">Đã hoàn tiền</Option>
-              </Select>
-            </Space>
+            {/* Bỏ Select lọc trạng thái, thay bằng ô tìm kiếm */}
+            <Input.Search
+              placeholder="Nhập mã đơn hàng để tìm kiếm"
+              allowClear
+              onSearch={value => setOrderSearch(value)}
+              style={{ width: 300 }}
+            />
           </div>
 
           {/* Orders List */}
@@ -228,7 +222,7 @@ const OrdersPage: React.FC = () => {
           ) : (
             <div className="space-y-4">
               <AnimatePresence>
-                {orders.map((order) => (
+                {(orderSearch ? orders.filter(order => order.id.includes(orderSearch)) : orders).map((order) => (
                   <motion.div
                     key={order.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -246,36 +240,18 @@ const OrdersPage: React.FC = () => {
                         >
                           Xem chi tiết
                         </Button>,
-                        order.status === 'pending' && (
-                          <Button 
-                            type="link" 
-                            danger
-                            icon={<CloseCircleOutlined />}
-                            onClick={() => handleCancelOrder(order.id)}
-                          >
-                            Hủy đơn hàng
-                          </Button>
-                        )
                       ].filter(Boolean)}
                     >
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-4">
-                          <Badge 
-                            status={getStatusColor(order.status) as any}
-                            text={
-                              <Space>
-                                {getStatusIcon(order.status)}
-                                <Text strong>{getStatusText(order.status)}</Text>
-                              </Space>
-                            }
-                          />
                           <Text type="secondary">
                             Mã đơn hàng: <Text code>{order.id}</Text>
                           </Text>
                         </div>
-                        <Text type="secondary">
-                          {formatDate(order.createdAt)}
-                        </Text>
+                        <div>
+                          <Text strong>Phương thức thanh toán:</Text>
+                          <Text> {order.paymentMethod?.toUpperCase() || '---'} </Text>
+                        </div>
                       </div>
 
                       <div className="space-y-3">
@@ -305,10 +281,6 @@ const OrdersPage: React.FC = () => {
 
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Text>Tạm tính:</Text>
-                            <Text>{formatCurrency(order.totalAmount)}</Text>
-                          </div>
                           {order.discountAmount > 0 && (
                             <div className="flex items-center gap-2">
                               <Text>Giảm giá:</Text>
@@ -379,17 +351,23 @@ const OrdersPage: React.FC = () => {
                   <Text>{formatDate(selectedOrder.createdAt)}</Text>
                 </div>
                 <div>
-                  <Text strong>Trạng thái:</Text>
-                  <br />
-                  <Badge 
-                    status={getStatusColor(selectedOrder.status) as any}
-                    text={getStatusText(selectedOrder.status)}
-                  />
-                </div>
-                <div>
                   <Text strong>Phương thức thanh toán:</Text>
-                  <br />
-                  <Text>{selectedOrder.paymentMethod}</Text>
+                  <Text> {selectedOrder.paymentMethod ? selectedOrder.paymentMethod.toUpperCase() : '---'} </Text>
+                </div>
+                {selectedOrder.notes && (
+                  <div className="col-span-2">
+                    <Text strong>Ghi chú:</Text>
+                    <br />
+                    <Text>{selectedOrder.notes}</Text>
+                  </div>
+                )}
+                <div className="col-span-2">
+                  <Text strong>Thông tin người đặt:</Text>
+                  <div className="mt-1">
+                    <Text>Họ tên: {selectedOrder.fullName || '---'}</Text><br />
+                    <Text>Số điện thoại: {selectedOrder.phone || '---'}</Text><br />
+                    <Text>Email: {selectedOrder.email || '---'}</Text>
+                  </div>
                 </div>
               </div>
 
@@ -447,10 +425,6 @@ const OrdersPage: React.FC = () => {
               <Divider />
 
               <div className="text-right space-y-2">
-                <div className="flex justify-between">
-                  <Text>Tạm tính:</Text>
-                  <Text>{formatCurrency(selectedOrder.totalAmount)}</Text>
-                </div>
                 {selectedOrder.discountAmount > 0 && (
                   <div className="flex justify-between">
                     <Text>Giảm giá:</Text>

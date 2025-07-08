@@ -8,6 +8,7 @@ interface CartContextType {
   addToCart: (courseId: string) => Promise<boolean>;
   removeFromCart: (cartItemId: string) => Promise<void>;
   isInCart: (courseId: string) => boolean;
+  clearCart: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -105,13 +106,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return cartItems.some(item => item.course?._id === courseId);
   };
 
+  // Hàm xóa giỏ hàng
+  const clearCart = () => {
+    setCartCount(0);
+    setCartItems([]);
+    localStorage.removeItem('cart');
+  };
+
   useEffect(() => {
     // Chỉ cập nhật giỏ hàng nếu có token
     const token = localStorage.getItem('token');
     if (token) {
       updateCartCount();
+    } else {
+      clearCart();
     }
-  }, []);
+  }, [localStorage.getItem('token')]);
 
   const value = {
     cartCount,
@@ -119,7 +129,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateCartCount,
     addToCart,
     removeFromCart,
-    isInCart
+    isInCart,
+    clearCart // export hàm clearCart
   };
 
   return (

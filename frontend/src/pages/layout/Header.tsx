@@ -315,6 +315,13 @@ const AppHeader = () => {
           },
           {
             type: 'group' as const,
+            label: 'Đơn hàng',
+            children: [
+              { key: '/orders', icon: <ShoppingCartOutlined  />, label: 'Đơn hàng!' }
+            ],
+          },
+          {
+            type: 'group' as const,
             label: 'Báo cáo',
             children: [
               { key: '/report', icon: <BarChartOutlined  />, label: 'Báo cáo!' }

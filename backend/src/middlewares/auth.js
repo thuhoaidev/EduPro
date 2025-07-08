@@ -60,26 +60,21 @@ exports.auth = async (req, res, next) => {
       roles = ['guest'];
     }
 
-    // Thêm thông tin role_id vào user
-    user.role_id = {
-      name: roles.includes('admin') ? 'admin' :
-        roles.includes('instructor') ? 'instructor' :
-        roles.includes('student') ? 'student' : 'guest',
+    // Gán user vào request với đủ các trường
+    req.user = {
+      ...user.toObject(),
+      id: user._id.toString(),
+      role: roles.includes('admin') ? 'admin' : roles.includes('instructor') ? 'instructor' : roles.includes('student') ? 'student' : 'guest',
+      role_id: user.role_id,
+      roles: roles,
     };
-
-    // Gán user vào request
-   req.user = {
-  ...user.toObject(),
-  roles: roles,
-  id: user._id.toString(), 
-};
 
     // Log thông tin user để debug
     console.log('Authenticated user:', {
       id: user._id,
-      roles: roles,
-      role_id: user.role_id,
-      originalRoleId: user.role_id,
+      role: req.user.role,
+      role_id: req.user.role_id,
+      roles: req.user.roles,
     });
 
     next();

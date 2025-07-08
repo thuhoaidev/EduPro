@@ -52,6 +52,11 @@ const checkRole = (user: User | null, requiredRole: string): boolean => {
   return user?.role?.name === requiredRole;
 };
 
+// Thêm hàm mới cho phép nhiều role
+const hasAnyRole = (user: User | null, allowedRoles: string[]): boolean => {
+  return !!user && allowedRoles.includes(user.role?.name || '');
+};
+
 const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -108,11 +113,9 @@ const AdminLayout = () => {
 
   // --- Role Check ---
   useEffect(() => {
-    if (!loading && !checkRole(user, "admin")) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      message.error("Bạn không có quyền truy cập trang quản trị. Vui lòng đăng nhập bằng tài khoản admin.");
-      navigate("/login");
+    if (!loading && !hasAnyRole(user, ["admin", "instructor"])) {
+      message.error("Bạn không có quyền truy cập trang quản trị");
+      navigate("/");
     }
   }, [user, loading, navigate]);
 
@@ -156,6 +159,11 @@ const AdminLayout = () => {
         type: "group",
         children: [{ key: "/admin/settings", icon: <SettingOutlined />, label: "Cài đặt" }],
       },
+      {
+        label: "Thu nhập giảng viên",
+        type: "group",
+        children: [{ key: "/admin/earnings", icon: <SettingOutlined />, label: "Cài đặt" }],
+      },
     ],
     []
   );
@@ -197,8 +205,8 @@ const AdminLayout = () => {
   if (loading) {
     return <div className={styles.loadingScreen}>Loading...</div>;
   }
-  if (!user || !checkRole(user, "admin")) {
-    return null;
+  if (!user || !hasAnyRole(user, ["admin", "instructor"])) {
+    return <div className={styles.loadingScreen}>Bạn không có quyền truy cập</div>;
   }
 
   return (

@@ -123,27 +123,25 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
                             )}
                         </div>
                         <div className={styles.buttonContainer}>
-                            {course.isFree ? (
-                                isEnrolled ? (
-                                    <button 
-                                        className={styles.buyBtnFree} 
-                                        type="button" 
-                                        onClick={e => { 
-                                            e.preventDefault(); 
-                                            window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`; 
-                                        }}
-                                    >
-                                        <span className={styles.buttonText}>Học ngay</span>
-                                    </button>
-                                ) : (
-                                    <button 
-                                        className={styles.buyBtnFree} 
-                                        type="button" 
-                                        onClick={e => handleEnroll(e, course)}
-                                    >
-                                        <span className={styles.buttonText}>Đăng ký học</span>
-                                    </button>
-                                )
+                            {isEnrolled ? (
+                                <button 
+                                    className={styles.buyBtnFree} 
+                                    type="button" 
+                                    onClick={e => { 
+                                        e.preventDefault(); 
+                                        window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`; 
+                                    }}
+                                >
+                                    <span className={styles.buttonText}>Học ngay</span>
+                                </button>
+                            ) : course.isFree ? (
+                                <button 
+                                    className={styles.buyBtnFree} 
+                                    type="button" 
+                                    onClick={e => handleEnroll(e, course)}
+                                >
+                                    <span className={styles.buttonText}>Đăng ký học</span>
+                                </button>
                             ) : (
                                 <button 
                                     className={courseInCart ? styles.checkoutBtn : styles.buyBtn} 

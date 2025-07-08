@@ -31,7 +31,9 @@ const CourseDetailPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
     const [isEnrolled, setIsEnrolled] = useState(false);
-    const [reviews, setReviews] = useState<{ rating: number; comment: string }[]>([]);
+    const [reviews, setReviews] = useState<{
+        user: any; rating: number; comment: string 
+}[]>([]);
     const [myReview, setMyReview] = useState<{ rating: number; comment: string } | null>(null);
     const [reviewLoading, setReviewLoading] = useState(false);
     const [reviewError, setReviewError] = useState<string | null>(null);
@@ -102,6 +104,9 @@ const CourseDetailPage: React.FC = () => {
             try {
                 const res = await config.get('/users/me/enrollments');
                 const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
+                console.log('🔍 Course ID:', course.id);
+                console.log('🔍 Enrolled IDs:', enrolledIds);
+                console.log('🔍 Is enrolled:', enrolledIds.includes(course.id));
                 if (enrolledIds.includes(course.id)) {
                     setIsEnrolled(true);
                 } else {
@@ -461,58 +466,56 @@ const CourseDetailPage: React.FC = () => {
 
                                 {/* Action Buttons */}
                                 <div className="space-y-4 mb-8">
-                                    {course.isFree ? (
-                                        isEnrolled ? (
-                                            <Button 
-                                                type="primary" 
-                                                size="large" 
-                                                block 
-                                                className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
-                                                icon={<PlayCircleOutlined />} 
-                                                onClick={() => {
-                                                    const firstLesson = courseContent[0]?.lessons[0];
-                                                    if (firstLesson?._id) {
-                                                        navigate(`/lessons/${firstLesson._id}/video`);
+                                    {isEnrolled ? (
+                                        <Button 
+                                            type="primary" 
+                                            size="large" 
+                                            block 
+                                            className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
+                                            icon={<PlayCircleOutlined />} 
+                                            onClick={() => {
+                                                const firstLesson = courseContent[0]?.lessons[0];
+                                                if (firstLesson?._id) {
+                                                    navigate(`/lessons/${firstLesson._id}/video`);
+                                                } else {
+                                                    message.info('Khóa học này chưa có bài giảng. Vui lòng quay lại sau!');
+                                                }
+                                            }}
+                                        >
+                                            Học ngay
+                                        </Button>
+                                    ) : course.isFree ? (
+                                        <Button 
+                                            type="primary" 
+                                            size="large" 
+                                            block 
+                                            className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
+                                            icon={<PlayCircleOutlined />} 
+                                            onClick={async () => {
+                                                const token = localStorage.getItem('token');
+                                                if (!token) {
+                                                    localStorage.removeItem('token');
+                                                    localStorage.removeItem('user');
+                                                    localStorage.removeItem('refresh_token');
+                                                    message.warning('Vui lòng đăng nhập!');
+                                                    setTimeout(() => navigate('/login'), 800);
+                                                    return;
+                                                }
+                                                try {
+                                                    await config.post(`/courses/${course.id}/enroll`);
+                                                    setIsEnrolled(true);
+                                                } catch (err: unknown) {
+                                                    if (err && typeof err === 'object' && 'response' in err) {
+                                                        // @ts-expect-error err.response is available
+                                                        alert(err.response?.data?.message || 'Có lỗi khi đăng ký học!');
                                                     } else {
-                                                        message.info('Khóa học này chưa có bài giảng. Vui lòng quay lại sau!');
+                                                        alert('Có lỗi khi đăng ký học!');
                                                     }
-                                                }}
-                                            >
-                                                Học ngay
-                                            </Button>
-                                        ) : (
-                                            <Button 
-                                                type="primary" 
-                                                size="large" 
-                                                block 
-                                                className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
-                                                icon={<PlayCircleOutlined />} 
-                                                onClick={async () => {
-                                                    const token = localStorage.getItem('token');
-                                                    if (!token) {
-                                                        localStorage.removeItem('token');
-                                                        localStorage.removeItem('user');
-                                                        localStorage.removeItem('refresh_token');
-                                                        message.warning('Vui lòng đăng nhập!');
-                                                        setTimeout(() => navigate('/login'), 800);
-                                                        return;
-                                                    }
-                                                    try {
-                                                        await config.post(`/courses/${course.id}/enroll`);
-                                                        setIsEnrolled(true);
-                                                    } catch (err: unknown) {
-                                                        if (err && typeof err === 'object' && 'response' in err) {
-                                                            // @ts-expect-error err.response is available
-                                                            alert(err.response?.data?.message || 'Có lỗi khi đăng ký học!');
-                                                        } else {
-                                                            alert('Có lỗi khi đăng ký học!');
-                                                        }
-                                                    }
-                                                }}
-                                            >
-                                                Đăng ký học
-                                            </Button>
-                                        )
+                                                }
+                                            }}
+                                        >
+                                            Đăng ký học
+                                        </Button>
                                     ) : (
                                         <Button 
                                             type="primary" 

@@ -58,6 +58,8 @@ import CourseEdit from "./pages/instructor/course/CourseEdit";
 import UserReportRoute from "./pages/client/UserReportRoute";
 
 import UserProfile from "./pages/client/Profile/UserProfile";
+import CheckPayment from "./pages/client/CheckPayment";
+import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
 
 import BlogPage from "./pages/client/BlogPage";
 
@@ -126,7 +128,10 @@ function App() {
         { path: "/lessons/:lessonId/video", element: <LessonVideoPage /> },
         { path: "/lessons/:lessonId/quiz", element: <LessonQuizPage /> },
         { path: "report", element: <UserReportRoute /> },
-        { path: "users/:slug", element: <UserProfile /> }
+        { path: "users/:slug", element: <UserProfile /> },
+        { path: "payment-result", element: <CheckPayment/> },
+        { path: "orders", element: <OrdersPage /> },
+        
       ]
     },
     {
@@ -156,6 +161,8 @@ function App() {
         { path: "history", element: <TransactionHistory /> },
         { path: "vouchers", element: <VoucherPage />},
         { path: "courses", element: <CourseList />},
+        { path: "transactions", element: <TransactionHistory /> },
+        { path: "earnings", element: <WithdrawRequestsAdmin />},
       ],
     },
     {
