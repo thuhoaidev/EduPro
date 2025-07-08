@@ -83,7 +83,9 @@ const EditCourse: React.FC = () => {
           category_id: data.category?._id || data.category_id,
           discount: data.discount_percentage || data.discount_amount || 0,
           requirements: data.requirements || [],
-          sections: data.sections || [],
+          sections: Array.isArray(data.sections) && data.sections.length > 0
+            ? data.sections.map((s: any) => ({ title: s.title || '' }))
+            : [{ title: '' }],
         };
         
         form.setFieldsValue(formData);
@@ -177,6 +179,9 @@ const EditCourse: React.FC = () => {
         layout="vertical" 
         onFinish={handleFinish}
         disabled={saving}
+        initialValues={{
+          sections: [{ title: '' }],
+        }}
       >
         <Form.Item
           label="Tiêu đề khóa học"
@@ -377,64 +382,6 @@ const EditCourse: React.FC = () => {
                   >
                     <Input placeholder="VD: Giới thiệu React" />
                   </Form.Item>
-
-                  <Form.List name={[name, "lessons"]}>
-                    {(lessonFields, { add: addLesson, remove: removeLesson }) => (
-                      <>
-                        {lessonFields.map(({ key: lessonKey, name: lessonName }) => (
-                          <Card
-                            key={lessonKey}
-                            size="small"
-                            className="mb-2"
-                            title={`Bài ${lessonKey + 1}`}
-                            extra={
-                              <Button
-                                danger
-                                size="small"
-                                onClick={() => removeLesson(lessonName)}
-                                disabled={saving}
-                              >
-                                Xóa bài
-                              </Button>
-                            }
-                          >
-                            <Form.Item
-                              name={[lessonName, "title"]}
-                              label="Tiêu đề bài"
-                              rules={[{ required: true, message: "Nhập tiêu đề bài!" }]}
-                            >
-                              <Input placeholder="VD: JSX là gì?" />
-                            </Form.Item>
-
-                            <Form.Item
-                              name={[lessonName, "is_preview"]}
-                              label="Xem trước?"
-                              rules={[{ required: true, message: "Chọn trạng thái!" }]}
-                            >
-                              <Select
-                                placeholder="Chọn trạng thái xem trước"
-                                options={[
-                                  { label: "Có", value: true },
-                                  { label: "Không", value: false },
-                                ]}
-                              />
-                            </Form.Item>
-                          </Card>
-                        ))}
-                        <Form.Item>
-                          <Button
-                            type="dashed"
-                            icon={<PlusOutlined />}
-                            onClick={() => addLesson()}
-                            block
-                            disabled={saving}
-                          >
-                            Thêm bài học
-                          </Button>
-                        </Form.Item>
-                      </>
-                    )}
-                  </Form.List>
                 </Card>
               ))}
               <Form.Item>
