@@ -1,320 +1,277 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Table,
   Input,
-  Space,
-  Pagination,
+  Button,
   Select,
-  Dropdown, // Import Dropdown cho sắp xếp
-  Menu, // Import Menu cho Dropdown
-  Button, // Để làm nút Dropdown
+  Dropdown,
+  Menu,
+  Pagination,
+  Modal,
 } from 'antd';
 import {
   SearchOutlined,
-  CaretDownOutlined, // Biểu tượng mũi tên xuống cho dropdown sắp xếp
+  CaretDownOutlined,
 } from '@ant-design/icons';
-import dayjs from 'dayjs'; // Để làm việc với ngày tháng
+import axios from 'axios';
+import dayjs from 'dayjs';
 
 const { Option } = Select;
 
-// Định nghĩa kiểu dữ liệu cho một giao dịch
 interface Transaction {
   key: string;
   orderId: string;
   buyerName: string;
   buyerEmail: string;
   courseName: string;
-  transactionDate: string; // Ngày và giờ giao dịch
-  status: 'Chưa thanh toán' | 'Đã thanh toán' | 'Đang xử lý' | 'Đã hủy'; // Trạng thái giao dịch
+  transactionDate: string;
+  status: string;
   paymentMethod: string;
   totalAmount: number;
 }
 
 const TransactionHistory = () => {
-  const [searchText, setSearchText] = useState<string>('');
+  const [data, setData] = useState<Transaction[]>([]);
+  const [ordersRaw, setOrdersRaw] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [searchText, setSearchText] = useState('');
   const [minAmount, setMinAmount] = useState<number | null>(null);
   const [maxAmount, setMaxAmount] = useState<number | null>(null);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null); // 'asc' for Tăng dần, 'desc' for Giảm dần, null for không sắp xếp
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [rowsPerPage, setRowsPerPage] = useState<number>(10); // Mặc định 10 rows per page như hình ảnh
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
 
-  const [data, setData] = useState<Transaction[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // Tải dữ liệu mẫu khi component mount
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+
   useEffect(() => {
-    setData([
-      {
-        key: '1',
-        orderId: '677f79f917379af5b1248583',
-        buyerName: 'Dương Đức Phương',
-        buyerEmail: 'admin@gmail.com',
-        courseName: 'Node & ExpressJS',
-        transactionDate: 'lúc 14:57 10 tháng 4, 2025',
-        status: 'Chưa thanh toán',
-        paymentMethod: 'MOMO',
-        totalAmount: 438999,
-      },
-      {
-        key: '2',
-        orderId: '681c614e406d5be55375137b',
-        buyerName: 'Hoài Thu',
-        buyerEmail: 'dev.thuhoai@gmail.com',
-        courseName: 'Kiến Thức Môn IT',
-        transactionDate: 'lúc 14:46 8 tháng 5, 2025',
-        status: 'Chưa thanh toán',
-        paymentMethod: 'MOMO',
-        totalAmount: 8888,
-      },
-      {
-        key: '3',
-        orderId: '681c6e7da2632535939374ad0',
-        buyerName: 'Hoài Thu',
-        buyerEmail: 'dev.thuhoai@gmail.com',
-        courseName: 'HTML CSS từ Zero đến Hero',
-        transactionDate: 'lúc 15:42 8 tháng 5, 2025',
-        status: 'Chưa thanh toán',
-        paymentMethod: 'MOMO',
-        totalAmount: 2000,
-      },
-      {
-        key: '4',
-        orderId: '681dc133ec0838ab17e80f94',
-        buyerName: 'thế hung',
-        buyerEmail: 'hungtph51987@gmail.com',
-        courseName: 'HTML CSS1',
-        transactionDate: 'lúc 15:47 9 tháng 5, 2025',
-        status: 'Chưa thanh toán',
-        paymentMethod: 'MOMO',
-        totalAmount: 10000,
-      },
-      {
-        key: '5',
-        orderId: 'abc123def456ghi789jkl0mn',
-        buyerName: 'Nguyễn Văn A',
-        buyerEmail: 'nguyenvana@gmail.com',
-        courseName: 'Khóa học React Native',
-        transactionDate: 'lúc 10:00 12 tháng 4, 2025',
-        status: 'Đã thanh toán',
-        paymentMethod: 'ZaloPay',
-        totalAmount: 500000,
-      },
-      {
-        key: '6',
-        orderId: 'opq987rst654uvw321xyz123',
-        buyerName: 'Trần Thị B',
-        buyerEmail: 'tranthib@gmail.com',
-        courseName: 'Lập trình Python cơ bản',
-        transactionDate: 'lúc 09:30 11 tháng 5, 2025',
-        status: 'Đã thanh toán',
-        paymentMethod: 'Bank Transfer',
-        totalAmount: 250000,
-      },
-    ]);
-  }, []);
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        // Lấy role mới nhất từ localStorage mỗi lần fetch
+        const userRole = localStorage.getItem('role');
+        // Debug log
+        console.log('TransactionHistory userRole:', userRole);
+        const endpoint = userRole === 'admin'
+          ? 'http://localhost:5000/api/orders/all?page=1&pageSize=100'
+          : 'http://localhost:5000/api/orders?page=1&pageSize=100';
+        const res = await axios.get(endpoint, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-  // Lọc dữ liệu
-  const filteredData = data.filter((item) => {
-    const matchesSearchText = item.orderId.toLowerCase().includes(searchText.toLowerCase()) ||
-                              item.buyerName.toLowerCase().includes(searchText.toLowerCase()) ||
-                              item.courseName.toLowerCase().includes(searchText.toLowerCase());
+        const orders = res.data.data?.orders || res.data.orders || res.data.data || [];
+        setOrdersRaw(orders);
 
-    const matchesMinAmount = minAmount === null || item.totalAmount >= minAmount;
-    const matchesMaxAmount = maxAmount === null || item.totalAmount <= maxAmount;
+        const formatted = orders.map((order: any, idx: number): Transaction => ({
+          key: (order._id || order.id || '') + '_' + idx,
+          orderId: order._id || order.id || '',
+          buyerName: order.fullName,
+          buyerEmail: order.email,
+          courseName: (order.items || []).map((i: any) => i.courseId?.title || 'Không rõ').join(', '),
+          transactionDate: dayjs(order.createdAt).format('HH:mm DD/MM/YYYY'),
+          status: order.paymentStatus === 'paid' ? 'Đã thanh toán' :
+                  order.paymentStatus === 'pending' ? 'Chưa thanh toán' : order.paymentStatus,
+          paymentMethod: order.paymentMethod || '',
+          totalAmount: order.totalAmount || 0,
+        }));
 
-    return matchesSearchText && matchesMinAmount && matchesMaxAmount;
-  });
+        setData(formatted);
+      } catch (err) {
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Sắp xếp dữ liệu
+    fetchOrders();
+  }, [/* không có dependency để luôn lấy role mới nhất mỗi lần render */]);
+
+  const filteredData = data
+    .filter(item => item.orderId.toLowerCase().includes(searchText.toLowerCase()))
+    .filter(item => (minAmount === null || item.totalAmount >= minAmount))
+    .filter(item => (maxAmount === null || item.totalAmount <= maxAmount));
+
   const sortedData = [...filteredData].sort((a, b) => {
-    // Để sắp xếp theo ngày, bạn cần chuyển đổi chuỗi ngày sang đối tượng Date hoặc dayjs
-    // Ví dụ: "lúc 14:57 10 tháng 4, 2025" cần được parse đúng
-    // Tạm thời, tôi sẽ sắp xếp theo TotalAmount như trong hình ảnh "Sắp xếp giá"
-    const amountA = a.totalAmount;
-    const amountB = b.totalAmount;
-
-    if (sortOrder === 'asc') {
-      return amountA - amountB;
-    } else if (sortOrder === 'desc') {
-      return amountB - amountA;
-    }
-    return 0; // Không sắp xếp nếu sortOrder là null
+    if (sortOrder === 'asc') return a.totalAmount - b.totalAmount;
+    if (sortOrder === 'desc') return b.totalAmount - a.totalAmount;
+    return 0;
   });
 
-  // Phân trang dữ liệu
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
   const currentData = sortedData.slice(startIndex, endIndex);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handleRowsPerPageChange = (value: number) => {
-    setRowsPerPage(value);
-    setCurrentPage(1); // Reset về trang đầu tiên khi thay đổi số lượng dòng
+  const handleShowDetail = (id: string) => {
+    const order = ordersRaw.find(o => o._id === id || o.id === id);
+    setSelectedOrder(order || null);
+    setModalVisible(true);
   };
 
   const sortMenu = (
-    <Menu onClick={({ key }) => setSortOrder(key as 'asc' | 'desc' | null)}>
+    <Menu onClick={({ key }) => setSortOrder(key as 'asc' | 'desc')}>
       <Menu.Item key="asc">Giá tăng dần</Menu.Item>
       <Menu.Item key="desc">Giá giảm dần</Menu.Item>
     </Menu>
   );
 
-  return (
-    <div className="tw-p-6 tw-bg-white tw-rounded-xl tw-shadow-sm tw-min-h-screen">
-      <h2 className="tw-text-2xl tw-font-bold tw-text-gray-800 tw-mb-4">Đây là trang lịch sử giao dịch</h2>
+  const columns = [
+    {
+      title: 'ID Đơn Hàng',
+      dataIndex: 'orderId',
+      key: 'orderId',
+      className: 'tw-font-medium',
+    },
+    {
+      title: 'Người Mua',
+      key: 'buyer',
+      render: (_: any, record: Transaction) => (
+        <div>
+          <div className="tw-font-medium">{record.buyerName}</div>
+          <div className="tw-text-sm tw-text-gray-500">{record.buyerEmail}</div>
+        </div>
+      ),
+    },
+    {
+      title: 'Ngày Mua',
+      dataIndex: 'transactionDate',
+      key: 'transactionDate',
+      align: 'center' as const,
+    },
+    {
+      title: 'Phương Thức',
+      dataIndex: 'paymentMethod',
+      key: 'paymentMethod',
+      align: 'center' as const,
+    },
+    {
+      title: 'Tổng Tiền',
+      dataIndex: 'totalAmount',
+      key: 'totalAmount',
+      align: 'right' as const,
+      render: (amount: number) => (
+        <span className="tw-font-semibold">{amount.toLocaleString('vi-VN')} đ</span>
+      ),
+    },
+    {
+      title: '',
+      key: 'action',
+      render: (_: any, record: Transaction) => (
+        <Button type="link" onClick={() => handleShowDetail(record.orderId)}>
+          Chi tiết
+        </Button>
+      ),
+    },
+  ];
 
-      {/* Filter and Sort Section */}
-      <div className="tw-mb-6 tw-flex tw-flex-wrap tw-items-center tw-gap-4">
+  return (
+    <div className="tw-p-6 tw-bg-white tw-rounded-xl tw-shadow-sm">
+      <h2 className="tw-text-2xl tw-font-bold tw-mb-4">Lịch sử giao dịch</h2>
+
+      <div className="tw-flex tw-flex-wrap tw-items-center tw-gap-4 tw-mb-6">
         <Input
-          placeholder="Tìm kiếm ID Đơn Hàng"
-          prefix={<SearchOutlined className="tw-text-gray-400" />}
+          placeholder="Tìm ID đơn hàng"
+          prefix={<SearchOutlined />}
           value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          className="tw-w-full sm:tw-w-60 tw-rounded-md tw-border tw-border-gray-300 tw-py-2 tw-px-4 focus:tw-border-blue-500 focus:tw-ring-0 tw-shadow-none"
-          style={{ height: '40px' }}
+          onChange={e => setSearchText(e.target.value)}
+          className="tw-w-60"
         />
         <Input
           placeholder="Giá tối thiểu"
           type="number"
-          value={minAmount === null ? '' : minAmount}
-          onChange={(e) => setMinAmount(e.target.value ? parseFloat(e.target.value) : null)}
-          className="tw-w-full sm:tw-w-40 tw-rounded-md tw-border tw-border-gray-300 tw-py-2 tw-px-4 focus:tw-border-blue-500 focus:tw-ring-0 tw-shadow-none"
-          style={{ height: '40px' }}
+          value={minAmount ?? ''}
+          onChange={e => setMinAmount(e.target.value ? +e.target.value : null)}
+          className="tw-w-40"
         />
         <Input
           placeholder="Giá tối đa"
           type="number"
-          value={maxAmount === null ? '' : maxAmount}
-          onChange={(e) => setMaxAmount(e.target.value ? parseFloat(e.target.value) : null)}
-          className="tw-w-full sm:tw-w-40 tw-rounded-md tw-border tw-border-gray-300 tw-py-2 tw-px-4 focus:tw-border-blue-500 focus:tw-ring-0 tw-shadow-none"
-          style={{ height: '40px' }}
+          value={maxAmount ?? ''}
+          onChange={e => setMaxAmount(e.target.value ? +e.target.value : null)}
+          className="tw-w-40"
         />
-        <Dropdown menu={sortMenu} trigger={['click']}>
-          <Button className="tw-rounded-md tw-border tw-border-gray-300 tw-py-2 tw-px-4 tw-h-10 tw-flex tw-items-center tw-justify-between">
-            Sắp xếp giá <CaretDownOutlined />
+        <Dropdown overlay={sortMenu}>
+          <Button>
+            Sắp xếp giá: {sortOrder === 'asc' ? 'Tăng' : sortOrder === 'desc' ? 'Giảm' : 'Không'}{' '}
+            <CaretDownOutlined />
           </Button>
         </Dropdown>
       </div>
 
-      {/* Table */}
       <Table
-        rowClassName={() => 'tw-h-16 hover:tw-bg-gray-100'}
-        columns={[
-          {
-            title: <span className="tw-font-bold tw-text-gray-700">ID Đơn Hàng</span>,
-            dataIndex: 'orderId',
-            key: 'orderId',
-            onCell: () => ({ className: 'tw-font-medium' }),
-          },
-          {
-            title: <span className="tw-font-bold tw-text-gray-700">Người Mua</span>,
-            dataIndex: 'buyerName',
-            key: 'buyer',
-            render: (_, record) => (
-              <div>
-                <div className="tw-font-medium">{record.buyerName}</div>
-                <div className="tw-text-sm tw-text-gray-500">{record.buyerEmail}</div>
-              </div>
-            ),
-          },
-          {
-            title: <span className="tw-font-bold tw-text-gray-700">Khóa Học Mua</span>,
-            dataIndex: 'courseName',
-            key: 'courseName',
-            render: (text) => (
-              <div className="tw-flex tw-items-center tw-gap-2">
-                {/* Bạn có thể thêm avatar khóa học ở đây nếu có */}
-                <span className="tw-block tw-w-8 tw-h-8 tw-rounded-full tw-bg-blue-200 tw-flex tw-items-center tw-justify-center tw-text-blue-700 tw-text-xs tw-font-bold">
-                    KH
-                </span> {/* Placeholder for course avatar */}
-                <span className="tw-font-medium">{text}</span>
-              </div>
-            ),
-          },
-          {
-            title: <span className="tw-font-bold tw-text-gray-700">Ngày Mua</span>,
-            dataIndex: 'transactionDate',
-            key: 'transactionDate',
-            align: 'center',
-            onCell: () => ({ className: 'tw-text-center' }),
-          },
-          {
-            title: <span className="tw-font-bold tw-text-gray-700">Trạng Thái</span>,
-            dataIndex: 'status',
-            key: 'status',
-            align: 'center',
-            render: (status: Transaction['status']) => (
-              <span
-                className={`
-                  tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-semibold
-                  ${status === 'Chưa thanh toán' ? 'tw-bg-yellow-100 tw-text-yellow-700' : ''}
-                  ${status === 'Đã thanh toán' ? 'tw-bg-green-100 tw-text-green-700' : ''}
-                  ${status === 'Đang xử lý' ? 'tw-bg-blue-100 tw-text-blue-700' : ''}
-                  ${status === 'Đã hủy' ? 'tw-bg-red-100 tw-text-red-700' : ''}
-                `}
-              >
-                {status}
-              </span>
-            ),
-            onCell: () => ({ className: 'tw-text-center' }),
-          },
-          {
-            title: <span className="tw-font-bold tw-text-gray-700">Phương Thức Thanh Toán</span>,
-            dataIndex: 'paymentMethod',
-            key: 'paymentMethod',
-            align: 'center',
-            onCell: () => ({ className: 'tw-text-center' }),
-          },
-          {
-            title: <span className="tw-font-bold tw-text-gray-700">Tổng Tiền</span>,
-            dataIndex: 'totalAmount',
-            key: 'totalAmount',
-            align: 'right',
-            render: (amount: number) => (
-              <span className="tw-font-semibold">
-                {amount.toLocaleString('vi-VN')} đ
-              </span>
-            ),
-            onCell: () => ({ className: 'tw-text-right' }),
-          },
-        ]}
+        columns={columns}
         dataSource={currentData}
-        pagination={false} // Tắt pagination mặc định của Ant Design Table
-        className="tw-border tw-border-gray-200 tw-rounded-lg"
+        loading={loading}
+        pagination={false}
+        rowClassName="tw-h-16"
+        locale={{ emptyText: 'Không có giao dịch phù hợp.' }}
       />
 
-      {/* Custom Pagination */}
-      <div className="tw-flex tw-justify-end tw-items-center tw-p-4 tw-bg-white tw-border-t tw-border-gray-200">
-        <div className="tw-flex tw-items-center tw-space-x-2 tw-mr-4">
-          <span className="tw-text-sm tw-text-gray-700">Rows per page:</span>
-          <Select
-            value={rowsPerPage}
-            onChange={handleRowsPerPageChange}
-            size="small"
-            className="tw-w-16"
-          >
+      <div className="tw-flex tw-justify-end tw-items-center tw-mt-4 tw-gap-4">
+        <span>Rows:</span>
+        <Select value={rowsPerPage} onChange={setRowsPerPage} size="small" style={{ width: 80 }}>
             <Option value={5}>5</Option>
             <Option value={10}>10</Option>
             <Option value={20}>20</Option>
           </Select>
-        </div>
-        <div className="tw-flex tw-items-center tw-space-x-10">
-          <span className="tw-text-sm tw-text-gray-700">
-            {startIndex + (currentData.length > 0 ? 1 : 0)}-{endIndex > filteredData.length ? filteredData.length : endIndex} of {filteredData.length}
-          </span>
           <Pagination
             current={currentPage}
             pageSize={rowsPerPage}
             total={filteredData.length}
-            onChange={handlePageChange}
+          onChange={setCurrentPage}
             showSizeChanger={false}
             simple
-            className="custom-pagination" // Thêm class để tùy chỉnh nếu cần
           />
-        </div>
       </div>
+
+      <Modal
+        open={modalVisible}
+        onCancel={() => setModalVisible(false)}
+        footer={null}
+        title="Chi tiết đơn hàng"
+        width={800}
+      >
+        {selectedOrder && (
+          <div>
+            <div className="tw-mb-4">
+              <b>Mã đơn:</b> {selectedOrder._id || selectedOrder.id} <br />
+              <b>Phương thức:</b> {selectedOrder.paymentMethod?.toUpperCase()} <br />
+              <b>Ngày đặt:</b> {dayjs(selectedOrder.createdAt).format('HH:mm DD/MM/YYYY')}
+            </div>
+            <b>Thông tin người mua:</b>
+            <div>Họ tên: {selectedOrder.fullName}</div>
+            <div>SĐT: {selectedOrder.phone}</div>
+            <div>Email: {selectedOrder.email}</div>
+
+            <hr className="tw-my-4" />
+            <b>Chi tiết sản phẩm:</b>
+            {(selectedOrder.items || []).map((item: any) => (
+              <div
+                key={item._id}
+                className="tw-flex tw-items-center tw-my-2 tw-bg-gray-50 tw-p-2 tw-rounded"
+              >
+                <img
+                  src={item.courseId?.thumbnail || '/default-course.png'}
+                  alt={item.courseId?.title}
+                  className="tw-w-14 tw-h-14 tw-rounded tw-object-cover tw-mr-4"
+                />
+                <div className="tw-flex-1">
+                  <div className="tw-font-medium">{item.courseId?.title}</div>
+                  <div className="tw-text-gray-500 tw-text-sm">Số lượng: {item.quantity || 1}</div>
+                </div>
+                <div className="tw-font-semibold tw-min-w-[100px] tw-text-right">
+                  {item.price?.toLocaleString('vi-VN')} đ
+                </div>
+              </div>
+            ))}
+            <div className="tw-text-right tw-font-bold tw-text-lg tw-mt-4">
+              Tổng tiền: {selectedOrder.totalAmount?.toLocaleString('vi-VN')} đ
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

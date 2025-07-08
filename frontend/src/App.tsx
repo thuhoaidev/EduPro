@@ -126,6 +126,7 @@ function App() {
         { path: "users/:slug", element: <UserProfile /> },
         { path: "payment-result", element: <CheckPayment/> },
         { path: "orders", element: <OrdersPage /> },
+        
       ]
     },
     {
@@ -155,6 +156,7 @@ function App() {
         { path: "history", element: <TransactionHistory /> },
         { path: "vouchers", element: <VoucherPage />},
         { path: "courses", element: <CourseList />},
+        { path: "transactions", element: <TransactionHistory /> },
       ],
     },
     {
