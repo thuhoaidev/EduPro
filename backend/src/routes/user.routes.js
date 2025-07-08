@@ -24,6 +24,10 @@ const {
   getUserBySlug,
 } = require('../controllers/user.controller');
 
+// Các route public cho phép xem danh sách follower/following
+router.get('/:id/followers', getFollowers); // Lấy danh sách follower
+router.get('/:id/following', getFollowing); // Lấy danh sách đang theo dõi
+
 // Routes cho client (không cần đăng nhập)
 // Lấy danh sách giảng viên đã duyệt cho client
 router.get('/approved-instructors', getApprovedInstructors);
@@ -77,6 +81,10 @@ router.get('/instructors/:id/detail', getInstructorDetail);
 // Cập nhật trạng thái hồ sơ giảng viên (cần đăng nhập)
 router.put('/instructors/:id/approval', updateInstructorApproval);
 
+// Các route follow/unfollow (cần đăng nhập)
+router.post('/:id/follow', followUser); // Theo dõi user
+router.delete('/:id/follow', unfollowUser); // Bỏ theo dõi user
+
 // Routes cho admin (cần quyền admin)
 router.use(checkRole(['admin']));
 
@@ -105,11 +113,5 @@ router.post('/upload-avatar', auth, uploadAvatar, processAvatarUpload, (req, res
 
 // Cập nhật hồ sơ giảng viên (và đồng bộ sang User)
 router.put('/instructor-profiles/:id', require('./../controllers/user.controller').updateInstructorProfile);
-
-// Các route follow/unfollow và lấy danh sách follower/following
-router.post('/:id/follow', followUser); // Theo dõi user
-router.delete('/:id/follow', unfollowUser); // Bỏ theo dõi user
-router.get('/:id/followers', getFollowers); // Lấy danh sách follower
-router.get('/:id/following', getFollowing); // Lấy danh sách đang theo dõi
 
 module.exports = router; 
