@@ -61,6 +61,8 @@ import UserProfile from "./pages/client/Profile/UserProfile";
 
 import BlogPage from "./pages/client/BlogPage";
 
+import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
+import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
 
 const queryClient = new QueryClient();
 
@@ -126,7 +128,9 @@ function App() {
         { path: "/lessons/:lessonId/video", element: <LessonVideoPage /> },
         { path: "/lessons/:lessonId/quiz", element: <LessonQuizPage /> },
         { path: "report", element: <UserReportRoute /> },
-        { path: "users/:slug", element: <UserProfile /> }
+        { path: "users/:slug", element: <UserProfile /> },
+        { path: "search/users", element: <UserSearchResultsPage /> },
+        { path: "search/courses", element: <CourseSearchResultsPage /> }
       ]
     },
     {

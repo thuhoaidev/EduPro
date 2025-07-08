@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Typography, Button, Rate, Tag, Image, Space, Divider, Statistic, Tabs, Spin, message, Badge, Tooltip, Carousel, Avatar } from "antd";
+import { Row, Col, Card, Typography, Button, Rate, Tag, Image, Space, Divider, Statistic, Tabs, Spin, message, Badge, Tooltip, Carousel, Avatar, Input, Select } from "antd";
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import {
@@ -29,6 +29,7 @@ import type { Voucher } from '../services/voucher.service';
 import CourseCard from '../components/course/CourseCard';
 
 const { Title, Text, Paragraph } = Typography;
+const { Option } = Select;
 
 interface Course extends ApiCourse {
   _id: string;
@@ -95,6 +96,39 @@ const SectionWrapper = ({ children, style = {} }: { children: React.ReactNode, s
     </motion.div>
   );
 };
+
+function HomeSearchBar() {
+  const [searchType, setSearchType] = useState('course'); // 'course' hoặc 'user'
+  const [keyword, setKeyword] = useState('');
+  const navigate = useNavigate();
+
+  const handleSearch = () => {
+    if (!keyword.trim()) return;
+    if (searchType === 'user') {
+      navigate(`/search/users?search=${encodeURIComponent(keyword)}`);
+    } else {
+      navigate(`/search/courses?search=${encodeURIComponent(keyword)}`);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', margin: '32px 0' }}>
+      <Select value={searchType} onChange={setSearchType} style={{ width: 140 }} size="large">
+        <Option value="course">Khóa học</Option>
+        <Option value="user">Giảng viên</Option>
+      </Select>
+      <Input
+        placeholder="Nhập từ khóa..."
+        value={keyword}
+        onChange={e => setKeyword(e.target.value)}
+        onPressEnter={handleSearch}
+        style={{ width: 300 }}
+        size="large"
+      />
+      <Button type="primary" size="large" onClick={handleSearch}>Tìm kiếm</Button>
+    </div>
+  );
+}
 
 const Homepage = () => {
   const navigate = useNavigate();

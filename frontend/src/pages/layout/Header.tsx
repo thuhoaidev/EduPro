@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { config } from '../../api/axios';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Layout, Input, Space, Button, Avatar, Dropdown, Spin, Typography, Badge, Card, List, Tag, Divider, Popover
+  Layout, Input, Space, Button, Avatar, Dropdown, Spin, Typography, Badge, Card, List, Tag, Divider, Popover, Select, message
 } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -26,6 +26,7 @@ import {
 import AuthNotification from '../../components/common/AuthNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
 import { useCart } from '../../contexts/CartContext';
+import { courseService } from '../../services/apiService';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
@@ -69,6 +70,7 @@ const AppHeader = () => {
     title: '',
     message: ''
   });
+  const [keyword, setKeyword] = useState('');
 
   // Mock notifications data
   const [notifications] = useState<Notification[]>([
@@ -179,87 +181,52 @@ const AppHeader = () => {
     }
   };
 
-  // useEffect(() => {
-  //   const fetchUser = async () => {
-  //     const storedUser = localStorage.getItem('user');
-  //     if (storedUser) {
-  //       let userData = JSON.parse(storedUser);
-  //       if (userData && typeof userData.role === 'string') {
-  //         userData.role = { name: userData.role };
-  //         localStorage.setItem('user', JSON.stringify(userData));
-  //       }
-  //       setUser(userData);
-  //       setLoading(false);
-  //       return;
-  //     }
-
-  //     const token = localStorage.getItem('token');
-  //     if (!token) {
-  //       setUser(false);
-  //       setLoading(false);
-  //       return;
-  //     }
-
-  //     try {
-  //       const response = await config.get('/auth/me');
-  //       const userData = response.data.data;
-  //       setUser(userData);
-  //     } catch (error) {
-  //       console.error('Lỗi lấy thông tin user:', error);
-  //       // Không xóa token ở đây nữa
-  //       setUser(false);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-
-  //   const handleStorageChange = (event: StorageEvent) => {
-  //       if (event.key === 'user' || event.key === 'token') {
-  //           fetchUser();
-  //       }
-  //   };
-    
-  //   window.addEventListener('storage', handleStorageChange);
-  //   window.addEventListener('user-updated', fetchUser);
-  //   fetchUser();
-
-  //   return () => {
-  //       window.removeEventListener('storage', handleStorageChange);
-  //       window.removeEventListener('user-updated', fetchUser);
-  //   }
-  // }, []);
-  useEffect(() => {
-  const fetchUser = () => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      let userData = JSON.parse(storedUser);
-      if (userData && typeof userData.role === 'string') {
-        userData.role = { name: userData.role };
-        localStorage.setItem('user', JSON.stringify(userData));
+  const handleHeaderSearch = async () => {
+    if (!keyword.trim()) return;
+    // Gọi API tìm kiếm khóa học trước
+    try {
+      const courses = await courseService.searchCourses(keyword); // chỉ lấy 1 kết quả
+      if (courses && courses.length > 0) {
+        navigate(`/search/courses?search=${encodeURIComponent(keyword)}`);
+      } else {
+        navigate(`/search/users?search=${encodeURIComponent(keyword)}`);
       }
-      setUser(userData);
-    } else {
-      setUser(false);
-    }
-    setLoading(false);
-  };
-
-  const handleStorageChange = (event: StorageEvent) => {
-    if (event.key === 'user' || event.key === 'token') {
-      fetchUser();
+    } catch (err) {
+      message.error('Đã xảy ra lỗi khi tìm kiếm.');
     }
   };
 
-  window.addEventListener('storage', handleStorageChange);
-  window.addEventListener('user-updated', fetchUser);
-  fetchUser();
+  useEffect(() => {
+    const fetchUser = () => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        let userData = JSON.parse(storedUser);
+        if (userData && typeof userData.role === 'string') {
+          userData.role = { name: userData.role };
+          localStorage.setItem('user', JSON.stringify(userData));
+        }
+        setUser(userData);
+      } else {
+        setUser(false);
+      }
+      setLoading(false);
+    };
 
-  return () => {
-    window.removeEventListener('storage', handleStorageChange);
-    window.removeEventListener('user-updated', fetchUser);
-  };
-}, []);
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'user' || event.key === 'token') {
+        fetchUser();
+      }
+    };
 
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('user-updated', fetchUser);
+    fetchUser();
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('user-updated', fetchUser);
+    };
+  }, []);
 
   const userMenu = user
     ? {
@@ -741,18 +708,15 @@ const AppHeader = () => {
               transition={{ delay: 0.2, duration: 0.5 }}
             >
               <Input
-                placeholder="Tìm kiếm khóa học, giảng viên..."
-                prefix={
-                  <motion.div
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <SearchOutlined style={{ color: 'rgba(0,0,0,.45)' }} />
-                  </motion.div>
-                }
-                className="hidden md:flex w-72 search-input"
-                style={{ borderRadius: '12px', height: '40px' }}
+                placeholder="Tìm kiếm khóa học hoặc giảng viên..."
+                prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,.45)' }} />}
+                className="hidden md:flex search-input"
+                style={{ borderRadius: '12px', height: '40px', width: 260 }}
                 allowClear
+                value={keyword}
+                onChange={e => setKeyword(e.target.value)}
+                onPressEnter={handleHeaderSearch}
+                size="large"
               />
             </motion.div>
             

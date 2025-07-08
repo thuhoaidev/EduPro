@@ -181,10 +181,21 @@ exports.getAllUsers = async (req, res) => {
     // Đếm tổng số user để phân trang
     const total = await User.countDocuments(query);
 
+    // Bổ sung enrolledCourses cho học viên
+    const usersWithEnrollments = await Promise.all(users.map(async user => {
+      const userObj = user.toJSON();
+      if (userObj.role_id && userObj.role_id.name === 'student') {
+        // Đếm số lượng Enrollment có student là user._id
+        const enrolledCount = await Enrollment.countDocuments({ student: user._id });
+        userObj.enrolledCourses = enrolledCount;
+      }
+      return userObj;
+    }));
+
     res.status(200).json({
       success: true,
       data: {
-        users: users.map(user => user.toJSON()),
+        users: usersWithEnrollments,
         pagination: {
           total,
           page,
@@ -579,7 +590,7 @@ exports.getInstructors = async (req, res) => {
     // Query + lean để truy cập nested fields
     const instructors = await User.find(instructorsQuery)
       .populate('role_id')
-       .sort({ createdAt: -1 })
+      .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .lean(); // ✅ Cho phép truy cập instructorInfo trực tiếp
@@ -593,7 +604,7 @@ exports.getInstructors = async (req, res) => {
           const info = instructor.instructorInfo || {};
           const education = instructor.education || [];
           const firstEducation = education.length > 0 ? education[0] : {};
-          
+
           return {
             id: instructor._id,
             fullname: instructor.fullname,
@@ -1339,18 +1350,18 @@ exports.getApprovedInstructors = async (req, res) => {
     // Lấy thống kê khóa học cho từng giảng viên
     const Course = require('../models/Course');
     const instructorIds = instructors.map(instructor => instructor._id);
-    
+
     // Lấy instructor profile IDs cho các user
     const instructorProfiles = await InstructorProfile.find({
       user: { $in: instructorIds }
     }).select('_id user');
-    
+
     const instructorProfileIds = instructorProfiles.map(profile => profile._id);
     const userToProfileMap = {};
     instructorProfiles.forEach(profile => {
       userToProfileMap[profile.user.toString()] = profile._id.toString();
     });
-    
+
     const courseStats = await Course.aggregate([
       {
         $match: {
@@ -1379,7 +1390,7 @@ exports.getApprovedInstructors = async (req, res) => {
           const info = instructor.instructorInfo || {};
           const education = instructor.education || [];
           const firstEducation = education.length > 0 ? education[0] : {};
-          
+
           return {
             id: instructor._id,
             slug: instructor.slug,
@@ -1466,10 +1477,10 @@ exports.getApprovedInstructorDetail = async (req, res) => {
     // Lấy thống kê khóa học
     const Course = require('../models/Course');
     const InstructorProfile = require('../models/InstructorProfile');
-    
+
     const instructorProfile = await InstructorProfile.findOne({ user: instructor._id });
     let courseStats = { totalCourses: 0, totalStudents: 0 };
-    
+
     if (instructorProfile) {
       const courseAggregation = await Course.aggregate([
         {
@@ -1485,7 +1496,7 @@ exports.getApprovedInstructorDetail = async (req, res) => {
           }
         }
       ]);
-      
+
       if (courseAggregation.length > 0) {
         courseStats = courseAggregation[0];
       }
@@ -1663,5 +1674,64 @@ exports.getUserBySlug = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi máy chủ', error: error.message });
+  }
+};
+
+exports.searchUsers = exports.getAllUsers;
+
+// Tìm kiếm giảng viên (public)
+exports.searchInstructors = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+
+    // Tìm role instructor
+    const instructorRole = await Role.findOne({ name: ROLES.INSTRUCTOR });
+    if (!instructorRole) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vai trò giảng viên không tồn tại',
+      });
+    }
+
+    // Xây dựng query
+    const query = { role_id: instructorRole._id };
+    if (search) {
+      query.$or = [
+        { fullname: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { nickname: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const users = await User.find(query)
+      .populate('role_id')
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .sort({ created_at: -1 });
+
+    const total = await User.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        users: users.map(user => user.toJSON()),
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi tìm kiếm giảng viên:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi tìm kiếm giảng viên',
+      error: error.message,
+    });
   }
 };

@@ -22,6 +22,7 @@ const {
   getFollowers,
   getFollowing,
   getUserBySlug,
+  searchInstructors,
 } = require('../controllers/user.controller');
 
 // Routes cho client (không cần đăng nhập)
@@ -31,6 +32,9 @@ router.get('/approved-instructors', getApprovedInstructors);
 router.get('/approved-instructors/:id', getApprovedInstructorDetail);
 // Route lấy user theo slug (public, không cần auth)
 router.get('/slug/:slug', getUserBySlug);
+
+// Route tìm kiếm user public (phải đặt trước router.use(auth))
+router.get('/search', getAllUsers);
 
 // Routes cho người dùng hiện tại (cần đăng nhập)
 router.use(auth);
