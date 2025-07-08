@@ -63,6 +63,8 @@ import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
 
 import BlogPage from "./pages/client/BlogPage";
 
+import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
+import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
 
 const queryClient = new QueryClient();
 
@@ -131,7 +133,8 @@ function App() {
         { path: "users/:slug", element: <UserProfile /> },
         { path: "payment-result", element: <CheckPayment/> },
         { path: "orders", element: <OrdersPage /> },
-        
+        { path: "search/users", element: <UserSearchResultsPage /> },
+        { path: "search/courses", element: <CourseSearchResultsPage /> },
       ]
     },
     {
