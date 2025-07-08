@@ -45,7 +45,7 @@ const ProfileEdit = () => {
         const response = await config.get('/users/me');
         const userData = response.data.data;
         console.log('User data from API:', userData);
-        
+
         // Set avatar URL for display
         if (userData.avatar) {
           setAvatarUrl(userData.avatar);
@@ -87,7 +87,7 @@ const ProfileEdit = () => {
       }
 
       const formData = new FormData();
-      
+
       // Handle avatar upload
       if (values.avatar && Array.isArray(values.avatar) && values.avatar.length > 0) {
         const file = values.avatar[0] instanceof File ? values.avatar[0] : (values.avatar[0] as FileWithOriginFileObj).originFileObj;
@@ -153,17 +153,17 @@ const ProfileEdit = () => {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { 
+      transition: {
         duration: 0.6,
-        staggerChildren: 0.1 
+        staggerChildren: 0.1
       }
     }
   };
 
   const itemVariants = {
     hidden: { opacity: 0, x: -20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       x: 0,
       transition: { duration: 0.5 }
     }
@@ -187,9 +187,9 @@ const ProfileEdit = () => {
       >
 
         <motion.div variants={itemVariants}>
-          <Card 
+          <Card
             className="shadow-xl border-0"
-            headStyle={{ 
+            headStyle={{
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
               border: 'none',
@@ -227,8 +227,8 @@ const ProfileEdit = () => {
                     >
                       {avatarUrl ? (
                         <div className="relative">
-                          <Avatar 
-                            src={avatarUrl} 
+                          <Avatar
+                            src={avatarUrl}
                             size={120}
                             className="!border-4 !border-white !shadow-lg"
                           />
@@ -271,8 +271,8 @@ const ProfileEdit = () => {
                       }
                       rules={[{ required: true, message: 'Vui lòng nhập họ và tên' }]}
                     >
-                      <Input 
-                        prefix={<UserOutlined className="text-gray-400" />} 
+                      <Input
+                        prefix={<UserOutlined className="text-gray-400" />}
                         size="large"
                         className="!rounded-lg"
                         placeholder="Nhập họ và tên"
@@ -291,9 +291,9 @@ const ProfileEdit = () => {
                       }
                       rules={[{ required: true, message: 'Vui lòng nhập email' }]}
                     >
-                      <Input 
-                        prefix={<MailOutlined className="text-gray-400" />} 
-                        disabled 
+                      <Input
+                        prefix={<MailOutlined className="text-gray-400" />}
+                        disabled
                         size="large"
                         className="!rounded-lg !bg-gray-50"
                       />
@@ -302,13 +302,13 @@ const ProfileEdit = () => {
                 </Col>
               </Row>
 
-                {/* Nickname field */}
-                <motion.div variants={itemVariants}>
+              {/* Nickname field */}
+              <motion.div variants={itemVariants}>
                 <Form.Item
                   name="nickname"
                   label={<Text strong className="text-gray-700">Tên đăng nhập</Text>}
                 >
-                  <Input 
+                  <Input
                     disabled
                     size="large"
                     className="!rounded-lg !bg-gray-50"
@@ -329,8 +329,8 @@ const ProfileEdit = () => {
                         </Text>
                       }
                     >
-                      <Input 
-                        prefix={<PhoneOutlined className="text-gray-400" />} 
+                      <Input
+                        prefix={<PhoneOutlined className="text-gray-400" />}
                         size="large"
                         className="!rounded-lg"
                         placeholder="Nhập số điện thoại"
@@ -372,9 +372,9 @@ const ProfileEdit = () => {
                     </Text>
                   }
                 >
-                  <DatePicker 
-                    style={{ width: '100%' }} 
-                    format="DD/MM/YYYY" 
+                  <DatePicker
+                    style={{ width: '100%' }}
+                    format="DD/MM/YYYY"
                     size="large"
                     className="!rounded-lg"
                     placeholder="Chọn ngày sinh"
@@ -391,8 +391,8 @@ const ProfileEdit = () => {
                     </Text>
                   }
                 >
-                  <Input.TextArea 
-                    rows={3} 
+                  <Input.TextArea
+                    rows={3}
                     size="large"
                     className="!rounded-lg"
                     placeholder="Nhập địa chỉ của bạn"
@@ -409,9 +409,9 @@ const ProfileEdit = () => {
                     </Text>
                   }
                 >
-                  <Input.TextArea 
-                    rows={4} 
-                    placeholder="Giới thiệu về bản thân..." 
+                  <Input.TextArea
+                    rows={4}
+                    placeholder="Giới thiệu về bản thân..."
                     size="large"
                     className="!rounded-lg"
                     maxLength={500}
@@ -428,9 +428,9 @@ const ProfileEdit = () => {
                       whileTap={{ scale: 0.98 }}
                       className="flex-1"
                     >
-                      <Button 
-                        type="primary" 
-                        htmlType="submit" 
+                      <Button
+                        type="primary"
+                        htmlType="submit"
                         loading={loading}
                         size="large"
                         className="!h-12 !text-base !font-semibold !rounded-lg"
@@ -443,7 +443,7 @@ const ProfileEdit = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Button 
+                      <Button
                         size="large"
                         className="!h-12 !px-6 !rounded-lg"
                         onClick={() => navigate('/profile')}
