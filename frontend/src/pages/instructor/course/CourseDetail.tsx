@@ -15,7 +15,6 @@ import {
   message,
   Badge,
   Tooltip,
-  Rate,
 } from "antd";
 import { ArrowLeftOutlined, BookOutlined, UserOutlined, CalendarOutlined, ClockCircleOutlined, TeamOutlined, StarFilled, DollarOutlined } from "@ant-design/icons";
 import { courseService, mapApiCourseToAppCourse } from '../../../services/apiService';
@@ -56,8 +55,12 @@ interface CourseDetailData {
   requirements?: string[];
   author?: Author;
   sections?: Section[];
-  instructor?: any;
-  category?: any;
+  instructor?: {
+    bio?: string;
+    expertise?: string[];
+    user?: Author;
+  };
+  category?: { name?: string };
   thumbnail?: string;
   description?: string;
   discount?: number;
@@ -81,7 +84,7 @@ const CourseDetail: React.FC = () => {
         let courseData = null;
         if (id) {
           const rawData = await courseService.getCourseById(id);
-          courseData = rawData ? mapApiCourseToAppCourse(rawData) : null;
+          courseData = rawData ? { ...mapApiCourseToAppCourse(rawData), sections: rawData.sections } : null;
         }
         setCourse(courseData);
       } catch {
@@ -100,12 +103,12 @@ const CourseDetail: React.FC = () => {
     return <Card style={{ margin: 24 }}><Text type="danger">Không tìm thấy khóa học.</Text></Card>;
   }
 
-  const sections = course.sections || [];
+  const sections: Section[] = Array.isArray(course.sections) ? course.sections : [];
   const instructor = course.instructor;
-  const author = instructor?.user || course.author || {};
+  const author: Record<string, any> = instructor?.user || course.author || {};
   const authorBio = instructor?.bio || course.author?.bio || '';
   const authorExpertise = instructor?.expertise || course.author?.expertise || [];
-  const totalLessons = sections.reduce((sum: number, s: any) => sum + (s.lessons?.length || 0), 0);
+  const totalLessons = sections.reduce((sum, s) => sum + (s.lessons?.length || 0), 0);
   // Giả lập tổng thời lượng
   const totalDuration = totalLessons * 12 + 30; // phút
 
@@ -256,12 +259,12 @@ const CourseDetail: React.FC = () => {
               <Divider orientation="left" style={{ color: '#1a73e8', fontWeight: 600 }}>Nội dung khóa học</Divider>
               {sections.length === 0 ? <Text type="secondary">Chưa có chương nào.</Text> : (
                 <div>
-                  {sections.map((section: any, idx: number) => (
+                  {sections.map((section, idx) => (
                     <Card key={section._id || idx} className="section-card" title={<span><BookOutlined style={{ color: '#1a73e8', marginRight: 8 }} />{section.title}</span>}>
                       <List
                         size="small"
                         dataSource={section.lessons || []}
-                        renderItem={(lesson: any) => (
+                        renderItem={(lesson) => (
                           <List.Item className="lesson-item">
                             <Space>
                               <UserOutlined style={{ color: '#1a73e8' }} />
@@ -270,6 +273,7 @@ const CourseDetail: React.FC = () => {
                             </Space>
                           </List.Item>
                         )}
+                        locale={{ emptyText: 'Chưa có bài học nào trong chương này.' }}
                       />
                     </Card>
                   ))}
@@ -281,11 +285,11 @@ const CourseDetail: React.FC = () => {
                 <Card variant="borderless" style={{ background: '#f5f7fa', borderRadius: 14, boxShadow: '0 2px 8px 0 rgba(26,115,232,0.06)', marginBottom: 24 }}>
                   <Title level={5} style={{ color: '#23272f', marginBottom: 12 }}>Giảng viên</Title>
                   <Space align="start" style={{ width: '100%' }}>
-                    <Tooltip title={author?.fullname || author?.name || ''}>
+                    <Tooltip title={author.fullname || author.name || ''}>
                       <Avatar size={64} src={course.author?.avatar} icon={<UserOutlined />} />
                     </Tooltip>
                     <div style={{ flex: 1 }}>
-                      <Text strong style={{ color: '#1a73e8', fontSize: 18 }}>{author?.fullname || author?.name || ''}</Text>
+                      <Text strong style={{ color: '#1a73e8', fontSize: 18 }}>{author.fullname || author.name || ''}</Text>
                       <Paragraph type="secondary" style={{ margin: 0, color: '#23272f', fontSize: 14 }}>{authorBio}</Paragraph>
                       {Array.isArray(authorExpertise) && authorExpertise.length > 0 && (
                         <div style={{ marginTop: 8 }}>

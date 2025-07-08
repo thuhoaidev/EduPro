@@ -256,13 +256,22 @@ const MyCourseAdd: React.FC = () => {
                   { type: 'number', min: 0, message: 'Giá khóa học không được âm!' }
                 ]}
               > 
-                <InputNumber 
-                  style={{ width: "100%" }} 
-                  min={0} 
-                  size="large" 
-                  placeholder="Ví dụ: 990000" 
-                  formatter={(value) => `${value}đ`} 
-                  onChange={(value) => setCoursePrice(value || 0)}
+                <InputNumber
+                  style={{ width: "100%" }}
+                  min={0}
+                  size="large"
+                  placeholder="Ví dụ: 990000"
+                  formatter={(value: string | number | undefined) =>
+                    typeof value === "number"
+                      ? value.toLocaleString("vi-VN") + "đ"
+                      : value
+                      ? String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "đ"
+                      : ""
+                  }
+                  parser={(value: string | undefined) =>
+                    value ? value.replace(/đ|,|\s/g, "") : ""
+                  }
+                  onChange={(value) => setCoursePrice(Number(value) || 0)}
                 /> 
               </Form.Item>
               
@@ -311,7 +320,16 @@ const MyCourseAdd: React.FC = () => {
                           max={coursePrice - 1} 
                           size="large" 
                           placeholder="Ví dụ: 100000" 
-                          formatter={(value) => `${value}đ`} 
+                          formatter={(value: string | number | undefined) =>
+                            typeof value === "number"
+                              ? value.toLocaleString("vi-VN") + "đ"
+                              : value
+                              ? String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "đ"
+                              : ""
+                          }
+                          parser={(value: string | undefined) =>
+                            value ? value.replace(/đ|,|\s/g, "") : ""
+                          }
                         /> 
                       </Form.Item>
                     );

@@ -7,6 +7,7 @@ const ApiError = require('../utils/ApiError');
 const Section = require('../models/Section');
 const User = require('../models/User');
 const Enrollment = require('../models/Enrollment');
+const { sendCourseApprovalResultEmail } = require('../utils/sendEmail');
 
 // Tạo khóa học mới
 exports.createCourse = async (req, res, next) => {
@@ -498,7 +499,11 @@ exports.updateCourseStatus = async (req, res, next) => {
         if (!user) {
             throw new ApiError(404, 'Người dùng không tồn tại');
         }
-        const course = await Course.findById(id);
+        // Populate instructor profile và user để lấy email
+        const course = await Course.findById(id).populate({
+          path: 'instructor',
+          populate: { path: 'user', select: 'email fullname' }
+        });
         if (!course) {
             throw new ApiError(404, 'Không tìm thấy khóa học');
         }
@@ -518,6 +523,15 @@ exports.updateCourseStatus = async (req, res, next) => {
             if (course.status === 'pending' && (status === 'published' || status === 'rejected')) {
                 course.status = status;
                 await course.save();
+                // Gửi email cho giảng viên
+                if (course.instructor && course.instructor.user && course.instructor.user.email) {
+                  await sendCourseApprovalResultEmail(
+                    course.instructor.user.email,
+                    course.instructor.user.fullname || 'Giảng viên',
+                    course.title,
+                    status
+                  );
+                }
                 return res.json({ success: true, data: course });
             }
             // Cho phép chuyển published -> archived, rejected -> draft nếu cần

@@ -989,6 +989,40 @@ const sendVerificationEmail = async (email, fullName, verificationToken) => {
   }
 };
 
+/**
+ * Gửi email kết quả duyệt khóa học
+ * @param {string} email - email giảng viên
+ * @param {string} fullname - tên giảng viên
+ * @param {string} courseTitle - tên khóa học
+ * @param {string} status - 'published' hoặc 'rejected'
+ * @param {string} [rejectionReason] - lý do từ chối (nếu có)
+ */
+async function sendCourseApprovalResultEmail(email, fullname, courseTitle, status, rejectionReason) {
+  let subject, html;
+  if (status === 'published') {
+    subject = `Khóa học "${courseTitle}" đã được xuất bản!`;
+    html = `
+      <h2>Xin chào ${fullname},</h2>
+      <p>Chúc mừng! Khóa học <b>"${courseTitle}"</b> của bạn đã được <b>duyệt và xuất bản</b> trên hệ thống EduPro.</p>
+      <p>Khóa học hiện đã hiển thị cho học viên và có thể được đăng ký, học tập.</p>
+      <p>Cảm ơn bạn đã đóng góp nội dung chất lượng cho cộng đồng!</p>
+      <p>Trân trọng,<br>Đội ngũ EduPro</p>
+    `;
+  } else {
+    subject = `Khóa học "${courseTitle}" chưa được duyệt`;
+    html = `
+      <h2>Xin chào ${fullname},</h2>
+      <p>Rất tiếc, khóa học <b>"${courseTitle}"</b> của bạn <b>chưa được duyệt</b> để xuất bản.</p>
+      <p>Vui lòng kiểm tra lại nội dung khóa học và gửi lại để được xét duyệt.</p>
+      ${rejectionReason ? `<p>Lý do từ chối: <i>${rejectionReason}</i></p>` : ''}
+      <p>Trân trọng,<br>Đội ngũ EduPro</p>
+    `;
+  }
+  return sendEmail(email, subject, html);
+}
+
+module.exports.sendCourseApprovalResultEmail = sendCourseApprovalResultEmail;
+
 module.exports = {
   sendEmail,
   sendInstructorVerificationEmail,

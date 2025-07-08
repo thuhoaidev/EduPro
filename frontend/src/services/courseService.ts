@@ -1,5 +1,28 @@
 const API_BASE_URL = '/api';
 
+// Đặt hàm này trước object courseService
+export const updateCourseStatus = async (courseId: string, status: string) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/courses/${courseId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Lỗi khi cập nhật trạng thái khóa học');
+    }
+    return result.data;
+  } catch (error) {
+    console.error('Error updating course status:', error);
+    throw error;
+  }
+};
+
 // Course service implementation
 export const courseService = {
   // Get all sections with lessons
@@ -235,6 +258,48 @@ export const courseService = {
       console.error('Error updating lessons order:', error);
       throw error;
     }
+  },
+
+  updateCourseStatus,
+
+  createCourse: async (courseData: any) => {
+    const token = localStorage.getItem('token');
+    let body: string | FormData;
+    let headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+    };
+    let isFormData = false;
+    if (courseData.thumbnail && courseData.thumbnail instanceof File) {
+      const formData = new FormData();
+      Object.keys(courseData).forEach(key => {
+        if (key === 'thumbnail') {
+          formData.append(key, courseData[key]);
+        } else if (key === 'requirements' && Array.isArray(courseData[key])) {
+          courseData[key].forEach((req: string) => {
+            formData.append('requirements[]', req);
+          });
+        } else if (key === 'sections' && Array.isArray(courseData[key])) {
+          formData.append('sections', JSON.stringify(courseData[key]));
+        } else {
+          formData.append(key, courseData[key]);
+        }
+      });
+      body = formData;
+      isFormData = true;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(courseData);
+    }
+    const response = await fetch(`${API_BASE_URL}/courses`, {
+      method: 'POST',
+      headers: isFormData ? { 'Authorization': `Bearer ${token}` } : headers,
+      body,
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Lỗi khi tạo khóa học');
+    }
+    return result.data;
   },
 };
 

@@ -4,6 +4,7 @@ import {
   Save, Eye, ArrowLeft, FileText, PlayCircle, Settings, 
   ImageIcon, Star, Award, Target, CheckCircle
 } from 'lucide-react';
+import { courseService } from '../../../services/courseService';
 
 export default function CreateCourse() {
   const [activeTab, setActiveTab] = useState('basic');
@@ -168,42 +169,23 @@ export default function CreateCourse() {
       return;
     }
 
-    // Tạo dữ liệu khóa học hoàn chỉnh
-    const finalCourse = {
-      id: Date.now(),
+    // Chuẩn bị dữ liệu gửi lên backend
+    const payload = {
       ...courseData,
-      lessons: lessons,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: courseData.publishOption === 'publish' ? 'published' : 'draft',
-      studentCount: 0,
-      rating: 0,
-      reviews: [],
-      totalDuration: calculateTotalDuration(),
-      lessonCount: lessons.length,
-      // Thêm thông tin mặc định
-      instructor: {
-        id: 1,
-        name: 'Giảng viên',
-        avatar: '/api/placeholder/40/40'
-      }
+      price: courseData.price === 'free' ? 0 : Number(courseData.customPrice || 0),
+      requirements: courseData.requirements,
+      sections: lessons.map((lesson, idx) => ({
+        title: lesson.title,
+        position: idx,
+      })),
+      // Các trường khác nếu cần
     };
 
     try {
-      // Mô phỏng việc lưu khóa học
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Lưu khóa học
-      saveCourse(finalCourse);
-      
-      // Hiển thị thông báo thành công
+      // Gọi API tạo khóa học
+      await courseService.createCourse(payload);
       alert('🎉 Khóa học đã được tạo thành công!');
-      
-      // Điều hướng đến trang khóa học của giảng viên
-      setTimeout(() => {
-        navigateToMyCourses();
-      }, 1000);
-      
+      navigateToMyCourses();
     } catch (error) {
       alert('❌ Có lỗi xảy ra khi tạo khóa học. Vui lòng thử lại!');
     } finally {
