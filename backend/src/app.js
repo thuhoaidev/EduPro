@@ -25,7 +25,7 @@ const userRoutes = require('./routes/user.routes');
 const blogRoutes = require('./routes/blog.routes');
 const cartRoutes = require('./routes/cart.routes');
 const uploadRoutes = require('./routes/upload.route');
-
+const commentLikeRoutes = require('./routes/commentLike.route');
 
 
 // Khởi tạo app
@@ -95,6 +95,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/carts', cartRoutes);
 app.use('/api', uploadRoutes);
+app.use('/api/comment-likes', commentLikeRoutes);
 // Error handling middleware
 app.use((err, req, res, _next) => {
   console.error(err.stack);

@@ -1,10 +1,6 @@
 // src/services/apiService.ts
 import axios from 'axios';
-
-// Tạo axios instance với baseURL chuẩn
-const apiClient = axios.create({
-  baseURL: 'http://localhost:5000/api',
-});
+import apiClient from './apiClient';
 
 // Thêm interceptor để tự động gửi token
 apiClient.interceptors.request.use((config) => {

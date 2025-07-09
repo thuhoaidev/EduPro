@@ -19,7 +19,7 @@ import {
   Clock,
   TrendingUp
 } from 'lucide-react';
-
+import { toast } from 'react-hot-toast';
 const API_BASE = 'http://localhost:5000/api';
 
 const axiosClient = {
@@ -49,11 +49,19 @@ const axiosClient = {
     body: JSON.stringify(data),
   });
 
-  const json = await res.json();
+  let json = {};
+  try {
+    json = await res.json(); // ⬅ vẫn parse body JSON kể cả khi status !== 200
+  } catch (_) {}
 
-  // ✅ Không throw theo status HTTP mà kiểm tra `json.success`
+  if (!res.ok) {
+    // ✅ Trả về object vẫn chứa message thay vì throw luôn
+    return json; // ví dụ: { success: false, message: 'Bạn đã lưu bài viết này rồi.' }
+  }
+
   return json;
-}
+},
+
 };
 
 
@@ -68,6 +76,8 @@ const BlogPage = () => {
   const [savedBlogs, setSavedBlogs] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
+  const [commentLikesCount, setCommentLikesCount] = useState<{ [key: string]: number }>({});
 
   const commentEndRef = useRef<HTMLDivElement>(null);
 
@@ -96,7 +106,35 @@ const BlogPage = () => {
       const blog = await axiosClient.get(`/blogs/${id}`);
       const cmts = await axiosClient.get(`/blogs/${id}/comments`);
       setSelectedBlog(blog.data); // ✅ chỉ set phần data
-      setComments(cmts?.data || []);
+      setComments((cmts?.data || []).map((cmt: any) => ({
+  ...cmt,
+})));
+
+const fetchLikesForComments = async () => {
+  for (const cmt of cmts?.data || []) {
+    try {
+      const check = await axiosClient.get(`/comment-likes/check/${cmt._id}`);
+      const count = await axiosClient.get(`/comment-likes/count/${cmt._id}`);
+
+      setLikedComments(prev => {
+        const newSet = new Set(prev);
+        if (check.liked) newSet.add(cmt._id);
+        else newSet.delete(cmt._id);
+        return newSet;
+      });
+
+      setCommentLikesCount(prev => ({
+        ...prev,
+        [cmt._id]: count.count || 0,
+      }));
+    } catch (err) {
+      console.error(`❌ Lỗi khi load like comment ${cmt._id}:`, err);
+    }
+  }
+};
+fetchLikesForComments();
+
+
     } catch {
       console.error('Lỗi khi tải chi tiết bài viết');
     } finally {
@@ -132,14 +170,32 @@ const handleLike = async () => {
   }
 };
 
+const handleToggleCommentLike = async (commentId: string) => {
+  try {
+    const res = await axiosClient.post(`/comment-likes/toggle/${commentId}`, {});
+    const isLiked = res.liked;
 
+    setLikedComments(prev => {
+      const newSet = new Set(prev);
+      if (isLiked) newSet.add(commentId);
+      else newSet.delete(commentId);
+      return newSet;
+    });
+
+    setCommentLikesCount(prev => ({
+      ...prev,
+      [commentId]: (prev[commentId] || 0) + (isLiked ? 1 : -1),
+    }));
+
+    // ✅ Thêm toast thông báo
+    toast.success(isLiked ? '❤️ Đã thích bình luận!' : '❌ Đã bỏ thích bình luận!');
+  } catch (err) {
+    console.error('❌ Không thể like comment:', err);
+    toast.error('⚠️ Có lỗi khi thích/bỏ thích bình luận!');
+  }
+};
 
   const handleSave = async (blogId: string) => {
-  if (savedBlogs.has(blogId)) {
-    toast.info('📌 Bạn đã lưu bài viết này rồi.');
-    return;
-  }
-
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const res = await axiosClient.post(`/blogs/${blogId}/save`, {
@@ -148,17 +204,40 @@ const handleLike = async () => {
 
     if (res.success) {
       toast.success('✅ Đã lưu bài viết!');
+
+      // ✅ Cập nhật UI: thêm vào danh sách đã lưu
       setSavedBlogs(prev => new Set(prev).add(blogId));
+
+      // ✅ Nếu đang xem chi tiết
+      if (selectedBlog && selectedBlog._id === blogId) {
+        setSelectedBlog(prev => ({
+          ...prev,
+          saves: [...(prev.saves || []), user._id],
+        }));
+      }
+
+      // ✅ Nếu đang ở danh sách
+      setBlogs(prev =>
+        prev.map(blog =>
+          blog._id === blogId
+            ? {
+                ...blog,
+                saves: [...(blog.saves || []), user._id],
+              }
+            : blog
+        )
+      );
     } else {
-      toast.info(res.message || '📌 Bài viết đã được lưu.');
+      console.log('🔁 Đã lưu rồi:', res);
+      // ❌ Trường hợp đã lưu rồi
+      toast.info(res.message || '📌 Bạn đã lưu bài viết này rồi.');
     }
   } catch (err: any) {
-    console.error('❌ Không thể lưu bài viết:', err);
-    toast.error('⚠️ Đã xảy ra lỗi khi lưu bài viết.');
+    const message =
+      err?.response?.data?.message || err?.message || 'Đã xảy ra lỗi khi lưu bài viết.';
+    toast.error(`⚠️ ${message}`);
   }
 };
-
-
 
   const handleComment = async () => {
   if (!newComment.trim()) return;
@@ -337,11 +416,24 @@ const handleLike = async () => {
                         <Bookmark className="w-5 h-5 text-gray-400" />
                       )}
                     </button>
+
                   </div>
                   
                   <h2 className="font-bold text-xl mb-3 line-clamp-2 text-gray-800 group-hover:text-blue-600 transition-colors">
                     {blog.title}
                   </h2>
+                  {/* Blog Image */}
+                    {blog.image && blog.image.trim() !== '' ? (
+                      <img
+                        src={blog.image}
+                        alt={blog.title}
+                        className="w-full h-48 object-cover rounded-xl mb-4"
+                      />
+                    ) : (
+                      <div className="w-full h-48 bg-gray-100 rounded-xl mb-4 flex items-center justify-center text-gray-400 text-sm">
+                        Không có ảnh
+                      </div>
+                    )}
                   <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed">
                     {blog.content}
                   </p>
@@ -364,6 +456,7 @@ const handleLike = async () => {
                       <BookmarkCheck className="w-4 h-4" />
                       {blog.saves?.length || 0}
                     </span>
+
                   </div>
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-yellow-500" />
@@ -472,6 +565,7 @@ const handleLike = async () => {
                     )}
                     Lưu
                   </button>
+
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -513,32 +607,42 @@ const handleLike = async () => {
 
             {/* Comments List */}
             <div className="space-y-6">
-              {comments.map((cmt) => (
-                <div key={cmt._id} className="bg-gray-50 rounded-xl p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <User className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-semibold text-gray-800">{cmt.author?.name}</span>
-                        <span className="text-sm text-gray-500">{formatDate(cmt.createdAt)}</span>
-                      </div>
-                      <p className="text-gray-700 mb-3 leading-relaxed">{cmt.content}</p>
-                      
-                      <div className="flex items-center gap-4">
-                        <button className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors">
-                          <ThumbsUp className="w-4 h-4" />
-                          <span className="text-sm">Thích</span>
-                        </button>
-                        <button
-                          onClick={() => setReplyingTo(cmt._id)}
-                          className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors"
-                        >
-                          <Reply className="w-4 h-4" />
-                          <span className="text-sm">Trả lời ({cmt.replies?.length || 0})</span>
-                        </button>
-                      </div>
+      {comments.map((cmt) => (
+  <div key={cmt._id} className="bg-gray-50 rounded-xl p-6">
+    <div className="flex items-start gap-4">
+      <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+        <User className="w-5 h-5 text-white" />
+      </div>
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="font-semibold text-gray-800">{cmt.author?.name}</span>
+          <span className="text-sm text-gray-500">{formatDate(cmt.createdAt)}</span>
+        </div>
+        <p className="text-gray-700 mb-3 leading-relaxed">{cmt.content}</p>
+
+        {/* ✅ Like & Reply Buttons */}
+        <div className="flex items-center gap-4">
+          {/* ❤️ Nút thả tim */}
+          <button
+            onClick={() => handleToggleCommentLike(cmt._id)}
+            className={`flex items-center gap-1 ${
+              likedComments.has(cmt._id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+            } transition-colors`}
+          >
+            <Heart className={`w-4 h-4 ${likedComments.has(cmt._id) ? 'fill-red-500' : ''}`} />
+            <span className="text-sm">{commentLikesCount[cmt._id] || 0}</span>
+          </button>
+
+          {/* 💬 Nút trả lời */}
+          <button
+            onClick={() => setReplyingTo(cmt._id)}
+            className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors"
+          >
+            <Reply className="w-4 h-4" />
+            <span className="text-sm">Trả lời ({cmt.replies?.length || 0})</span>
+          </button>
+        </div>
+
 
                       {replyingTo === cmt._id && (
                         <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200">

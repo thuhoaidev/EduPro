@@ -363,17 +363,18 @@ const navigate = useNavigate();
 
   const renderPostCard = (post: BlogPost) => (
     <Card
-      key={post._id}
-      hoverable
-      style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-      styles={{ body: { padding: 0 } }}
-    >
+  key={post._id}
+  hoverable
+  style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+  styles={{ body: { padding: 0 } }}
+>
+
       <Row gutter={0}>
         <Col xs={24} sm={8}>
   <div style={{ height: 200, overflow: 'hidden' }}>
-    {post.thumbnail ? (
-      <img
-        src={post.thumbnail}
+    {post.image ? (
+  <img
+    src={post.image}
         alt="Thumbnail"
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       />

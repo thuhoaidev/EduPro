@@ -45,6 +45,7 @@ exports.auth = async (req, res, next) => {
     // Không ghi đè role_id! Giữ nguyên object chứa permissions
     req.user = {
       ...user.toObject(),
+      _id: user._id,
       roles: [...new Set(roles)],
       id: user._id.toString(),
       userRoleName: roles.includes('admin') ? 'admin'

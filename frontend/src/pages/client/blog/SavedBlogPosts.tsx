@@ -4,13 +4,11 @@ import {
   DeleteOutlined,
   EyeOutlined,
   MoreOutlined,
-  SearchOutlined,
   UserOutlined,
   HeartOutlined,
   HeartFilled,
   MessageOutlined,
   ShareAltOutlined,
-  FilterOutlined,
   ClockCircleOutlined,
   ReloadOutlined
 } from '@ant-design/icons';
@@ -78,7 +76,7 @@ const SavedBlogPosts = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(6);
   const [categories, setCategories] = useState<string[]>([]);
-  
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -90,8 +88,6 @@ const SavedBlogPosts = () => {
     try {
       const data = await apiService.fetchSavedPosts();
       setSavedPosts(data.savedPosts || data || []);
-      
-      // Extract categories
       const uniqueCategories = [...new Set((data.savedPosts || data).map(item => item.post.category))];
       setCategories(uniqueCategories);
     } catch (error) {
@@ -103,9 +99,10 @@ const SavedBlogPosts = () => {
   };
 
   const handleLikeToggle = async (postId: string, isLiked: boolean) => {
-    // Optimistic update
-    setSavedPosts(prev => prev.map(item => 
-      item.post._id === postId 
+    if (!postId) return;
+
+    setSavedPosts(prev => prev.map(item =>
+      item.post._id === postId
         ? {
             ...item,
             post: {
@@ -116,7 +113,7 @@ const SavedBlogPosts = () => {
           }
         : item
     ));
-    
+
     try {
       if (isLiked) {
         await apiService.unlikePost(postId);
@@ -124,9 +121,8 @@ const SavedBlogPosts = () => {
         await apiService.likePost(postId);
       }
     } catch (error) {
-      // Revert on error
-      setSavedPosts(prev => prev.map(item => 
-        item.post._id === postId 
+      setSavedPosts(prev => prev.map(item =>
+        item.post._id === postId
           ? {
               ...item,
               post: {
@@ -160,17 +156,27 @@ const SavedBlogPosts = () => {
     });
   };
 
-  const filteredAndSortedPosts = () => {
-    const filtered = savedPosts.filter(item => {
-      const matchesSearch = item.post.title.toLowerCase().includes(searchText.toLowerCase()) ||
-                           item.post.excerpt.toLowerCase().includes(searchText.toLowerCase()) ||
-                           item.post.author.name.toLowerCase().includes(searchText.toLowerCase()) ||
-                           item.post.tags.some(tag => tag.toLowerCase().includes(searchText.toLowerCase()));
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffInDays === 0) return 'Hôm nay';
+    if (diffInDays === 1) return 'Hôm qua';
+    if (diffInDays < 7) return `${diffInDays} ngày trước`;
+    return date.toLocaleDateString('vi-VN');
+  };
+
+  const processedPosts = savedPosts
+    .filter(item => {
+      const matchesSearch =
+        item.post.title.toLowerCase().includes(searchText.toLowerCase()) ||
+        item.post.excerpt.toLowerCase().includes(searchText.toLowerCase()) ||
+        item.post.author.name.toLowerCase().includes(searchText.toLowerCase()) ||
+        item.post.tags.some(tag => tag.toLowerCase().includes(searchText.toLowerCase()));
       const matchesCategory = categoryFilter === 'all' || item.post.category === categoryFilter;
       return matchesSearch && matchesCategory;
-    });
-
-    return filtered.sort((a, b) => {
+    })
+    .sort((a, b) => {
       switch (sortBy) {
         case 'saved_newest':
           return new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime();
@@ -186,21 +192,8 @@ const SavedBlogPosts = () => {
           return 0;
       }
     });
-  };
 
-  const processedPosts = filteredAndSortedPosts();
   const paginatedPosts = processedPosts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffInDays === 0) return 'Hôm nay';
-    if (diffInDays === 1) return 'Hôm qua';
-    if (diffInDays < 7) return `${diffInDays} ngày trước`;
-    return date.toLocaleDateString('vi-VN');
-  };
 
   const renderSavedPostCard = (savedPost: SavedPost) => {
     const { post } = savedPost;
@@ -213,10 +206,10 @@ const SavedBlogPosts = () => {
       >
         <Row gutter={0}>
           <Col xs={24} sm={8}>
-            <div 
-              style={{ 
-                height: 200, 
-                background: post.thumbnail ? `url(${post.thumbnail})` : 'linear-gradient(45deg, #f0f0f0, #e0e0e0)',
+            <div
+              style={{
+                height: 200,
+                background: post.thumbnail ? `url(${post.thumbnail})` : '#eee',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 position: 'relative',
@@ -226,109 +219,63 @@ const SavedBlogPosts = () => {
             >
               {!post.thumbnail && (
                 <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
+                  position: 'absolute', top: '50%', left: '50%',
                   transform: 'translate(-50%, -50%)',
-                  color: '#999',
-                  fontSize: 16,
-                  textAlign: 'center'
+                  color: '#999', textAlign: 'center'
                 }}>
                   <BookOutlined style={{ fontSize: 24, marginBottom: 8 }} /><br />
                   Không có ảnh
                 </div>
               )}
               <div style={{
-                position: 'absolute',
-                top: 12,
-                right: 12,
-                background: 'rgba(0,0,0,0.8)',
-                color: '#fff',
-                padding: '6px 10px',
-                borderRadius: 6,
-                fontSize: 12,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4
+                position: 'absolute', top: 12, right: 12,
+                background: 'rgba(0,0,0,0.7)', color: '#fff',
+                padding: '4px 8px', borderRadius: 6, fontSize: 12
               }}>
-                <ClockCircleOutlined />
-                {post.readingTime} phút
+                <ClockCircleOutlined /> {post.readingTime} phút
               </div>
             </div>
           </Col>
           <Col xs={24} sm={16}>
             <div style={{ padding: 24 }}>
-              <Title 
-                level={4} 
-                style={{ 
-                  margin: 0, 
-                  marginBottom: 8, 
-                  cursor: 'pointer'
-                }}
-                onClick={() => navigate(`/blog/post/${post._id}`)}
-              >
+              <Title level={4} style={{ marginBottom: 8, cursor: 'pointer' }}
+                onClick={() => navigate(`/blog/post/${post._id}`)}>
                 {post.title}
               </Title>
-              
-              <Paragraph 
-                style={{ color: '#666', marginBottom: 12 }}
-                ellipsis={{ rows: 2 }}
-              >
+              <Paragraph style={{ color: '#666', marginBottom: 12 }} ellipsis={{ rows: 2 }}>
                 {post.excerpt}
               </Paragraph>
-              
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                <Avatar 
-                  size={28}
-                  src={post.author.avatar}
-                  icon={<UserOutlined />}
-                />
+                <Avatar src={post.author.avatar} icon={<UserOutlined />} />
                 <div style={{ marginLeft: 10 }}>
-                  <Text style={{ fontSize: 14, fontWeight: 500, display: 'block' }}>
-                    {post.author.name}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: '#999' }}>
+                  <Text strong>{post.author.name}</Text><br />
+                  <Text type="secondary" style={{ fontSize: 12 }}>
                     {post.category} • {formatDate(post.createdAt)}
                   </Text>
                 </div>
               </div>
-              
-              <div style={{ marginBottom: 16 }}>
-                <Space wrap>
-                  {post.tags.slice(0, 3).map(tag => (
-                    <Tag 
-                      key={tag} 
-                      style={{ borderRadius: 4, cursor: 'pointer' }}
-                      onClick={() => setSearchText(tag)}
-                    >
-                      {tag}
-                    </Tag>
-                  ))}
-                  {post.tags.length > 3 && (
-                    <Tag>+{post.tags.length - 3}</Tag>
-                  )}
-                </Space>
-              </div>
-              
+              <Space wrap style={{ marginBottom: 16 }}>
+                {post.tags.slice(0, 3).map(tag => (
+                  <Tag key={tag} onClick={() => setSearchText(tag)}>{tag}</Tag>
+                ))}
+                {post.tags.length > 3 && <Tag>+{post.tags.length - 3}</Tag>}
+              </Space>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, color: '#666', fontSize: 13 }}>
+                <Space size="middle">
                   <Tooltip title={`Đã lưu vào ${formatDate(savedPost.savedAt)}`}>
                     <span><BookOutlined /> {formatDate(savedPost.savedAt)}</span>
                   </Tooltip>
-                  <span><EyeOutlined /> {post.views.toLocaleString()}</span>
+                  <span><EyeOutlined /> {post.views}</span>
                   <span><MessageOutlined /> {post.comments}</span>
-                </div>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                </Space>
+                <Space>
                   <Button
                     type="text"
-                    size="small"
                     icon={post.isLiked ? <HeartFilled style={{ color: '#ff4757' }} /> : <HeartOutlined />}
                     onClick={() => handleLikeToggle(post._id, post.isLiked)}
                   >
                     {post.likes}
                   </Button>
-                  
                   <Dropdown
                     menu={{
                       items: [
@@ -357,9 +304,9 @@ const SavedBlogPosts = () => {
                       ]
                     }}
                   >
-                    <Button type="text" size="small" icon={<MoreOutlined />} />
+                    <Button type="text" icon={<MoreOutlined />} />
                   </Dropdown>
-                </div>
+                </Space>
               </div>
             </div>
           </Col>
@@ -373,9 +320,7 @@ const SavedBlogPosts = () => {
       <Content style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ marginBottom: 32 }}>
           <Title level={2}>Bài viết đã lưu</Title>
-          <Text style={{ color: '#666' }}>
-            Quản lý và xem lại các bài viết bạn đã lưu
-          </Text>
+          <Text type="secondary">Quản lý và xem lại các bài viết bạn đã lưu</Text>
         </div>
 
         <Card style={{ marginBottom: 24, borderRadius: 12 }}>
@@ -391,7 +336,6 @@ const SavedBlogPosts = () => {
             </Col>
             <Col xs={24} sm={6} md={4}>
               <Select
-                placeholder="Danh mục"
                 value={categoryFilter}
                 onChange={setCategoryFilter}
                 style={{ width: '100%' }}
@@ -405,7 +349,6 @@ const SavedBlogPosts = () => {
             </Col>
             <Col xs={24} sm={6} md={4}>
               <Select
-                placeholder="Sắp xếp"
                 value={sortBy}
                 onChange={setSortBy}
                 style={{ width: '100%' }}
@@ -420,16 +363,10 @@ const SavedBlogPosts = () => {
             </Col>
             <Col xs={24} sm={12} md={8} style={{ textAlign: 'right' }}>
               <Space>
-                <Button 
-                  icon={<ReloadOutlined />}
-                  onClick={fetchSavedPosts}
-                  loading={loading}
-                >
+                <Button icon={<ReloadOutlined />} onClick={fetchSavedPosts} loading={loading}>
                   Làm mới
                 </Button>
-                <Text style={{ color: '#666' }}>
-                  {processedPosts.length} bài viết
-                </Text>
+                <Text type="secondary">{processedPosts.length} bài viết</Text>
               </Space>
             </Col>
           </Row>
@@ -438,48 +375,31 @@ const SavedBlogPosts = () => {
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60 }}>
             <Spin size="large" />
-            <div style={{ marginTop: 16, color: '#666' }}>
-              Đang tải bài viết...
-            </div>
+            <div style={{ marginTop: 16 }}>Đang tải bài viết...</div>
           </div>
-        ) : (
+        ) : paginatedPosts.length > 0 ? (
           <>
-            {paginatedPosts.length > 0 ? (
-              <>
-                <div>
-                  {paginatedPosts.map(renderSavedPostCard)}
-                </div>
-                
-                {processedPosts.length > pageSize && (
-                  <div style={{ textAlign: 'center', marginTop: 32 }}>
-                    <Pagination
-                      current={currentPage}
-                      total={processedPosts.length}
-                      pageSize={pageSize}
-                      onChange={setCurrentPage}
-                      showSizeChanger={false}
-                      showQuickJumper
-                      showTotal={(total, range) => 
-                        `${range[0]}-${range[1]} của ${total} bài viết`
-                      }
-                    />
-                  </div>
-                )}
-              </>
-            ) : (
-              <Empty
-                description="Chưa có bài viết đã lưu"
-                style={{ padding: 60, background: '#fff', borderRadius: 12 }}
-              >
-                <Button 
-                  type="primary" 
-                  onClick={() => navigate('/blog')}
-                >
-                  Khám phá bài viết
-                </Button>
-              </Empty>
-            )}
+            {paginatedPosts.map(renderSavedPostCard)}
+            <div style={{ textAlign: 'center', marginTop: 32 }}>
+              <Pagination
+                current={currentPage}
+                total={processedPosts.length}
+                pageSize={pageSize}
+                onChange={setCurrentPage}
+                showSizeChanger={false}
+                showTotal={(total, range) => `${range[0]}-${range[1]} của ${total} bài viết`}
+              />
+            </div>
           </>
+        ) : (
+          <Empty
+            description="Chưa có bài viết đã lưu"
+            style={{ padding: 60, background: '#fff', borderRadius: 12 }}
+          >
+            <Button type="primary" onClick={() => navigate('/blog')}>
+              Khám phá bài viết
+            </Button>
+          </Empty>
         )}
       </Content>
     </div>
