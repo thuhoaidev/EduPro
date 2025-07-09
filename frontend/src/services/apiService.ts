@@ -1,17 +1,6 @@
 // src/services/apiService.ts
 import axios from 'axios';
 import apiClient from './apiClient';
-
-// Thêm interceptor để tự động gửi token
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers['Authorization'] = `Bearer ${token}`;
-  }
-  return config;
-});
-
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -350,16 +339,24 @@ const apiService = {
 
   fetchSavedPosts: async () => {
   try {
-    const res = await apiClient.get('/blogs/saved-posts');
+    const token = localStorage.getItem('token');
+    const res = await apiClient.get('/blogs/saved-posts', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
     if (res.data?.success === false) {
       throw new Error(res.data.message || 'Lỗi từ API');
     }
+
     return res.data?.data || [];
   } catch (err: any) {
     console.error('❌ Lỗi khi lấy bài viết đã lưu:', err);
     throw err;
   }
 },
+
 
 
   likePost: async (postId: string) => {

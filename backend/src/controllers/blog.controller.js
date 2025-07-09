@@ -18,12 +18,16 @@ function containsSensitiveWords(text) {
 }
 
 function getUserId(req) {
-  if (req.user?._id) return req.user._id.toString();
   if (req.user?.id && mongoose.Types.ObjectId.isValid(req.user.id)) {
     return req.user.id;
   }
+  if (req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id)) {
+    return req.user._id.toString();
+  }
   return null;
 }
+
+
 
 // === BLOG ===
 const createBlog = async (req, res) => {
@@ -273,15 +277,16 @@ const toggleSavePost = async (req, res) => {
 
 const getSavedPosts = async (req, res) => {
   try {
-    // 👉 THÊM 2 DÒNG NÀY NGAY ĐÂY
-    console.log('🔍 req.user:', req.user);
-    console.log('🔍 userId:', getUserId(req));
-
     const userId = getUserId(req);
 
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      console.error('❌ Không tìm thấy userId hợp lệ:', req.user);
-      return res.status(400).json({ success: false, message: 'Không xác định được người dùng' });
+    console.log('🔍 req.user:', req.user);
+    console.log('🔍 userId:', userId);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không xác định được người dùng',
+      });
     }
 
     const savedPosts = await BlogSave.find({ user: userId })
@@ -289,18 +294,26 @@ const getSavedPosts = async (req, res) => {
         path: 'blog',
         populate: {
           path: 'author',
-          select: 'fullname avatar nickname'
-        }
+          select: 'fullname avatar',
+        },
       })
       .sort({ createdAt: -1 })
       .lean();
 
-    return res.status(200).json({ success: true, data: savedPosts });
+    return res.status(200).json({
+      success: true,
+      data: savedPosts,
+    });
   } catch (error) {
     console.error('❌ Lỗi getSavedPosts:', error);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
   }
 };
+
 
 
 // === ADMIN ===
@@ -324,27 +337,13 @@ const approveOrRejectBlog = async (req, res) => {
     blog.rejected_reason = status === 'rejected' ? rejected_reason : '';
     await blog.save();
 
-    res.json({ success: true, message: `Đã cập nhật trạng thái: ${status}`, data: blog });
+    res.json({
+      success: true,
+      message: `Đã cập nhật trạng thái: ${status}`,
+      data: blog
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi duyệt blog', error: error.message });
-  }
-};
-
-const getAllPendingBlogs = async (req, res) => {
-  try {
-    const blogs = await Blog.find({ status: 'pending' }).populate('author', 'fullname');
-    res.json({ success: true, data: blogs });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi lấy blog pending', error: error.message });
-  }
-};
-
-const getAllApprovedBlogs = async (req, res) => {
-  try {
-    const blogs = await Blog.find({ status: 'approved' });
-    res.json({ success: true, data: blogs });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi lấy blog approved', error: error.message });
   }
 };
 
@@ -459,6 +458,32 @@ const updateBlog = async (req, res) => {
 };
 
 const publishBlog = async (req, res) => res.status(501).json({ success: false, message: 'Chưa triển khai.' });
+// === ADMIN GET ALL ===
+const getAllPendingBlogs = async (req, res) => {
+  try {
+    const blogs = await Blog.find({ status: 'pending' })
+      .sort({ createdAt: -1 })
+      .populate('author', 'fullname avatar nickname email')
+      .lean();
+
+    res.json({ success: true, data: blogs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi lấy blog pending', error: error.message });
+  }
+};
+
+const getAllApprovedBlogs = async (req, res) => {
+  try {
+    const blogs = await Blog.find({ status: 'approved' })
+      .sort({ createdAt: -1 })
+      .populate('author', 'fullname avatar nickname email')
+      .lean();
+
+    res.json({ success: true, data: blogs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi lấy blog approved', error: error.message });
+  }
+};
 
 // === EXPORT ===
 module.exports = {
@@ -480,5 +505,3 @@ module.exports = {
   getMyPosts,
   publishBlog
 };
-
-

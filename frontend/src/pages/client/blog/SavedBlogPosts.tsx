@@ -80,13 +80,14 @@ const SavedBlogPosts = () => {
 
   useEffect(() => {
     fetchSavedPosts();
+    console.log('🔑 Token gửi đi:', localStorage.getItem('token'));
   }, []);
 
   const fetchSavedPosts = async () => {
     setLoading(true);
     try {
       const data = await apiService.fetchSavedPosts();
-      setSavedPosts(data.data || []);
+      setSavedPosts(data || []);
       const uniqueCategories = [...new Set((data.data || []).map(item => item.blog?.category))];
       setCategories(uniqueCategories);
     } catch (error) {
