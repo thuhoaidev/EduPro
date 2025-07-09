@@ -70,14 +70,16 @@ const getAllBlogs = async (req, res) => {
       likedBlogIds = liked.map(item => item.blog.toString());
     }
 
-    const blogsWithExtras = blogs.map(blog => {
+        const blogsWithExtras = blogs.map(blog => {
       const blogObj = blog.toObject();
       return {
         ...blogObj,
         isLiked: likedBlogIds.includes(blog._id.toString()),
+        isSaved: blog.saves?.some(id => id.toString() === author),
         save_count: blog.saves?.length || 0
       };
     });
+
 
     res.json({ success: true, data: blogsWithExtras });
   } catch (error) {
@@ -236,34 +238,36 @@ const getAllComments = async (req, res) => {
 };
 
 // === SAVE ===
-const savePost = async (req, res) => {
+const toggleSavePost = async (req, res) => {
   try {
     const userId = getUserId(req);
     const blogId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(blogId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'ID không hợp lệ.' });
+    }
+
     const blog = await Blog.findById(blogId);
-    if (!blog) return res.status(404).json({ success: false, message: 'Bài viết không tồn tại.' });
+    if (!blog) {
+      return res.status(404).json({ success: false, message: 'Bài viết không tồn tại.' });
+    }
 
     const existed = await BlogSave.findOne({ user: userId, blog: blogId });
-    if (existed) return res.status(400).json({ success: false, message: 'Bạn đã lưu bài viết này rồi.' });
 
-    await BlogSave.create({ user: userId, blog: blogId });
-    res.json({ success: true, message: 'Đã lưu bài viết.' });
+    if (existed) {
+      // BỎ LƯU
+      await BlogSave.deleteOne({ _id: existed._id });
+      await Blog.findByIdAndUpdate(blogId, { $pull: { saves: userId } }); // ❗ cập nhật field saves[]
+      return res.json({ success: true, saved: false, message: 'Đã bỏ lưu bài viết.' });
+    } else {
+      // LƯU MỚI
+      await BlogSave.create({ user: userId, blog: blogId });
+      await Blog.findByIdAndUpdate(blogId, { $addToSet: { saves: userId } }); // ❗ cập nhật field saves[]
+      return res.json({ success: true, saved: true, message: 'Đã lưu bài viết.' });
+    }
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi khi lưu blog', error: error.message });
-  }
-};
-
-const unsavePost = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    const blogId = req.params.id;
-    const existed = await BlogSave.findOne({ user: userId, blog: blogId });
-    if (!existed) return res.status(400).json({ success: false, message: 'Bài viết chưa được lưu.' });
-
-    await BlogSave.deleteOne({ _id: existed._id });
-    res.json({ success: true, message: 'Đã bỏ lưu bài viết.' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi khi bỏ lưu blog', error: error.message });
+    console.error('❌ Lỗi toggleSavePost:', error);
+    res.status(500).json({ success: false, message: 'Lỗi khi lưu/bỏ lưu blog', error: error.message });
   }
 };
 
@@ -465,8 +469,7 @@ module.exports = {
   replyComment,
   getBlogComments,
   getAllComments,
-  savePost,
-  unsavePost,
+  toggleSavePost,
   getSavedPosts,
   approveOrRejectBlog,
   getAllPendingBlogs,

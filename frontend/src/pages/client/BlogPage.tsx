@@ -88,24 +88,39 @@ const BlogPage = () => {
   };
 
   const loadBlogs = async () => {
-    try {
-      setLoading(true);
-      const res = await axiosClient.get('/blogs');
-      console.log('📥 Blogs:', res);
-      setBlogs(Array.isArray(res) ? res : res.data || []); // Tốt rồi ✅
-    } catch (err) {
-      console.error('Không thể tải bài viết');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    const res = await axiosClient.get('/blogs');
+    const data = Array.isArray(res) ? res : res.data || [];
+    setBlogs(data);
+
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const saved = new Set<string>();
+    data.forEach((blog: any) => {
+      if (blog?.saves?.includes(user._id)) {
+        saved.add(blog._id);
+      }
+    });
+    setSavedBlogs(saved);
+  } catch (err) {
+    console.error('Không thể tải bài viết');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const loadDetail = async (id: string) => {
-    try {
-      setLoading(true);
-      const blog = await axiosClient.get(`/blogs/${id}`);
-      const cmts = await axiosClient.get(`/blogs/${id}/comments`);
-      setSelectedBlog(blog.data); // ✅ chỉ set phần data
+  try {
+    setLoading(true);
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const blog = await axiosClient.get(`/blogs/${id}`);
+    const cmts = await axiosClient.get(`/blogs/${id}/comments`);
+    setSelectedBlog(blog.data);
+// Thêm phần check nếu blog đã lưu thì cập nhật `savedBlogs`
+if (blog.data?.saves?.includes(user._id)) {
+  setSavedBlogs(prev => new Set(prev).add(blog.data._id));
+}
+
       setComments((cmts?.data || []).map((cmt: any) => ({
   ...cmt,
 })));
@@ -194,48 +209,32 @@ const handleToggleCommentLike = async (commentId: string) => {
     toast.error('⚠️ Có lỗi khi thích/bỏ thích bình luận!');
   }
 };
-
-  const handleSave = async (blogId: string) => {
+const handleSave = async (blogId: string) => {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const res = await axiosClient.post(`/blogs/${blogId}/save`, {
+    const res = await axiosClient.post(`/blogs/${blogId}/toggle-save`, {
       userId: user._id,
     });
 
+    // ✅ Hiển thị toast dù success true hay false
     if (res.success) {
-      toast.success('✅ Đã lưu bài viết!');
-
-      // ✅ Cập nhật UI: thêm vào danh sách đã lưu
-      setSavedBlogs(prev => new Set(prev).add(blogId));
-
-      // ✅ Nếu đang xem chi tiết
-      if (selectedBlog && selectedBlog._id === blogId) {
-        setSelectedBlog(prev => ({
-          ...prev,
-          saves: [...(prev.saves || []), user._id],
-        }));
+      if (res.saved) {
+        toast.success(res.message || '✅ Đã lưu bài viết!');
+        setSavedBlogs(prev => new Set(prev).add(blogId));
+      } else {
+        toast.success(res.message || '❌ Đã bỏ lưu bài viết!');
+        setSavedBlogs(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(blogId);
+          return newSet;
+        });
       }
-
-      // ✅ Nếu đang ở danh sách
-      setBlogs(prev =>
-        prev.map(blog =>
-          blog._id === blogId
-            ? {
-                ...blog,
-                saves: [...(blog.saves || []), user._id],
-              }
-            : blog
-        )
-      );
     } else {
-      console.log('🔁 Đã lưu rồi:', res);
-      // ❌ Trường hợp đã lưu rồi
-      toast.info(res.message || '📌 Bạn đã lưu bài viết này rồi.');
+      toast.error(res.message || '⚠️ Không thể xử lý lưu/bỏ lưu.');
     }
   } catch (err: any) {
-    const message =
-      err?.response?.data?.message || err?.message || 'Đã xảy ra lỗi khi lưu bài viết.';
-    toast.error(`⚠️ ${message}`);
+    console.error('Lỗi khi lưu/bỏ lưu:', err);
+    toast.error('❌ Không thể lưu/bỏ lưu bài viết.');
   }
 };
 
@@ -404,18 +403,19 @@ const handleToggleCommentLike = async (commentId: string) => {
                       </div>
                     </div>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSave(blog._id);
-                      }}
-                      className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                    >
-                      {savedBlogs.has(blog._id) ? (
-                        <BookmarkCheck className="w-5 h-5 text-blue-600" />
-                      ) : (
-                        <Bookmark className="w-5 h-5 text-gray-400" />
-                      )}
-                    </button>
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSave(blog._id);
+                        }}
+                        className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                      >
+                        {savedBlogs.has(blog._id) ? (
+                          <BookmarkCheck className="w-5 h-5 text-blue-600" />
+                        ) : (
+                          <Bookmark className="w-5 h-5 text-gray-400" />
+                        )}
+                      </button>
+
 
                   </div>
                   
@@ -551,20 +551,26 @@ const handleToggleCommentLike = async (commentId: string) => {
                   </button>
                   
                   <button
-                    onClick={() => handleSave(selectedBlog._id)}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-                      savedBlogs.has(selectedBlog._id)
-                        ? 'bg-blue-50 text-blue-600 border border-blue-200'
-                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                    }`}
-                  >
-                    {savedBlogs.has(selectedBlog._id) ? (
+                  onClick={() => handleSave(selectedBlog._id)}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
+                    savedBlogs.has(selectedBlog._id)
+                      ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                  }`}
+                >
+                  {savedBlogs.has(selectedBlog._id) ? (
+                    <>
                       <BookmarkCheck className="w-5 h-5" />
-                    ) : (
+                      Đã lưu
+                    </>
+                  ) : (
+                    <>
                       <Bookmark className="w-5 h-5" />
-                    )}
-                    Lưu
-                  </button>
+                      Lưu
+                    </>
+                  )}
+                </button>
+
 
                 </div>
 

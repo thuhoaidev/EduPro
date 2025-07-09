@@ -22,8 +22,7 @@ router.get('/comments/all', blogController.getAllComments);
 
 // === SAVE ===
 router.get('/saved-posts', auth, blogController.getSavedPosts);
-router.post('/:id/save', auth, blogController.savePost);
-router.delete('/:id/unsave', auth, blogController.unsavePost);
+router.post('/:id/toggle-save', auth, blogController.toggleSavePost);
 
 // === LIKE (DÙNG TOGGLE DUY NHẤT) ===
 router.post('/:id/like', auth, blogController.toggleLikeBlog);

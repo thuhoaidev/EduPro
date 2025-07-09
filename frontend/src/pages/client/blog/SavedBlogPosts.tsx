@@ -33,8 +33,7 @@ import {
   Typography,
   message
 } from 'antd';
-import { apiService } from '@/services/apiService';
-
+import { apiService } from '../../../services/apiService';
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -42,28 +41,28 @@ const { Option } = Select;
 
 interface SavedPost {
   _id: string;
-  postId: string;
   savedAt: string;
-  post: {
+  blog: {
     _id: string;
     title: string;
     content: string;
-    excerpt: string;
+    excerpt?: string;
     thumbnail?: string;
     author: {
       _id: string;
-      name: string;
+      fullname: string;
       avatar?: string;
       nickname?: string;
     };
     createdAt: string;
     views: number;
-    likes: number;
-    comments: number;
-    tags: string[];
+    likes_count: number;
+    comments_count: number;
+    tags?: string[];
     category: string;
-    readingTime: number;
+    readingTime?: number;
     isLiked?: boolean;
+    save_count?: number;
   };
 }
 
@@ -87,8 +86,8 @@ const SavedBlogPosts = () => {
     setLoading(true);
     try {
       const data = await apiService.fetchSavedPosts();
-      setSavedPosts(data.savedPosts || data || []);
-      const uniqueCategories = [...new Set((data.savedPosts || data).map(item => item.post.category))];
+      setSavedPosts(data.data || []);
+      const uniqueCategories = [...new Set((data.data || []).map(item => item.blog?.category))];
       setCategories(uniqueCategories);
     } catch (error) {
       console.error('Error fetching saved posts:', error);
@@ -98,49 +97,39 @@ const SavedBlogPosts = () => {
     }
   };
 
-  const handleLikeToggle = async (postId: string, isLiked: boolean) => {
-    if (!postId) return;
+  const handleLikeToggle = async (blogId: string, isLiked?: boolean) => {
+    if (!blogId) return;
 
-    setSavedPosts(prev => prev.map(item =>
-      item.post._id === postId
-        ? {
-            ...item,
-            post: {
-              ...item.post,
-              isLiked: !isLiked,
-              likes: isLiked ? item.post.likes - 1 : item.post.likes + 1
-            }
-          }
-        : item
-    ));
-
-    try {
-      if (isLiked) {
-        await apiService.unlikePost(postId);
-      } else {
-        await apiService.likePost(postId);
-      }
-    } catch (error) {
-      setSavedPosts(prev => prev.map(item =>
-        item.post._id === postId
+    setSavedPosts(prev =>
+      prev.map(item =>
+        item.blog._id === blogId
           ? {
               ...item,
-              post: {
-                ...item.post,
-                isLiked: isLiked,
-                likes: isLiked ? item.post.likes + 1 : item.post.likes - 1
+              blog: {
+                ...item.blog,
+                isLiked: !isLiked,
+                likes_count: isLiked ? item.blog.likes_count - 1 : item.blog.likes_count + 1
               }
             }
           : item
-      ));
+      )
+    );
+
+    try {
+      if (isLiked) {
+        await apiService.unlikePost(blogId);
+      } else {
+        await apiService.likePost(blogId);
+      }
+    } catch (error) {
       message.error('Không thể cập nhật trạng thái like');
     }
   };
 
-  const handleUnsavePost = (savedPostId: string, postTitle: string) => {
+  const handleUnsavePost = (savedPostId: string, title: string) => {
     Modal.confirm({
       title: 'Xác nhận bỏ lưu',
-      content: `Bạn có chắc chắn muốn bỏ lưu bài viết "${postTitle}"?`,
+      content: `Bạn có chắc chắn muốn bỏ lưu bài viết "${title}"?`,
       okText: 'Bỏ lưu',
       cancelText: 'Hủy',
       okType: 'danger',
@@ -168,12 +157,13 @@ const SavedBlogPosts = () => {
 
   const processedPosts = savedPosts
     .filter(item => {
+      const blog = item.blog;
       const matchesSearch =
-        item.post.title.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.post.excerpt.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.post.author.name.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.post.tags.some(tag => tag.toLowerCase().includes(searchText.toLowerCase()));
-      const matchesCategory = categoryFilter === 'all' || item.post.category === categoryFilter;
+        blog.title.toLowerCase().includes(searchText.toLowerCase()) ||
+        blog.excerpt?.toLowerCase().includes(searchText.toLowerCase()) ||
+        blog.author.fullname.toLowerCase().includes(searchText.toLowerCase()) ||
+        (blog.tags || []).some(tag => tag.toLowerCase().includes(searchText.toLowerCase()));
+      const matchesCategory = categoryFilter === 'all' || blog.category === categoryFilter;
       return matchesSearch && matchesCategory;
     })
     .sort((a, b) => {
@@ -183,11 +173,11 @@ const SavedBlogPosts = () => {
         case 'saved_oldest':
           return new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime();
         case 'post_newest':
-          return new Date(b.post.createdAt).getTime() - new Date(a.post.createdAt).getTime();
+          return new Date(b.blog.createdAt).getTime() - new Date(a.blog.createdAt).getTime();
         case 'most_liked':
-          return b.post.likes - a.post.likes;
+          return b.blog.likes_count - a.blog.likes_count;
         case 'most_viewed':
-          return b.post.views - a.post.views;
+          return b.blog.views - a.blog.views;
         default:
           return 0;
       }
@@ -196,28 +186,23 @@ const SavedBlogPosts = () => {
   const paginatedPosts = processedPosts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const renderSavedPostCard = (savedPost: SavedPost) => {
-    const { post } = savedPost;
+    const { blog } = savedPost;
     return (
-      <Card
-        key={savedPost._id}
-        hoverable
-        style={{ marginBottom: 24, borderRadius: 12 }}
-        styles={{ body: { padding: 0 } }}
-      >
-        <Row gutter={0}>
+      <Card key={savedPost._id} hoverable style={{ marginBottom: 24, borderRadius: 12 }}>
+        <Row>
           <Col xs={24} sm={8}>
             <div
               style={{
                 height: 200,
-                background: post.thumbnail ? `url(${post.thumbnail})` : '#eee',
+                background: blog.thumbnail ? `url(${blog.thumbnail})` : '#eee',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 position: 'relative',
                 cursor: 'pointer'
               }}
-              onClick={() => navigate(`/blog/post/${post._id}`)}
+              onClick={() => navigate(`/blog/post/${blog._id}`)}
             >
-              {!post.thumbnail && (
+              {!blog.thumbnail && (
                 <div style={{
                   position: 'absolute', top: '50%', left: '50%',
                   transform: 'translate(-50%, -50%)',
@@ -232,49 +217,48 @@ const SavedBlogPosts = () => {
                 background: 'rgba(0,0,0,0.7)', color: '#fff',
                 padding: '4px 8px', borderRadius: 6, fontSize: 12
               }}>
-                <ClockCircleOutlined /> {post.readingTime} phút
+                <ClockCircleOutlined /> {blog.readingTime || 3} phút
               </div>
             </div>
           </Col>
           <Col xs={24} sm={16}>
             <div style={{ padding: 24 }}>
-              <Title level={4} style={{ marginBottom: 8, cursor: 'pointer' }}
-                onClick={() => navigate(`/blog/post/${post._id}`)}>
-                {post.title}
+              <Title level={4} onClick={() => navigate(`/blog/post/${blog._id}`)} style={{ cursor: 'pointer' }}>
+                {blog.title}
               </Title>
-              <Paragraph style={{ color: '#666', marginBottom: 12 }} ellipsis={{ rows: 2 }}>
-                {post.excerpt}
+              <Paragraph ellipsis={{ rows: 2 }} style={{ color: '#666' }}>
+                {blog.excerpt || ''}
               </Paragraph>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                <Avatar src={post.author.avatar} icon={<UserOutlined />} />
+                <Avatar src={blog.author.avatar} icon={<UserOutlined />} />
                 <div style={{ marginLeft: 10 }}>
-                  <Text strong>{post.author.name}</Text><br />
+                  <Text strong>{blog.author.fullname}</Text><br />
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    {post.category} • {formatDate(post.createdAt)}
+                    {blog.category} • {formatDate(blog.createdAt)}
                   </Text>
                 </div>
               </div>
               <Space wrap style={{ marginBottom: 16 }}>
-                {post.tags.slice(0, 3).map(tag => (
+                {(blog.tags || []).slice(0, 3).map(tag => (
                   <Tag key={tag} onClick={() => setSearchText(tag)}>{tag}</Tag>
                 ))}
-                {post.tags.length > 3 && <Tag>+{post.tags.length - 3}</Tag>}
+                {(blog.tags || []).length > 3 && <Tag>+{(blog.tags || []).length - 3}</Tag>}
               </Space>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Space size="middle">
                   <Tooltip title={`Đã lưu vào ${formatDate(savedPost.savedAt)}`}>
                     <span><BookOutlined /> {formatDate(savedPost.savedAt)}</span>
                   </Tooltip>
-                  <span><EyeOutlined /> {post.views}</span>
-                  <span><MessageOutlined /> {post.comments}</span>
+                  <span><EyeOutlined /> {blog.views}</span>
+                  <span><MessageOutlined /> {blog.comments_count}</span>
                 </Space>
                 <Space>
                   <Button
                     type="text"
-                    icon={post.isLiked ? <HeartFilled style={{ color: '#ff4757' }} /> : <HeartOutlined />}
-                    onClick={() => handleLikeToggle(post._id, post.isLiked)}
+                    icon={blog.isLiked ? <HeartFilled style={{ color: '#ff4757' }} /> : <HeartOutlined />}
+                    onClick={() => handleLikeToggle(blog._id, blog.isLiked)}
                   >
-                    {post.likes}
+                    {blog.likes_count}
                   </Button>
                   <Dropdown
                     menu={{
@@ -283,14 +267,14 @@ const SavedBlogPosts = () => {
                           key: 'view',
                           label: 'Xem bài viết',
                           icon: <EyeOutlined />,
-                          onClick: () => navigate(`/blog/post/${post._id}`)
+                          onClick: () => navigate(`/blog/post/${blog._id}`)
                         },
                         {
                           key: 'share',
                           label: 'Chia sẻ',
                           icon: <ShareAltOutlined />,
                           onClick: () => {
-                            navigator.clipboard.writeText(`${window.location.origin}/blog/post/${post._id}`);
+                            navigator.clipboard.writeText(`${window.location.origin}/blog/post/${blog._id}`);
                             message.success('Đã copy link bài viết');
                           }
                         },
@@ -299,7 +283,7 @@ const SavedBlogPosts = () => {
                           label: 'Bỏ lưu',
                           icon: <DeleteOutlined />,
                           danger: true,
-                          onClick: () => handleUnsavePost(savedPost._id, post.title)
+                          onClick: () => handleUnsavePost(savedPost._id, blog.title)
                         }
                       ]
                     }}
@@ -335,12 +319,7 @@ const SavedBlogPosts = () => {
               />
             </Col>
             <Col xs={24} sm={6} md={4}>
-              <Select
-                value={categoryFilter}
-                onChange={setCategoryFilter}
-                style={{ width: '100%' }}
-                size="large"
-              >
+              <Select value={categoryFilter} onChange={setCategoryFilter} style={{ width: '100%' }} size="large">
                 <Option value="all">Tất cả</Option>
                 {categories.map(category => (
                   <Option key={category} value={category}>{category}</Option>
@@ -348,12 +327,7 @@ const SavedBlogPosts = () => {
               </Select>
             </Col>
             <Col xs={24} sm={6} md={4}>
-              <Select
-                value={sortBy}
-                onChange={setSortBy}
-                style={{ width: '100%' }}
-                size="large"
-              >
+              <Select value={sortBy} onChange={setSortBy} style={{ width: '100%' }} size="large">
                 <Option value="saved_newest">Lưu gần nhất</Option>
                 <Option value="saved_oldest">Lưu cũ nhất</Option>
                 <Option value="post_newest">Bài viết mới nhất</Option>
@@ -363,9 +337,7 @@ const SavedBlogPosts = () => {
             </Col>
             <Col xs={24} sm={12} md={8} style={{ textAlign: 'right' }}>
               <Space>
-                <Button icon={<ReloadOutlined />} onClick={fetchSavedPosts} loading={loading}>
-                  Làm mới
-                </Button>
+                <Button icon={<ReloadOutlined />} onClick={fetchSavedPosts} loading={loading}>Làm mới</Button>
                 <Text type="secondary">{processedPosts.length} bài viết</Text>
               </Space>
             </Col>
@@ -392,13 +364,8 @@ const SavedBlogPosts = () => {
             </div>
           </>
         ) : (
-          <Empty
-            description="Chưa có bài viết đã lưu"
-            style={{ padding: 60, background: '#fff', borderRadius: 12 }}
-          >
-            <Button type="primary" onClick={() => navigate('/blog')}>
-              Khám phá bài viết
-            </Button>
+          <Empty description="Chưa có bài viết đã lưu" style={{ padding: 60, background: '#fff', borderRadius: 12 }}>
+            <Button type="primary" onClick={() => navigate('/blog')}>Khám phá bài viết</Button>
           </Empty>
         )}
       </Content>
