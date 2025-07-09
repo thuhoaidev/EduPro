@@ -102,24 +102,15 @@ const LessonVideoPage: React.FC = () => {
       if (video.duration > 0) {
         const progressRatio = video.currentTime / video.duration;
         setVideoProgress(progressRatio);
-        // Nếu vừa đạt 90% thì gọi updateProgress để backend mở khóa bài tiếp theo
         if (progressRatio >= 0.9 && !videoWatched) {
-          // Chỉ cần 90% video là đủ, không cần quizPassed
-          updateProgress(courseId, currentLessonId, {
-            watchedSeconds: video.currentTime,
-            videoDuration: video.duration,
-            quizPassed: false // Không cần quizPassed, chỉ cần videoCompleted
-          }).then(() => {
-            getUnlockedLessons(courseId).then(unlocked => {
-              setUnlockedLessons(unlocked || []);
-              console.log('Đã cập nhật unlockedLessons sau khi đạt 90% video:', unlocked);
-            });
-          });
+          // Chỉ đánh dấu đã xem hết video, chưa unlock bài mới
+          updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration).catch(e => console.error("Failed to update progress", e));
           setVideoWatched(true);
         }
       }
     }
   };
+
 
   // Khi vào lại bài học, lấy tiến độ đã lưu từ backend
   useEffect(() => {
@@ -157,6 +148,7 @@ const LessonVideoPage: React.FC = () => {
   // Khi xem hết video
   const handleVideoEnded = () => {
     setVideoWatched(true);
+    message.info('Bạn đã xem hết video, hãy hoàn thành quiz để mở khóa bài tiếp theo.');
     if (courseId && currentLessonId && videoRef.current) {
       updateVideoProgress(courseId, currentLessonId, videoRef.current.duration, videoRef.current.duration)
         .catch(e => console.error("Failed to update final progress", e));
@@ -190,9 +182,9 @@ const LessonVideoPage: React.FC = () => {
         setCommentLoading(true);
         const commentsData = await getComments(lessonId);
         setComments(commentsData || []);
-      } catch (e) {}
+      } catch (e) { }
       setCommentLoading(false);
-    })().catch(() => {});
+    })().catch(() => { });
   }, [lessonId]);
 
   useEffect(() => {
@@ -237,8 +229,8 @@ const LessonVideoPage: React.FC = () => {
         setProgress(progressData || {});
         const unlocked = await getUnlockedLessons(courseId);
         setUnlockedLessons(unlocked || []);
-      } catch (e) {}
-    })().catch(() => {});
+      } catch (e) { }
+    })().catch(() => { });
   }, [courseId, lessonId]);
 
   useEffect(() => {
@@ -283,27 +275,32 @@ const LessonVideoPage: React.FC = () => {
     setVideoProgress(0);
   }, [currentLessonId]);
 
-  // Khi video đạt >= 50% thì mới show quiz
+  // Khi video đạt >= 90% thì mới show quiz
   useEffect(() => {
-    if (videoProgress >= 0.5 && quiz && !quizCompleted) {
+    const isUnlocked = unlockedLessons.includes(String(currentLessonId));
+    const isQuizPassed = quizResult?.success;
+
+    if ((videoProgress >= 0.9 || isUnlocked || isQuizPassed) && quiz) {
       setShowQuiz(true);
     } else {
       setShowQuiz(false);
     }
-  }, [videoProgress, quiz, quizCompleted]);
+  }, [videoProgress, quiz, quizCompleted, unlockedLessons, currentLessonId, quizResult]);
+
+
 
   // Khi quiz đúng 100% và video >= 90% thì mở khóa bài tiếp theo
-  useEffect(() => {
-    if (quizCompleted && videoProgress >= 0.9 && courseId && currentLessonId) {
-      updateProgress(courseId, currentLessonId, {
-        watchedSeconds: videoRef.current?.currentTime || 0,
-        videoDuration: videoRef.current?.duration || 1,
-        quizPassed: true
-      }).then(() => {
-        getUnlockedLessons(courseId).then(unlocked => setUnlockedLessons(unlocked || []));
-      });
-    }
-  }, [quizCompleted, videoProgress, courseId, currentLessonId]);
+  // useEffect(() => {
+  //   if (quizCompleted && videoProgress >= 0.9 && courseId && currentLessonId) {
+  //     updateProgress(courseId, currentLessonId, {
+  //       watchedSeconds: videoRef.current?.currentTime || 0,
+  //       videoDuration: videoRef.current?.duration || 1,
+  //       quizPassed: true
+  //     }).then(() => {
+  //       getUnlockedLessons(courseId).then(unlocked => setUnlockedLessons(unlocked || []));
+  //     });
+  //   }
+  // }, [quizCompleted, videoProgress, courseId, currentLessonId]);
 
   // Khi load quiz mới, reset quizAnswers đúng số lượng câu hỏi
   useEffect(() => {
@@ -364,25 +361,31 @@ const LessonVideoPage: React.FC = () => {
     try {
       const res = await config.post(`/quizzes/${quiz._id}/submit`, { answers: quizAnswers });
       setQuizResult(res.data);
+
       if (courseId && currentLessonId) {
-        updateProgress(courseId, currentLessonId, {
+        await updateProgress(courseId, currentLessonId, {
           watchedSeconds: videoRef.current?.currentTime || 0,
           videoDuration: videoRef.current?.duration || 1,
           quizPassed: res.data.success,
-          quizAnswers: quizAnswers
-        }).then(() => {
-          getUnlockedLessons(courseId).then(unlocked => setUnlockedLessons(unlocked || []));
+          quizAnswers: quizAnswers,
         });
+
+        if (res.data.success) {
+          const unlocked = await getUnlockedLessons(courseId);
+          setUnlockedLessons(unlocked || []);
+          message.success('Bạn đã hoàn thành bài học, bài tiếp theo đã được mở khóa!');
+        } else {
+          message.warning('Quiz chưa đạt, hãy thử lại.');
+        }
       }
-      if (res.data.success) {
-        setQuizCompleted(true);
-      } else {
-        setQuizCompleted(false);
-      }
+
+      setQuizCompleted(res.data.success);
     } catch (err) {
       message.error('Có lỗi khi nộp bài!');
     }
   };
+
+
 
   // Cho phép làm lại quiz không giới hạn
   const handleQuizRetry = () => {
@@ -392,7 +395,8 @@ const LessonVideoPage: React.FC = () => {
   };
 
   // Định nghĩa điều kiện hiển thị quiz: chỉ cần có quiz hoặc đã từng nộp bài
-  const shouldShowQuiz = !!quiz;
+  const shouldShowQuiz = !!quiz && videoProgress >= 0.9;
+
 
   if (loading) return <div className="flex justify-center items-center min-h-screen"><Spin size="large" /></div>;
   if (error) return <Alert message="Lỗi" description={error} type="error" showIcon />;
@@ -424,32 +428,32 @@ const LessonVideoPage: React.FC = () => {
           <>
             <Title level={2}>{lessonTitle}</Title>
             <div className="relative">
-                <Card>
-                    {videoUrl ? (
-                    <video
-                        ref={videoRef}
-                        key={videoUrl}
-                        src={videoUrl}
-                        controls
-                        style={{ width: '100%' }}
-                        onTimeUpdate={handleVideoTimeUpdate}
-                        onEnded={handleVideoEnded}
-                        onLoadedMetadata={handleVideoLoadedMetadata}
-                    >
-                        Trình duyệt không hỗ trợ video tag.
-                    </video>
-                    ) : (
-                    <Alert message="Không có video" type="warning" />
-                    )}
-                </Card>
-
-                {videoWatched && !quiz && (
-                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
-                        <span className="bg-green-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-                        <CheckCircleOutlined className="text-xl" /> Đã hoàn thành bài học
-                        </span>
-                    </motion.div>
+              <Card>
+                {videoUrl ? (
+                  <video
+                    ref={videoRef}
+                    key={videoUrl}
+                    src={videoUrl}
+                    controls
+                    style={{ width: '100%' }}
+                    onTimeUpdate={handleVideoTimeUpdate}
+                    onEnded={handleVideoEnded}
+                    onLoadedMetadata={handleVideoLoadedMetadata}
+                  >
+                    Trình duyệt không hỗ trợ video tag.
+                  </video>
+                ) : (
+                  <Alert message="Không có video" type="warning" />
                 )}
+              </Card>
+
+              {videoWatched && !quiz && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
+                  <span className="bg-green-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+                    <CheckCircleOutlined className="text-xl" /> Đã hoàn thành bài học
+                  </span>
+                </motion.div>
+              )}
             </div>
 
             <Divider />
@@ -482,17 +486,18 @@ const LessonVideoPage: React.FC = () => {
                     </div>
                   ))}
                   <Button type="primary" size="large" onClick={handleQuizSubmit} disabled={!!quizResult && quizResult.success}>Nộp bài</Button>
-                  {quizResult && (
+                  {quizResult && !quizResult.success && (
                     <Button className="ml-4" onClick={handleQuizRetry}>Làm lại</Button>
                   )}
                   {quizResult && (
-                    <Alert
-                      className="mt-6"
-                      message={quizResult.success ? 'Chúc mừng!' : 'Kết quả'}
-                      description={quizResult.message}
-                      type={quizResult.success ? 'success' : 'error'}
-                      showIcon
-                    />
+                    <div style={{ marginTop: 20 }}>
+                      <Alert
+                        message={quizResult.success ? '🎉 Chúc mừng!' : 'Kết quả'}
+                        description={quizResult.message}
+                        type={quizResult.success ? 'success' : 'error'}
+                        showIcon
+                      />
+                    </div>
                   )}
                 </Card>
               </div>
@@ -502,35 +507,35 @@ const LessonVideoPage: React.FC = () => {
 
             {/* Comments Section */}
             <Card title="Bình luận">
-                <List
-                    loading={commentLoading}
-                    dataSource={comments}
-                    renderItem={(item) => (
-                    <List.Item>
-                        <List.Item.Meta
-                        avatar={<Avatar icon={<UserOutlined />} />}
-                        title={item.user?.name || 'Anonymous'}
-                        description={item.content}
-                        />
-                        <div>{dayjs(item.createdAt).fromNow()}</div>
-                    </List.Item>
-                    )}
-                />
-                <Row style={{ marginTop: 20 }}>
-                    <Col flex="auto">
-                    <TextArea
-                        rows={3}
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Viết bình luận của bạn..."
+              <List
+                loading={commentLoading}
+                dataSource={comments}
+                renderItem={(item) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      avatar={<Avatar icon={<UserOutlined />} />}
+                      title={item.user?.name || 'Anonymous'}
+                      description={item.content}
                     />
-                    </Col>
-                    <Col>
-                    <Button type="primary" icon={<SendOutlined />} onClick={handleComment} style={{ height: '100%' }}>
-                        Gửi
-                    </Button>
-                    </Col>
-                </Row>
+                    <div>{dayjs(item.createdAt).fromNow()}</div>
+                  </List.Item>
+                )}
+              />
+              <Row style={{ marginTop: 20 }}>
+                <Col flex="auto">
+                  <TextArea
+                    rows={3}
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Viết bình luận của bạn..."
+                  />
+                </Col>
+                <Col>
+                  <Button type="primary" icon={<SendOutlined />} onClick={handleComment} style={{ height: '100%' }}>
+                    Gửi
+                  </Button>
+                </Col>
+              </Row>
             </Card>
           </>
         )}
