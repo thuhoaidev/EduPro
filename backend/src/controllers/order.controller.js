@@ -440,6 +440,10 @@ class OrderController {
         .populate({
           path: 'items.courseId',
           select: 'title thumbnail',
+        })
+        .populate({
+          path: 'voucherId',
+          select: 'title code',
         });
 
       res.json({
