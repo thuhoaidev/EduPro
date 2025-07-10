@@ -145,9 +145,13 @@ class OrderController {
           orderId: order._id
         }).save({ session });
 
-        await Voucher.findByIdAndUpdate(voucherId, {
-          $inc: { usedCount: 1 }
-        }, { session });
+        // Chỉ tăng usedCount nếu là voucher phổ thông hoặc flash-sale
+        const voucher = await Voucher.findById(voucherId).session(session);
+        if (voucher && (voucher.type === 'default' || voucher.type === 'flash-sale')) {
+          await Voucher.findByIdAndUpdate(voucherId, {
+            $inc: { usedCount: 1 }
+          }, { session });
+        }
       }
 
       // Xoá item đã mua khỏi giỏ hàng
