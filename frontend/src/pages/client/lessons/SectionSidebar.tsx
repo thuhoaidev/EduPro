@@ -20,9 +20,9 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
   const lastWatched = progress?.lastWatched;
 
   // Debug log danh sách bài học
-  // console.log('SectionSidebar - sections:', sections);
-  // console.log('SectionSidebar - unlockedLessons:', unlockedLessons);
-  // console.log('SectionSidebar - completedLessons:', completedLessons);
+  console.log('SectionSidebar - sections:', sections);
+  console.log('SectionSidebar - unlockedLessons:', unlockedLessons);
+  console.log('SectionSidebar - completedLessons:', completedLessons);
 
   // Helper: lấy phần trăm đã xem của từng bài học từ progress
   const getLessonVideoPercent = (lessonId: string) => {
