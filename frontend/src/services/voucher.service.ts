@@ -84,7 +84,9 @@ const voucherService = {
 
   // Lấy danh sách voucher khả dụng (cho client)
   getAvailable: async () => {
-    const response = await axios.get(`${API_URL}/vouchers/available`);
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await axios.get(`${API_URL}/vouchers/available`, { headers });
     return response.data;
   },
 

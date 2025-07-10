@@ -15,14 +15,16 @@ const voucherSchema = new mongoose.Schema({
 
   categories: [{ type: String, default: [] }], // Danh sách danh mục áp dụng
   tags: [{ type: String, default: [] }], // Tag hiển thị
-  isNew: { type: Boolean, default: false }, // Có hiển thị tag "Mới" không
-  isHot: { type: Boolean, default: false }, // Có hiển thị icon 🔥 không
-  isVipOnly: { type: Boolean, default: false }, // Chỉ dành cho người dùng VIP?
 
   startDate: { type: Date, required: true }, // Ngày bắt đầu
   endDate: { type: Date }, // Ngày kết thúc
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  type: { type: String, enum: ['default', 'new-user', 'birthday', 'first-order', 'order-value', 'order-count', 'flash-sale'], default: 'default' }, // Loại voucher
+  minAccountAge: { type: Number, default: 0 }, // Số ngày tối thiểu kể từ khi tạo tài khoản (dành cho order-count, order-value)
+  maxAccountAge: { type: Number, default: 0 }, // Số ngày tối đa kể từ khi tạo tài khoản (dành cho new-user)
+  minOrderCount: { type: Number, default: 0 }, // Số đơn hàng tối thiểu
+  maxOrderCount: { type: Number, default: 0 }, // Số đơn hàng tối đa
 }, {
   suppressReservedKeysWarning: true,
 });

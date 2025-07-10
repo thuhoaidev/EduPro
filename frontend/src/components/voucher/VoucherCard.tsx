@@ -104,17 +104,8 @@ const VoucherCard: React.FC<VoucherCardProps> = ({ voucher, categories }) => {
                     
                     {/* Status badges */}
                     <div className={styles.statusBadges}>
-                        {voucher.isHot && (
+                        {voucher.isExpired && (
                             <Badge count={<FireOutlined style={{ color: '#ff4d4f' }} />} />
-                        )}
-                        {voucher.isNew && (
-                            <Badge count={<StarOutlined style={{ color: '#faad14' }} />} />
-                        )}
-                        {voucher.isVipOnly && (
-                            <div className={styles.vipBadge}>
-                                <CrownOutlined />
-                                VIP
-                            </div>
                         )}
                     </div>
 
@@ -207,7 +198,6 @@ const VoucherCard: React.FC<VoucherCardProps> = ({ voucher, categories }) => {
                                     {voucher.code}
                                 </Button>
                             </Tooltip>
-                            
                             <Tooltip title="Xem chi tiết">
                                 <Button
                                     type="default"

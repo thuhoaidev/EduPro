@@ -64,9 +64,6 @@ interface VoucherDisplay {
     usedCount: number;
     category: string;
     isActive: boolean;
-    isHot?: boolean;
-    isNew?: boolean;
-    isVipOnly?: boolean;
     isExpired: boolean;
     daysLeft: number;
     status: 'available' | 'unavailable';
@@ -76,9 +73,6 @@ interface VoucherDisplay {
 const VoucherCategoryNav = ({ categories, activeCategory, onChange }: { categories: Category[], activeCategory: string, onChange: (cat: string) => void }) => {
   const navItems = [
     { label: 'Tất cả', value: 'Tất cả' },
-    { label: 'Mới', value: 'isNew' },
-    { label: 'HOT', value: 'isHot' },
-    { label: 'VIP Only', value: 'isVipOnly' },
     ...categories.map(cat => ({ label: cat.name, value: cat._id }))
   ];
   return (
@@ -157,9 +151,6 @@ const VouchersPage = () => {
                         usedCount: voucher.usedCount,
                         category: voucher.categories?.[0] || 'Tất cả',
                         isActive: voucher.isValid || false,
-                        isHot: voucher.isHot,
-                        isNew: voucher.isNew,
-                        isVipOnly: voucher.isVipOnly,
                         isExpired: daysLeft < 0,
                         daysLeft: Math.max(0, daysLeft),
                         status: voucher.status || 'available',
@@ -204,15 +195,7 @@ const VouchersPage = () => {
 
         // Category filter
         if (categoryFilter && categoryFilter !== 'Tất cả') {
-            if (categoryFilter === 'isNew') {
-                filtered = filtered.filter(voucher => voucher.isNew);
-            } else if (categoryFilter === 'isHot') {
-                filtered = filtered.filter(voucher => voucher.isHot);
-            } else if (categoryFilter === 'isVipOnly') {
-                filtered = filtered.filter(voucher => voucher.isVipOnly);
-            } else {
-                filtered = filtered.filter(voucher => voucher.category === categoryFilter);
-            }
+            filtered = filtered.filter(voucher => voucher.category === categoryFilter);
         }
 
         // Discount type filter

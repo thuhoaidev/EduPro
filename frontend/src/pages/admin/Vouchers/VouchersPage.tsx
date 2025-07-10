@@ -133,11 +133,9 @@ const VouchersPage: React.FC = () => {
       usedCount: 0,
       categories: [],
       tags: [],
-      isNew: false,
-      isHot: false,
-      isVipOnly: false,
       startDate: dayjs(),
       endDate: null,
+      type: 'default',
     });
     setIsModalVisible(true);
   };
@@ -155,12 +153,10 @@ const VouchersPage: React.FC = () => {
       usageLimit: record.usageLimit,
       usedCount: record.usedCount,
       categories: record.categories || [],
-      tags: record.tags,
-      isNew: record.isNew,
-      isHot: record.isHot,
-      isVipOnly: record.isVipOnly,
+      tags: record.tags || [],
       startDate: dayjs(record.startDate),
       endDate: record.endDate ? dayjs(record.endDate) : null,
+      type: record.type || 'default',
     });
     setIsModalVisible(true);
   };
@@ -180,11 +176,9 @@ const VouchersPage: React.FC = () => {
         usedCount: values.usedCount || 0,
         categories: values.categories || [],
         tags: values.tags || [],
-        isNew: values.isNew || false,
-        isHot: values.isHot || false,
-        isVipOnly: values.isVipOnly || false,
         startDate: values.startDate ? values.startDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
         endDate: values.endDate ? values.endDate.format('YYYY-MM-DD') : undefined,
+        type: values.type || 'default',
       };
       if (editingVoucher) {
         const response = await voucherService.update(editingVoucher.id, voucherData);
@@ -500,9 +494,6 @@ const VouchersPage: React.FC = () => {
             usedCount: 0,
             categories: [],
             tags: [],
-            isNew: false,
-            isHot: false,
-            isVipOnly: false,
             courseId: 'all',
           }}
         >
@@ -614,6 +605,18 @@ const VouchersPage: React.FC = () => {
             <InputNumber style={{ width: '100%' }} min={1} placeholder="Nhập số lượng" />
           </Form.Item>
 
+          <Form.Item label="Loại voucher" name="type" rules={[{ required: true, message: 'Vui lòng chọn loại voucher!' }]}> 
+            <Select placeholder="Chọn loại voucher">
+              <Select.Option value="default">default</Select.Option>
+              <Select.Option value="new-user">new-user</Select.Option>
+              <Select.Option value="birthday">birthday</Select.Option>
+              <Select.Option value="first-order">first-order</Select.Option>
+              <Select.Option value="order-count">order-count</Select.Option>
+              <Select.Option value="order-value">order-value</Select.Option>
+              <Select.Option value="flash-sale">flash-sale</Select.Option>
+            </Select>
+          </Form.Item>
+
           <Form.Item label="Ngày tạo" name="startDate" rules={[{ required: true }]}>
             <DatePicker
               style={{ width: '100%' }}
@@ -632,14 +635,20 @@ const VouchersPage: React.FC = () => {
             />
           </Form.Item>
 
-          <Form.Item name="isNew" valuePropName="checked" label="Mới">
-            <Switch checkedChildren="Mới" unCheckedChildren="Không" />
-          </Form.Item>
-          <Form.Item name="isHot" valuePropName="checked" label="HOT">
-            <Switch checkedChildren="HOT" unCheckedChildren="Không" />
-          </Form.Item>
-          <Form.Item name="isVipOnly" valuePropName="checked" label="VIP Only">
-            <Switch checkedChildren="VIP" unCheckedChildren="Không" />
+          <Form.Item label="Tags" name="tags">
+            <Select
+              mode="tags"
+              style={{ width: '100%' }}
+              placeholder="Thêm tags (nhấn Enter để thêm)"
+              tokenSeparators={[',']}
+            >
+              <Select.Option value="new-user">new-user</Select.Option>
+              <Select.Option value="birthday">birthday</Select.Option>
+              <Select.Option value="first-order">first-order</Select.Option>
+              <Select.Option value="order-count">order-count</Select.Option>
+              <Select.Option value="order-value">order-value</Select.Option>
+              <Select.Option value="flash-sale">flash-sale</Select.Option>
+            </Select>
           </Form.Item>
         </Form>
       </Modal>
@@ -722,16 +731,20 @@ const VouchersPage: React.FC = () => {
               </span>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Mới:</span>
-              <span style={{ marginLeft: 8 }}>{selectedVoucher.isNew ? 'Có' : 'Không'}</span>
+              <span style={{ color: '#888', fontWeight: 500 }}>Tags:</span>
+              <span style={{ marginLeft: 8 }}>
+                {selectedVoucher.tags && selectedVoucher.tags.length > 0
+                  ? selectedVoucher.tags.map((tag, index) => (
+                      <Tag key={index} color="blue" style={{ marginRight: 4 }}>
+                        {tag}
+                      </Tag>
+                    ))
+                  : 'Không có tags'}
+              </span>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>HOT:</span>
-              <span style={{ marginLeft: 8 }}>{selectedVoucher.isHot ? 'Có' : 'Không'}</span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>VIP Only:</span>
-              <span style={{ marginLeft: 8 }}>{selectedVoucher.isVipOnly ? 'Có' : 'Không'}</span>
+              <span style={{ color: '#888', fontWeight: 500 }}>Loại voucher:</span>
+              <span style={{ marginLeft: 8 }}>{selectedVoucher.type || 'default'}</span>
             </div>
             <div style={{ marginBottom: 12 }}>
               <span style={{ color: '#888', fontWeight: 500 }}>Ngày bắt đầu:</span>
