@@ -8,8 +8,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   Avatar, Button, Card, Col, Dropdown, Empty, Input, Layout,
   Modal, Pagination, Row, Select, Space, Spin, Tag, Tooltip,
-  Typography, message
+  Typography, message,List, Form
 } from 'antd';
+import { Comment } from '@ant-design/compatible';
 import { apiService } from '../../../services/apiService';
 
 const { Content } = Layout;
@@ -44,6 +45,16 @@ interface SavedPost {
   };
 }
 
+interface CommentItem {
+  _id: string;
+  user: {
+    fullname: string;
+    avatar?: string;
+  };
+  content: string;
+  createdAt: string;
+}
+
 const SavedBlogPosts = () => {
   const [savedPosts, setSavedPosts] = useState<SavedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,33 +64,41 @@ const SavedBlogPosts = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(6);
   const [categories, setCategories] = useState<string[]>([]);
+  const [comments, setComments] = useState<Record<string, CommentItem[]>>({});
+  const [commentInput, setCommentInput] = useState<Record<string, string>>({});
   const navigate = useNavigate();
 
-  // ✅ Gọi API khi component được mount
   useEffect(() => {
     fetchSavedPosts();
-    console.log('🔑 Token gửi đi:', localStorage.getItem('token'));
   }, []);
 
-  const fetchSavedPosts = async () => {
-    setLoading(true);
-    try {
-      const saved = await apiService.fetchSavedPosts();
-      console.log('✅ Kết quả từ API:', saved);
-      console.log('❌ Các bài bị lỗi:', saved.filter(p => !p.blog));
+const fetchSavedPosts = async () => {
+  setLoading(true);
+  try {
+    const saved = await apiService.fetchSavedPosts();
+    const validPosts = saved.filter(p => p.blog && p.blog._id);
+    setSavedPosts(validPosts);
 
-      const validPosts = saved.filter(p => p.blog && p.blog._id); // lọc bài null
-      setSavedPosts(validPosts);
+    const uniqueCategories = [...new Set(validPosts.map(item => item.blog?.category))];
+    setCategories(uniqueCategories.filter(Boolean));
 
-      const uniqueCategories = [...new Set(validPosts.map(item => item.blog?.category))];
-      setCategories(uniqueCategories.filter(Boolean));
-    } catch (error) {
-      console.error('❌ Lỗi fetchSavedPosts:', error);
-      message.error('Không thể tải bài viết đã lưu');
-    } finally {
-      setLoading(false);
-    }
-  };
+    // 🚀 Load comment song song
+    const commentResponses = await Promise.all(
+      validPosts.map(post => apiService.fetchComments(post.blog._id))
+    );
+    const newComments: Record<string, CommentItem[]> = {};
+    validPosts.forEach((post, i) => {
+      newComments[post.blog._id] = commentResponses[i].data;
+    });
+    setComments(newComments);
+  } catch (error) {
+    console.error('❌ Lỗi fetchSavedPosts:', error);
+    message.error('Không thể tải bài viết đã lưu');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleLikeToggle = async (blogId: string, isLiked?: boolean) => {
     if (!blogId) return;
@@ -97,7 +116,6 @@ const SavedBlogPosts = () => {
           : item
       )
     );
-
     try {
       isLiked ? await apiService.unlikePost(blogId) : await apiService.likePost(blogId);
     } catch (error) {
@@ -105,24 +123,31 @@ const SavedBlogPosts = () => {
     }
   };
 
-  const handleUnsavePost = (blogId: string, title: string) => {
-    Modal.confirm({
-      title: 'Xác nhận bỏ lưu',
-      content: `Bạn có chắc chắn muốn bỏ lưu bài viết "${title}"?`,
-      okText: 'Bỏ lưu',
-      cancelText: 'Hủy',
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          await apiService.unsavePost(blogId);
-          setSavedPosts(prev => prev.filter(item => item.blog._id !== blogId));
-          message.success('Đã bỏ lưu bài viết');
-        } catch (error) {
-          message.error('Không thể bỏ lưu bài viết');
-        }
+const handleAddComment = async (blogId: string) => {
+  const content = commentInput[blogId]?.trim();
+  if (!content) return;
+
+  Modal.confirm({
+    title: 'Xác nhận gửi bình luận',
+    content: `Bạn có chắc chắn muốn gửi bình luận: "${content}"?`,
+    okText: 'Gửi',
+    cancelText: 'Hủy',
+    onOk: async () => {
+      try {
+        const newComment = await apiService.addComment(blogId, content);
+        setComments(prev => ({
+          ...prev,
+          [blogId]: [newComment.data, ...(prev[blogId] || [])]
+        }));
+        setCommentInput(prev => ({ ...prev, [blogId]: '' }));
+        message.success('Đã gửi bình luận');
+      } catch (err) {
+        message.error('Không thể gửi bình luận');
       }
-    });
-  };
+    }
+  });
+};
+
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -158,6 +183,31 @@ const SavedBlogPosts = () => {
 
   const paginatedPosts = processedPosts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  const renderComments = (blogId: string) => (
+    <div style={{ marginTop: 16 }}>
+      <List
+        header={`${comments[blogId]?.length || 0} bình luận`}
+        dataSource={comments[blogId] || []}
+        renderItem={(item) => (
+          <Comment
+            author={item.user.fullname}
+            avatar={<Avatar src={item.user.avatar} icon={<UserOutlined />} />}
+            content={item.content}
+            datetime={formatDate(item.createdAt)}
+          />
+        )}
+      />
+      <Form.Item>
+        <Input.TextArea
+          placeholder="Viết bình luận..."
+          rows={2}
+          value={commentInput[blogId] || ''}
+          onChange={(e) => setCommentInput(prev => ({ ...prev, [blogId]: e.target.value }))}
+        />
+      </Form.Item>
+      <Button type="primary" onClick={() => handleAddComment(blogId)}>Gửi bình luận</Button>
+    </div>
+  );
   const renderSavedPostCard = (savedPost: SavedPost) => {
     const { blog } = savedPost;
     return (
@@ -281,6 +331,28 @@ const SavedBlogPosts = () => {
       </Card>
     );
   };
+const handleUnsavePost = async (blogId: string, blogTitle: string) => {
+  Modal.confirm({
+    title: 'Xác nhận bỏ lưu bài viết',
+    content: `Bạn có chắc chắn muốn bỏ lưu bài viết "${blogTitle}"?`,
+    okText: 'Bỏ lưu',
+    cancelText: 'Hủy',
+    okButtonProps: { danger: true },
+    onOk: async () => {
+      try {
+        await apiService.toggleSavePost(blogId);
+        setSavedPosts(prev => prev.filter(item => item.blog._id !== blogId));
+        message.success(`🗑️ Đã bỏ lưu bài viết "${blogTitle}"`);
+      } catch (err) {
+        console.error('❌ Bỏ lưu lỗi:', err);
+        message.error('Không thể bỏ lưu bài viết');
+      }
+    }
+  });
+};
+
+
+
 
   return (
     <div style={{ padding: '24px 0', minHeight: '100vh', background: '#f5f5f5' }}>

@@ -360,9 +360,15 @@ fetchSavedPosts: async () => {
 },
 
 
-  // unsavePost: async (savedPostId: string) => {
-  //   return apiClient.delete(`/blogs/${savedPostId}/unsave`);
-  // },
+  unsavePost: async (savedPostId: string) => {
+    return apiClient.delete(`/blogs/${savedPostId}/unsave`);
+  },
+
+  // src/services/apiService.ts
+  toggleSavePost: async (blogId: string) => {
+  return apiClient.post(`/blogs/${blogId}/toggle-save`);
+},
+
 
   fetchComments: async (postId: string) => {
     const res = await apiClient.get(`/blogs/${postId}/comments`);

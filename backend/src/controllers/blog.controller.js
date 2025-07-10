@@ -281,43 +281,54 @@ const toggleSavePost = async (req, res) => {
 const getSavedPosts = async (req, res) => {
   try {
     const userId = getUserId(req);
-    // ✅ THÊM LOG Ở ĐÂY
-  console.log('🧪 userId:', userId);
-  console.log('🧪 req.user:', req.user);
-  console.log('🧪 req.headers.authorization:', req.headers?.authorization);
-console.log('🧪 [getSavedPosts] userId:', userId); // thêm log này
+
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-  return res.status(400).json({ success: false, message: 'User ID không hợp lệ.' }); // ✅ sửa message này
-}
+      return res.status(400).json({ success: false, message: 'User ID không hợp lệ.' });
+    }
 
-
+    // Lấy danh sách blog đã lưu
     const savedPosts = await BlogSave.find({ user: userId })
       .populate({
         path: 'blog',
-        populate: { path: 'author', select: 'fullname avatar' }
+        populate: { path: 'author', select: 'fullname avatar nickname' }
       });
 
     const validPosts = [];
-    const invalidIds = [];
+    const blogIds = [];
 
     for (const post of savedPosts) {
       if (post.blog && mongoose.Types.ObjectId.isValid(post.blog._id)) {
         validPosts.push(post);
-      } else {
-        console.warn('🧹 Bài viết lỗi, cần xóa khỏi BlogSave:', post._id);
-        invalidIds.push(post._id);
+        blogIds.push(post.blog._id);
       }
     }
 
-    // 🧹 Xoá bản ghi BlogSave không hợp lệ
+    // 🧹 Xoá những bản ghi lỗi
+    const invalidIds = savedPosts
+      .filter(p => !p.blog || !mongoose.Types.ObjectId.isValid(p.blog._id))
+      .map(p => p._id);
     if (invalidIds.length > 0) {
       await BlogSave.deleteMany({ _id: { $in: invalidIds } });
     }
 
-    return res.json({ success: true, data: validPosts });
+    // Lấy danh sách blog mà user đã like
+    const likedBlogs = await BlogLike.find({ user: userId, blog: { $in: blogIds } }).select('blog');
+    const likedBlogIds = likedBlogs.map(like => like.blog.toString());
+
+    // Định dạng kết quả trả về
+    const result = validPosts.map(post => {
+      const blog = post.blog.toObject();
+      blog.isLiked = likedBlogIds.includes(blog._id.toString());
+      blog.save_count = blog.saves?.length || 0;
+      blog.likes_count = blog.likes_count || 0;
+      blog.comments_count = blog.comments_count || 0;
+      return { ...post.toObject(), blog };
+    });
+
+    res.json({ success: true, data: result });
   } catch (error) {
     console.error('❌ Lỗi khi lấy bài viết đã lưu:', error);
-    return res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
+    res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }
 };
 
