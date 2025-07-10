@@ -6,7 +6,7 @@ const WithdrawRequestSchema = new mongoose.Schema({
   bank: String,
   account: String,
   holder: String,
-  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'approved', 'rejected', 'cancelled'], default: 'pending' },
   createdAt: { type: Date, default: Date.now },
   approvedAt: Date,
   note: String

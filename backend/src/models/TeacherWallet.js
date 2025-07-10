@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const WalletHistorySchema = new mongoose.Schema({
-  type: { type: String, enum: ['earning', 'withdraw'], required: true },
+  type: { type: String, enum: ['earning', 'withdraw', 'refund'], required: true },
   amount: { type: Number, required: true },
   orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order' },
   note: String,
