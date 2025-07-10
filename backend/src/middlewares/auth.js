@@ -52,6 +52,8 @@ exports.auth = async (req, res, next) => {
                     : roles.includes('instructor') ? 'instructor'
                     : roles.includes('student') ? 'student' : 'guest',
     };
+console.log('Token:', token);
+console.log('Decoded:', decoded);
 
     console.log('✅ Authenticated user:', {
       id: req.user.id,

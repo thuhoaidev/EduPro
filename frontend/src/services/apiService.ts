@@ -337,25 +337,20 @@ const apiService = {
     }
   },
 
-  fetchSavedPosts: async () => {
+fetchSavedPosts: async () => {
   try {
-    const token = localStorage.getItem('token');
-    const res = await apiClient.get('/blogs/saved-posts', {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-
+    const res = await apiClient.get('/blogs/saved-posts'); // ❌ bỏ headers thủ công
     if (res.data?.success === false) {
       throw new Error(res.data.message || 'Lỗi từ API');
     }
-
     return res.data?.data || [];
   } catch (err: any) {
-    console.error('❌ Lỗi khi lấy bài viết đã lưu:', err);
+    console.error('❌ Lỗi khi lấy bài viết đã lưu:', err.response?.data || err.message);
     throw err;
   }
 },
+
+
 
 
 

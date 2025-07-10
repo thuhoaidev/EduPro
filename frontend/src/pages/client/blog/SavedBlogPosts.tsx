@@ -86,9 +86,11 @@ const SavedBlogPosts = () => {
   const fetchSavedPosts = async () => {
     setLoading(true);
     try {
-      const data = await apiService.fetchSavedPosts();
-      setSavedPosts(data || []);
-      const uniqueCategories = [...new Set((data.data || []).map(item => item.blog?.category))];
+      const saved = await apiService.fetchSavedPosts();
+      setSavedPosts(saved);
+      const uniqueCategories = [...new Set(saved.map(item => item.blog?.category))];
+      setCategories(uniqueCategories.filter(Boolean));
+
       setCategories(uniqueCategories);
     } catch (error) {
       console.error('Error fetching saved posts:', error);
@@ -127,24 +129,24 @@ const SavedBlogPosts = () => {
     }
   };
 
-  const handleUnsavePost = (savedPostId: string, title: string) => {
-    Modal.confirm({
-      title: 'Xác nhận bỏ lưu',
-      content: `Bạn có chắc chắn muốn bỏ lưu bài viết "${title}"?`,
-      okText: 'Bỏ lưu',
-      cancelText: 'Hủy',
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          await apiService.unsavePost(savedPostId);
-          setSavedPosts(prev => prev.filter(item => item._id !== savedPostId));
-          message.success('Đã bỏ lưu bài viết');
-        } catch (error) {
-          message.error('Không thể bỏ lưu bài viết');
-        }
+ const handleUnsavePost = (blogId: string, title: string) => {
+  Modal.confirm({
+    title: 'Xác nhận bỏ lưu',
+    content: `Bạn có chắc chắn muốn bỏ lưu bài viết "${title}"?`,
+    okText: 'Bỏ lưu',
+    cancelText: 'Hủy',
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        await apiService.unsavePost(blogId); // blog._id
+        setSavedPosts(prev => prev.filter(item => item.blog._id !== blogId));
+        message.success('Đã bỏ lưu bài viết');
+      } catch (error) {
+        message.error('Không thể bỏ lưu bài viết');
       }
-    });
-  };
+    }
+  });
+};
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -284,7 +286,7 @@ const SavedBlogPosts = () => {
                           label: 'Bỏ lưu',
                           icon: <DeleteOutlined />,
                           danger: true,
-                          onClick: () => handleUnsavePost(savedPost._id, blog.title)
+                          onClick: () => handleUnsavePost(savedPost.blog._id, blog.title)
                         }
                       ]
                     }}
