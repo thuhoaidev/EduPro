@@ -58,22 +58,24 @@ interface ApiInstructor {
 const instructorCategories = ['Tất cả', 'Full-Stack Development', 'UI/UX Design', 'Data Science', 'Mobile Development', 'DevOps', 'Digital Marketing'];
 
 const InstructorBanner = () => (
-  <div className="rounded-3xl bg-gradient-to-r from-blue-100 via-blue-50 to-white p-8 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg">
-    <div>
-      <Title level={2} className="!mb-2 !text-blue-700 font-extrabold">Đội ngũ Giảng viên Chất lượng</Title>
-      <Text className="text-lg text-gray-700">Khám phá và kết nối với các chuyên gia hàng đầu trong nhiều lĩnh vực. Tất cả giảng viên đều được kiểm duyệt kỹ lưỡng về chuyên môn và kinh nghiệm thực tiễn.</Text>
+    <div className="rounded-3xl bg-gradient-to-r from-blue-100 via-blue-50 to-white p-8 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg">
+        <div>
+            <Title level={2} className="!mb-2 !text-blue-700 font-extrabold">Đội ngũ Giảng viên Chất lượng</Title>
+            <Text className="text-lg text-gray-700">Khám phá và kết nối với các chuyên gia hàng đầu trong nhiều lĩnh vực. Tất cả giảng viên đều được kiểm duyệt kỹ lưỡng về chuyên môn và kinh nghiệm thực tiễn.</Text>
+        </div>
+        <img src="/vite.svg" alt="Instructors" className="w-32 h-32 md:w-40 md:h-40 object-contain" />
     </div>
-    <img src="/vite.svg" alt="Instructors" className="w-32 h-32 md:w-40 md:h-40 object-contain" />
-  </div>
 );
 
-const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
-    searchTerm: string;
-    category: string;
-    rating: number;
-    experience: number;
-    priceRange: [number, number];
-}) => void }) => {
+const FilterSidebar = ({ setFilters }: {
+    setFilters: (filters: {
+        searchTerm: string;
+        category: string;
+        rating: number;
+        experience: number;
+        priceRange: [number, number];
+    }) => void
+}) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [category, setCategory] = useState('Tất cả');
     const [rating, setRating] = useState(0);
@@ -161,9 +163,9 @@ const FilterSidebar = ({ setFilters }: { setFilters: (filters: {
                         classNames={{ popup: { root: 'rounded-xl' } }}
                     >
                         <Option value={0}>Tất cả</Option>
-                        <Option value={4.5}><Rate disabled allowHalf defaultValue={4.5} style={{fontSize: 14}}/> & 4.5 sao trở lên</Option>
-                        <Option value={4}><Rate disabled defaultValue={4} style={{fontSize: 14}}/> & 4 sao trở lên</Option>
-                        <Option value={3.5}><Rate disabled defaultValue={3.5} style={{fontSize: 14}}/> & 3.5 sao trở lên</Option>
+                        <Option value={4.5}><Rate disabled allowHalf defaultValue={4.5} style={{ fontSize: 14 }} /> & 4.5 sao trở lên</Option>
+                        <Option value={4}><Rate disabled defaultValue={4} style={{ fontSize: 14 }} /> & 4 sao trở lên</Option>
+                        <Option value={3.5}><Rate disabled defaultValue={3.5} style={{ fontSize: 14 }} /> & 3.5 sao trở lên</Option>
                     </Select>
                 </div>
                 {/* Kinh nghiệm */}
@@ -337,14 +339,15 @@ const InstructorsPage = () => {
                 page: currentPage,
                 limit: instructorsPerPage
             };
-            
+
             if (filters.searchTerm) {
                 params.search = filters.searchTerm;
             }
 
             const response = await config.get("/users/approved-instructors", { params });
             const data = response.data.data;
-            
+            console.log("Data", data)
+
             // Map API response to our interface
             const mappedInstructors = data.instructors.map((instructor: ApiInstructor) => ({
                 id: instructor.id,
@@ -400,8 +403,8 @@ const InstructorsPage = () => {
             const categorySpecs = categoryMap[filters.category];
             if (categorySpecs) {
                 filtered = filtered.filter(instructor =>
-                    instructor.expertise?.some(spec => 
-                        categorySpecs.some(catSpec => 
+                    instructor.expertise?.some(spec =>
+                        categorySpecs.some(catSpec =>
                             spec.toLowerCase().includes(catSpec.toLowerCase())
                         )
                     )
