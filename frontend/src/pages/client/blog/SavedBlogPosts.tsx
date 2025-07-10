@@ -202,23 +202,23 @@ const SavedBlogPosts = () => {
               </Paragraph>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
                 {blog.author ? (
-  <>
-    <Avatar src={blog.author.avatar} icon={<UserOutlined />} />
-    <div style={{ marginLeft: 10 }}>
-      <Text strong>{blog.author.fullname}</Text><br />
-      <Text type="secondary" style={{ fontSize: 12 }}>
-        {blog.category} • {formatDate(blog.createdAt)}
-      </Text>
-    </div>
-  </>
-) : (
-  <div style={{ marginLeft: 10 }}>
-    <Text type="secondary">Tác giả không tồn tại</Text><br />
-    <Text type="secondary" style={{ fontSize: 12 }}>
-      {blog.category} • {formatDate(blog.createdAt)}
-    </Text>
-  </div>
-)}
+                <>
+                  <Avatar src={blog.author.avatar} icon={<UserOutlined />} />
+                  <div style={{ marginLeft: 10 }}>
+                    <Text strong>{blog.author.fullname}</Text><br />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {blog.category} • {formatDate(blog.createdAt)}
+                    </Text>
+                  </div>
+                </>
+              ) : (
+                <div style={{ marginLeft: 10 }}>
+                  <Text type="secondary">Tác giả không tồn tại</Text><br />
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {blog.category} • {formatDate(blog.createdAt)}
+                  </Text>
+                </div>
+              )}
 
               </div>
               <Space wrap style={{ marginBottom: 16 }}>
