@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Tạo axios instance với baseURL chuẩn
 const apiClient = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: '/api',
 });
 
 // Thêm interceptor để tự động gửi token

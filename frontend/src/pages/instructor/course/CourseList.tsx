@@ -25,7 +25,7 @@ import {
   PlusOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { courseService } from '../../../services/apiService';
+import { courseService } from '../../../services/courseService';
 
 export interface Course {
   id: string;
@@ -148,17 +148,23 @@ const CourseList: React.FC = () => {
     totalStudents: 1234, // Mock data - replace with actual data
   };
 
-  // Hàm gửi duyệt khóa học
-  const handleSendForApproval = async (courseId: string) => {
-    try {
-      await courseService.updateCourseStatus(courseId, 'pending');
-      message.success('Đã gửi duyệt khóa học!');
-      // Cập nhật lại danh sách
-      const data = await courseService.getInstructorCourses('me');
-      setCourses(data);
-    } catch (err) {
-      message.error('Gửi duyệt thất bại!');
-    }
+  // Hàm xuất bản khóa học (gửi duyệt)
+  const handlePublish = async (courseId: string) => {
+    Modal.info({
+      title: 'Gửi xét duyệt khóa học',
+      content: 'Khóa học của bạn đã được gửi đi xét duyệt. Vui lòng chờ trong 24h để được kiểm duyệt.',
+      okText: 'Đã hiểu',
+      onOk: async () => {
+        try {
+          await courseService.updateCourseStatus(courseId, 'pending');
+          message.success('Đã gửi khóa học đi xét duyệt!');
+          const data = await courseService.getInstructorCourses();
+          setCourses(data);
+        } catch (err) {
+          message.error('Gửi xét duyệt thất bại!');
+        }
+      },
+    });
   };
 
   return (
@@ -286,6 +292,7 @@ const CourseList: React.FC = () => {
                       type="text" 
                       icon={<EditOutlined className="text-[#34a853]" />} 
                       onClick={() => navigate(`/instructor/courses/${course.id}/edit`)}
+                      disabled={!(course.status === 'draft' || course.status === 'rejected')}
                     />
                   </Tooltip>,
                   <Tooltip title="Xóa" key="delete">
@@ -294,18 +301,19 @@ const CourseList: React.FC = () => {
                       danger
                       icon={<DeleteOutlined />} 
                       onClick={() => handleDelete(course.id)}
+                      disabled={!(course.status === 'draft' || course.status === 'rejected')}
                     />
                   </Tooltip>,
-                  // Thêm nút gửi duyệt nếu là draft
+                  // Thêm nút xuất bản nếu là draft
                   course.status === 'draft' && (
-                    <Tooltip title="Gửi duyệt" key="send-approval">
-                      <Button 
+                    <Tooltip title="Xuất bản (gửi xét duyệt)" key="publish">
+                      <Button
                         type="primary"
-                        onClick={() => handleSendForApproval(course.id)}
+                        onClick={() => handlePublish(course.id)}
                         size="small"
                         className="bg-orange-500"
                       >
-                        Gửi duyệt
+                        Xuất bản
                       </Button>
                     </Tooltip>
                   )
@@ -317,9 +325,9 @@ const CourseList: React.FC = () => {
                       {course.title}
                       {/* Hiển thị trạng thái */}
                       <Tag color={statusColorMap[course.status] || 'default'} className="ml-2">
-                        {course.status === 'draft' && 'Nháp'}
+                        {course.status === 'draft' && 'Chưa xuất bản'}
                         {course.status === 'pending' && 'Chờ duyệt'}
-                        {course.status === 'published' && 'Đã duyệt'}
+                        {course.status === 'published' && 'Đã xuất bản'}
                         {course.status === 'rejected' && 'Bị từ chối'}
                         {course.status === 'archived' && 'Lưu trữ'}
                       </Tag>

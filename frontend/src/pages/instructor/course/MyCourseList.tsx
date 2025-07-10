@@ -113,7 +113,7 @@ const MyCourseList: React.FC = () => {
           course.id === courseId ? { ...course, status: newStatus } : course
         )
       );
-      message.success(`Đã cập nhật trạng thái khóa học thành ${newStatus === 'published' ? 'đã xuất bản' : newStatus === 'draft' ? 'bản nháp' : newStatus}`);
+      message.success(`Đã cập nhật trạng thái khóa học thành ${newStatus === 'published' ? 'đã xuất bản' : newStatus === 'draft' ? 'chưa xuất bản' : newStatus}`);
     } catch (error: unknown) {
       console.error('Lỗi khi cập nhật trạng thái:', error);
       const errorMessage = error instanceof Error ? error.message : "Có lỗi xảy ra khi cập nhật trạng thái.";
@@ -160,7 +160,7 @@ const MyCourseList: React.FC = () => {
         
         const statusLabels: Record<string, string> = {
           published: 'Đã xuất bản',
-          draft: 'Bản nháp',
+          draft: 'Chưa xuất bản',
           pending: 'Chờ duyệt',
           rejected: 'Từ chối',
           archived: 'Lưu trữ'
@@ -255,7 +255,7 @@ const MyCourseList: React.FC = () => {
         <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
             <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Tổng số khóa học" value={stats.totalCourses} prefix={<BookOutlined />} /></Card></motion.div></Col>
             <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Đã xuất bản" value={stats.publishedCourses} prefix={<BookOutlined />} valueStyle={{color: '#3f8600'}}/></Card></motion.div></Col>
-            <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Bản nháp" value={stats.draftCourses} prefix={<BookOutlined />} valueStyle={{color: '#cf1322'}} /></Card></motion.div></Col>
+            <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Chưa xuất bản" value={stats.draftCourses} prefix={<BookOutlined />} valueStyle={{color: '#cf1322'}} /></Card></motion.div></Col>
             <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Tổng học viên" value={stats.totalStudents} prefix={<UserOutlined />} /></Card></motion.div></Col>
         </Row>
       </motion.div>
@@ -279,7 +279,7 @@ const MyCourseList: React.FC = () => {
               >
                 <Option value="all">Tất cả trạng thái</Option>
                 <Option value="published">Đã xuất bản</Option>
-                <Option value="draft">Bản nháp</Option>
+                <Option value="draft">Chưa xuất bản</Option>
               </Select>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/instructor/courses/create')}>
                 Tạo khóa học mới

@@ -54,11 +54,12 @@ const EditCourse: React.FC = () => {
   const [course, setCourse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<"amount" | "percentage">("amount");
+  const [fileList, setFileList] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchCourse = async () => {
       if (!id) return;
-      
+      console.log('ID truyền vào getCourseById:', id);
       setLoading(true);
       setError(null);
       
@@ -66,19 +67,25 @@ const EditCourse: React.FC = () => {
         const data = await getCourseById(id);
         setCourse(data);
         
-        // Set discount type based on existing data
-        if (data.discount_percentage) {
-          setDiscountType("percentage");
-        } else if (data.discount_amount) {
-          setDiscountType("amount");
+        // Set fileList cho Upload nếu có thumbnail
+        if (data.thumbnail) {
+          setFileList([{
+            uid: '-1',
+            name: 'thumbnail.jpg',
+            status: 'done',
+            url: data.thumbnail,
+          }]);
         }
         
-        // Format data for form
+        // Set category_id là _id nếu category là object
         const formData = {
           ...data,
+          category_id: data.category?._id || data.category_id,
           discount: data.discount_percentage || data.discount_amount || 0,
           requirements: data.requirements || [],
-          sections: data.sections || [],
+          sections: Array.isArray(data.sections) && data.sections.length > 0
+            ? data.sections.map((s: any) => ({ title: s.title || '' }))
+            : [{ title: '' }],
         };
         
         form.setFieldsValue(formData);
@@ -95,18 +102,21 @@ const EditCourse: React.FC = () => {
 
   const handleFinish = async (values: any) => {
     setSaving(true);
-    
     try {
-      // Format data for API
-      const courseData = {
+      let courseData = {
         ...values,
         discount_amount: discountType === "amount" ? values.discount : 0,
         discount_percentage: discountType === "percentage" ? values.discount : 0,
       };
-      
-      // Remove the generic discount field
       delete courseData.discount;
-      
+      // Xử lý thumbnail: nếu không chọn file mới thì chỉ gửi URL ảnh cũ
+      if (fileList.length === 0 && course?.thumbnail) {
+        courseData.thumbnail = course.thumbnail;
+      } else if (fileList.length > 0 && fileList[0].originFileObj) {
+        courseData.thumbnail = fileList[0].originFileObj;
+      } else {
+        delete courseData.thumbnail;
+      }
       await updateCourse(id!, courseData);
       message.success("Cập nhật khóa học thành công!");
       navigate("/instructor/courses");
@@ -169,6 +179,9 @@ const EditCourse: React.FC = () => {
         layout="vertical" 
         onFinish={handleFinish}
         disabled={saving}
+        initialValues={{
+          sections: [{ title: '' }],
+        }}
       >
         <Form.Item
           label="Tiêu đề khóa học"
@@ -212,6 +225,8 @@ const EditCourse: React.FC = () => {
             maxCount={1}
             beforeUpload={() => false}
             accept="image/*"
+            fileList={fileList}
+            onChange={({ fileList }) => setFileList(fileList)}
           >
             <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
           </Upload>
@@ -367,64 +382,6 @@ const EditCourse: React.FC = () => {
                   >
                     <Input placeholder="VD: Giới thiệu React" />
                   </Form.Item>
-
-                  <Form.List name={[name, "lessons"]}>
-                    {(lessonFields, { add: addLesson, remove: removeLesson }) => (
-                      <>
-                        {lessonFields.map(({ key: lessonKey, name: lessonName }) => (
-                          <Card
-                            key={lessonKey}
-                            size="small"
-                            className="mb-2"
-                            title={`Bài ${lessonKey + 1}`}
-                            extra={
-                              <Button
-                                danger
-                                size="small"
-                                onClick={() => removeLesson(lessonName)}
-                                disabled={saving}
-                              >
-                                Xóa bài
-                              </Button>
-                            }
-                          >
-                            <Form.Item
-                              name={[lessonName, "title"]}
-                              label="Tiêu đề bài"
-                              rules={[{ required: true, message: "Nhập tiêu đề bài!" }]}
-                            >
-                              <Input placeholder="VD: JSX là gì?" />
-                            </Form.Item>
-
-                            <Form.Item
-                              name={[lessonName, "is_preview"]}
-                              label="Xem trước?"
-                              rules={[{ required: true, message: "Chọn trạng thái!" }]}
-                            >
-                              <Select
-                                placeholder="Chọn trạng thái xem trước"
-                                options={[
-                                  { label: "Có", value: true },
-                                  { label: "Không", value: false },
-                                ]}
-                              />
-                            </Form.Item>
-                          </Card>
-                        ))}
-                        <Form.Item>
-                          <Button
-                            type="dashed"
-                            icon={<PlusOutlined />}
-                            onClick={() => addLesson()}
-                            block
-                            disabled={saving}
-                          >
-                            Thêm bài học
-                          </Button>
-                        </Form.Item>
-                      </>
-                    )}
-                  </Form.List>
                 </Card>
               ))}
               <Form.Item>

@@ -1,4 +1,27 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = '/api';
+
+// Đặt hàm này trước object courseService
+export const updateCourseStatus = async (courseId: string, status: string) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/courses/${courseId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Lỗi khi cập nhật trạng thái khóa học');
+    }
+    return result.data;
+  } catch (error) {
+    console.error('Error updating course status:', error);
+    throw error;
+  }
+};
 
 // Mock data for testing UI
 const MOCK_SECTIONS = [
@@ -82,9 +105,48 @@ const MOCK_SECTIONS = [
 // Toggle between mock and real API
 const USE_MOCK_DATA = true; // Set to false when backend is ready
 
+// Type definitions
+interface SectionData {
+  title: string;
+  description?: string;
+  order?: number;
+}
+
+interface LessonData {
+  title: string;
+  duration?: string;
+  order?: number;
+}
+
+interface Section {
+  id: number;
+  title: string;
+  description: string;
+  order: number;
+  isExpanded: boolean;
+  lessons: Lesson[];
+}
+
+interface Lesson {
+  id: number;
+  title: string;
+  duration: string;
+  order: number;
+}
+
+interface CourseData {
+  title: string;
+  description?: string;
+  price?: number;
+  thumbnail?: File;
+  requirements?: string[];
+  sections?: unknown[];
+  [key: string]: unknown;
+}
+
 export const courseService = {
   // Get all sections with lessons
-  getSections: async () => {
+  getSections: async (): Promise<Section[]> => {
     if (USE_MOCK_DATA) {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -102,12 +164,15 @@ export const courseService = {
   },
 
   // Create new section
-  createSection: async (sectionData) => {
+  createSection: async (sectionData: SectionData): Promise<Section> => {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300));
-      const newSection = {
+      const newSection: Section = {
         id: Date.now(),
-        ...sectionData,
+        title: sectionData.title,
+        description: sectionData.description || '',
+        order: sectionData.order || 1,
+        isExpanded: false,
         lessons: []
       };
       MOCK_SECTIONS.push(newSection);
@@ -131,7 +196,7 @@ export const courseService = {
   },
 
   // Update section
-  updateSection: async (id, updates) => {
+  updateSection: async (id: number, updates: Partial<SectionData>): Promise<Section | null> => {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300));
       const sectionIndex = MOCK_SECTIONS.findIndex(s => s.id === id);
@@ -159,7 +224,7 @@ export const courseService = {
   },
 
   // Delete section
-  deleteSection: async (id) => {
+  deleteSection: async (id: number): Promise<boolean> => {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300));
       const index = MOCK_SECTIONS.findIndex(s => s.id === id);
@@ -182,7 +247,7 @@ export const courseService = {
   },
 
   // Update sections order
-  updateSectionsOrder: async (sections) => {
+  updateSectionsOrder: async (sections: Section[]): Promise<{ success: boolean }> => {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300));
       // Mock implementation - just return success
@@ -206,14 +271,16 @@ export const courseService = {
   },
 
   // Create new lesson
-  createLesson: async (sectionId, lessonData) => {
+  createLesson: async (sectionId: number, lessonData: LessonData): Promise<Lesson> => {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300));
       const section = MOCK_SECTIONS.find(s => s.id === sectionId);
       if (section) {
-        const newLesson = {
+        const newLesson: Lesson = {
           id: Date.now(),
-          ...lessonData
+          title: lessonData.title,
+          duration: lessonData.duration || '00:00',
+          order: lessonData.order || 1
         };
         section.lessons.push(newLesson);
         return newLesson;
@@ -238,7 +305,7 @@ export const courseService = {
   },
 
   // Update lesson
-  updateLesson: async (sectionId, lessonId, updates) => {
+  updateLesson: async (sectionId: number, lessonId: number, updates: Partial<LessonData>): Promise<Lesson> => {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300));
       const section = MOCK_SECTIONS.find(s => s.id === sectionId);
@@ -269,7 +336,7 @@ export const courseService = {
   },
 
   // Delete lesson
-  deleteLesson: async (sectionId, lessonId) => {
+  deleteLesson: async (sectionId: number, lessonId: number): Promise<boolean> => {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300));
       const section = MOCK_SECTIONS.find(s => s.id === sectionId);
@@ -295,7 +362,7 @@ export const courseService = {
   },
 
   // Update lessons order
-  updateLessonsOrder: async (sectionId, lessons) => {
+  updateLessonsOrder: async (sectionId: number, lessons: Lesson[]): Promise<{ success: boolean }> => {
     if (USE_MOCK_DATA) {
       await new Promise(resolve => setTimeout(resolve, 300));
       // Mock implementation - just return success
@@ -317,6 +384,48 @@ export const courseService = {
       throw error;
     }
   },
+
+  updateCourseStatus,
+
+  createCourse: async (courseData: CourseData) => {
+    const token = localStorage.getItem('token');
+    let body: string | FormData;
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+    };
+    let isFormData = false;
+    if (courseData.thumbnail && courseData.thumbnail instanceof File) {
+      const formData = new FormData();
+      Object.keys(courseData).forEach(key => {
+        if (key === 'thumbnail' && courseData.thumbnail) {
+          formData.append(key, courseData.thumbnail);
+        } else if (key === 'requirements' && Array.isArray(courseData[key])) {
+          (courseData[key] as string[]).forEach((req: string) => {
+            formData.append('requirements[]', req);
+          });
+        } else if (key === 'sections' && Array.isArray(courseData[key])) {
+          formData.append('sections', JSON.stringify(courseData[key]));
+        } else {
+          formData.append(key, String(courseData[key]));
+        }
+      });
+      body = formData;
+      isFormData = true;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(courseData);
+    }
+    const response = await fetch(`${API_BASE_URL}/courses`, {
+      method: 'POST',
+      headers: isFormData ? { 'Authorization': `Bearer ${token}` } : headers,
+      body,
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Lỗi khi tạo khóa học');
+    }
+    return result.data;
+  },
 };
 
 // Lấy lesson theo id
@@ -336,12 +445,18 @@ export const getSectionById = async (sectionId: string) => {
 // Lấy khóa học theo id
 export const getCourseById = async (courseId: string) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/courses/${courseId}`);
-    if (!response.ok) {
-      throw new Error('Không tìm thấy khóa học');
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/courses/${courseId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Không tìm thấy khóa học');
     }
-    const data = await response.json();
-    return data.data || data;
+    return result.data;
   } catch (error) {
     console.error('Error fetching course:', error);
     throw error;
@@ -349,25 +464,48 @@ export const getCourseById = async (courseId: string) => {
 };
 
 // Cập nhật khóa học
-export const updateCourse = async (courseId: string, courseData: any) => {
+export const updateCourse = async (courseId: string, courseData: CourseData) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/courses/${courseId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(courseData),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Lỗi khi cập nhật khóa học');
+    let body: string | FormData;
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+    };
+    let isFormData = false;
+    if (courseData.thumbnail && courseData.thumbnail instanceof File) {
+      const formData = new FormData();
+      Object.keys(courseData).forEach(key => {
+        if (key === 'thumbnail' && courseData.thumbnail) {
+          formData.append(key, courseData.thumbnail);
+        } else if (key === 'requirements' && Array.isArray(courseData[key])) {
+          (courseData[key] as string[]).forEach((req: string) => {
+            formData.append('requirements[]', req);
+          });
+        } else if (key === 'sections' && Array.isArray(courseData[key])) {
+          formData.append('sections', JSON.stringify(courseData[key]));
+        } else {
+          formData.append(key, String(courseData[key]));
+        }
+      });
+      body = formData;
+      isFormData = true;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(courseData);
     }
-    
-    const data = await response.json();
-    return data.data || data;
+    const url = `${API_BASE_URL}/courses/${courseId}`;
+    console.log('Gọi API update:', url);
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: isFormData ? { 'Authorization': `Bearer ${token}` } : headers,
+      body,
+    });
+    const result = await response.json();
+    console.log('Update course response:', result);
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Lỗi khi cập nhật khóa học');
+    }
+    return result.data;
   } catch (error) {
     console.error('Error updating course:', error);
     throw error;
