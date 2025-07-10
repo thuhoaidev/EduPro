@@ -29,6 +29,7 @@ const paymentRouter = require('./routes/paymentRouter');
 const orderRoutes = require('./routes/order.routes');
 const report = require('./routes/report.routes');
 const teacherWalletRoutes = require('./routes/teacherWallet.routes');
+const commentLikeRoutes = require('./routes/commentLike.route');
 
 // Khởi tạo app
 const app = express();
@@ -101,7 +102,7 @@ app.use('/', paymentRouter);
 app.use('/api/orders', orderRoutes);
 app.use('/api/reports', report);
 app.use('/api/teacher-wallet', teacherWalletRoutes);
-
+app.use('/api/comment-likes', commentLikeRoutes);
 
 // Error handling middleware
 app.use((err, req, res, _next) => {

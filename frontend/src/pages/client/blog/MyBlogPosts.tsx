@@ -118,24 +118,37 @@ const MyBlogPosts = () => {
   const fetchMyPosts = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/blogs`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
-      });
+      const response = await fetch(`${API_BASE_URL}/blogs/my-posts`, {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${getAuthToken()}`
+  }
+});
+
 
       if (!response.ok) {
         throw new Error('Failed to fetch posts');
       }
 
       const data = await response.json();
-      const allPosts = data.data || data;
+      const allPosts = data.data.map(post => ({
+  ...post,
+  likes: post.likes_count || 0
+}));
+
 
       // Filter posts by current user
       const myUserId = getCurrentUser()._id;
-      const filtered = allPosts.filter((post: BlogPost) => post.author._id === myUserId);
+      const filtered = allPosts.filter((post: BlogPost) => {
+  if (!post.author) {
+    console.warn('Bài viết thiếu thông tin author:', post);
+    return false;
+  }
+  return post.author._id === myUserId;
+});
+
+
 
       setPosts(filtered);
       setTotalPosts(filtered.length);
@@ -148,67 +161,74 @@ const MyBlogPosts = () => {
   };
 
   const handleDeletePost = (postId: string) => {
-    Modal.confirm({
-      title: 'Xác nhận xóa bài viết',
-      content: 'Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.',
-      okText: 'Xóa',
-      okType: 'danger',
-      cancelText: 'Hủy',
-      onOk: async () => {
-        try {
-          const response = await fetch(`${API_BASE_URL}/blogs/${postId}`, {
-            method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${getAuthToken()}`
-            }
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to delete post');
+  Modal.confirm({
+    title: 'Xác nhận xóa bài viết',
+    content: 'Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.',
+    okText: 'Xóa',
+    okType: 'danger',
+    cancelText: 'Hủy',
+    async onOk() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/blogs/${postId}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`
           }
+        });
 
-          setPosts(posts.filter(post => post._id !== postId));
-          setTotalPosts(prev => prev - 1);
-          message.success('Xóa bài viết thành công');
-        } catch (error) {
-          console.error('Error deleting post:', error);
-          message.error('Không thể xóa bài viết');
+        if (!response.ok) {
+          const errorRes = await response.json();
+          throw new Error(errorRes.message || 'Xoá thất bại');
         }
+
+        // Cập nhật danh sách sau khi xoá
+        setPosts(prev => prev.filter(post => post._id !== postId));
+        setTotalPosts(prev => prev - 1);
+        message.success('✅ Xoá bài viết thành công');
+      } catch (error: any) {
+        console.error('❌ Lỗi xoá:', error);
+        message.error(`Không thể xoá bài viết: ${error.message || 'Lỗi không xác định'}`);
+      }
+    }
+  });
+};
+
+
+  const handleLikePost = async (postId: string) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/blogs/${postId}/like`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${getAuthToken()}`
       }
     });
-  };
 
-  const handleLikePost = async (postId: string, isLiked: boolean) => {
-    try {
-      const endpoint = isLiked ? 'unlike' : 'like';
-      const response = await fetch(`${API_BASE_URL}/blogs/${postId}/${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to ${endpoint} post`);
-      }
-
-      // Update post likes count and liked status in local state
-      setPosts(posts.map(post => 
-        post._id === postId 
-          ? { 
-              ...post, 
-              likes: isLiked ? post.likes - 1 : post.likes + 1,
-              isLiked: !isLiked
-            }
-          : post
-      ));
-
-      message.success(isLiked ? 'Đã bỏ thích' : 'Đã thích bài viết');
-    } catch (error) {
-      console.error('Error liking/unliking post:', error);
-      message.error('Không thể thực hiện hành động này');
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Không thể xử lý thả tym');
     }
-  };
+
+    const data = await response.json(); // { liked: boolean, likes_count: number, message: string }
+
+    // ✅ Cập nhật lại dữ liệu bài viết
+    setPosts(prevPosts => prevPosts.map(post =>
+      post._id === postId
+        ? {
+            ...post,
+            isLiked: data.liked,
+            likes: data.likes_count
+          }
+        : post
+    ));
+
+    message.success(data.message || (data.liked ? 'Đã thả tym' : 'Đã bỏ tym'));
+  } catch (error: any) {
+    console.error('❌ Lỗi thả tym:', error);
+    message.error(error.message || 'Không thể thả tym');
+  }
+};
+
+
 
   const fetchComments = async (postId: string) => {
     setCommentLoading(true);
@@ -343,48 +363,37 @@ const navigate = useNavigate();
 
   const renderPostCard = (post: BlogPost) => (
     <Card
-      key={post._id}
-      hoverable
-      style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-      styles={{ body: { padding: 0 } }}
-    >
+  key={post._id}
+  hoverable
+  style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+  styles={{ body: { padding: 0 } }}
+>
+
       <Row gutter={0}>
         <Col xs={24} sm={8}>
-          <div style={{ 
-            height: 200, 
-            background: post.thumbnail ? `url(${post.thumbnail})` : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            position: 'relative'
-          }}>
-            {!post.thumbnail && (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                color: '#fff',
-                fontSize: 16,
-                textAlign: 'center'
-              }}>
-                <EyeOutlined style={{ fontSize: 24, marginBottom: 8 }} />
-                <div>Không có ảnh</div>
-              </div>
-            )}
-            <Tag 
-              color={getStatusColor(post.status)}
-              style={{
-                position: 'absolute',
-                top: 12,
-                left: 12,
-                margin: 0,
-                fontWeight: 500
-              }}
-            >
-              {getStatusText(post.status)}
-            </Tag>
-          </div>
-        </Col>
+  <div style={{ height: 200, overflow: 'hidden' }}>
+    {post.image ? (
+  <img
+    src={post.image}
+        alt="Thumbnail"
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+    ) : (
+      <div style={{
+        height: '100%',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <EyeOutlined style={{ fontSize: 24, marginRight: 8 }} />
+        Không có ảnh
+      </div>
+    )}
+  </div>
+</Col>
+
         <Col xs={24} sm={16}>
           <div style={{ padding: 24 }}>
             <div style={{ marginBottom: 16 }}>
@@ -414,14 +423,15 @@ const navigate = useNavigate();
                 <span><CalendarOutlined /> {new Date(post.createdAt).toLocaleDateString('vi-VN')}</span>
                 <span><EyeOutlined /> {post.views || 0}</span>
                 <Button
-                  type="text"
-                  size="small"
-                  icon={post.isLiked ? <HeartFilled style={{ color: '#ff4d4f' }} /> : <HeartOutlined />}
-                  onClick={() => handleLikePost(post._id, post.isLiked || false)}
-                  style={{ padding: 0, color: post.isLiked ? '#ff4d4f' : '#666', border: 'none' }}
-                >
-                  {post.likes || 0}
-                </Button>
+  type="text"
+  size="small"
+  icon={post.isLiked ? <HeartFilled style={{ color: '#ff4d4f' }} /> : <HeartOutlined />}
+  onClick={() => handleLikePost(post._id)}
+>
+  {post.likes}
+</Button>
+
+
                 <Button
                   type="text"
                   size="small"
@@ -434,68 +444,90 @@ const navigate = useNavigate();
               </div>
               
               <Dropdown
-                overlay={
-                  <div style={{
-                    background: '#fff',
-                    borderRadius: 8,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    padding: 8,
-                    minWidth: 160
-                  }}>
-                    <Button
-                      type="text"
-                      block
-                      style={{ textAlign: 'left', marginBottom: 4 }}
-                      icon={<EyeOutlined />}
-                    >
-                      Xem bài viết
-                    </Button>
-                    <Button
-                      type="text"
-                      block
-                      style={{ textAlign: 'left', marginBottom: 4 }}
-                      icon={<EditOutlined />}
-                    >
-                      Chỉnh sửa
-                    </Button>
-                    <Button
-                      type="text"
-                      block
-                      style={{ textAlign: 'left', marginBottom: 4 }}
-                      icon={<MessageOutlined />}
-                      onClick={() => showCommentModal(post)}
-                    >
-                      Bình luận
-                    </Button>
-                    <Button
-                      type="text"
-                      block
-                      style={{ textAlign: 'left', marginBottom: 4 }}
-                      icon={<ShareAltOutlined />}
-                      onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/blog/post/${post._id}`);
-                        message.success('Đã sao chép link bài viết');
-                      }}
-                    >
-                      Chia sẻ
-                    </Button>
-                    <Button
-                      type="text"
-                      block
-                      danger
-                      style={{ textAlign: 'left' }}
-                      icon={<DeleteOutlined />}
-                      onClick={() => handleDeletePost(post._id)}
-                    >
-                      Xóa bài viết
-                    </Button>
-                  </div>
-                }
-                trigger={['click']}
-                placement="bottomRight"
-              >
-                <Button type="text" icon={<MoreOutlined />} />
-              </Dropdown>
+  menu={{
+    items: [
+      {
+        key: 'view',
+        label: (
+          <Button
+            type="text"
+            block
+            style={{ textAlign: 'left' }}
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/blog/post/${post._id}`)}
+          >
+            Xem bài viết
+          </Button>
+        )
+      },
+      {
+        key: 'edit',
+        label: (
+          <Button
+            type="text"
+            block
+            style={{ textAlign: 'left' }}
+            icon={<EditOutlined />}
+          >
+            Chỉnh sửa
+          </Button>
+        )
+      },
+      {
+        key: 'comment',
+        label: (
+          <Button
+            type="text"
+            block
+            style={{ textAlign: 'left' }}
+            icon={<MessageOutlined />}
+            onClick={() => showCommentModal(post)}
+          >
+            Bình luận
+          </Button>
+        )
+      },
+      {
+        key: 'share',
+        label: (
+          <Button
+            type="text"
+            block
+            style={{ textAlign: 'left' }}
+            icon={<ShareAltOutlined />}
+            onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/blog/post/${post._id}`);
+              message.success('Đã sao chép link bài viết');
+            }}
+          >
+            Chia sẻ
+          </Button>
+        )
+      },
+      {
+        key: 'delete',
+        danger: true,
+        label: (
+          <Button
+            type="text"
+            block
+            style={{ textAlign: 'left' }}
+            icon={<DeleteOutlined />}
+            danger
+            onClick={() => handleDeletePost(post._id)}
+          >
+            Xóa bài viết
+          </Button>
+        )
+      }
+    ]
+  }}
+  trigger={['click']}
+  placement="bottomRight"
+>
+  <Button type="text" icon={<MoreOutlined />} />
+</Dropdown>
+
             </div>
           </div>
         </Col>

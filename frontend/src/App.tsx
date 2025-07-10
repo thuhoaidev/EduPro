@@ -62,6 +62,7 @@ import CheckPayment from "./pages/client/CheckPayment";
 import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
 
 import BlogPage from "./pages/client/BlogPage";
+import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
 
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
 import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
@@ -173,6 +174,7 @@ function App() {
       element: <ModeratorLayout />,
       children: [
         { path: "reports", element: <ReportsPage /> },
+        { path: "blogs", element: <BlogModeration /> },
       ],
     },
     {

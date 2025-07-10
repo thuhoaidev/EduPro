@@ -8,11 +8,7 @@ const { auth } = require('../middlewares/auth');
 // === CRUD BLOG ===
 router.post('/', auth, upload.single('image'), blogController.createBlog);
 router.get('/', blogController.getAllBlogs);
-router.get('/:id', blogController.getBlogById);
-router.put('/:id', blogController.updateBlog);
-router.delete('/:id', blogController.deleteBlog);
-router.patch('/:id/publish', blogController.publishBlog);
-router.patch('/:id/approve-reject', blogController.approveOrRejectBlog);
+router.get('/my-posts', auth, blogController.getMyPosts);
 
 // === ADMIN ===
 router.get('/pending/all', blogController.getAllPendingBlogs);
@@ -21,8 +17,7 @@ router.get('/comments/all', blogController.getAllComments);
 
 // === SAVE ===
 router.get('/saved-posts', auth, blogController.getSavedPosts);
-router.post('/:id/save', auth, blogController.savePost);
-router.delete('/:id/unsave', auth, blogController.unsavePost);
+router.post('/:id/toggle-save', auth, blogController.toggleSavePost);
 
 // === LIKE (DÙNG TOGGLE DUY NHẤT) ===
 router.post('/:id/like', auth, blogController.toggleLikeBlog);
@@ -31,5 +26,12 @@ router.post('/:id/like', auth, blogController.toggleLikeBlog);
 router.post('/:id/comment', auth, blogController.commentBlog);
 router.get('/:id/comments', blogController.getBlogComments);
 router.post('/comment/:commentId/reply', auth, blogController.replyComment);
+
+// === CRUD BLOG (PHẢI Ở CUỐI) ===
+router.get('/:id', blogController.getBlogById);
+router.put('/:id', blogController.updateBlog);
+router.delete('/:id', auth, blogController.deleteBlog);
+router.patch('/:id/publish', blogController.publishBlog);
+router.patch('/:id/approve-reject', blogController.approveOrRejectBlog);
 
 module.exports = router;

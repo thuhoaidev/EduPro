@@ -360,7 +360,7 @@ const BlogWritePage = () => {
         title: title.trim(),
         content: content.trim(),
         category,
-        image: thumbnailUrl,
+        thumbnail: thumbnailUrl,
         status: 'pending'
       };
 
@@ -400,7 +400,7 @@ const BlogWritePage = () => {
         title: title.trim(),
         content: content.trim(),
         category,
-        image: thumbnailUrl,
+        thumbnail: thumbnailUrl,
         status: 'draft'
       };
 

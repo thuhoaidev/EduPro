@@ -1,21 +1,5 @@
 // src/services/apiService.ts
-import axios from 'axios';
-
-// Tạo axios instance với baseURL chuẩn
-const apiClient = axios.create({
-  baseURL: '/api',
-});
-
-// Thêm interceptor để tự động gửi token
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers['Authorization'] = `Bearer ${token}`;
-  }
-  return config;
-});
-
+import apiClient from './apiClient';
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -389,20 +373,18 @@ const apiService = {
     }
   },
 
-  fetchSavedPosts: async () => {
+fetchSavedPosts: async () => {
   try {
-    const res = await apiClient.get('/blogs/saved-posts');
+    const res = await apiClient.get('/blogs/saved-posts'); // ❌ bỏ headers thủ công
     if (res.data?.success === false) {
       throw new Error(res.data.message || 'Lỗi từ API');
     }
     return res.data?.data || [];
   } catch (err: any) {
-    console.error('❌ Lỗi khi lấy bài viết đã lưu:', err);
+    console.error('❌ Lỗi khi lấy bài viết đã lưu:', err.response?.data || err.message);
     throw err;
   }
 },
-
-
   likePost: async (postId: string) => {
   try {
     const res = await apiClient.post(`/blogs/${postId}/like`);
@@ -417,6 +399,12 @@ const apiService = {
   unsavePost: async (savedPostId: string) => {
     return apiClient.delete(`/blogs/${savedPostId}/unsave`);
   },
+
+  // src/services/apiService.ts
+  toggleSavePost: async (blogId: string) => {
+  return apiClient.post(`/blogs/${blogId}/toggle-save`);
+},
+
 
   fetchComments: async (postId: string) => {
     const res = await apiClient.get(`/blogs/${postId}/comments`);
