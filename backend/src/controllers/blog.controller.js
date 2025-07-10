@@ -281,24 +281,43 @@ const toggleSavePost = async (req, res) => {
 const getSavedPosts = async (req, res) => {
   try {
     const userId = getUserId(req);
+    // ✅ THÊM LOG Ở ĐÂY
+  console.log('🧪 userId:', userId);
+  console.log('🧪 req.user:', req.user);
+  console.log('🧪 req.headers.authorization:', req.headers?.authorization);
+console.log('🧪 [getSavedPosts] userId:', userId); // thêm log này
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ success: false, message: 'User ID không hợp lệ.' });
-    }
+  return res.status(400).json({ success: false, message: 'User ID không hợp lệ.' }); // ✅ sửa message này
+}
+
 
     const savedPosts = await BlogSave.find({ user: userId })
       .populate({
         path: 'blog',
         populate: { path: 'author', select: 'fullname avatar' }
-      })
-      .sort({ createdAt: -1 });
+      });
 
-    // Chỉ trả về những post còn tồn tại
-    const filtered = savedPosts.filter(item => item.blog); 
+    const validPosts = [];
+    const invalidIds = [];
 
-    res.status(200).json({ success: true, data: filtered });
+    for (const post of savedPosts) {
+      if (post.blog && mongoose.Types.ObjectId.isValid(post.blog._id)) {
+        validPosts.push(post);
+      } else {
+        console.warn('🧹 Bài viết lỗi, cần xóa khỏi BlogSave:', post._id);
+        invalidIds.push(post._id);
+      }
+    }
+
+    // 🧹 Xoá bản ghi BlogSave không hợp lệ
+    if (invalidIds.length > 0) {
+      await BlogSave.deleteMany({ _id: { $in: invalidIds } });
+    }
+
+    return res.json({ success: true, data: validPosts });
   } catch (error) {
-    console.error('❌ getSavedPosts error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
+    console.error('❌ Lỗi khi lấy bài viết đã lưu:', error);
+    return res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }
 };
 

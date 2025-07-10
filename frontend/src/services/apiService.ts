@@ -349,11 +349,6 @@ fetchSavedPosts: async () => {
     throw err;
   }
 },
-
-
-
-
-
   likePost: async (postId: string) => {
   try {
     const res = await apiClient.post(`/blogs/${postId}/like`);
@@ -365,9 +360,9 @@ fetchSavedPosts: async () => {
 },
 
 
-  unsavePost: async (savedPostId: string) => {
-    return apiClient.delete(`/blogs/${savedPostId}/unsave`);
-  },
+  // unsavePost: async (savedPostId: string) => {
+  //   return apiClient.delete(`/blogs/${savedPostId}/unsave`);
+  // },
 
   fetchComments: async (postId: string) => {
     const res = await apiClient.get(`/blogs/${postId}/comments`);

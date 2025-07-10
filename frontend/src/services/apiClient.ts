@@ -1,16 +1,20 @@
-// apiClient.ts
+// src/services/apiClient.ts
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:5000/api',
-  timeout: 5000,
+  baseURL: 'http://localhost:5000/api', // hoặc domain thật
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true
 });
 
+// Gắn token tự động vào mỗi request
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (token && config.headers) {
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },

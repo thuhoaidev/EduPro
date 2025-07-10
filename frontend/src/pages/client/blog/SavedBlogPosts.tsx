@@ -1,39 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import {
-  BookOutlined,
-  DeleteOutlined,
-  EyeOutlined,
-  MoreOutlined,
-  UserOutlined,
-  HeartOutlined,
-  HeartFilled,
-  MessageOutlined,
-  ShareAltOutlined,
-  ClockCircleOutlined,
-  ReloadOutlined
+  BookOutlined, DeleteOutlined, EyeOutlined, MoreOutlined,
+  UserOutlined, HeartOutlined, HeartFilled, MessageOutlined,
+  ShareAltOutlined, ClockCircleOutlined, ReloadOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import {
-  Avatar,
-  Button,
-  Card,
-  Col,
-  Dropdown,
-  Empty,
-  Input,
-  Layout,
-  Modal,
-  Pagination,
-  Row,
-  Select,
-  Space,
-  Spin,
-  Tag,
-  Tooltip,
-  Typography,
-  message
+  Avatar, Button, Card, Col, Dropdown, Empty, Input, Layout,
+  Modal, Pagination, Row, Select, Space, Spin, Tag, Tooltip,
+  Typography, message
 } from 'antd';
 import { apiService } from '../../../services/apiService';
+
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -75,9 +53,9 @@ const SavedBlogPosts = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(6);
   const [categories, setCategories] = useState<string[]>([]);
-
   const navigate = useNavigate();
 
+  // ✅ Gọi API khi component được mount
   useEffect(() => {
     fetchSavedPosts();
     console.log('🔑 Token gửi đi:', localStorage.getItem('token'));
@@ -87,13 +65,16 @@ const SavedBlogPosts = () => {
     setLoading(true);
     try {
       const saved = await apiService.fetchSavedPosts();
-      setSavedPosts(saved);
-      const uniqueCategories = [...new Set(saved.map(item => item.blog?.category))];
-      setCategories(uniqueCategories.filter(Boolean));
+      console.log('✅ Kết quả từ API:', saved);
+      console.log('❌ Các bài bị lỗi:', saved.filter(p => !p.blog));
 
-      setCategories(uniqueCategories);
+      const validPosts = saved.filter(p => p.blog && p.blog._id); // lọc bài null
+      setSavedPosts(validPosts);
+
+      const uniqueCategories = [...new Set(validPosts.map(item => item.blog?.category))];
+      setCategories(uniqueCategories.filter(Boolean));
     } catch (error) {
-      console.error('Error fetching saved posts:', error);
+      console.error('❌ Lỗi fetchSavedPosts:', error);
       message.error('Không thể tải bài viết đã lưu');
     } finally {
       setLoading(false);
@@ -102,7 +83,6 @@ const SavedBlogPosts = () => {
 
   const handleLikeToggle = async (blogId: string, isLiked?: boolean) => {
     if (!blogId) return;
-
     setSavedPosts(prev =>
       prev.map(item =>
         item.blog._id === blogId
@@ -119,34 +99,30 @@ const SavedBlogPosts = () => {
     );
 
     try {
-      if (isLiked) {
-        await apiService.unlikePost(blogId);
-      } else {
-        await apiService.likePost(blogId);
-      }
+      isLiked ? await apiService.unlikePost(blogId) : await apiService.likePost(blogId);
     } catch (error) {
       message.error('Không thể cập nhật trạng thái like');
     }
   };
 
- const handleUnsavePost = (blogId: string, title: string) => {
-  Modal.confirm({
-    title: 'Xác nhận bỏ lưu',
-    content: `Bạn có chắc chắn muốn bỏ lưu bài viết "${title}"?`,
-    okText: 'Bỏ lưu',
-    cancelText: 'Hủy',
-    okType: 'danger',
-    onOk: async () => {
-      try {
-        await apiService.unsavePost(blogId); // blog._id
-        setSavedPosts(prev => prev.filter(item => item.blog._id !== blogId));
-        message.success('Đã bỏ lưu bài viết');
-      } catch (error) {
-        message.error('Không thể bỏ lưu bài viết');
+  const handleUnsavePost = (blogId: string, title: string) => {
+    Modal.confirm({
+      title: 'Xác nhận bỏ lưu',
+      content: `Bạn có chắc chắn muốn bỏ lưu bài viết "${title}"?`,
+      okText: 'Bỏ lưu',
+      cancelText: 'Hủy',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await apiService.unsavePost(blogId);
+          setSavedPosts(prev => prev.filter(item => item.blog._id !== blogId));
+          message.success('Đã bỏ lưu bài viết');
+        } catch (error) {
+          message.error('Không thể bỏ lưu bài viết');
+        }
       }
-    }
-  });
-};
+    });
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -171,18 +147,12 @@ const SavedBlogPosts = () => {
     })
     .sort((a, b) => {
       switch (sortBy) {
-        case 'saved_newest':
-          return new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime();
-        case 'saved_oldest':
-          return new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime();
-        case 'post_newest':
-          return new Date(b.blog.createdAt).getTime() - new Date(a.blog.createdAt).getTime();
-        case 'most_liked':
-          return b.blog.likes_count - a.blog.likes_count;
-        case 'most_viewed':
-          return b.blog.views - a.blog.views;
-        default:
-          return 0;
+        case 'saved_newest': return new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime();
+        case 'saved_oldest': return new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime();
+        case 'post_newest': return new Date(b.blog.createdAt).getTime() - new Date(a.blog.createdAt).getTime();
+        case 'most_liked': return b.blog.likes_count - a.blog.likes_count;
+        case 'most_viewed': return b.blog.views - a.blog.views;
+        default: return 0;
       }
     });
 
@@ -208,11 +178,9 @@ const SavedBlogPosts = () => {
               {!blog.thumbnail && (
                 <div style={{
                   position: 'absolute', top: '50%', left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  color: '#999', textAlign: 'center'
+                  transform: 'translate(-50%, -50%)', color: '#999', textAlign: 'center'
                 }}>
-                  <BookOutlined style={{ fontSize: 24, marginBottom: 8 }} /><br />
-                  Không có ảnh
+                  <BookOutlined style={{ fontSize: 24, marginBottom: 8 }} /><br />Không có ảnh
                 </div>
               )}
               <div style={{
@@ -233,13 +201,25 @@ const SavedBlogPosts = () => {
                 {blog.excerpt || ''}
               </Paragraph>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                <Avatar src={blog.author.avatar} icon={<UserOutlined />} />
-                <div style={{ marginLeft: 10 }}>
-                  <Text strong>{blog.author.fullname}</Text><br />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {blog.category} • {formatDate(blog.createdAt)}
-                  </Text>
-                </div>
+                {blog.author ? (
+  <>
+    <Avatar src={blog.author.avatar} icon={<UserOutlined />} />
+    <div style={{ marginLeft: 10 }}>
+      <Text strong>{blog.author.fullname}</Text><br />
+      <Text type="secondary" style={{ fontSize: 12 }}>
+        {blog.category} • {formatDate(blog.createdAt)}
+      </Text>
+    </div>
+  </>
+) : (
+  <div style={{ marginLeft: 10 }}>
+    <Text type="secondary">Tác giả không tồn tại</Text><br />
+    <Text type="secondary" style={{ fontSize: 12 }}>
+      {blog.category} • {formatDate(blog.createdAt)}
+    </Text>
+  </div>
+)}
+
               </div>
               <Space wrap style={{ marginBottom: 16 }}>
                 {(blog.tags || []).slice(0, 3).map(tag => (
@@ -286,7 +266,7 @@ const SavedBlogPosts = () => {
                           label: 'Bỏ lưu',
                           icon: <DeleteOutlined />,
                           danger: true,
-                          onClick: () => handleUnsavePost(savedPost.blog._id, blog.title)
+                          onClick: () => handleUnsavePost(blog._id, blog.title)
                         }
                       ]
                     }}
@@ -317,8 +297,7 @@ const SavedBlogPosts = () => {
                 placeholder="Tìm kiếm bài viết..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                allowClear
-                size="large"
+                allowClear size="large"
               />
             </Col>
             <Col xs={24} sm={6} md={4}>
