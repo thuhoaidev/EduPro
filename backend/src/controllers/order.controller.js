@@ -126,13 +126,13 @@ class OrderController {
           wallet = new TeacherWallet({ teacherId: instructorProfile.user, balance: 0, history: [] });
         }
         // Giáo viên nhận 40% giá gốc, không bị ảnh hưởng bởi voucher
-        const earning = Math.round(course.price * 0.4 * (item.quantity || 1));
+        const earning = Math.round(course.price * 0.7 * (item.quantity || 1));
         wallet.balance += earning;
         wallet.history.push({
           type: 'earning',
           amount: earning,
           orderId: order._id,
-          note: `Bán khóa học: ${course.title} (40% giá gốc)`
+          note: `Bán khóa học: ${course.title} (70% giá gốc)`
         });
         await wallet.save({ session });
       }
@@ -386,13 +386,13 @@ class OrderController {
           wallet = new TeacherWallet({ teacherId: instructorProfile.user, balance: 0, history: [] });
         }
         // Giáo viên nhận 40% giá gốc, không bị ảnh hưởng bởi voucher
-        const earning = Math.round(course.price * 0.4 * (item.quantity || 1));
+        const earning = Math.round(course.price * 0.7 * (item.quantity || 1));
         wallet.balance += earning;
         wallet.history.push({
           type: 'earning',
           amount: earning,
           orderId: order._id,
-          note: `Bán khóa học: ${course.title} (40% giá gốc)`
+          note: `Bán khóa học: ${course.title} (70% giá gốc)`
         });
         await wallet.save();
         console.log(`Đã cộng ${earning} vào ví giáo viên ${instructorProfile.user} cho khóa học ${course.title}`);
@@ -440,6 +440,10 @@ class OrderController {
         .populate({
           path: 'items.courseId',
           select: 'title thumbnail',
+        })
+        .populate({
+          path: 'voucherId',
+          select: 'title code',
         });
 
       res.json({

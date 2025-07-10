@@ -28,6 +28,9 @@ interface Transaction {
   status: string;
   paymentMethod: string;
   totalAmount: number;
+  discountAmount?: number;
+  finalAmount?: number;
+  voucher?: string;
 }
 
 const TransactionHistory = () => {
@@ -75,7 +78,10 @@ const TransactionHistory = () => {
           status: order.paymentStatus === 'paid' ? 'Đã thanh toán' :
                   order.paymentStatus === 'pending' ? 'Chưa thanh toán' : order.paymentStatus,
           paymentMethod: order.paymentMethod || '',
-          totalAmount: order.totalAmount || 0,
+          totalAmount: order.totalAmount ?? 0,
+          discountAmount: order.discountAmount ?? 0,
+          finalAmount: order.finalAmount ?? order.totalAmount ?? 0,
+          voucher: order.voucherId?.title || order.voucherId?.code || order.voucherId || '',
         }));
 
         setData(formatted);
@@ -147,13 +153,34 @@ const TransactionHistory = () => {
       align: 'center' as const,
     },
     {
-      title: 'Tổng Tiền',
+      title: 'Tổng Tiền (gốc)',
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       align: 'right' as const,
       render: (amount: number) => (
         <span className="tw-font-semibold">{amount.toLocaleString('vi-VN')} đ</span>
       ),
+    },
+    {
+      title: 'Giảm giá',
+      dataIndex: 'discountAmount',
+      key: 'discountAmount',
+      align: 'right' as const,
+      render: (amount?: number) => amount ? <span>-{amount.toLocaleString('vi-VN')} đ</span> : null,
+    },
+    {
+      title: 'Voucher',
+      dataIndex: 'voucher',
+      key: 'voucher',
+      align: 'center' as const,
+      render: (v?: string) => v ? <span>{v}</span> : null,
+    },
+    {
+      title: 'Thực trả',
+      dataIndex: 'finalAmount',
+      key: 'finalAmount',
+      align: 'right' as const,
+      render: (amount?: number) => <span className="tw-font-bold tw-text-blue-600">{amount?.toLocaleString('vi-VN')} đ</span>,
     },
     {
       title: '',
