@@ -146,7 +146,7 @@ const BlogWritePage = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
-  const [thumbnailUrl, setThumbnailUrl] = useState('');
+
   
   // UI states
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -363,13 +363,6 @@ const BlogWritePage = () => {
     formData.append('category', category);
     formData.append('status', 'pending');
 
-    // Convert thumbnailUrl (image link) → File blob
-    if (thumbnailUrl) {
-      const res = await fetch(thumbnailUrl);
-      const blob = await res.blob();
-      const file = new File([blob], 'thumbnail.jpg', { type: blob.type });
-      formData.append('image', file); // 👈 backend đang nhận field 'image'
-    }
 
     let response;
     if (blogId) {
@@ -406,7 +399,7 @@ const BlogWritePage = () => {
         title: title.trim(),
         content: content.trim(),
         category,
-        thumbnail: thumbnailUrl,
+        
         status: 'draft'
       };
 
@@ -730,27 +723,7 @@ Hãy chia sẻ những kiến thức và kinh nghiệm quý báu của bạn!"
                 )}
               </Card>
 
-              {/* Thumbnail */}
-              <Card title="Ảnh đại diện" className="shadow-lg border-0">
-                <Upload
-                  listType="picture-card"
-                  showUploadList={false}
-                  beforeUpload={handleThumbnailUpload}
-                  accept="image/*"
-                >
-                  {thumbnailUrl ? (
-                    <img src={thumbnailUrl} alt="thumbnail" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="text-center">
-                      <PlusOutlined className="text-2xl mb-2" />
-                      <div>Chọn ảnh</div>
-                    </div>
-                  )}
-                </Upload>
-                <div className="text-xs text-gray-500 mt-2">
-                  Khuyến nghị: 1200x630px, định dạng JPG hoặc PNG
-                </div>
-              </Card>
+              
 
               {/* Publishing */}
               <Card className="shadow-lg border-0">

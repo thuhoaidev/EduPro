@@ -20,6 +20,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { marked } from 'marked';
 const API_BASE = 'http://localhost:5000/api';
 
 const axiosClient = {
@@ -64,7 +65,18 @@ const axiosClient = {
 
 };
 
-
+const parseMarkdownToText = (markdown: string): string => {
+  if (!markdown) return '';
+  
+  return markdown
+    .replace(/!\[.*?\]\(.*?\)/g, '') // Loại bỏ image markdown
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Chuyển [text](url) thành text
+    .replace(/#{1,6}\s*/g, '') // Loại bỏ headers
+    .replace(/[*_`~]/g, '') // Loại bỏ bold, italic, code
+    .replace(/\n+/g, ' ') // Thay xuống dòng bằng space
+    .replace(/\s+/g, ' ') // Loại bỏ space thừa
+    .trim();
+};
 const BlogPage = () => {
   const [blogs, setBlogs] = useState<any[]>([]);
   const [selectedBlog, setSelectedBlog] = useState<any | null>(null);
@@ -82,7 +94,14 @@ const BlogPage = () => {
   const commentEndRef = useRef<HTMLDivElement>(null);
  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
   const target = e.currentTarget;
-
+const parseMarkdownToText = (markdown: string): string => {
+  return markdown
+    .replace(/!\[.*?\]\(.*?\)/g, '') // Loại bỏ image markdown
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Chuyển [text](url) thành text
+    .replace(/[#*`_~]/g, '') // Loại bỏ các ký tự markdown khác
+    .replace(/\n+/g, ' ') // Thay thế xuống dòng bằng space
+    .trim();
+};
   // Dựa vào alt để phân biệt loại ảnh
   if (target.alt === 'avatar') {
     target.src = '/images/default-avatar.png';
@@ -508,9 +527,9 @@ const extractFirstImageFromContent = (content: string): string | null => {
   );
 })()}
 
-                  <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed">
-                    {blog.content}
-                  </p>
+                 <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed">
+  {parseMarkdownToText(blog.content)}
+</p>
                   
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                   <div className="flex items-center gap-4">
@@ -594,11 +613,26 @@ const extractFirstImageFromContent = (content: string): string | null => {
                 {selectedBlog.title}
               </h1>
 
-              <div className="prose prose-lg max-w-none mb-8">
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {selectedBlog.content}
-                </p>
-              </div>
+             <div className="prose max-w-none mb-8">
+  <div
+    className="blog-content text-gray-700 leading-relaxed"
+    dangerouslySetInnerHTML={{
+      __html: marked.parse(selectedBlog.content || ''),
+    }}
+  />
+</div>
+<style>
+  {`
+    .blog-content img {
+      width: 100%;
+      height: 250px;
+      object-fit: cover; /* hoặc 'contain' nếu muốn toàn bộ ảnh */
+      border-radius: 12px;
+      display: block;
+      margin: 1rem 0;
+    }
+  `}
+</style>
 
               {/* Action Buttons */}
 <div className="flex items-center justify-between pt-6 border-t border-gray-100">

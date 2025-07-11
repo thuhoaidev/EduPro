@@ -302,7 +302,7 @@ const getSavedPosts = async (req, res) => {
       }
     }
 
-    // 🧹 Xoá những bản ghi lỗi
+    // Xoá những bản ghi lỗi
     const invalidIds = savedPosts
       .filter(p => !p.blog || !mongoose.Types.ObjectId.isValid(p.blog._id))
       .map(p => p._id);
@@ -310,17 +310,27 @@ const getSavedPosts = async (req, res) => {
       await BlogSave.deleteMany({ _id: { $in: invalidIds } });
     }
 
-    // Lấy danh sách blog mà user đã like
+    // Lấy danh sách blog đã like
     const likedBlogs = await BlogLike.find({ user: userId, blog: { $in: blogIds } }).select('blog');
     const likedBlogIds = likedBlogs.map(like => like.blog.toString());
 
-    // Định dạng kết quả trả về
+    // Xử lý kết quả
     const result = validPosts.map(post => {
       const blog = post.blog.toObject();
+
+      // 🔥 FIX: nếu không có image => lấy ảnh đầu tiên trong markdown content
+      if (!blog.image) {
+        const match = blog.content?.match(/!\[.*?\]\((.*?)\)/);
+        if (match && match[1]) {
+          blog.image = match[1];
+        }
+      }
+
       blog.isLiked = likedBlogIds.includes(blog._id.toString());
       blog.save_count = blog.saves?.length || 0;
       blog.likes_count = blog.likes_count || 0;
       blog.comments_count = blog.comments_count || 0;
+
       return { ...post.toObject(), blog };
     });
 
