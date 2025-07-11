@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Button, Modal, List, Avatar, message, Card, List as AntList } from 'antd';
-import { UserOutlined, TeamOutlined, BookOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
+import { Button, Modal, List, Avatar, message, Card, List as AntList, Dropdown, Menu } from 'antd';
+import { UserOutlined, TeamOutlined, BookOutlined, DownOutlined, UpOutlined, MessageOutlined, UserDeleteOutlined } from '@ant-design/icons';
 import CourseCard from '../../../components/course/CourseCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getToken, isTokenValid } from '../../../utils/tokenUtils';
@@ -49,6 +49,7 @@ interface Course {
   rating?: number;
   totalReviews?: number;
   slug?: string;
+  level?: string;
 }
 
 function isAxiosErrorWithMessage(err: unknown): err is { response: { data: { message: string } } } {
@@ -178,11 +179,13 @@ const UserProfile: React.FC = () => {
   };
 
   const handleUnfollow = async () => {
+    if (!user || !currentUserId) return;
     try {
-      await api.delete(`/api/users/${user?._id}/follow`);
+      await api.delete(`/api/users/${user._id}/follow`);
       setIsFollowing(false);
       setFollowers(prev => prev.filter(u => u._id !== currentUserId));
       message.success('Đã bỏ theo dõi');
+      window.location.reload(); // Reload lại trang sau khi bỏ theo dõi
     } catch {
       message.error('Bỏ theo dõi thất bại');
     }
@@ -205,8 +208,7 @@ const UserProfile: React.FC = () => {
     <div className="w-full max-w-6xl mx-auto px-2 sm:px-6 py-8">
       <div className="flex flex-col md:flex-row gap-8 items-start">
         {/* Left: Thông tin cá nhân */}
-        {!showAllCourses && (
-          <div className="md:w-1/3 w-full flex flex-col items-center bg-white rounded-3xl shadow-xl p-6 self-start">
+        <div className="md:w-1/3 w-full flex flex-col items-center bg-white rounded-3xl shadow-xl p-6 self-start">
             {/* Avatar lớn, viền gradient */}
             <div className="relative mb-4">
               <div className="w-36 h-36 rounded-full bg-gradient-to-tr from-blue-400 via-purple-400 to-pink-400 p-1 shadow-lg">
@@ -257,17 +259,41 @@ const UserProfile: React.FC = () => {
                 <span className="text-xl font-bold text-green-600 flex items-center gap-1"><TeamOutlined />{user.following_count ?? 0}</span>
                 <span className="text-xs text-gray-500">Đang theo dõi</span>
               </button>
-              {/* Nút theo dõi/hủy theo dõi nằm cạnh 2 nút trên */}
+              {/* Nút theo dõi/hủy theo dõi và nhắn tin nằm cạnh 2 nút trên */}
               {isLoggedIn && currentUserId && currentUserId !== user._id && (
                 isFollowing ? (
-                  <Button danger shape="round" size="large" className="ml-4" onClick={handleUnfollow}>Bỏ theo dõi</Button>
+                  <Dropdown
+                    overlay={
+                      <Menu>
+                        <Menu.Item
+                          key="message"
+                          icon={<MessageOutlined />}
+                          onClick={() => message.info('Tính năng đang phát triển')}
+                        >
+                          Nhắn tin
+                        </Menu.Item>
+                        <Menu.Item
+                          key="unfollow"
+                          icon={<UserDeleteOutlined />}
+                          onClick={handleUnfollow}
+                          danger
+                        >
+                          Bỏ theo dõi
+                        </Menu.Item>
+                      </Menu>
+                    }
+                    trigger={['click']}
+                  >
+                    <Button shape="round" size="large" className="ml-4">
+                      Tùy chọn <DownOutlined />
+                    </Button>
+                  </Dropdown>
                 ) : (
                   <Button type="primary" shape="round" size="large" className="ml-4" onClick={handleFollow}>Theo dõi</Button>
                 )
               )}
             </div>
           </div>
-        )}
         {/* Right: Khóa học đã tạo & đã tham gia */}
         <div className="md:w-2/3 w-full flex flex-col gap-10">
           {createdCourses.length > 0 && (
