@@ -132,7 +132,7 @@ const AppHeader = () => {
       title: 'Đăng xuất thành công!',
       message: 'Bạn đã đăng xuất khỏi hệ thống. Hẹn gặp lại!'
     });
-    
+
     // Không chuyển hướng ngay, để thông báo tự động chuyển hướng
   };
 
@@ -199,18 +199,24 @@ const AppHeader = () => {
   useEffect(() => {
     const fetchUser = () => {
       const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        let userData = JSON.parse(storedUser);
-        if (userData && typeof userData.role === 'string') {
-          userData.role = { name: userData.role };
-          localStorage.setItem('user', JSON.stringify(userData));
+      try {
+        if (!storedUser || storedUser === 'undefined' || storedUser === 'null') {
+          setUser(false);
+        } else {
+          let userData = JSON.parse(storedUser);
+          if (userData && typeof userData.role === 'string') {
+            userData.role = { name: userData.role };
+            localStorage.setItem('user', JSON.stringify(userData));
+          }
+          setUser(userData);
         }
-        setUser(userData);
-      } else {
+      } catch (err) {
+        console.error('Lỗi parse user data:', err);
         setUser(false);
       }
       setLoading(false);
     };
+
 
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'user' || event.key === 'token') {
@@ -230,81 +236,81 @@ const AppHeader = () => {
 
   const userMenu = user
     ? {
-        items: [
-          {
-            key: '/profile',
-            label: (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Avatar 
-                  src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
-                  size={48} 
-                />
-                <div>
-                  <Text strong>{user.fullname}</Text>
-                  {user.nickname && (
-                    <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-                      @{user.nickname}
-                    </Text>
-                  )}
-                  <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Xem hồ sơ của bạn</Text>
-                </div>
+      items: [
+        {
+          key: '/profile',
+          label: (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Avatar
+                src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                size={48}
+              />
+              <div>
+                <Text strong>{user.fullname}</Text>
+                {user.nickname && (
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+                    @{user.nickname}
+                  </Text>
+                )}
+                <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Xem hồ sơ của bạn</Text>
               </div>
-            ) as React.ReactNode,
-            style: { height: 'auto', padding: '12px', cursor: 'pointer' },
-          },
-          { type: 'divider' as const },
-          ...(getRoleName(user) === 'admin'
-            ? [
-                { key: '/admin', icon: <DashboardOutlined />, label: 'Trang quản trị' },
-                { type: 'divider' as const },
-              ]
-            : []),
-          ...(getRoleName(user) === 'moderator'
-            ? [
-                { key: '/moderator', icon: <DashboardOutlined />, label: 'Khu vực kiểm duyệt' },
-                { type: 'divider' as const },
-              ]
-            : []),
-          ...(getRoleName(user) === 'instructor'
-            ? [
-                { key: '/instructor', icon: <DashboardOutlined />, label: 'Khu vực giảng viên' },
-                { type: 'divider' as const },
-              ]
-            : []),
-          {
-            type: 'group' as const,
-            label: 'Blog cá nhân',
-            children: [
-              { key: '/blog/write', icon: <EditOutlined />, label: 'Viết blog' },
-              { key: '/blog/mine', icon: <ProfileOutlined />, label: 'Bài viết của tôi' },
-              { key: '/blog/saved', icon: <BookOutlined />, label: 'Bài viết đã lưu' },
-            ],
-          },
-          {
-            type: 'group' as const,
-            label: 'Đơn hàng',
-            children: [
-              { key: '/orders', icon: <ShoppingCartOutlined  />, label: 'Đơn hàng!' }
-            ],
-          },
-          {
-            type: 'group' as const,
-            label: 'Báo cáo',
-            children: [
-              { key: '/report', icon: <BarChartOutlined  />, label: 'Báo cáo!' }
-            ],
-          },
-          { type: 'divider' as const },
-          { key: 'logout', icon: <LogoutOutlined />, label: <span style={{ color: '#ff4d4f' }}>Đăng xuất</span> },
-        ].filter((item, idx, arr) => {
-          // Xóa divider trùng nhau
-          if (item.type === 'divider' && idx > 0 && arr[idx - 1].type === 'divider') return false;
-          // Không cho divider ở đầu hoặc cuối
-          if (item.type === 'divider' && (idx === 0 || idx === arr.length - 1)) return false;
-          return true;
-        }),
-        onClick: handleMenuClick,
-      }
+            </div>
+          ) as React.ReactNode,
+          style: { height: 'auto', padding: '12px', cursor: 'pointer' },
+        },
+        { type: 'divider' as const },
+        ...(getRoleName(user) === 'admin'
+          ? [
+            { key: '/admin', icon: <DashboardOutlined />, label: 'Trang quản trị' },
+            { type: 'divider' as const },
+          ]
+          : []),
+        ...(getRoleName(user) === 'moderator'
+          ? [
+            { key: '/moderator', icon: <DashboardOutlined />, label: 'Khu vực kiểm duyệt' },
+            { type: 'divider' as const },
+          ]
+          : []),
+        ...(getRoleName(user) === 'instructor'
+          ? [
+            { key: '/instructor', icon: <DashboardOutlined />, label: 'Khu vực giảng viên' },
+            { type: 'divider' as const },
+          ]
+          : []),
+        {
+          type: 'group' as const,
+          label: 'Blog cá nhân',
+          children: [
+            { key: '/blog/write', icon: <EditOutlined />, label: 'Viết blog' },
+            { key: '/blog/mine', icon: <ProfileOutlined />, label: 'Bài viết của tôi' },
+            { key: '/blog/saved', icon: <BookOutlined />, label: 'Bài viết đã lưu' },
+          ],
+        },
+        {
+          type: 'group' as const,
+          label: 'Đơn hàng',
+          children: [
+            { key: '/orders', icon: <ShoppingCartOutlined />, label: 'Đơn hàng!' }
+          ],
+        },
+        {
+          type: 'group' as const,
+          label: 'Báo cáo',
+          children: [
+            { key: '/report', icon: <BarChartOutlined />, label: 'Báo cáo!' }
+          ],
+        },
+        { type: 'divider' as const },
+        { key: 'logout', icon: <LogoutOutlined />, label: <span style={{ color: '#ff4d4f' }}>Đăng xuất</span> },
+      ].filter((item, idx, arr) => {
+        // Xóa divider trùng nhau
+        if (item.type === 'divider' && idx > 0 && arr[idx - 1].type === 'divider') return false;
+        // Không cho divider ở đầu hoặc cuối
+        if (item.type === 'divider' && (idx === 0 || idx === arr.length - 1)) return false;
+        return true;
+      }),
+      onClick: handleMenuClick,
+    }
     : undefined;
 
   const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
@@ -327,9 +333,9 @@ const AppHeader = () => {
       transition={{ duration: 0.2 }}
       style={{ width: 380 }}
     >
-      <Card 
+      <Card
         className="shadow-xl border-0"
-        headStyle={{ 
+        headStyle={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
           border: 'none',
@@ -388,15 +394,15 @@ const AppHeader = () => {
                             <motion.div
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
-          style={{
+                              style={{
                                 width: 8,
                                 height: 8,
-            borderRadius: '50%',
+                                borderRadius: '50%',
                                 backgroundColor: getNotificationColor(notification.type),
                               }}
                             />
                           )}
-          </div>
+                        </div>
                       }
                       description={
                         <div>
@@ -408,18 +414,18 @@ const AppHeader = () => {
                             <Text type="secondary" style={{ fontSize: 11 }}>
                               {notification.time}
                             </Text>
-                            <Tag 
-                              color={notification.type === 'success' ? 'green' : 
-                                     notification.type === 'warning' ? 'orange' : 
-                                     notification.type === 'error' ? 'red' : 'blue'}
+                            <Tag
+                              color={notification.type === 'success' ? 'green' :
+                                notification.type === 'warning' ? 'orange' :
+                                  notification.type === 'error' ? 'red' : 'blue'}
                               style={{ fontSize: 10 }}
                             >
                               {notification.type === 'success' ? 'Thành công' :
-                               notification.type === 'warning' ? 'Cảnh báo' :
-                               notification.type === 'error' ? 'Lỗi' : 'Thông tin'}
+                                notification.type === 'warning' ? 'Cảnh báo' :
+                                  notification.type === 'error' ? 'Lỗi' : 'Thông tin'}
                             </Tag>
-          </div>
-        </div>
+                          </div>
+                        </div>
                       }
                     />
                   </List.Item>
@@ -431,8 +437,8 @@ const AppHeader = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              style={{ 
-                padding: '40px 20px', 
+              style={{
+                padding: '40px 20px',
                 textAlign: 'center',
                 color: '#999'
               }}
@@ -442,17 +448,17 @@ const AppHeader = () => {
             </motion.div>
           )}
         </AnimatePresence>
-        
+
         {notifications.length > 0 && (
-          <div style={{ 
-            padding: '12px 16px', 
+          <div style={{
+            padding: '12px 16px',
             borderTop: '1px solid #f0f0f0',
             textAlign: 'center'
           }}>
             <Button type="link" size="small">
               Xem tất cả thông báo
             </Button>
-      </div>
+          </div>
         )}
       </Card>
     </motion.div>
@@ -636,14 +642,14 @@ const AppHeader = () => {
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
         <AntHeader style={{
-        background: '#fff',
+          background: '#fff',
           padding: '0 32px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           borderBottom: '1px solid #e5e7eb',
           height: 68,
-      }} className="sticky top-0 z-50 w-full">
+        }} className="sticky top-0 z-50 w-full">
 
           {/* Left & Center Section */}
           <div className="flex items-center gap-x-8">
@@ -656,7 +662,7 @@ const AppHeader = () => {
               </NavLink>
             </motion.div>
             <div className="hidden lg:flex items-center gap-x-2">
-              <motion.div 
+              <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 className="nav-container"
@@ -668,7 +674,7 @@ const AppHeader = () => {
                   <span className="nav-text">Mã giảm giá</span>
                 </NavLink>
               </motion.div>
-              <motion.div 
+              <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 className="nav-container"
@@ -680,7 +686,7 @@ const AppHeader = () => {
                   <span className="nav-text">Khóa học</span>
                 </NavLink>
               </motion.div>
-              <motion.div 
+              <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 className="nav-container"
@@ -692,7 +698,7 @@ const AppHeader = () => {
                   <span className="nav-text">Giảng viên</span>
                 </NavLink>
               </motion.div>
-              <motion.div 
+              <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 className="nav-container"
@@ -705,7 +711,7 @@ const AppHeader = () => {
                 </NavLink>
               </motion.div>
             </div>
-        </div>
+          </div>
 
           {/* Right Section */}
           <div className="flex items-center gap-x-4">
@@ -726,68 +732,68 @@ const AppHeader = () => {
                 size="large"
               />
             </motion.div>
-            
-              {loading ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <Spin />
-                </motion.div>
-              ) : user ? (
+
+            {loading ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Spin />
+              </motion.div>
+            ) : user ? (
               <Space size="middle">
-            <Popover
-                  content={notificationDropdown} 
-              trigger="click"
-              placement="bottomRight"
-              arrow
+                <Popover
+                  content={notificationDropdown}
+                  trigger="click"
+                  placement="bottomRight"
+                  arrow
                   open={notificationsOpen}
                   onOpenChange={setNotificationsOpen}
                 >
-                  <motion.div 
+                  <motion.div
                     whileHover={{ scale: 1.1, rotate: 5 }}
                     whileTap={{ scale: 0.9 }}
                     transition={{ duration: 0.2 }}
                   >
                     <Badge count={unreadCount} size="small">
-                      <Button 
-                        className="header-action-button" 
-                        type="text" 
-                        shape="circle" 
-                        icon={<BellOutlined style={{ fontSize: '18px' }} />} 
+                      <Button
+                        className="header-action-button"
+                        type="text"
+                        shape="circle"
+                        icon={<BellOutlined style={{ fontSize: '18px' }} />}
                       />
                     </Badge>
                   </motion.div>
                 </Popover>
-                <motion.div 
+                <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   whileTap={{ scale: 0.9 }}
                   transition={{ duration: 0.2 }}
                 >
                   <Badge count={cartCount} showZero size="small">
-                    <Button 
-                      onClick={() => navigate('/cart')} 
-                      className="header-action-button" 
-                      type="text" 
-                      shape="circle" 
-                      icon={<ShoppingCartOutlined style={{ fontSize: '18px' }} />} 
+                    <Button
+                      onClick={() => navigate('/cart')}
+                      className="header-action-button"
+                      type="text"
+                      shape="circle"
+                      icon={<ShoppingCartOutlined style={{ fontSize: '18px' }} />}
                     />
                   </Badge>
                 </motion.div>
                 <Dropdown menu={userMenu} trigger={['click']} placement="bottomRight" arrow>
-                  <motion.div 
+                  <motion.div
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Avatar 
-                    src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                    <Avatar
+                      src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
                       className="cursor-pointer"
                       size={40}
                     />
                   </motion.div>
-            </Dropdown>
+                </Dropdown>
               </Space>
             ) : (
               <motion.div
@@ -796,29 +802,29 @@ const AppHeader = () => {
                 transition={{ delay: 0.3, duration: 0.5 }}
                 className="flex items-center gap-3"
               >
-                <motion.div 
+                <motion.div
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Button 
-                    onClick={() => navigate('/login')} 
-                    size="middle" 
+                  <Button
+                    onClick={() => navigate('/login')}
+                    size="middle"
                     className="auth-button login-button"
                     style={{ height: '40px', padding: '0 20px' }}
                   >
                     Đăng nhập
                   </Button>
                 </motion.div>
-                <motion.div 
+                <motion.div
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Button 
-                    onClick={handleRegisterClick} 
-                    type="primary" 
-                    size="middle" 
+                  <Button
+                    onClick={handleRegisterClick}
+                    type="primary"
+                    size="middle"
                     className="auth-button register-button"
                     style={{ height: '40px', padding: '0 20px' }}
                   >
@@ -827,12 +833,12 @@ const AppHeader = () => {
                 </motion.div>
               </motion.div>
             )}
-                  </div>
+          </div>
         </AntHeader>
       </motion.div>
 
       {/* Shared Auth Notification */}
-      <AuthNotification 
+      <AuthNotification
         isVisible={notification.isVisible}
         onComplete={() => setNotification(prev => ({ ...prev, isVisible: false }))}
         type={notification.type}
