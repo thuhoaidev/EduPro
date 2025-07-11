@@ -135,7 +135,27 @@ const MyCourseAdd: React.FC = () => {
       setTimeout(() => navigate('/instructor/courses'), 1000);
     } catch (error: unknown) {
       console.error('Lỗi khi tạo khóa học:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi tạo khóa học!';
+      let errorMessage = 'Có lỗi xảy ra khi tạo khóa học!';
+      if (typeof error === 'object' && error) {
+        // Nếu là lỗi từ axios hoặc fetch
+        const errMsg = 'message' in error && typeof (error as { message?: unknown }).message === 'string'
+          ? (error as { message: string }).message
+          : '';
+        let errData = '';
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) {
+          errData = (error.response as { data?: unknown }).data as string;
+        } else if ('errors' in error && typeof error.errors === 'string') {
+          errData = error.errors;
+        }
+        if (
+          (errMsg && errMsg.includes('duplicate key') && errMsg.includes('slug')) ||
+          (typeof errData === 'string' && errData.includes('duplicate key') && errData.includes('slug'))
+        ) {
+          errorMessage = 'Tiêu đề khóa học đã tồn tại, vui lòng chọn tiêu đề khác!';
+        } else if (typeof errData === 'string' && errData) {
+          errorMessage = errData;
+        }
+      }
       message.error(errorMessage);
     } finally {
       setLoading(false);

@@ -4,7 +4,7 @@ const { auth, requireAuth } = require('../middlewares/auth');
 const { validateSchema } = require('../utils/validateSchema');
 const { createLessonSchema, updateLessonSchema, updateLessonsOrderSchema } = require('../validations/lesson.validation');
 const {
-  createLesson,
+  createLessons,
   updateLesson,
   deleteLesson,
   getLessonsBySection,
@@ -21,7 +21,7 @@ router.get('/test', (req, res) => {
 });
 
 // Routes cho giảng viên và admin
-router.post('/', requireAuth(['admin', 'instructor']), createLesson);
+router.post('/', requireAuth(['admin', 'instructor']), createLessons);
 
 router.put('/:id', requireAuth(['admin', 'instructor']), (req, res, next) => {
   validateSchema(updateLessonSchema, req.body)

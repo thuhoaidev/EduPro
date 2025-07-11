@@ -163,13 +163,9 @@ export const courseService = {
     }
   },
 
-  getInstructorCourses: async (instructorId: string): Promise<Course[]> => {
+  getInstructorCourses: async (): Promise<Course[]> => {
     try {
-      // Truyền thêm status để lấy tất cả trạng thái
-      const allStatuses = 'draft,pending,published,rejected,archived';
-      const response = await apiClient.get<ApiResponse<ApiCourse[]>>(
-        `/courses?instructor=${instructorId}&status=${allStatuses}`
-      );
+      const response = await apiClient.get<ApiResponse<ApiCourse[]>>('/courses/instructor');
       return response.data?.success && Array.isArray(response.data.data)
         ? response.data.data.map(mapApiCourseToAppCourse)
         : [];

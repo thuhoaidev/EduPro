@@ -5,24 +5,27 @@ import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 interface QuizQuestionFormProps {
   name: number;
   onRemove: () => void;
+  lessonIndex: number;
 }
 
-const QuizQuestionForm: React.FC<QuizQuestionFormProps> = ({ name, onRemove }) => {
+const QuizQuestionForm: React.FC<QuizQuestionFormProps> = ({ name, onRemove, lessonIndex }) => {
   const [options, setOptions] = useState<string[]>([]);
   const [form] = Form.useForm();
 
   // Lấy form instance từ context
   const parentForm = Form.useFormInstance();
 
-  // Theo dõi thay đổi của options
+  // Theo dõi thay đổi của options đúng với lessonIndex
   useEffect(() => {
-    const currentOptions = parentForm.getFieldValue(['quiz', 'questions', name, 'options']) || [];
+    const lessons = parentForm.getFieldValue(['lessons']) || [];
+    const currentOptions = lessons[lessonIndex]?.quiz?.questions?.[name]?.options || [];
     setOptions(currentOptions);
-  }, [parentForm, name]);
+  }, [parentForm, name, lessonIndex]);
 
   // Cập nhật options khi có thay đổi
   const updateOptions = () => {
-    const currentOptions = parentForm.getFieldValue(['quiz', 'questions', name, 'options']) || [];
+    const lessons = parentForm.getFieldValue(['lessons']) || [];
+    const currentOptions = lessons[lessonIndex]?.quiz?.questions?.[name]?.options || [];
     setOptions(currentOptions);
   };
 

@@ -53,20 +53,7 @@ const MyCourseList: React.FC = () => {
     const fetchCourses = async () => {
       setLoading(true);
       try {
-        const storedUser = localStorage.getItem('user');
-        if (!storedUser) {
-          message.error("Vui lòng đăng nhập để xem khóa học.");
-          setCourses([]);
-          return;
-        }
-        const user = JSON.parse(storedUser);
-        const instructorId = user?._id || user?.id;
-        if (!instructorId) {
-          message.error("Không tìm thấy ID giảng viên.");
-          setCourses([]);
-          return;
-        }
-        const data = await courseService.getInstructorCourses(instructorId);
+        const data = await courseService.getInstructorCourses();
         setCourses(data);
       } catch {
         setCourses([]);
