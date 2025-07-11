@@ -387,6 +387,10 @@ const handleSave = async (blogId: string) => {
         </div>
       </div>
     );
+const extractFirstImageFromContent = (content: string): string | null => {
+  const match = content.match(/!\[.*?\]\((.*?)\)/);
+  return match ? match[1] : null;
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -488,18 +492,22 @@ const handleSave = async (blogId: string) => {
                     {blog.title}
                   </h2>
                   {/* Blog Image */}
-                  {blog.image && blog.image.trim() !== '' ? (
-                <img
-                  src={blog.image}
-                  alt={blog.title}
-                  className="w-full h-48 object-cover rounded-xl"
-                  onError={handleImageError}
-                />
-              ) : (
-                <div className="w-full h-48 flex items-center justify-center rounded-xl bg-gray-100 text-gray-500 text-sm italic border border-dashed">
-                  Không có ảnh
-                </div>
-              )}
+                  {(() => {
+  const fallbackImage =
+    blog.image?.trim() !== ''
+      ? blog.image
+      : extractFirstImageFromContent(blog.content) || '/images/no-image.png';
+
+  return (
+    <img
+      src={fallbackImage}
+      alt={blog.title}
+      className="w-full h-48 object-cover rounded-xl"
+      onError={handleImageError}
+    />
+  );
+})()}
+
                   <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed">
                     {blog.content}
                   </p>
