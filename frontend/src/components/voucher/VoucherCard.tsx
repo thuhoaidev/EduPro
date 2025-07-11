@@ -191,11 +191,11 @@ const VoucherCard: React.FC<VoucherCardProps> = ({ voucher, categories }) => {
                                     type="primary"
                                     icon={<CopyOutlined />}
                                     onClick={() => copyToClipboard(voucher.code)}
-                                    disabled={voucher.status === 'unavailable'}
+                                    disabled={voucher.status === 'unavailable' || voucher.usedCount >= voucher.usageLimit}
                                     className={styles.copyButton}
                                     size="large"
                                 >
-                                    {voucher.code}
+                                    {voucher.usedCount >= voucher.usageLimit ? 'Đã Hết Lượt' : voucher.code}
                                 </Button>
                             </Tooltip>
                             <Tooltip title="Xem chi tiết">

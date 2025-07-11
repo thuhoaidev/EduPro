@@ -303,15 +303,16 @@ const VouchersPage: React.FC = () => {
       align: 'left',
       render: (_: void, record: Voucher) => {
         const isActive = isVoucherActive(record);
+        const isOutOfUsage = record.usedCount >= record.usageLimit;
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {isActive ? (
+            {isActive && !isOutOfUsage ? (
               <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
             ) : (
               <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 18 }} />
             )}
-            <span style={{ fontSize: 13, color: isActive ? '#52c41a' : '#ff4d4f', fontWeight: 500 }}>
-              {isActive ? 'Đang hoạt động' : 'Đã hết hạn'}
+            <span style={{ fontSize: 13, color: isActive && !isOutOfUsage ? '#52c41a' : '#ff4d4f', fontWeight: 500 }}>
+              {isOutOfUsage ? 'Đã hết lượt' : (isActive ? 'Đang hoạt động' : 'Đã hết hạn')}
             </span>
           </div>
         );
@@ -548,6 +549,18 @@ const VouchersPage: React.FC = () => {
             rules={[
               { required: true, message: 'Vui lòng nhập giá trị giảm' },
               { type: 'number', min: 0, message: 'Giá trị không thể âm' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  const type = getFieldValue('discountType');
+                  if (type === 'percentage') {
+                    if (value < 1) return Promise.reject('Phần trăm giảm phải lớn hơn hoặc bằng 1%');
+                    if (value > 100) return Promise.reject('Phần trăm giảm không được vượt quá 100%');
+                  } else if (type === 'fixed') {
+                    if (value < 10000) return Promise.reject('Giá trị giảm phải lớn hơn hoặc bằng 10,000 VNĐ');
+                  }
+                  return Promise.resolve();
+                }
+              })
             ]}
           >
             <InputNumber<number>

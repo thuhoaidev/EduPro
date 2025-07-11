@@ -68,6 +68,7 @@ interface VoucherDisplay {
     daysLeft: number;
     status: 'available' | 'unavailable';
     statusMessage: string;
+    type?: string; // Thêm trường type để phân biệt loại voucher
 }
 
 const VoucherCategoryNav = ({ categories, activeCategory, onChange }: { categories: Category[], activeCategory: string, onChange: (cat: string) => void }) => {
@@ -133,9 +134,25 @@ const VouchersPage = () => {
                 
                 const transformedVouchers: VoucherDisplay[] = response.data.map((voucher: Voucher) => {
                     const now = new Date();
-                    const endDate = new Date(voucher.endDate || '');
-                    const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                    
+                    let daysLeft = 0;
+                    // Xác định loại voucher
+                    if (voucher.type === 'new-user') {
+                        const createdAt = new Date(voucher.createdAt);
+                        daysLeft = 7 - Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+                    } else if (voucher.type === 'birthday') {
+                        const createdAt = new Date(voucher.createdAt);
+                        const anniversaryThisYear = new Date(now.getFullYear(), createdAt.getMonth(), createdAt.getDate());
+                        let diffDays = Math.floor((now.getTime() - anniversaryThisYear.getTime()) / (1000 * 60 * 60 * 24));
+                        if (diffDays < 0) diffDays = 0; // Nếu chưa đến ngày kỷ niệm năm nay
+                        daysLeft = 30 - diffDays;
+                    } else if (["first-order", "order-count", "order-value"].includes(voucher.type)) {
+                        // Tạm thời dùng createdAt, nếu backend trả về ngày đủ điều kiện thì thay thế
+                        const createdAt = new Date(voucher.createdAt);
+                        daysLeft = 30 - Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+                    } else {
+                        const endDate = new Date(voucher.endDate || '');
+                        daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    }
                     return {
                         id: voucher.id,
                         code: voucher.code,
@@ -154,12 +171,29 @@ const VouchersPage = () => {
                         isExpired: daysLeft < 0,
                         daysLeft: Math.max(0, daysLeft),
                         status: voucher.status || 'available',
-                        statusMessage: voucher.statusMessage || ''
+                        statusMessage: voucher.statusMessage || '',
+                        type: voucher.type
                     };
                 });
                 
-                setVouchers(transformedVouchers);
-                setFilteredVouchers(transformedVouchers);
+                const conditionalTypes = ["new-user", "birthday", "first-order", "order-count", "order-value", "flash-sale"];
+                const filteredVouchers = transformedVouchers.filter(voucher => {
+                  if (conditionalTypes.includes(voucher.type)) {
+                    // Ẩn voucher có điều kiện nếu hết lượt
+                    return voucher.usedCount < voucher.usageLimit;
+                  }
+                  // Voucher không điều kiện luôn hiển thị, kể cả khi hết lượt
+                  return true;
+                });
+                // Sắp xếp: voucher còn lượt lên trên, hết lượt xuống dưới
+                const sortedVouchers = filteredVouchers.sort((a, b) => {
+                  const aOut = a.usedCount >= a.usageLimit;
+                  const bOut = b.usedCount >= b.usageLimit;
+                  if (aOut === bOut) return 0;
+                  return aOut ? 1 : -1;
+                });
+                setVouchers(sortedVouchers);
+                setFilteredVouchers(sortedVouchers);
             } catch (error) {
                 console.error('Error fetching vouchers:', error);
                 setError('Không thể tải danh sách voucher. Vui lòng thử lại sau.');
