@@ -4,6 +4,7 @@ import { clearAuthData, redirectToLogin } from '../utils/tokenUtils';
 
 // Cấu hình API
 const API_URL = '/api';
+// const API_URL = '';
 
 export const config = axios.create({
     baseURL: API_URL,

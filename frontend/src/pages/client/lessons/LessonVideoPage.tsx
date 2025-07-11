@@ -42,6 +42,8 @@ const LessonVideoPage: React.FC = () => {
   const navigate = useNavigate();
   const [videoWatched, setVideoWatched] = useState(false);
   const [quizPassed, setQuizPassed] = useState(false);
+  const [quizUnlocked, setQuizUnlocked] = useState(false);
+
   const [unlockedLessons, setUnlockedLessons] = useState<string[]>([]);
   const [videoProgress, setVideoProgress] = useState(0);
   const { user } = useAuth();
@@ -188,14 +190,20 @@ const LessonVideoPage: React.FC = () => {
   }, [lessonId]);
 
   useEffect(() => {
-    setCurrentLessonId(lessonId || null);
-    setVideoWatched(false); // Reset lại khi chuyển bài
+    setVideoWatched(false);
     setQuizPassed(false);
     setQuizCompleted(false);
     setQuizResult(null);
     setQuizAnswers([]);
     setShowQuiz(false);
+    setQuizUnlocked(false);
+    setVideoProgress(0); // Reset luôn tiến độ video
+  }, [currentLessonId]);
+
+  useEffect(() => {
+    setCurrentLessonId(lessonId || null);
   }, [lessonId]);
+
 
   useEffect(() => {
     // Lấy thông tin section và course để lấy toàn bộ chương/bài học
@@ -275,32 +283,17 @@ const LessonVideoPage: React.FC = () => {
     setVideoProgress(0);
   }, [currentLessonId]);
 
-  // Khi video đạt >= 90% thì mới show quiz
+  // Unlock quiz duy nhất 1 lần khi đạt 90%
   useEffect(() => {
-    const isUnlocked = unlockedLessons.includes(String(currentLessonId));
-    const isQuizPassed = quizResult?.success;
-
-    if ((videoProgress >= 0.9 || isUnlocked || isQuizPassed) && quiz) {
-      setShowQuiz(true);
-    } else {
-      setShowQuiz(false);
+    if (!quizUnlocked && videoProgress >= 0.9 && quiz) {
+      setQuizUnlocked(true);
     }
-  }, [videoProgress, quiz, quizCompleted, unlockedLessons, currentLessonId, quizResult]);
+  }, [videoProgress, quiz, quizUnlocked]);
 
-
-
-  // Khi quiz đúng 100% và video >= 90% thì mở khóa bài tiếp theo
-  // useEffect(() => {
-  //   if (quizCompleted && videoProgress >= 0.9 && courseId && currentLessonId) {
-  //     updateProgress(courseId, currentLessonId, {
-  //       watchedSeconds: videoRef.current?.currentTime || 0,
-  //       videoDuration: videoRef.current?.duration || 1,
-  //       quizPassed: true
-  //     }).then(() => {
-  //       getUnlockedLessons(courseId).then(unlocked => setUnlockedLessons(unlocked || []));
-  //     });
-  //   }
-  // }, [quizCompleted, videoProgress, courseId, currentLessonId]);
+  // Quiz chỉ hiển thị nếu đã unlock
+  useEffect(() => {
+    setShowQuiz(quizUnlocked && !!quiz);
+  }, [quizUnlocked, quiz]);
 
   // Khi load quiz mới, reset quizAnswers đúng số lượng câu hỏi
   useEffect(() => {
@@ -459,7 +452,7 @@ const LessonVideoPage: React.FC = () => {
             <Divider />
 
             {/* Quiz Section */}
-            {shouldShowQuiz && quiz && (
+            {showQuiz && quiz && (
               <div className="mt-8">
                 <Card variant="outlined" className="shadow-lg rounded-xl">
                   <Title level={3}>Quiz: {quiz.questions.length} câu hỏi</Title>

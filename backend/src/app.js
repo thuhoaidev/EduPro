@@ -30,6 +30,9 @@ const orderRoutes = require('./routes/order.routes');
 const report = require('./routes/report.routes');
 const teacherWalletRoutes = require('./routes/teacherWallet.routes');
 const commentLikeRoutes = require('./routes/commentLike.route');
+const progressRoutes = require('./routes/progress.routes');
+const courseReviewRoutes = require('./routes/courseReview.routes');
+
 
 // Khởi tạo app
 const app = express();
@@ -103,6 +106,9 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/reports', report);
 app.use('/api/teacher-wallet', teacherWalletRoutes);
 app.use('/api/comment-likes', commentLikeRoutes);
+app.use('/api/progress', progressRoutes);
+app.use('/api/course-reviews', courseReviewRoutes);
+
 
 // Error handling middleware
 app.use((err, req, res, _next) => {
