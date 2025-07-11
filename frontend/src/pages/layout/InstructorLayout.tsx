@@ -2,21 +2,9 @@
 import {
   UserOutlined,
   HomeOutlined,
-  TeamOutlined,
-  FileSearchOutlined,
-  TagsOutlined,
-  HistoryOutlined,
-  BarChartOutlined,
-  WarningOutlined,
-  ProfileOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  BellOutlined,
-  SettingOutlined,
   BookOutlined,
-  GiftOutlined,
-  DollarCircleOutlined,
-  SafetyCertificateOutlined,
   PlusCircleOutlined,
   VideoCameraOutlined,
   DollarOutlined,
@@ -137,7 +125,15 @@ const InstructorLayout = () => {
         children: [
           { key: "/instructor/courses", icon: <BookOutlined />, label: "Khóa học của tôi" },
           { key: "/instructor/courses/create", icon: <PlusCircleOutlined />, label: "Tạo khóa học mới" },
-          { key: "/instructor/lessons", icon: <VideoCameraOutlined />, label: "Quản lý bài học & video" },
+        ],
+      },
+      {
+        label: "QUẢN LÝ NỘI DUNG",
+        type: "group",
+        children: [
+          { key: "/instructor/lessons", icon: <VideoCameraOutlined />, label: "Quản lý bài học" },
+          { key: "/instructor/videos", icon: <VideoCameraOutlined />, label: "Quản lý video" },
+          { key: "/instructor/quiz", icon: <BookOutlined />, label: "Quản lý quiz" },
         ],
       },
       {

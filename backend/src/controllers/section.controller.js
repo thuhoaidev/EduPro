@@ -100,32 +100,28 @@ exports.getSectionsByCourse = async (req, res, next) => {
                 options: { sort: { position: 1 } }
             });
 
-        // Lấy thông tin video và quiz cho từng lesson
+        // Lấy thông tin video cho từng lesson
         const Video = require('../models/Video');
-        const Quiz = require('../models/Quiz');
-        
         const sectionsWithDetails = await Promise.all(
             sections.map(async (section) => {
                 const lessonsWithDetails = await Promise.all(
                     section.lessons.map(async (lesson) => {
                         const video = await Video.findOne({ lesson_id: lesson._id });
-                        const quiz = video ? await Quiz.findOne({ video_id: video._id }) : null;
-                        
+                        if (video) {
+                          console.log('Lesson:', lesson._id, 'Video URL:', video.url);
+                        } else {
+                          console.log('Lesson:', lesson._id, 'No video');
+                        }
                         return {
                             ...lesson.toObject(),
                             video: video ? {
                                 _id: video._id,
                                 url: video.url,
                                 duration: video.duration
-                            } : null,
-                            quiz: quiz ? {
-                                _id: quiz._id,
-                                questions: quiz.questions
                             } : null
                         };
                     })
                 );
-                
                 return {
                     ...section.toObject(),
                     lessons: lessonsWithDetails

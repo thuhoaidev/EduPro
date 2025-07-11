@@ -77,8 +77,20 @@ const LessonEdit: React.FC = () => {
 
   // Video handlers
   const handleVideoChange = (info: UploadChangeParam<UploadFile>) => {
-    setVideoFile(info.fileList.slice(-1));
+    const fileList = info.fileList.slice(-1);
+    setVideoFile(fileList);
     setVideoChanged(true);
+    // Lấy duration từ file video
+    if (fileList.length > 0 && fileList[0].originFileObj) {
+      const file = fileList[0].originFileObj as File;
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        setVideoDuration(Math.round(video.duration));
+      };
+      video.src = URL.createObjectURL(file);
+    }
   };
   const handleRemoveVideo = () => {
     setVideoFile([]);

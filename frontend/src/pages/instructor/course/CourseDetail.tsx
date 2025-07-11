@@ -19,6 +19,8 @@ import {
 import { ArrowLeftOutlined, BookOutlined, UserOutlined, CalendarOutlined, ClockCircleOutlined, TeamOutlined, StarFilled, DollarOutlined } from "@ant-design/icons";
 import { courseService, mapApiCourseToAppCourse } from '../../../services/apiService';
 import { motion } from 'framer-motion';
+import VideoManager from '../videos/VideoManager';
+import QuizManager from '../quiz/QuizManager';
 
 const { Title, Text, Paragraph } = Typography;
 

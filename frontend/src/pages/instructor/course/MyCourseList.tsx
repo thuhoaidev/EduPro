@@ -130,7 +130,13 @@ const MyCourseList: React.FC = () => {
       title: "Giá",
       dataIndex: "price",
       key: "price",
-      render: (price) => price === 0 ? <Tag color="green">Miễn phí</Tag> : price.toLocaleString('vi-VN') + 'đ',
+      render: (price) => {
+        const numPrice = Number(price);
+        if (isNaN(numPrice) || numPrice === 0) {
+          return <Tag color="green">Miễn phí</Tag>;
+        }
+        return numPrice.toLocaleString('vi-VN') + 'đ';
+      },
     },
     {
       title: "Trạng thái",

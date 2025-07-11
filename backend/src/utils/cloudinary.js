@@ -8,6 +8,10 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Log thông tin tài khoản Cloudinary (không log api_secret)
+console.log('[Cloudinary] cloud_name:', process.env.CLOUDINARY_CLOUD_NAME);
+console.log('[Cloudinary] api_key:', process.env.CLOUDINARY_API_KEY);
+
 /**
  * Upload file từ buffer trực tiếp lên Cloudinary
  * @param {Buffer} fileBuffer - Buffer của file cần upload
@@ -32,6 +36,7 @@ exports.uploadBufferToCloudinary = async (fileBuffer, folder = 'misc') => {
             options,
             (error, result) => {
                 if (error) {
+                    console.error('[Cloudinary] Upload error:', error); // Bổ sung log chi tiết lỗi
                     return reject(error);
                 }
                 resolve(result);

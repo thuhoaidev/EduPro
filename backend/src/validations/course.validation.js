@@ -44,10 +44,14 @@ const createCourseSchema = Joi.object({
         }),
     price: Joi.number()
         .required()
+        .integer()
         .min(0)
+        .max(100000000)
         .messages({
-            'number.base': 'Giá phải là số',
+            'number.base': 'Giá phải là số nguyên',
+            'number.integer': 'Giá phải là số nguyên',
             'number.min': 'Giá không được âm',
+            'number.max': 'Giá không được vượt quá 100 triệu',
             'any.required': 'Giá là bắt buộc'
         }),
     discount_amount: Joi.number()

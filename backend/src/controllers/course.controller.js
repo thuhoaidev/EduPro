@@ -277,9 +277,9 @@ exports.updateCourse = async (req, res, next) => {
             ...req.body,
             instructor: instructorProfile._id.toString(), // Thêm instructor từ profile
             thumbnail: thumbnailUrl,
-            price: req.body.price ? Number(req.body.price) : undefined,
-            discount_amount: req.body.discount_amount ? Number(req.body.discount_amount) : undefined,
-            discount_percentage: req.body.discount_percentage ? Number(req.body.discount_percentage) : undefined,
+            price: typeof req.body.price !== 'undefined' ? Number(req.body.price) : undefined,
+            discount_amount: typeof req.body.discount_amount !== 'undefined' ? Number(req.body.discount_amount) : undefined,
+            discount_percentage: typeof req.body.discount_percentage !== 'undefined' ? Number(req.body.discount_percentage) : undefined,
             requirements: req.body.requirements ? (
                 Array.isArray(req.body.requirements) 
                     ? req.body.requirements 
@@ -318,6 +318,11 @@ exports.updateCourse = async (req, res, next) => {
                 ]
             }
         );
+
+        // Log dữ liệu sau khi update
+        console.log('\n=== COURSE DATA AFTER UPDATE ===');
+        console.log(JSON.stringify(course, null, 2));
+        console.log('=== END COURSE DATA AFTER UPDATE ===\n');
 
         // Xử lý cập nhật sections nếu có
         if (req.body.sections && Array.isArray(req.body.sections)) {
@@ -714,9 +719,33 @@ exports.getCourseSectionsAndLessons = async (req, res, next) => {
                 options: { sort: { position: 1 } },
             });
 
+        // Lấy thông tin video cho từng lesson
+        const Video = require('../models/Video');
+        const sectionsWithDetails = await Promise.all(
+            sections.map(async (section) => {
+                const lessonsWithDetails = await Promise.all(
+                    section.lessons.map(async (lesson) => {
+                        const video = await Video.findOne({ lesson_id: lesson._id });
+                        return {
+                            ...lesson.toObject(),
+                            video: video ? {
+                                _id: video._id,
+                                url: video.url,
+                                duration: video.duration
+                            } : null
+                        };
+                    })
+                );
+                return {
+                    ...section.toObject(),
+                    lessons: lessonsWithDetails
+                };
+            })
+        );
+
         res.json({
             success: true,
-            data: sections,
+            data: sectionsWithDetails,
         });
 
     } catch (error) {

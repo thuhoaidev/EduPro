@@ -68,6 +68,8 @@ import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
 import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
 
 import LessonEdit from './pages/instructor/lessons/LessonEdit';
+import VideoManager from './pages/instructor/videos/VideoManager';
+import QuizManager from './pages/instructor/quiz/QuizManager';
 
 const queryClient = new QueryClient();
 
@@ -191,6 +193,8 @@ function App() {
         { path: "lessons/edit/:id", element: <LessonEdit /> },
         { path: "students", element: <MyStudentStats /> },
         { path: "income", element: <MyEarnings /> },
+        { path: "videos", element: <VideoManager /> },
+        { path: "quiz", element: <QuizManager /> },
       ],
     },
     { path: '/login', element: <LoginPage /> },

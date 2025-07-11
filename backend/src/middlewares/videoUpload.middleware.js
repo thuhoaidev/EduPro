@@ -16,9 +16,6 @@ const fileFilter = (req, file, cb) => {
 // Cấu hình multer
 const upload = multer({
     storage: storage,
-    limits: {
-        fileSize: 100 * 1024 * 1024 // giới hạn 100MB
-    },
     fileFilter: fileFilter
 });
 
