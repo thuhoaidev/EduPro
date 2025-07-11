@@ -52,10 +52,9 @@ const getAllBlogs = async (req, res) => {
     const author = getUserId(req);
     const query = { status: 'approved' };
 
-    const blogs = await Blog.find(query)
-      .sort({ createdAt: -1 })
-      .populate('author', 'fullname');
-
+    const blogs = await Blog.find()
+  .populate('author', 'fullname avatar nickname')
+  .sort({ createdAt: -1 });
     // === Lấy danh sách blogId mà user đã like
     let likedBlogIds = [];
     if (author) {

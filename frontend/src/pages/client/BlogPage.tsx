@@ -121,9 +121,22 @@ if (blog.data?.saves?.includes(user._id)) {
   setSavedBlogs(prev => new Set(prev).add(blog.data._id));
 }
 
-      setComments((cmts?.data || []).map((cmt: any) => ({
+setComments((cmts?.data || []).map((cmt: any) => ({
   ...cmt,
+  author: {
+    ...cmt.author,
+    name: cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'
+  },
+  replies: (cmt.replies || []).map((r: any) => ({
+    ...r,
+    author: {
+      ...r.author,
+      name: r.author?.name || r.author?.fullname || 'Ẩn danh'
+    }
+  }))
 })));
+
+
 
 const fetchLikesForComments = async () => {
   for (const cmt of cmts?.data || []) {
@@ -424,11 +437,17 @@ const handleSave = async (blogId: string) => {
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-800">{blog.author?.fullname}</p>
+                     <img
+                      src={
+                        blog?.author?.avatar && blog.author.avatar !== ''
+                          ? blog.author.avatar
+                          : '/images/default-avatar.png'
+                      }
+                      alt="avatar"
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+         <div>
+                        <p className="font-semibold text-gray-800">{blog.author?.fullname || 'Ẩn danh'}</p>
                         <p className="text-sm text-gray-500 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {formatDate(blog.createdAt)}
@@ -528,11 +547,25 @@ const handleSave = async (blogId: string) => {
             <div className="p-8">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                    <User className="w-6 h-6 text-white" />
-                  </div>
+                  {selectedBlog.author?.avatar && selectedBlog.author.avatar.trim() !== '' ? (
+  <img
+    src={selectedBlog.author.avatar}
+    alt="avatar"
+    className="w-12 h-12 rounded-full object-cover"
+    onError={(e) => (e.currentTarget.src = '/images/default-avatar.png')}
+  />
+) : (
+  <img
+    src="/images/default-avatar.png"
+    alt="default avatar"
+    className="w-12 h-12 rounded-full object-cover"
+  />
+)}
+
                   <div>
-                    <h3 className="font-semibold text-gray-800">{selectedBlog.author?.fullname}</h3>
+                 <h3 className="font-semibold text-gray-800">
+                  {selectedBlog.author?.fullname || 'Ẩn danh'}
+                </h3>
                     <p className="text-gray-500 flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       {formatDate(selectedBlog.createdAt)}
@@ -604,9 +637,16 @@ const handleSave = async (blogId: string) => {
       <MessageCircle className="w-5 h-5" />
       <span className="font-medium">{comments.length} bình luận</span>
     </div>
-    <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-      <Share2 className="w-5 h-5 text-gray-400" />
-    </button>
+    <button
+  onClick={() => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success('📋 Đã sao chép liên kết bài viết!');
+  }}
+  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+>
+  <Share2 className="w-5 h-5 text-gray-400" />
+</button>
+
   </div>
 </div>
 
@@ -647,7 +687,7 @@ const handleSave = async (blogId: string) => {
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-2">
-          <span className="font-semibold text-gray-800">{cmt.author?.name}</span>
+          <span className="font-semibold text-gray-800">{cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'}</span>
           <span className="text-sm text-gray-500">{formatDate(cmt.createdAt)}</span>
         </div>
         <p className="text-gray-700 mb-3 leading-relaxed">{cmt.content}</p>
