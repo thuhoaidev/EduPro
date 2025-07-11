@@ -47,13 +47,15 @@ interface SavedPost {
 
 interface CommentItem {
   _id: string;
-  user: {
+  author: {
     fullname: string;
     avatar?: string;
   };
   content: string;
   createdAt: string;
+  replies?: CommentItem[];
 }
+
 
 const SavedBlogPosts = () => {
   const [savedPosts, setSavedPosts] = useState<SavedPost[]>([]);
@@ -68,7 +70,7 @@ const SavedBlogPosts = () => {
   const [commentInput, setCommentInput] = useState<Record<string, string>>({});
   const [replyInput, setReplyInput] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
-
+  const [activeCommentBlogId, setActiveCommentBlogId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -256,8 +258,8 @@ const handleAddComment = async (blogId: string) => {
       dataSource={comments[blogId] || []}
       renderItem={(item) => (
         <Comment
-          author={item.user.fullname}
-          avatar={<Avatar src={item.user.avatar} icon={<UserOutlined />} />}
+          author={item.author.fullname}
+          avatar={<Avatar src={item.author.avatar} icon={<UserOutlined />} />}
           content={
             <>
               <div>{item.content}</div>
@@ -268,20 +270,25 @@ const handleAddComment = async (blogId: string) => {
                     placeholder="Nhập phản hồi..."
                     rows={2}
                     value={replyInput[item._id] || ''}
-                    onChange={(e) => setReplyInput(prev => ({ ...prev, [item._id]: e.target.value }))}
+                    onChange={(e) =>
+                      setReplyInput((prev) => ({ ...prev, [item._id]: e.target.value }))
+                    }
                   />
                   <div style={{ marginTop: 8 }}>
-                    <Button type="primary" onClick={() => handleReplyComment(blogId, item._id)}>Gửi phản hồi</Button>
-                    <Button style={{ marginLeft: 8 }} onClick={() => setReplyingTo(null)}>Hủy</Button>
+                    <Button type="primary" onClick={() => handleReplyComment(blogId, item._id)}>
+                      Gửi phản hồi
+                    </Button>
+                    <Button style={{ marginLeft: 8 }} onClick={() => setReplyingTo(null)}>
+                      Hủy
+                    </Button>
                   </div>
                 </div>
               )}
-              {/* Hiển thị các phản hồi con nếu có */}
-              {(item.replies || []).map(reply => (
+              {(item.replies || []).map((reply) => (
                 <Comment
                   key={reply._id}
-                  author={reply.user.fullname}
-                  avatar={<Avatar src={reply.user.avatar} icon={<UserOutlined />} />}
+                  author={reply.author.fullname}
+                  avatar={<Avatar src={reply.author.avatar} icon={<UserOutlined />} />}
                   content={reply.content}
                   datetime={formatDate(reply.createdAt)}
                   style={{ marginTop: 16, marginLeft: 40 }}
@@ -298,10 +305,14 @@ const handleAddComment = async (blogId: string) => {
         placeholder="Viết bình luận..."
         rows={2}
         value={commentInput[blogId] || ''}
-        onChange={(e) => setCommentInput(prev => ({ ...prev, [blogId]: e.target.value }))}
+        onChange={(e) =>
+          setCommentInput((prev) => ({ ...prev, [blogId]: e.target.value }))
+        }
       />
     </Form.Item>
-    <Button type="primary" onClick={() => handleAddComment(blogId)}>Gửi bình luận</Button>
+    <Button type="primary" onClick={() => handleAddComment(blogId)}>
+      Gửi bình luận
+    </Button>
   </div>
 );
 
@@ -380,7 +391,14 @@ const handleAddComment = async (blogId: string) => {
                     <span><BookOutlined /> {formatDate(savedPost.savedAt)}</span>
                   </Tooltip>
                   <span><EyeOutlined /> {blog.views}</span>
-                  <span><MessageOutlined /> {blog.comments_count}</span>
+                  <span
+  style={{ cursor: 'pointer' }}
+  onClick={() =>
+    setActiveCommentBlogId(activeCommentBlogId === blog._id ? null : blog._id)
+  }
+>
+  <MessageOutlined /> {blog.comments_count}
+</span>
                 </Space>
                 <Space>
                   <Button
@@ -426,6 +444,9 @@ const handleAddComment = async (blogId: string) => {
             </div>
           </Col>
         </Row>
+        {activeCommentBlogId === blog._id && (
+    <div style={{ marginTop: 24 }}>{renderComments(blog._id)}</div>
+  )}
       </Card>
     );
   };
