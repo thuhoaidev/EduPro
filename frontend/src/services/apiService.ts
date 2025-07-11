@@ -368,6 +368,15 @@ const apiService = {
       return null;
     }
   },
+unlikePost: async (postId: string) => {
+  try {
+    const res = await apiClient.delete(`/blogs/${postId}/like`);
+    return res.data; // trả về { liked, likes_count }
+  } catch (err: any) {
+    console.error(`❌ Lỗi khi bỏ like post ${postId}:`, err.response?.data || err.message);
+    throw err;
+  }
+},
 
 fetchSavedPosts: async () => {
   try {
@@ -408,9 +417,14 @@ fetchSavedPosts: async () => {
   },
 
   addComment: async (postId: string, content: string) => {
-    const res = await apiClient.post(`/blogs/${postId}/comments`, { content });
-    return res.data;
-  },
+  const res = await apiClient.post(`/blogs/${postId}/comments`, { content });
+  if (res.data?.success && res.data.data) {
+    return res.data.data; // ✅ chỉ trả về comment
+  }
+  throw new Error('Không thể thêm bình luận');
+},
+
+
 
   replyToComment: async (commentId: string, content: string) => {
     const res = await apiClient.post(`/blogs/comments/${commentId}/reply`, { content });

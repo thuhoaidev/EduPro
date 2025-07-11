@@ -20,6 +20,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { marked } from 'marked';
 const API_BASE = 'http://localhost:5000/api';
 
 const axiosClient = {
@@ -64,7 +65,18 @@ const axiosClient = {
 
 };
 
-
+const parseMarkdownToText = (markdown: string): string => {
+  if (!markdown) return '';
+  
+  return markdown
+    .replace(/!\[.*?\]\(.*?\)/g, '') // Loại bỏ image markdown
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Chuyển [text](url) thành text
+    .replace(/#{1,6}\s*/g, '') // Loại bỏ headers
+    .replace(/[*_`~]/g, '') // Loại bỏ bold, italic, code
+    .replace(/\n+/g, ' ') // Thay xuống dòng bằng space
+    .replace(/\s+/g, ' ') // Loại bỏ space thừa
+    .trim();
+};
 const BlogPage = () => {
   const [blogs, setBlogs] = useState<any[]>([]);
   const [selectedBlog, setSelectedBlog] = useState<any | null>(null);
@@ -80,6 +92,24 @@ const BlogPage = () => {
   const [commentLikesCount, setCommentLikesCount] = useState<{ [key: string]: number }>({});
 
   const commentEndRef = useRef<HTMLDivElement>(null);
+ const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const target = e.currentTarget;
+const parseMarkdownToText = (markdown: string): string => {
+  return markdown
+    .replace(/!\[.*?\]\(.*?\)/g, '') // Loại bỏ image markdown
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Chuyển [text](url) thành text
+    .replace(/[#*`_~]/g, '') // Loại bỏ các ký tự markdown khác
+    .replace(/\n+/g, ' ') // Thay thế xuống dòng bằng space
+    .trim();
+};
+  // Dựa vào alt để phân biệt loại ảnh
+  if (target.alt === 'avatar') {
+    target.src = '/images/default-avatar.png';
+  } else {
+    target.src = '/images/no-image.png';
+  }
+};
+
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -121,9 +151,22 @@ if (blog.data?.saves?.includes(user._id)) {
   setSavedBlogs(prev => new Set(prev).add(blog.data._id));
 }
 
-      setComments((cmts?.data || []).map((cmt: any) => ({
+setComments((cmts?.data || []).map((cmt: any) => ({
   ...cmt,
+  author: {
+    ...cmt.author,
+    name: cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'
+  },
+  replies: (cmt.replies || []).map((r: any) => ({
+    ...r,
+    author: {
+      ...r.author,
+      name: r.author?.name || r.author?.fullname || 'Ẩn danh'
+    }
+  }))
 })));
+
+
 
 const fetchLikesForComments = async () => {
   for (const cmt of cmts?.data || []) {
@@ -158,10 +201,7 @@ fetchLikesForComments();
   };
 
 const handleLike = async () => {
-  if (!selectedBlog || !selectedBlog._id) {
-    console.error('❌ selectedBlog hoặc _id không hợp lệ');
-    return;
-  }
+  if (!selectedBlog || !selectedBlog._id) return;
 
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -169,21 +209,34 @@ const handleLike = async () => {
       userId: user._id,
     });
 
-    console.log('🟠 Like Response:', res);
-
     if (typeof res.liked === 'boolean') {
-      setSelectedBlog((prev: any) => ({
-        ...prev,
+      const updated = {
+        ...selectedBlog,
         likes: res.likes_count,
+        likes_count: res.likes_count, // ✅ Cập nhật likes_count để hiển thị đúng
         isLiked: res.liked,
-      }));
-    } else {
-      console.warn('⚠️ Không rõ phản hồi like:', res);
+      };
+      setSelectedBlog(updated);
+
+      // 🔁 Đồng bộ lại trong danh sách blogs (nếu có)
+      setBlogs((prevBlogs) =>
+        prevBlogs.map((b) =>
+          b._id === updated._id
+            ? {
+                ...b,
+                likes: res.likes_count,
+                likes_count: res.likes_count, // ✅ Bổ sung để cập nhật số hiển thị
+                isLiked: res.liked,
+              }
+            : b
+        )
+      );
     }
   } catch (err: any) {
     console.error('❌ Không thể xử lý thích bài viết:', err.message || err);
   }
 };
+
 
 const handleToggleCommentLike = async (commentId: string) => {
   try {
@@ -216,21 +269,44 @@ const handleSave = async (blogId: string) => {
       userId: user._id,
     });
 
-    // ✅ Hiển thị toast dù success true hay false
     if (res.success) {
-      if (res.saved) {
-        toast.success(res.message || '✅ Đã lưu bài viết!');
-        setSavedBlogs(prev => new Set(prev).add(blogId));
-      } else {
-        toast.success(res.message || '❌ Đã bỏ lưu bài viết!');
-        setSavedBlogs(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(blogId);
-          return newSet;
+      const isSaved = res.saved;
+
+      // Cập nhật UI trạng thái "Đã lưu"
+      setSavedBlogs((prev) => {
+        const newSet = new Set(prev);
+        if (isSaved) newSet.add(blogId);
+        else newSet.delete(blogId);
+        return newSet;
+      });
+
+      // ✅ Cập nhật selectedBlog nếu đang mở
+      if (selectedBlog && selectedBlog._id === blogId) {
+        setSelectedBlog({
+          ...selectedBlog,
+          saves: isSaved
+            ? [...(selectedBlog.saves || []), user._id]
+            : (selectedBlog.saves || []).filter((id: string) => id !== user._id),
         });
       }
+
+      // 🔁 Đồng bộ lại danh sách blogs
+      setBlogs((prevBlogs) =>
+        prevBlogs.map((b) =>
+          b._id === blogId
+            ? {
+                ...b,
+                saves: isSaved
+                  ? [...(b.saves || []), user._id]
+                  : (b.saves || []).filter((id: string) => id !== user._id),
+              }
+            : b
+        )
+      );
+
+      toast.success(res.message || (isSaved ? 'Đã lưu!' : 'Đã bỏ lưu!'));
     } else {
-      toast.error(res.message || '⚠️ Không thể xử lý lưu/bỏ lưu.');
+      toast.error(res.message || 'Lỗi khi lưu/bỏ lưu');
     }
   } catch (err: any) {
     console.error('Lỗi khi lưu/bỏ lưu:', err);
@@ -330,6 +406,10 @@ const handleSave = async (blogId: string) => {
         </div>
       </div>
     );
+const extractFirstImageFromContent = (content: string): string | null => {
+  const match = content.match(/!\[.*?\]\((.*?)\)/);
+  return match ? match[1] : null;
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -391,11 +471,19 @@ const handleSave = async (blogId: string) => {
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-800">{blog.author?.fullname}</p>
+                     <img
+  src={
+    blog.author?.avatar && blog.author.avatar.trim() !== ''
+      ? blog.author.avatar
+      : '/images/default-avatar.png'
+  }
+  alt="avatar"
+  className="w-10 h-10 rounded-full object-cover"
+  onError={handleImageError}
+/>
+
+         <div>
+                        <p className="font-semibold text-gray-800">{blog.author?.fullname || 'Ẩn danh'}</p>
                         <p className="text-sm text-gray-500 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {formatDate(blog.createdAt)}
@@ -423,20 +511,25 @@ const handleSave = async (blogId: string) => {
                     {blog.title}
                   </h2>
                   {/* Blog Image */}
-                    {blog.image && blog.image.trim() !== '' ? (
-                      <img
-                        src={blog.image}
-                        alt={blog.title}
-                        className="w-full h-48 object-cover rounded-xl mb-4"
-                      />
-                    ) : (
-                      <div className="w-full h-48 bg-gray-100 rounded-xl mb-4 flex items-center justify-center text-gray-400 text-sm">
-                        Không có ảnh
-                      </div>
-                    )}
-                  <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed">
-                    {blog.content}
-                  </p>
+                  {(() => {
+  const fallbackImage =
+    blog.image?.trim() !== ''
+      ? blog.image
+      : extractFirstImageFromContent(blog.content) || '/images/no-image.png';
+
+  return (
+    <img
+      src={fallbackImage}
+      alt={blog.title}
+      className="w-full h-48 object-cover rounded-xl"
+      onError={handleImageError}
+    />
+  );
+})()}
+
+                 <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed">
+  {parseMarkdownToText(blog.content)}
+</p>
                   
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                   <div className="flex items-center gap-4">
@@ -495,11 +588,16 @@ const handleSave = async (blogId: string) => {
             <div className="p-8">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                    <User className="w-6 h-6 text-white" />
-                  </div>
+                  <img
+                  src={selectedBlog.author?.avatar || '/images/default-avatar.png'}
+                  alt="avatar"
+                  className="w-12 h-12 rounded-full object-cover"
+                  onError={handleImageError}
+                />
                   <div>
-                    <h3 className="font-semibold text-gray-800">{selectedBlog.author?.fullname}</h3>
+                 <h3 className="font-semibold text-gray-800">
+                  {selectedBlog.author?.fullname || 'Ẩn danh'}
+                </h3>
                     <p className="text-gray-500 flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       {formatDate(selectedBlog.createdAt)}
@@ -515,75 +613,90 @@ const handleSave = async (blogId: string) => {
                 {selectedBlog.title}
               </h1>
 
-              <div className="prose prose-lg max-w-none mb-8">
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {selectedBlog.content}
-                </p>
-              </div>
+             <div className="prose max-w-none mb-8">
+  <div
+    className="blog-content text-gray-700 leading-relaxed"
+    dangerouslySetInnerHTML={{
+      __html: marked.parse(selectedBlog.content || ''),
+    }}
+  />
+</div>
+<style>
+  {`
+    .blog-content img {
+      width: 100%;
+      height: 250px;
+      object-fit: cover; /* hoặc 'contain' nếu muốn toàn bộ ảnh */
+      border-radius: 12px;
+      display: block;
+      margin: 1rem 0;
+    }
+  `}
+</style>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-6 border-t border-gray-100">
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={handleLike}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-                      selectedBlog.isLiked
-                        ? 'bg-red-50 text-red-600 border border-red-200'
-                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                    }`}
-                  >
-                    <Heart className={`w-5 h-5 ${selectedBlog.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
-                    <div className="flex items-center gap-6 text-sm text-gray-500 mt-4">
-                    <div className="flex items-center gap-2">
-                      <Heart className="w-4 h-4 text-red-500" />
-                      <span>{selectedBlog.likes_count || selectedBlog.likes || 0}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4 text-blue-500" />
-                      <span>{comments.length || 0}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <BookmarkCheck className="w-4 h-4 text-green-500" />
-                      <span>{selectedBlog?.saves?.length || 0}</span>
-                    </div>
-                  </div>
+<div className="flex items-center justify-between pt-6 border-t border-gray-100">
+  {/* Left actions: Like & Save */}
+  <div className="flex items-center gap-4">
 
-                  </button>
-                  
-                  <button
-                  onClick={() => handleSave(selectedBlog._id)}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-                    savedBlogs.has(selectedBlog._id)
-                      ? 'bg-blue-50 text-blue-600 border border-blue-200'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                  }`}
-                >
-                  {savedBlogs.has(selectedBlog._id) ? (
-                    <>
-                      <BookmarkCheck className="w-5 h-5" />
-                      Đã lưu
-                    </>
-                  ) : (
-                    <>
-                      <Bookmark className="w-5 h-5" />
-                      Lưu
-                    </>
-                  )}
-                </button>
+    {/* ❤️ Like button */}
+    <button
+      onClick={handleLike}
+      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+        selectedBlog.isLiked
+          ? 'bg-red-50 text-red-600 border border-red-200'
+          : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+      }`}
+    >
+      <Heart
+        className={`w-5 h-5 ${selectedBlog.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`}
+      />
+      <span>{selectedBlog.likes_count || selectedBlog.likes || 0}</span>
+    </button>
 
+    {/* 💾 Save button */}
+    <button
+      onClick={() => handleSave(selectedBlog._id)}
+      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+        savedBlogs.has(selectedBlog._id)
+          ? 'bg-blue-50 text-blue-600 border border-blue-200'
+          : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+      }`}
+    >
+      {savedBlogs.has(selectedBlog._id) ? (
+        <>
+          <BookmarkCheck className="w-5 h-5" />
+          Đã lưu
+        </>
+      ) : (
+        <>
+          <Bookmark className="w-5 h-5" />
+          Lưu
+        </>
+      )}
+    </button>
 
-                </div>
+  </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 text-blue-600">
-                    <MessageCircle className="w-5 h-5" />
-                    <span className="font-medium">{comments.length} bình luận</span>
-                  </div>
-                  <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                    <Share2 className="w-5 h-5 text-gray-400" />
-                  </button>
-                </div>
-              </div>
+  {/* Right: Comment count & Share */}
+  <div className="flex items-center gap-4">
+    <div className="flex items-center gap-2 text-blue-600">
+      <MessageCircle className="w-5 h-5" />
+      <span className="font-medium">{comments.length} bình luận</span>
+    </div>
+    <button
+  onClick={() => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success('📋 Đã sao chép liên kết bài viết!');
+  }}
+  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+>
+  <Share2 className="w-5 h-5 text-gray-400" />
+</button>
+
+  </div>
+</div>
+
             </div>
           </div>
 
@@ -616,12 +729,20 @@ const handleSave = async (blogId: string) => {
       {comments.map((cmt) => (
   <div key={cmt._id} className="bg-gray-50 rounded-xl p-6">
     <div className="flex items-start gap-4">
-      <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-        <User className="w-5 h-5 text-white" />
-      </div>
+      <img
+  src={
+    cmt.author?.avatar && cmt.author.avatar.trim() !== ''
+      ? cmt.author.avatar
+      : '/images/default-avatar.png'
+  }
+  alt="avatar"
+  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+  onError={handleImageError}
+/>
+
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-2">
-          <span className="font-semibold text-gray-800">{cmt.author?.name}</span>
+          <span className="font-semibold text-gray-800">{cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'}</span>
           <span className="text-sm text-gray-500">{formatDate(cmt.createdAt)}</span>
         </div>
         <p className="text-gray-700 mb-3 leading-relaxed">{cmt.content}</p>
@@ -681,9 +802,17 @@ const handleSave = async (blogId: string) => {
                           {cmt.replies.map((reply: any) => (
                             <div key={reply._id} className="bg-white rounded-xl p-4 border border-gray-200">
                               <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <User className="w-4 h-4 text-white" />
-                                </div>
+                               <img
+  src={
+    reply.author?.avatar && reply.author.avatar.trim() !== ''
+      ? reply.author.avatar
+      : '/images/default-avatar.png'
+  }
+  alt="avatar"
+  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+  onError={handleImageError}
+/>
+
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
                                     <span className="font-medium text-gray-800">{reply.author?.name}</span>

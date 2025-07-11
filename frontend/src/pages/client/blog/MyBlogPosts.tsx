@@ -245,7 +245,9 @@ const MyBlogPosts = () => {
       }
 
       const data = await response.json();
-      setComments(data.data || data);
+console.log('📋 Comment chi tiết:', JSON.stringify(data.data, null, 2));
+setComments(data.data || data);
+
     } catch (error) {
       console.error('Error fetching comments:', error);
       message.error('Không thể tải bình luận');
@@ -733,14 +735,17 @@ const navigate = useNavigate();
               <List.Item style={{ padding: '16px 0', borderBottom: '1px solid #f0f0f0' }}>
                 <div style={{ width: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
-                    <Avatar 
-                      src={comment.author.avatar} 
-                      icon={<UserOutlined />}
-                      size={32}
-                    />
+                   <Avatar 
+  src={comment.author?.avatar} 
+  icon={<UserOutlined />}
+  size={32}
+/>
+<Text strong>{comment.author?.fullname || 'Người dùng ẩn danh'}</Text>
+
+
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <Text strong>{comment.author.name}</Text>
+                        
                         <Text type="secondary" style={{ fontSize: 12 }}>
                           {new Date(comment.createdAt).toLocaleString('vi-VN')}
                         </Text>
@@ -806,10 +811,15 @@ const navigate = useNavigate();
                           borderRadius: 6
                         }}>
                           <Avatar 
-                            src={reply.author.avatar} 
-                            icon={<UserOutlined />}
-                            size={24}
-                          />
+  src={reply.author?.avatar || undefined} 
+  icon={<UserOutlined />} 
+  size={24}
+/>
+<Text strong style={{ fontSize: 13 }}>
+  {reply.author?.fullname || 'Ẩn danh'}
+</Text>
+
+
                           <div style={{ flex: 1 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                               <Text strong style={{ fontSize: 13 }}>{reply.author.name}</Text>
