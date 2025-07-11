@@ -94,10 +94,11 @@ const apiRequest = async (endpoint, method = 'GET', data = null, isFormData = fa
 // Blog API
 const blogAPI = {
   // Create new blog
-  createBlog: (blogData) => apiRequest('/blogs', 'POST', blogData),
+ createBlog: (formData) => apiRequest('/blogs', 'POST', formData, true),
   
   // Update existing blog (for editing drafts)
-  updateBlog: (id, blogData) => apiRequest(`/blogs/${id}`, 'PUT', blogData),
+  updateBlog: (id, blogData, isFormData = false) =>
+  apiRequest(`/blogs/${id}`, 'PUT', blogData, isFormData),
   
   // Get single blog by ID (for loading drafts)
   getBlog: (id) => apiRequest(`/blogs/${id}`),
@@ -340,51 +341,56 @@ const BlogWritePage = () => {
   // Publish blog
   const navigate = useNavigate();
   const handlePublish = async () => {
-    if (!title.trim()) {
-      message.error('Vui lòng nhập tiêu đề bài viết');
-      return;
+  if (!title.trim()) {
+    message.error('Vui lòng nhập tiêu đề bài viết');
+    return;
+  }
+  if (!content.trim()) {
+    message.error('Vui lòng nhập nội dung bài viết');
+    return;
+  }
+  if (!category) {
+    message.error('Vui lòng chọn danh mục');
+    return;
+  }
+
+  setIsPublishing(true);
+
+  try {
+    const formData = new FormData();
+    formData.append('title', title.trim());
+    formData.append('content', content.trim());
+    formData.append('category', category);
+    formData.append('status', 'pending');
+
+    // Convert thumbnailUrl (image link) → File blob
+    if (thumbnailUrl) {
+      const res = await fetch(thumbnailUrl);
+      const blob = await res.blob();
+      const file = new File([blob], 'thumbnail.jpg', { type: blob.type });
+      formData.append('image', file); // 👈 backend đang nhận field 'image'
     }
-    if (!content.trim()) {
-      message.error('Vui lòng nhập nội dung bài viết');
-      return;
+
+    let response;
+    if (blogId) {
+      response = await blogAPI.updateBlog(blogId, formData, true);
+      message.success('Bài viết đã được cập nhật!');
+    } else {
+      response = await blogAPI.createBlog(formData); // 👈 sửa hàm createBlog như bên dưới
+      message.success('Bài viết đã được gửi duyệt!');
+      setBlogId(response.data?._id || response._id);
     }
-    if (!category) {
-      message.error('Vui lòng chọn danh mục');
-      return;
-    }
 
-    setIsPublishing(true);
-
-    try {
-      const blogData = {
-        title: title.trim(),
-        content: content.trim(),
-        category,
-        thumbnail: thumbnailUrl,
-        status: 'pending'
-      };
-
-      let response;
-      if (blogId) {
-        response = await blogAPI.updateBlog(blogId, blogData);
-        message.success('Bài viết đã được cập nhật thành công!');
-      } else {
-        response = await blogAPI.createBlog(blogData);
-        message.success('Bài viết đã được gửi duyệt!');
-        setBlogId(response.data?.id || response.data?._id || response.id || response._id);
-      }
-
-      setTimeout(() => {
-       navigate('/blog/mine');
-       }, 2000);
-
-    } catch (error) {
-      message.error('Có lỗi xảy ra khi đăng bài: ' + error.message);
-      setApiError('Không thể đăng bài. Vui lòng kiểm tra kết nối và thử lại.');
-    } finally {
-      setIsPublishing(false);
-    }
-  };
+    setTimeout(() => {
+      navigate('/blog/mine');
+    }, 1500);
+  } catch (error) {
+    message.error('Lỗi khi đăng bài: ' + error.message);
+    setApiError('Không thể đăng bài. Vui lòng kiểm tra kết nối và thử lại.');
+  } finally {
+    setIsPublishing(false);
+  }
+};
 
   // Save draft
   const handleSaveDraft = async () => {

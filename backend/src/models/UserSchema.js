@@ -16,6 +16,10 @@ const UserSchema = new mongoose.Schema({
     trim: true,
     minlength: [2, 'Họ và tên phải có ít nhất 2 ký tự'],
   },
+  avatar: {
+    type: String,
+    default: ''
+  },
   slug: {
     type: String,
     unique: true,

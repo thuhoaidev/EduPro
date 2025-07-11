@@ -80,6 +80,17 @@ const BlogPage = () => {
   const [commentLikesCount, setCommentLikesCount] = useState<{ [key: string]: number }>({});
 
   const commentEndRef = useRef<HTMLDivElement>(null);
+ const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const target = e.currentTarget;
+
+  // Dựa vào alt để phân biệt loại ảnh
+  if (target.alt === 'avatar') {
+    target.src = '/images/default-avatar.png';
+  } else {
+    target.src = '/images/no-image.png';
+  }
+};
+
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -438,14 +449,16 @@ const handleSave = async (blogId: string) => {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                      <img
-                      src={
-                        blog?.author?.avatar && blog.author.avatar !== ''
-                          ? blog.author.avatar
-                          : '/images/default-avatar.png'
-                      }
-                      alt="avatar"
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
+  src={
+    blog.author?.avatar && blog.author.avatar.trim() !== ''
+      ? blog.author.avatar
+      : '/images/default-avatar.png'
+  }
+  alt="avatar"
+  className="w-10 h-10 rounded-full object-cover"
+  onError={handleImageError}
+/>
+
          <div>
                         <p className="font-semibold text-gray-800">{blog.author?.fullname || 'Ẩn danh'}</p>
                         <p className="text-sm text-gray-500 flex items-center gap-1">
@@ -475,17 +488,18 @@ const handleSave = async (blogId: string) => {
                     {blog.title}
                   </h2>
                   {/* Blog Image */}
-                    {blog.image && blog.image.trim() !== '' ? (
-                      <img
-                        src={blog.image}
-                        alt={blog.title}
-                        className="w-full h-48 object-cover rounded-xl mb-4"
-                      />
-                    ) : (
-                      <div className="w-full h-48 bg-gray-100 rounded-xl mb-4 flex items-center justify-center text-gray-400 text-sm">
-                        Không có ảnh
-                      </div>
-                    )}
+                  {blog.image && blog.image.trim() !== '' ? (
+                <img
+                  src={blog.image}
+                  alt={blog.title}
+                  className="w-full h-48 object-cover rounded-xl"
+                  onError={handleImageError}
+                />
+              ) : (
+                <div className="w-full h-48 flex items-center justify-center rounded-xl bg-gray-100 text-gray-500 text-sm italic border border-dashed">
+                  Không có ảnh
+                </div>
+              )}
                   <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed">
                     {blog.content}
                   </p>
@@ -547,21 +561,12 @@ const handleSave = async (blogId: string) => {
             <div className="p-8">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                  {selectedBlog.author?.avatar && selectedBlog.author.avatar.trim() !== '' ? (
-  <img
-    src={selectedBlog.author.avatar}
-    alt="avatar"
-    className="w-12 h-12 rounded-full object-cover"
-    onError={(e) => (e.currentTarget.src = '/images/default-avatar.png')}
-  />
-) : (
-  <img
-    src="/images/default-avatar.png"
-    alt="default avatar"
-    className="w-12 h-12 rounded-full object-cover"
-  />
-)}
-
+                  <img
+                  src={selectedBlog.author?.avatar || '/images/default-avatar.png'}
+                  alt="avatar"
+                  className="w-12 h-12 rounded-full object-cover"
+                  onError={handleImageError}
+                />
                   <div>
                  <h3 className="font-semibold text-gray-800">
                   {selectedBlog.author?.fullname || 'Ẩn danh'}
@@ -682,9 +687,17 @@ const handleSave = async (blogId: string) => {
       {comments.map((cmt) => (
   <div key={cmt._id} className="bg-gray-50 rounded-xl p-6">
     <div className="flex items-start gap-4">
-      <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-        <User className="w-5 h-5 text-white" />
-      </div>
+      <img
+  src={
+    cmt.author?.avatar && cmt.author.avatar.trim() !== ''
+      ? cmt.author.avatar
+      : '/images/default-avatar.png'
+  }
+  alt="avatar"
+  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+  onError={handleImageError}
+/>
+
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-2">
           <span className="font-semibold text-gray-800">{cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'}</span>
@@ -747,9 +760,17 @@ const handleSave = async (blogId: string) => {
                           {cmt.replies.map((reply: any) => (
                             <div key={reply._id} className="bg-white rounded-xl p-4 border border-gray-200">
                               <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <User className="w-4 h-4 text-white" />
-                                </div>
+                               <img
+  src={
+    reply.author?.avatar && reply.author.avatar.trim() !== ''
+      ? reply.author.avatar
+      : '/images/default-avatar.png'
+  }
+  alt="avatar"
+  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+  onError={handleImageError}
+/>
+
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
                                     <span className="font-medium text-gray-800">{reply.author?.name}</span>
