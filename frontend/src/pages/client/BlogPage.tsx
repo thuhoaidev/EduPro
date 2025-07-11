@@ -158,10 +158,7 @@ fetchLikesForComments();
   };
 
 const handleLike = async () => {
-  if (!selectedBlog || !selectedBlog._id) {
-    console.error('❌ selectedBlog hoặc _id không hợp lệ');
-    return;
-  }
+  if (!selectedBlog || !selectedBlog._id) return;
 
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -169,21 +166,34 @@ const handleLike = async () => {
       userId: user._id,
     });
 
-    console.log('🟠 Like Response:', res);
-
     if (typeof res.liked === 'boolean') {
-      setSelectedBlog((prev: any) => ({
-        ...prev,
+      const updated = {
+        ...selectedBlog,
         likes: res.likes_count,
+        likes_count: res.likes_count, // ✅ Cập nhật likes_count để hiển thị đúng
         isLiked: res.liked,
-      }));
-    } else {
-      console.warn('⚠️ Không rõ phản hồi like:', res);
+      };
+      setSelectedBlog(updated);
+
+      // 🔁 Đồng bộ lại trong danh sách blogs (nếu có)
+      setBlogs((prevBlogs) =>
+        prevBlogs.map((b) =>
+          b._id === updated._id
+            ? {
+                ...b,
+                likes: res.likes_count,
+                likes_count: res.likes_count, // ✅ Bổ sung để cập nhật số hiển thị
+                isLiked: res.liked,
+              }
+            : b
+        )
+      );
     }
   } catch (err: any) {
     console.error('❌ Không thể xử lý thích bài viết:', err.message || err);
   }
 };
+
 
 const handleToggleCommentLike = async (commentId: string) => {
   try {
@@ -216,21 +226,44 @@ const handleSave = async (blogId: string) => {
       userId: user._id,
     });
 
-    // ✅ Hiển thị toast dù success true hay false
     if (res.success) {
-      if (res.saved) {
-        toast.success(res.message || '✅ Đã lưu bài viết!');
-        setSavedBlogs(prev => new Set(prev).add(blogId));
-      } else {
-        toast.success(res.message || '❌ Đã bỏ lưu bài viết!');
-        setSavedBlogs(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(blogId);
-          return newSet;
+      const isSaved = res.saved;
+
+      // Cập nhật UI trạng thái "Đã lưu"
+      setSavedBlogs((prev) => {
+        const newSet = new Set(prev);
+        if (isSaved) newSet.add(blogId);
+        else newSet.delete(blogId);
+        return newSet;
+      });
+
+      // ✅ Cập nhật selectedBlog nếu đang mở
+      if (selectedBlog && selectedBlog._id === blogId) {
+        setSelectedBlog({
+          ...selectedBlog,
+          saves: isSaved
+            ? [...(selectedBlog.saves || []), user._id]
+            : (selectedBlog.saves || []).filter((id: string) => id !== user._id),
         });
       }
+
+      // 🔁 Đồng bộ lại danh sách blogs
+      setBlogs((prevBlogs) =>
+        prevBlogs.map((b) =>
+          b._id === blogId
+            ? {
+                ...b,
+                saves: isSaved
+                  ? [...(b.saves || []), user._id]
+                  : (b.saves || []).filter((id: string) => id !== user._id),
+              }
+            : b
+        )
+      );
+
+      toast.success(res.message || (isSaved ? 'Đã lưu!' : 'Đã bỏ lưu!'));
     } else {
-      toast.error(res.message || '⚠️ Không thể xử lý lưu/bỏ lưu.');
+      toast.error(res.message || 'Lỗi khi lưu/bỏ lưu');
     }
   } catch (err: any) {
     console.error('Lỗi khi lưu/bỏ lưu:', err);
@@ -522,68 +555,61 @@ const handleSave = async (blogId: string) => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-6 border-t border-gray-100">
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={handleLike}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-                      selectedBlog.isLiked
-                        ? 'bg-red-50 text-red-600 border border-red-200'
-                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                    }`}
-                  >
-                    <Heart className={`w-5 h-5 ${selectedBlog.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
-                    <div className="flex items-center gap-6 text-sm text-gray-500 mt-4">
-                    <div className="flex items-center gap-2">
-                      <Heart className="w-4 h-4 text-red-500" />
-                      <span>{selectedBlog.likes_count || selectedBlog.likes || 0}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4 text-blue-500" />
-                      <span>{comments.length || 0}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <BookmarkCheck className="w-4 h-4 text-green-500" />
-                      <span>{selectedBlog?.saves?.length || 0}</span>
-                    </div>
-                  </div>
+<div className="flex items-center justify-between pt-6 border-t border-gray-100">
+  {/* Left actions: Like & Save */}
+  <div className="flex items-center gap-4">
 
-                  </button>
-                  
-                  <button
-                  onClick={() => handleSave(selectedBlog._id)}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-                    savedBlogs.has(selectedBlog._id)
-                      ? 'bg-blue-50 text-blue-600 border border-blue-200'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                  }`}
-                >
-                  {savedBlogs.has(selectedBlog._id) ? (
-                    <>
-                      <BookmarkCheck className="w-5 h-5" />
-                      Đã lưu
-                    </>
-                  ) : (
-                    <>
-                      <Bookmark className="w-5 h-5" />
-                      Lưu
-                    </>
-                  )}
-                </button>
+    {/* ❤️ Like button */}
+    <button
+      onClick={handleLike}
+      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+        selectedBlog.isLiked
+          ? 'bg-red-50 text-red-600 border border-red-200'
+          : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+      }`}
+    >
+      <Heart
+        className={`w-5 h-5 ${selectedBlog.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`}
+      />
+      <span>{selectedBlog.likes_count || selectedBlog.likes || 0}</span>
+    </button>
 
+    {/* 💾 Save button */}
+    <button
+      onClick={() => handleSave(selectedBlog._id)}
+      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+        savedBlogs.has(selectedBlog._id)
+          ? 'bg-blue-50 text-blue-600 border border-blue-200'
+          : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+      }`}
+    >
+      {savedBlogs.has(selectedBlog._id) ? (
+        <>
+          <BookmarkCheck className="w-5 h-5" />
+          Đã lưu
+        </>
+      ) : (
+        <>
+          <Bookmark className="w-5 h-5" />
+          Lưu
+        </>
+      )}
+    </button>
 
-                </div>
+  </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 text-blue-600">
-                    <MessageCircle className="w-5 h-5" />
-                    <span className="font-medium">{comments.length} bình luận</span>
-                  </div>
-                  <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                    <Share2 className="w-5 h-5 text-gray-400" />
-                  </button>
-                </div>
-              </div>
+  {/* Right: Comment count & Share */}
+  <div className="flex items-center gap-4">
+    <div className="flex items-center gap-2 text-blue-600">
+      <MessageCircle className="w-5 h-5" />
+      <span className="font-medium">{comments.length} bình luận</span>
+    </div>
+    <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+      <Share2 className="w-5 h-5 text-gray-400" />
+    </button>
+  </div>
+</div>
+
             </div>
           </div>
 
