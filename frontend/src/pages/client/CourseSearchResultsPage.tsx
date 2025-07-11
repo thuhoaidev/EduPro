@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Row, Col, Typography, Spin, Empty, Input, Pagination } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { Layout, Row, Col, Typography, Spin, Empty, Pagination } from 'antd';
+import { useSearchParams } from 'react-router-dom';
 import { courseService } from '../../services/apiService';
 import CategoryNav from '../../components/common/CategoryNav';
 import CourseCard from '../../components/course/CourseCard';
-import { getAllCategories } from '../../services/categoryService';
 import type { Course } from '../../services/apiService';
 
 const { Content } = Layout;
@@ -13,23 +12,26 @@ const { Title } = Typography;
 const CourseSearchResultsPage: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
   const coursesPerPage = 8;
+  const [searchParams] = useSearchParams();
+  const searchTerm = searchParams.get('search') || '';
 
   const fetchCourses = async () => {
     setLoading(true);
     try {
       let fetchedCourses: Course[] = [];
       let totalCourses = 0;
+      
       if (searchTerm) {
-        fetchedCourses = await courseService.searchCourses(searchTerm, currentPage, coursesPerPage);
+        fetchedCourses = await courseService.searchCourses(searchTerm);
         totalCourses = fetchedCourses.length;
       } else {
-        fetchedCourses = await courseService.getAllCourses(currentPage, coursesPerPage);
+        fetchedCourses = await courseService.getAllCourses();
         totalCourses = fetchedCourses.length;
       }
+      
       setCourses(fetchedCourses);
       setTotal(totalCourses);
     } catch {
@@ -48,18 +50,12 @@ const CourseSearchResultsPage: React.FC = () => {
   return (
     <Content className="p-4 md:p-8 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <Title level={2} className="mb-6">Tìm kiếm khóa học</Title>
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <Input
-            size="large"
-            placeholder="Tìm kiếm tên khóa học..."
-            prefix={<SearchOutlined />}
-            value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className="rounded-full max-w-md"
-          />
-        </div>
+        <Title level={2} className="mb-6">
+          {searchTerm ? `Kết quả tìm kiếm cho "${searchTerm}"` : 'Tất cả khóa học'}
+        </Title>
+        
         <CategoryNav />
+        
         {loading ? (
           <div className="text-center py-16"><Spin size="large" /></div>
         ) : courses.length > 0 ? (
@@ -71,17 +67,27 @@ const CourseSearchResultsPage: React.FC = () => {
             ))}
           </Row>
         ) : (
-          <Empty description="Không tìm thấy khóa học phù hợp" className="my-16" />
-        )}
-        <div className="flex justify-center mt-10">
-          <Pagination
-            current={currentPage}
-            total={total}
-            pageSize={coursesPerPage}
-            onChange={page => setCurrentPage(page)}
-            showSizeChanger={false}
+          <Empty 
+            description={
+              searchTerm 
+                ? `Không tìm thấy khóa học nào phù hợp với "${searchTerm}"`
+                : "Không có khóa học nào"
+            } 
+            className="my-16" 
           />
-        </div>
+        )}
+        
+        {total > coursesPerPage && (
+          <div className="flex justify-center mt-10">
+            <Pagination
+              current={currentPage}
+              total={total}
+              pageSize={coursesPerPage}
+              onChange={page => setCurrentPage(page)}
+              showSizeChanger={false}
+            />
+          </div>
+        )}
       </div>
     </Content>
   );
