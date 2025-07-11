@@ -67,6 +67,8 @@ import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
 import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
 
+import LessonEdit from './pages/instructor/lessons/LessonEdit';
+
 const queryClient = new QueryClient();
 
 // Error Boundary Component
@@ -186,6 +188,7 @@ function App() {
         { path: "courses/:id", element: <CourseDetail /> },
         { path: "courses/edit/:id", element: <CourseEdit /> },
         { path: "lessons", element: <MyLessonManager /> },
+        { path: "lessons/edit/:id", element: <LessonEdit /> },
         { path: "students", element: <MyStudentStats /> },
         { path: "income", element: <MyEarnings /> },
       ],

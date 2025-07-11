@@ -14,6 +14,7 @@ import {
   Upload,
   InputNumber,
   Divider,
+  Modal,
 } from "antd";
 import { PlusOutlined, UploadOutlined } from "@ant-design/icons";
 import { useNavigate } from 'react-router-dom';
@@ -86,6 +87,10 @@ const MyLessonManager: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [sectionsLoading, setSectionsLoading] = useState(false);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [quizPreviewQuestions, setQuizPreviewQuestions] = useState<QuizQuestion[] | null>(null);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
 
 
   // Test API connection
@@ -217,6 +222,15 @@ const MyLessonManager: React.FC = () => {
       setSelectedSection(value);
     form.setFieldsValue({ section_id: value });
     console.log('Section changed to:', value);
+  };
+
+  const handlePreviewVideo = (url: string) => {
+    setVideoPreviewUrl(url);
+    setIsVideoModalOpen(true);
+  };
+  const handlePreviewQuiz = (questions: QuizQuestion[]) => {
+    setQuizPreviewQuestions(questions);
+    setIsQuizModalOpen(true);
   };
 
   const onFinish = async (values: LessonFormData) => {
@@ -623,17 +637,27 @@ const MyLessonManager: React.FC = () => {
                       
                       <div style={{ marginTop: 8 }}>
                         {lesson.video ? (
-                          <Text type="secondary">
-                            📹 Video: {Math.floor(lesson.video.duration / 60)}:{String(lesson.video.duration % 60).padStart(2, '0')}
-                          </Text>
+                          <>
+                            <Text type="secondary">
+                              📹 Video: {Math.floor(lesson.video.duration / 60)}:{String(lesson.video.duration % 60).padStart(2, '0')}
+                            </Text>
+                            <Button size="small" style={{ marginLeft: 8 }} onClick={() => handlePreviewVideo(lesson.video!.url)}>
+                              Xem video
+                            </Button>
+                          </>
                         ) : (
                           <Text type="warning">⚠️ Chưa có video</Text>
                         )}
                         
                         {lesson.quiz ? (
-                          <Text type="secondary" style={{ marginLeft: 16 }}>
-                            📝 Quiz: {lesson.quiz.questions.length} câu hỏi
-                          </Text>
+                          <>
+                            <Text type="secondary" style={{ marginLeft: 16 }}>
+                              📝 Quiz: {lesson.quiz.questions.length} câu hỏi
+                            </Text>
+                            <Button size="small" style={{ marginLeft: 8 }} onClick={() => handlePreviewQuiz(lesson.quiz!.questions)}>
+                              Xem quiz
+                            </Button>
+                          </>
                         ) : (
                           <Text type="warning" style={{ marginLeft: 16 }}>⚠️ Chưa có quiz</Text>
                         )}
@@ -654,6 +678,47 @@ const MyLessonManager: React.FC = () => {
           </div>
         </Card>
       )}
+      {/* Modal xem trước video */}
+      <Modal
+        open={isVideoModalOpen}
+        onCancel={() => setIsVideoModalOpen(false)}
+        footer={null}
+        title="Xem trước video bài học"
+        width={800}
+        destroyOnHidden
+      >
+        {videoPreviewUrl && (
+          <video src={videoPreviewUrl} controls style={{ width: '100%' }} />
+        )}
+      </Modal>
+      {/* Modal xem trước quiz */}
+      <Modal
+        open={isQuizModalOpen}
+        onCancel={() => setIsQuizModalOpen(false)}
+        footer={null}
+        title="Xem trước quiz bài học"
+        width={600}
+        destroyOnHidden
+      >
+        {quizPreviewQuestions && quizPreviewQuestions.length > 0 ? (
+          <div>
+            {quizPreviewQuestions.map((q, idx) => (
+              <div key={idx} style={{ marginBottom: 16 }}>
+                <Text strong>Câu {idx + 1}: {q.question}</Text>
+                <ul style={{ margin: '8px 0 0 16px' }}>
+                  {q.options.map((opt, oidx) => (
+                    <li key={oidx} style={{ color: oidx === q.correctIndex ? 'green' : undefined }}>
+                      {String.fromCharCode(65 + oidx)}. {opt} {oidx === q.correctIndex && <b>(Đáp án đúng)</b>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Text type="secondary">Quiz này chưa có câu hỏi nào.</Text>
+        )}
+      </Modal>
     </div>
   );
 };

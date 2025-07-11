@@ -37,9 +37,14 @@ exports.createLesson = async (req, res, next) => {
             throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
         }
 
-        // Kiểm tra nếu là instructor thì phải là người tạo khóa học
+        // Kiểm tra nếu là instructor thì phải là người tạo khóa học (so sánh instructorProfile)
         if (userRoles.includes('instructor') && !userRoles.includes('admin')) {
-            if (!course.instructor || course.instructor.toString() !== req.user._id.toString()) {
+            const InstructorProfile = require('../models/InstructorProfile');
+            const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+            if (!instructorProfile) {
+                throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên. Vui lòng tạo hồ sơ giảng viên trước.');
+            }
+            if (!course.instructor || course.instructor.toString() !== instructorProfile._id.toString()) {
                 throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
             }
         }
@@ -71,23 +76,47 @@ exports.updateLesson = async (req, res, next) => {
         const { id } = req.params;
         const { title, is_preview } = req.body;
 
+        // Tìm lesson để lấy section_id
+        const lesson = await Lesson.findById(id);
+        if (!lesson) {
+            throw new ApiError(404, 'Không tìm thấy bài học');
+        }
+        // Tìm section để lấy course_id
+        const section = await Section.findById(lesson.section_id);
+        if (!section) {
+            throw new ApiError(404, 'Không tìm thấy chương');
+        }
+        // Tìm course để kiểm tra instructor
+        const course = await Course.findById(section.course_id);
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+        // Kiểm tra quyền
+        const userRoles = req.user.roles || [];
+        if (!userRoles.includes('admin') && !userRoles.includes('instructor')) {
+            throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
+        }
+        if (userRoles.includes('instructor') && !userRoles.includes('admin')) {
+            const InstructorProfile = require('../models/InstructorProfile');
+            const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+            if (!instructorProfile) {
+                throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên. Vui lòng tạo hồ sơ giảng viên trước.');
+            }
+            if (!course.instructor || course.instructor.toString() !== instructorProfile._id.toString()) {
+                throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
+            }
+        }
         // Validate dữ liệu
         const validatedData = await validateSchema(updateLessonSchema, { title, is_preview });
-
         // Cập nhật lesson
-        const lesson = await Lesson.findByIdAndUpdate(
+        const updatedLesson = await Lesson.findByIdAndUpdate(
             id,
             { $set: validatedData },
             { new: true, runValidators: true }
         );
-
-        if (!lesson) {
-            throw new ApiError(404, 'Không tìm thấy bài học');
-        }
-
         res.json({
             success: true,
-            data: lesson
+            data: updatedLesson
         });
     } catch (error) {
         next(error);
@@ -246,7 +275,26 @@ exports.getLessonById = async (req, res, next) => {
     if (!lesson) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy bài học' });
     }
-    res.json({ success: true, data: lesson });
+    // Lấy thông tin video và quiz cho lesson này
+    const Video = require('../models/Video');
+    const Quiz = require('../models/Quiz');
+    const video = await Video.findOne({ lesson_id: lesson._id });
+    const quiz = video ? await Quiz.findOne({ video_id: video._id }) : null;
+    res.json({
+      success: true,
+      data: {
+        ...lesson.toObject(),
+        video: video ? {
+          _id: video._id,
+          url: video.url,
+          duration: video.duration
+        } : null,
+        quiz: quiz ? {
+          _id: quiz._id,
+          questions: quiz.questions
+        } : null
+      }
+    });
   } catch (error) {
     next(error);
   }

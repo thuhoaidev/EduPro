@@ -162,7 +162,12 @@ exports.updateSectionsOrder = async (req, res, next) => {
 
         // Kiểm tra nếu là instructor thì phải là người tạo khóa học
         if (userRole.name === 'instructor') {
-            if (!course.instructor || course.instructor.toString() !== req.user._id.toString()) {
+            const InstructorProfile = require('../models/InstructorProfile');
+            const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+            if (!instructorProfile) {
+                throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên. Vui lòng tạo hồ sơ giảng viên trước.');
+            }
+            if (!course.instructor || course.instructor.toString() !== instructorProfile._id.toString()) {
                 throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
             }
         }

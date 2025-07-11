@@ -479,7 +479,7 @@ const VouchersPage: React.FC = () => {
         }}
         okText={editingVoucher ? 'Lưu thay đổi' : 'Tạo mã'}
         cancelText="Hủy"
-        destroyOnClose
+        destroyOnHidden
         centered
         width={600}
       >
