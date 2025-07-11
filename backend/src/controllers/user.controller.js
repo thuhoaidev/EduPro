@@ -1321,8 +1321,11 @@ exports.getApprovedInstructors = async (req, res) => {
     // Xây dựng query - chỉ lấy giảng viên đã được duyệt
     const instructorsQuery = {
       role_id: instructorRole._id,
-      'instructorInfo.approval_status': 'approved',
-      'instructorInfo.is_approved': true
+      'instructorInfo.is_approved': true,
+      $or: [
+        { 'instructorInfo.approval_status': 'approved' },
+        { approval_status: 'approved' }
+      ]
     };
 
     // Tìm kiếm
