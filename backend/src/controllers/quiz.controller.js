@@ -26,42 +26,52 @@ exports.createQuiz = async (req, res, next) => {
 exports.updateQuiz = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, description, questions, time_limit, passing_score } = req.body;
+    const { questions } = req.body;
 
-    // Validate dữ liệu
-    const validatedData = await validateSchema(updateQuizSchema, {
-      title,
-      description,
-      questions,
-      time_limit,
-      passing_score,
-    });
+    // Kiểm tra quiz tồn tại
+    const existingQuiz = await Quiz.findById(id);
+    if (!existingQuiz) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài quiz' });
+    }
 
-    // Nếu có cập nhật questions
-    if (validatedData.questions) {
-      validatedData.questions.forEach(question => {
-        if (!question.options.includes(question.correct_answer)) {
-          throw new ApiError(400, 'Đáp án phải nằm trong danh sách lựa chọn');
+    // Validate questions
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ success: false, message: 'Danh sách câu hỏi không hợp lệ' });
+    }
+
+    // Validate từng câu hỏi
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i];
+      if (!question.question || !question.question.trim()) {
+        return res.status(400).json({ success: false, message: `Câu hỏi ${i + 1} không được để trống` });
+      }
+      if (!question.options || !Array.isArray(question.options) || question.options.length < 2) {
+        return res.status(400).json({ success: false, message: `Câu hỏi ${i + 1} phải có ít nhất 2 đáp án` });
+      }
+      if (typeof question.correctIndex !== 'number' || question.correctIndex < 0 || question.correctIndex >= question.options.length) {
+        return res.status(400).json({ success: false, message: `Câu hỏi ${i + 1} có đáp án đúng không hợp lệ` });
+      }
+      // Kiểm tra đáp án không được để trống
+      for (let j = 0; j < question.options.length; j++) {
+        if (!question.options[j] || !question.options[j].trim()) {
+          return res.status(400).json({ success: false, message: `Câu hỏi ${i + 1}, đáp án ${j + 1} không được để trống` });
         }
-      });
+      }
     }
 
     // Cập nhật quiz
     const quiz = await Quiz.findByIdAndUpdate(
       id,
-      { $set: validatedData },
+      { questions },
       { new: true, runValidators: true },
     );
-
-    if (!quiz) {
-      throw new ApiError(404, 'Không tìm thấy bài quiz');
-    }
 
     res.json({
       success: true,
       data: quiz,
     });
   } catch (error) {
+    console.error('Lỗi khi cập nhật quiz:', error);
     next(error);
   }
 };

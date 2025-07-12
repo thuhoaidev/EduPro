@@ -36,6 +36,7 @@ interface ApiCourse {
   discount: number;
   finalPrice: number;
   status: string;
+  displayStatus?: string;
   requirements: string[];
   createdAt: string;
   updatedAt: string;
@@ -231,6 +232,24 @@ export const courseService = {
   updateCourseStatus: async (courseId: string, status: string) => {
     try {
       const response = await apiClient.patch(`/courses/${courseId}/status`, { status });
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data || error;
+    }
+  },
+
+  submitCourseForApproval: async (courseId: string) => {
+    try {
+      const response = await apiClient.post(`/courses/${courseId}/submit`);
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data || error;
+    }
+  },
+
+  approveCourse: async (courseId: string, action: 'approve' | 'reject', reason?: string) => {
+    try {
+      const response = await apiClient.post(`/courses/${courseId}/approve`, { action, reason });
       return response.data;
     } catch (error: any) {
       throw error.response?.data || error;

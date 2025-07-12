@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Typography, Table, Button, Modal, Select, Spin, Upload, message, Form, Row, Col, Space, Tag, Tooltip, Badge, Collapse } from 'antd';
-import { PlayCircleOutlined, UploadOutlined, VideoCameraOutlined, FileOutlined, EyeOutlined, PlusOutlined, CaretRightOutlined } from '@ant-design/icons';
+import { Card, Typography, Table, Button, Modal, Select, Spin, Upload, message, Form, Row, Col, Space, Tag, Tooltip, Badge, Collapse, Popconfirm } from 'antd';
+import { PlayCircleOutlined, UploadOutlined, VideoCameraOutlined, FileOutlined, EyeOutlined, PlusOutlined, CaretRightOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 
 const { Title, Text } = Typography;
@@ -33,6 +33,7 @@ interface UploadVideoRow {
   lessonTitle: string;
   sectionTitle: string;
   courseId: string | null;
+  videoId?: string;
 }
 
 const VideoManager: React.FC = () => {
@@ -48,6 +49,15 @@ const VideoManager: React.FC = () => {
   const [form] = Form.useForm();
   const [videoFile, setVideoFile] = useState<UploadFile[]>([]);
   const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [activeCollapseKeys, setActiveCollapseKeys] = useState<string[]>([]);
+
+  // Thêm state cho modal sửa video
+  const [isEditVideoModalOpen, setIsEditVideoModalOpen] = useState(false);
+  const [editVideoForm] = Form.useForm();
+  const [editingVideo, setEditingVideo] = useState(false);
+  const [currentVideo, setCurrentVideo] = useState<UploadVideoRow | null>(null);
+  const [editVideoFile, setEditVideoFile] = useState<UploadFile[]>([]);
+  const [editVideoDuration, setEditVideoDuration] = useState<number>(0);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -101,6 +111,7 @@ const VideoManager: React.FC = () => {
           lessonTitle: lesson.title,
           sectionTitle: section.title,
           courseId: selectedCourse,
+          videoId: lesson.video?._id,
         });
       });
     });
@@ -180,12 +191,150 @@ const VideoManager: React.FC = () => {
     }
   };
 
+  // Khi chọn file video cho edit, lấy duration
+  const handleEditVideoChange = (info: { fileList: UploadFile[] }) => {
+    const fileList = info.fileList.slice(-1);
+    setEditVideoFile(fileList);
+    if (fileList.length > 0 && fileList[0].originFileObj) {
+      const file = fileList[0].originFileObj as File;
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        setEditVideoDuration(Math.round(video.duration));
+        window.URL.revokeObjectURL(video.src);
+      };
+      video.src = URL.createObjectURL(file);
+    } else {
+      setEditVideoDuration(currentVideo?.duration || 0);
+    }
+  };
+
   // Format duration từ giây sang phút:giây
   const formatDuration = (seconds: number) => {
     if (!seconds) return '-';
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Hàm mở modal sửa video
+  const handleEditVideo = (video: UploadVideoRow) => {
+    setCurrentVideo(video);
+    editVideoForm.resetFields();
+    setEditVideoFile([]);
+    setEditVideoDuration(video.duration);
+    setIsEditVideoModalOpen(true);
+  };
+
+  // Hàm đóng modal sửa video
+  const handleCancelEditVideo = () => {
+    setIsEditVideoModalOpen(false);
+    editVideoForm.resetFields();
+    setEditVideoFile([]);
+    setEditVideoDuration(0);
+    setCurrentVideo(null);
+  };
+
+  // Hàm sửa video
+  const handleSubmitEditVideo = async () => {
+    if (!currentVideo?.videoId) return;
+
+    try {
+      setEditingVideo(true);
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const formData = new FormData();
+      
+      // Nếu có file video mới
+      if (editVideoFile.length > 0 && editVideoFile[0].originFileObj) {
+        formData.append('video', editVideoFile[0].originFileObj as File);
+      }
+      
+      formData.append('duration', editVideoDuration.toString());
+
+      const response = await fetch(`${apiUrl}/videos/${currentVideo.videoId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Không thể cập nhật video');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        message.success('Cập nhật video thành công!');
+        setIsEditVideoModalOpen(false);
+        editVideoForm.resetFields();
+        setEditVideoFile([]);
+        setEditVideoDuration(0);
+        setCurrentVideo(null);
+        
+        // Refresh lại danh sách chương để hiển thị video đã cập nhật
+        if (selectedCourse) {
+          const refreshResponse = await fetch(`${apiUrl}/courses/${selectedCourse}/sections`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          });
+          
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            if (refreshData.success) {
+              setSections(refreshData.data);
+            }
+          }
+        }
+      } else {
+        throw new Error(data.message || 'Không thể cập nhật video');
+      }
+    } catch (error) {
+      console.error('Lỗi khi cập nhật video:', error);
+      message.error(error instanceof Error ? error.message : 'Không thể cập nhật video');
+    } finally {
+      setEditingVideo(false);
+    }
+  };
+
+  // Hàm xóa video
+  const handleDeleteVideo = async (video: UploadVideoRow) => {
+    if (!video.videoId) return;
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${apiUrl}/videos/${video.videoId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Không thể xóa video');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        message.success('Xóa video thành công!');
+        
+        // Refresh lại danh sách chương để hiển thị video đã xóa
+        if (selectedCourse) {
+          const refreshResponse = await fetch(`${apiUrl}/courses/${selectedCourse}/sections`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          });
+          
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            if (refreshData.success) {
+              setSections(refreshData.data);
+            }
+          }
+        }
+      } else {
+        throw new Error(data.message || 'Không thể xóa video');
+      }
+    } catch (error) {
+      console.error('Lỗi khi xóa video:', error);
+      message.error(error instanceof Error ? error.message : 'Không thể xóa video');
+    }
   };
 
   // Thống kê
@@ -261,6 +410,12 @@ const VideoManager: React.FC = () => {
                   setVideoFile([]);
                   setVideoDuration(0);
                   form.resetFields();
+                  // Khi chọn chương, chỉ mở chương đó và đóng các chương khác
+                  if (v) {
+                    setActiveCollapseKeys([v]);
+                  } else {
+                    setActiveCollapseKeys([]);
+                  }
                 }}
                 options={sectionOptions}
                 disabled={!selectedCourse}
@@ -365,7 +520,8 @@ const VideoManager: React.FC = () => {
           <Spin spinning={loading}>
             {sections.length > 0 ? (
               <Collapse 
-                defaultActiveKey={sections.map(s => s._id)}
+                activeKey={activeCollapseKeys}
+                onChange={(keys) => setActiveCollapseKeys(Array.isArray(keys) ? keys : [keys])}
                 expandIcon={({ isActive }) => <CaretRightOutlined rotate={isActive ? 90 : 0} />}
                 style={{ background: 'transparent' }}
               >
@@ -410,6 +566,7 @@ const VideoManager: React.FC = () => {
                           lessonTitle: lesson.title,
                           sectionTitle: section.title,
                           courseId: selectedCourse,
+                          videoId: lesson.video?._id,
                         }))}
                         rowKey="_id"
                         columns={[
@@ -442,18 +599,54 @@ const VideoManager: React.FC = () => {
                                 setPreviewUrl(record.url);
                               };
                               return record.url && record.url.startsWith('http') ? (
-                                <Tooltip title="Xem video">
+                                <Space>
+                                  <Tooltip title="Xem video">
+                                    <Button 
+                                      type="primary" 
+                                      size="small" 
+                                      icon={<EyeOutlined />} 
+                                      onClick={handlePreview}
+                                    />
+                                  </Tooltip>
+                                  <Tooltip title="Sửa video">
+                                    <Button 
+                                      type="default" 
+                                      size="small" 
+                                      icon={<EditOutlined />} 
+                                      onClick={() => handleEditVideo(record)}
+                                    />
+                                  </Tooltip>
+                                  <Popconfirm
+                                    title="Xóa video"
+                                    description="Bạn có chắc chắn muốn xóa video này không?"
+                                    onConfirm={() => handleDeleteVideo(record)}
+                                    okText="Có"
+                                    cancelText="Không"
+                                  >
+                                    <Tooltip title="Xóa video">
+                                      <Button 
+                                        type="text" 
+                                        size="small" 
+                                        danger
+                                        icon={<DeleteOutlined />} 
+                                      />
+                                    </Tooltip>
+                                  </Popconfirm>
+                                </Space>
+                              ) : (
+                                <Tooltip title="Thêm video">
                                   <Button 
                                     type="primary" 
                                     size="small" 
-                                    icon={<EyeOutlined />} 
-                                    onClick={handlePreview}
-                                  >
-                                    Xem
-                                  </Button>
+                                    icon={<PlusOutlined />} 
+                                    onClick={() => {
+                                      setSelectedLesson(record._id);
+                                      setVideoFile([]);
+                                      setVideoDuration(0);
+                                      form.resetFields();
+                                    }}
+                                  />
                                 </Tooltip>
-                              ) : (
-                                <Text type="secondary">Chưa có video</Text>
                               );
                             },
                             align: 'center'
@@ -504,6 +697,72 @@ const VideoManager: React.FC = () => {
             />
           </div>
         )}
+      </Modal>
+
+      {/* Modal sửa video */}
+      <Modal
+        title="Sửa video"
+        open={isEditVideoModalOpen}
+        onCancel={handleCancelEditVideo}
+        footer={null}
+        width={600}
+        destroyOnHidden
+      >
+        <Form
+          form={editVideoForm}
+          layout="vertical"
+          onFinish={handleSubmitEditVideo}
+        >
+          <Form.Item label="Bài học:">
+            <Text strong>{currentVideo?.lessonTitle}</Text>
+          </Form.Item>
+
+          <Form.Item label="Video hiện tại:">
+            {currentVideo?.url && (
+              <video 
+                src={currentVideo.url} 
+                controls 
+                style={{ width: '100%', borderRadius: '8px', maxHeight: '200px' }} 
+                preload="metadata"
+              />
+            )}
+          </Form.Item>
+
+          <Form.Item label="Thay thế video (tùy chọn):">
+            <Upload
+              beforeUpload={() => false}
+              fileList={editVideoFile}
+              onChange={handleEditVideoChange}
+              accept="video/*"
+              maxCount={1}
+              showUploadList={{ showRemoveIcon: true }}
+              disabled={editingVideo}
+            >
+              <Button icon={<UploadOutlined />} disabled={editingVideo}>
+                Chọn video mới
+              </Button>
+            </Upload>
+          </Form.Item>
+
+          <Form.Item label="Thời lượng:">
+            <Tag color="blue">{formatDuration(editVideoDuration)}</Tag>
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+            <Space>
+              <Button onClick={handleCancelEditVideo}>
+                Hủy
+              </Button>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                loading={editingVideo}
+              >
+                Cập nhật
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
       </Modal>
 
       <style>{`

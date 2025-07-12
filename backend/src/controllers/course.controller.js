@@ -9,6 +9,101 @@ const User = require('../models/User');
 const Enrollment = require('../models/Enrollment');
 const { sendCourseApprovalResultEmail } = require('../utils/sendEmail');
 
+// Gửi khóa học để duyệt
+exports.submitCourseForApproval = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        // Kiểm tra quyền truy cập
+        if (!req.user.roles.includes('instructor') && !req.user.roles.includes('admin')) {
+            throw new ApiError(403, 'Bạn không có quyền thực hiện hành động này');
+        }
+
+        // Tìm khóa học
+        const course = await Course.findById(id);
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+
+        // Kiểm tra xem người dùng có phải là giảng viên của khóa học này không
+        if (!req.user.roles.includes('admin')) {
+            const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+            if (!instructorProfile || course.instructor.toString() !== instructorProfile._id.toString()) {
+                throw new ApiError(403, 'Bạn không có quyền thực hiện hành động này');
+            }
+        }
+
+        // Kiểm tra trạng thái hiện tại
+        if (course.status !== 'draft') {
+            throw new ApiError(400, 'Chỉ có thể gửi khóa học ở trạng thái "Chưa Duyệt" để duyệt');
+        }
+
+        // Cập nhật trạng thái thành "Chờ Duyệt"
+        course.status = 'pending';
+        await course.save();
+
+        res.json({
+            success: true,
+            message: 'Đã gửi khóa học để duyệt thành công',
+            data: course
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Duyệt khóa học (cho admin/moderator)
+exports.approveCourse = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { action, reason } = req.body; // action: 'approve' hoặc 'reject'
+
+        // Kiểm tra quyền truy cập
+        if (!req.user.roles.includes('admin') && !req.user.roles.includes('moderator')) {
+            throw new ApiError(403, 'Bạn không có quyền thực hiện hành động này');
+        }
+
+        // Tìm khóa học
+        const course = await Course.findById(id);
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+
+        // Kiểm tra trạng thái hiện tại
+        if (course.status !== 'pending') {
+            throw new ApiError(400, 'Chỉ có thể duyệt khóa học ở trạng thái "Chờ Duyệt"');
+        }
+
+        if (action === 'approve') {
+            // Duyệt khóa học
+            course.status = 'approved';
+            course.displayStatus = 'published'; // Tự động chuyển sang hiển thị
+            await course.save();
+
+            res.json({
+                success: true,
+                message: 'Đã duyệt khóa học thành công',
+                data: course
+            });
+        } else if (action === 'reject') {
+            // Từ chối khóa học
+            course.status = 'rejected';
+            course.displayStatus = 'hidden'; // Đảm bảo ẩn khi bị từ chối
+            await course.save();
+
+            res.json({
+                success: true,
+                message: 'Đã từ chối khóa học',
+                data: course
+            });
+        } else {
+            throw new ApiError(400, 'Hành động không hợp lệ');
+        }
+    } catch (error) {
+        next(error);
+    }
+};
+
 // Tạo khóa học mới
 exports.createCourse = async (req, res, next) => {
     try {
@@ -151,11 +246,26 @@ exports.createCourse = async (req, res, next) => {
 
                 // Tạo sections nếu có
                 if (req.body.sections && Array.isArray(req.body.sections)) {
-                    const sectionsToCreate = req.body.sections.map((section, idx) => ({
-                        course_id: course._id,
-                        title: section.title,
-                        position: idx,
-                    }));
+                    const sectionsToCreate = req.body.sections.map((sectionData, idx) => {
+                        // Parse JSON string nếu cần
+                        let section;
+                        if (typeof sectionData === 'string') {
+                            try {
+                                section = JSON.parse(sectionData);
+                            } catch (parseError) {
+                                console.error('Lỗi parse JSON section:', parseError);
+                                throw new ApiError(400, 'Dữ liệu section không hợp lệ');
+                            }
+                        } else {
+                            section = sectionData;
+                        }
+                        
+                        return {
+                            course_id: course._id,
+                            title: section.title,
+                            position: idx,
+                        };
+                    });
                     
                     if (sectionsToCreate.length > 0) {
                         await Section.insertMany(sectionsToCreate);
@@ -173,6 +283,10 @@ exports.createCourse = async (req, res, next) => {
                 if (error.name === 'ValidationError') {
                     console.error('Validation errors:', error.errors);
                     throw new ApiError(400, 'Dữ liệu không hợp lệ', error.errors);
+                }
+                // Xử lý lỗi duplicate key cho slug
+                if (error.code === 11000 && error.keyPattern && error.keyPattern.slug) {
+                    throw new ApiError(400, 'Tên khóa học đã tồn tại. Vui lòng chọn tên khác.');
                 }
                 throw new ApiError(500, 'Lỗi khi tạo khóa học', error);
             }
@@ -329,11 +443,26 @@ exports.updateCourse = async (req, res, next) => {
             // Xóa toàn bộ section cũ
             await Section.deleteMany({ course_id: id });
             // Tạo lại section mới
-            const sectionsToCreate = req.body.sections.map((section, idx) => ({
-                course_id: id,
-                title: section.title,
-                position: idx,
-            }));
+            const sectionsToCreate = req.body.sections.map((sectionData, idx) => {
+                // Parse JSON string nếu cần
+                let section;
+                if (typeof sectionData === 'string') {
+                    try {
+                        section = JSON.parse(sectionData);
+                    } catch (parseError) {
+                        console.error('Lỗi parse JSON section:', parseError);
+                        throw new ApiError(400, 'Dữ liệu section không hợp lệ');
+                    }
+                } else {
+                    section = sectionData;
+                }
+                
+                return {
+                    course_id: id,
+                    title: section.title,
+                    position: idx,
+                };
+            });
             if (sectionsToCreate.length > 0) {
                 await Section.insertMany(sectionsToCreate);
             }
