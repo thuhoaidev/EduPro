@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Spin, Typography, Badge, Tooltip } from 'antd';
+import { Layout, Spin, Typography, Badge } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CodeOutlined,
@@ -25,9 +25,10 @@ import {
 } from '@ant-design/icons';
 import { config } from '../../api/axios';
 import './CategoryNav.css';
+import { useNavigate } from 'react-router-dom';
 
 const { Sider } = Layout;
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface Category {
   id: string;
@@ -175,6 +176,7 @@ const AppSidebar: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -252,8 +254,7 @@ const AppSidebar: React.FC = () => {
   }, []);
 
   const handleMenuClick = ({ key }: { key: string }) => {
-    setSelectedKey(key);
-    console.log('Selected category:', key);
+    navigate(`/courses?category=${key}`);
   };
 
   return (
@@ -267,15 +268,7 @@ const AppSidebar: React.FC = () => {
         width={280} 
         className="category-sidebar"
       >
-        <div className="sidebar-header">
-          <Title level={4} className="sidebar-title">
-            <BookOutlined className="title-icon" />
-            Danh mục khóa học
-          </Title>
-          <Text className="sidebar-subtitle">
-            Khám phá các lĩnh vực học tập
-          </Text>
-        </div>
+        
 
         <Spin spinning={loading} size="small" className="category-spinner">
           <div className="categories-list">
@@ -372,20 +365,6 @@ const AppSidebar: React.FC = () => {
         </Spin>
 
         {/* Footer section */}
-        <div className="sidebar-footer">
-          <div className="footer-stats">
-            <div className="stat-item">
-              <Text className="stat-number">{categories.length}</Text>
-              <Text className="stat-label">Danh mục</Text>
-            </div>
-            <div className="stat-item">
-              <Text className="stat-number">
-                {categories.reduce((sum, cat) => sum + (cat.courseCount || 0), 0)}
-              </Text>
-              <Text className="stat-label">Khóa học</Text>
-            </div>
-          </div>
-        </div>
       </Sider>
     </motion.div>
   );
