@@ -1,34 +1,33 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Typography, Button, Rate, Tag, Image, Space, Divider, Statistic, Tabs, Spin, message, Badge, Tooltip, Carousel, Avatar, Input, Select } from "antd";
+import { Row, Col, Card, Typography, Button, Rate, Tag, Space, Tabs, Spin, message, Badge, Tooltip, Carousel, Avatar, Input, Select } from "antd";
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import {
   PlayCircleOutlined,
-  BookOutlined,
-  UserOutlined,
-  ReadOutlined,
-  TrophyOutlined,
-  LikeOutlined,
   GiftOutlined,
   CopyOutlined,
   ClockCircleOutlined as ClockIcon,
   LeftOutlined,
   RightOutlined,
-  ArrowRightOutlined,
-  CodeOutlined,
-  BarChartOutlined,
-  LaptopOutlined,
   FireOutlined,
   StarOutlined,
   RocketOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  SearchOutlined,
+  ThunderboltOutlined,
+  RiseOutlined,
+  CrownOutlined,
+  HeartOutlined,
+  AimOutlined,
+  TeamOutlined,
+  BookOutlined,
+  SafetyOutlined,
+  UserOutlined
 } from "@ant-design/icons";
 import "../styles/courseCard.css";
 import "./Homepage.css";
 import { courseService, type Course as ApiCourse } from '../services/apiService';
-import voucherService from '../services/voucher.service';
-import type { Voucher } from '../services/voucher.service';
 import CourseCard from '../components/course/CourseCard';
 
 const { Title, Text, Paragraph } = Typography;
@@ -43,6 +42,7 @@ interface Testimonial {
   role: string;
   content: string;
   rating: number;
+  avatar?: string;
 }
 
 interface VoucherDisplay {
@@ -67,14 +67,30 @@ interface VoucherDisplay {
   statusMessage?: string;
 }
 
-const CustomArrow = ({ currentSlide, slideCount, children, ...rest }: {
-  currentSlide?: number;
-  slideCount?: number;
+interface CommentData {
+  user?: {
+    fullname?: string;
+  };
+  content?: string;
+  rating?: number;
+}
+
+interface VoucherData {
+  validFrom: string;
+  validTo: string;
+  usedCount: number;
+  usageLimit: number;
+  [key: string]: unknown;
+}
+
+// Sửa CustomArrow để không truyền currentSlide, slideCount vào DOM
+const CustomArrow = ({ children, ...rest }: {
   children: React.ReactNode;
-  [key: string]: any;
-}) => (
-  <span {...rest}>{children}</span>
-);
+  [key: string]: unknown;
+}) => {
+  // Loại bỏ currentSlide, slideCount khỏi props truyền vào span
+  return <span {...rest}>{children}</span>;
+};
 
 const SectionWrapper = ({ children, style = {}, className = "" }: { children: React.ReactNode, style?: React.CSSProperties, className?: string }) => {
   const controls = useAnimation();
@@ -128,23 +144,33 @@ function HomeSearchBar() {
       transition={{ duration: 0.6, delay: 0.8 }}
     >
       <div className="search-wrapper">
-        <Select 
-          value={searchType} 
-          onChange={setSearchType} 
-          className="search-type-select"
-          size="large"
-        >
-          <Option value="course">Khóa học</Option>
-          <Option value="user">Giảng viên</Option>
-        </Select>
-        <Input
-          placeholder="Nhập từ khóa tìm kiếm..."
-          value={keyword}
-          onChange={e => setKeyword(e.target.value)}
-          onPressEnter={handleSearch}
-          className="search-input"
-          size="large"
-        />
+        <div className="search-type-container">
+          <Select 
+            value={searchType} 
+            onChange={setSearchType} 
+            className="search-type-select"
+            size="large"
+            suffixIcon={<AimOutlined />}
+          >
+            <Option value="course">
+              <BookOutlined /> Khóa học
+            </Option>
+            <Option value="user">
+              <UserOutlined /> Người dùng
+            </Option>
+      </Select>
+        </div>
+        <div className="search-input-container">
+      <Input
+            placeholder="Nhập từ khóa tìm kiếm..."
+        value={keyword}
+        onChange={e => setKeyword(e.target.value)}
+        onPressEnter={handleSearch}
+            className="search-input"
+        size="large"
+            prefix={<SearchOutlined className="search-prefix-icon" />}
+      />
+        </div>
         <Button 
           type="primary" 
           size="large" 
@@ -154,7 +180,7 @@ function HomeSearchBar() {
         >
           Tìm kiếm
         </Button>
-      </div>
+    </div>
     </motion.div>
   );
 }
@@ -183,11 +209,12 @@ const Homepage = () => {
         
         const response = await fetch('http://localhost:5000/api/blogs/68547db672358427a53d9ece/comments');
         const commentsData = await response.json();
-        const mappedTestimonials: Testimonial[] = commentsData.map((comment: any) => ({
+        const mappedTestimonials: Testimonial[] = commentsData.map((comment: CommentData) => ({
           name: comment.user?.fullname || 'Học viên',
           role: 'Sinh viên',
           content: comment.content || 'Khóa học rất hay!',
-          rating: comment.rating || 5
+          rating: comment.rating || 5,
+          avatar: `https://i.pravatar.cc/80?u=${comment.user?.fullname || 'user'}`
         }));
         setTestimonials(mappedTestimonials);
         
@@ -195,9 +222,8 @@ const Homepage = () => {
           const vouchersResponse = await fetch('http://localhost:5000/api/vouchers');
           if (vouchersResponse.ok) {
             const vouchersData = await vouchersResponse.json();
-            const processedVouchers = vouchersData.map((voucher: any) => {
+            const processedVouchers = vouchersData.map((voucher: VoucherData) => {
               const now = new Date();
-              const validFrom = new Date(voucher.validFrom);
               const validTo = new Date(voucher.validTo);
               const isExpired = now > validTo;
               const daysLeft = Math.ceil((validTo.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -253,24 +279,6 @@ const Homepage = () => {
     message.success(`Đã sao chép mã ${code}!`);
   };
 
-  const getCategoryName = (category: string) => {
-    const categories: { [key: string]: string } = {
-      'new-user': 'Người mới',
-      'it-courses': 'Khóa học IT',
-      'seasonal': 'Theo mùa',
-    };
-    return categories[category] || category;
-  };
-
-  const getCategoryColor = (category: string) => {
-    const colors: { [key: string]: string } = {
-      'new-user': 'blue',
-      'it-courses': 'green',
-      'seasonal': 'orange',
-    };
-    return colors[category] || 'default';
-  };
-
   const formatDiscount = (voucher: VoucherDisplay) => {
     if (voucher.discountType === 'percentage') {
       return `${voucher.discount}%`;
@@ -283,6 +291,7 @@ const Homepage = () => {
       <div className="loading-container">
         <Spin size="large">
           <div className="loading-content">
+            <ThunderboltOutlined className="loading-icon" />
             <div>Đang tải dữ liệu...</div>
           </div>
         </Spin>
@@ -295,45 +304,62 @@ const Homepage = () => {
       {/* Hero Section */}
       <section className="hero-section">
         <div className="hero-background">
+          <div className="hero-pattern"></div>
           <div className="hero-overlay"></div>
         </div>
         <div className="hero-content">
-          <Row justify="center">
-            <Col xs={22} md={18} lg={14}>
+        <Row justify="center">
+          <Col xs={22} md={18} lg={14}>
               <motion.div 
                 className="hero-text"
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.2 }}
               >
+                <div className="hero-badge">
+                  <ThunderboltOutlined className="badge-icon" />
+                  <span>Nền tảng học tập hàng đầu Việt Nam</span>
+                </div>
                 <Title level={1} className="hero-title">
-                  Nền tảng học tập cho tương lai
+                  Nâng tầm kỹ năng với <span className="gradient-text">EduPro</span>
                 </Title>
                 <Paragraph className="hero-subtitle">
                   Trang bị cho bạn những kỹ năng cần thiết trong thế giới số. 
-                  Bắt đầu hành trình chinh phục công nghệ cùng EduPro.
+                  Bắt đầu hành trình chinh phục công nghệ cùng đội ngũ chuyên gia hàng đầu.
                 </Paragraph>
                 <Space size="large" className="hero-buttons">
-                  <Button 
-                    type="primary" 
-                    size="large" 
-                    className="hero-primary-btn"
-                    onClick={() => navigate('/courses')}
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    <RocketOutlined /> Khám phá khóa học
-                  </Button>
-                  <Button 
-                    ghost 
-                    size="large" 
-                    className="hero-secondary-btn"
+                    <Button 
+                      type="primary" 
+                      size="large" 
+                      className="hero-primary-btn"
+                      onClick={() => navigate('/courses')}
+                      icon={<RocketOutlined />}
+                    >
+                    Khám phá khóa học
+                </Button>
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    <PlayCircleOutlined /> Giới thiệu
-                  </Button>
+                    <Button 
+                      ghost 
+                      size="large" 
+                      className="hero-secondary-btn"
+                      icon={<PlayCircleOutlined />}
+                    >
+                      Xem giới thiệu
+                </Button>
+                  </motion.div>
                 </Space>
-              </motion.div>
-            </Col>
-          </Row>
-        </div>
+            </motion.div>
+          </Col>
+        </Row>
+      </div>
         
         {/* Search Bar */}
         <HomeSearchBar />
@@ -342,49 +368,60 @@ const Homepage = () => {
       {/* Stats Section */}
       <SectionWrapper className="stats-section">
         <div className="section-header">
-          <Title level={2} className="section-title">Thống kê ấn tượng</Title>
-          <Text className="section-subtitle">Những con số thể hiện sự tin tưởng của cộng đồng</Text>
+          <div className="section-badge">
+            <RiseOutlined className="badge-icon" />
+            <span>Thống kê ấn tượng</span>
+          </div>
+          <Title level={2} className="section-title">Những con số nổi bật</Title>
+          <Text className="section-subtitle">Thể hiện sự tin tưởng và thành công của cộng đồng EduPro</Text>
         </div>
-        <Row gutter={[32, 32]} className="stats-grid">
-          {[
-            { icon: <UserOutlined />, title: 'Học viên', value: 1200, suffix: '+', color: '#3b82f6' },
-            { icon: <ReadOutlined />, title: 'Khóa học', value: 50, suffix: '+', color: '#10b981' },
-            { icon: <TrophyOutlined />, title: 'Giảng viên', value: 12, suffix: '+', color: '#f59e0b' },
-            { icon: <LikeOutlined />, title: 'Đánh giá', value: '4.9/5', suffix: '', color: '#ef4444' }
-          ].map((stat, index) => (
-            <Col xs={12} md={6} key={stat.title}>
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.15 }}
-                whileHover={{ y: -8 }}
-              >
-                <Card className="stat-card" variant="borderless">
-                  <div className="stat-icon" style={{ color: stat.color }}>
-                    {stat.icon}
-                  </div>
-                  <Statistic
-                    title={<Text className="stat-title">{stat.title}</Text>}
-                    value={stat.value}
-                    suffix={stat.suffix}
-                    valueStyle={{ color: stat.color, fontWeight: "bold" }}
-                    className="stat-value"
-                  />
-                </Card>
-              </motion.div>
-            </Col>
-          ))}
-        </Row>
+        <div className="modern-stats-grid">
+          {/* Học viên */}
+          <div className="modern-stat-card">
+            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #4f8cff 0%, #6ee7b7 100%)'}}>
+              <TeamOutlined />
+            </div>
+            <div className="modern-stat-label">Học viên</div>
+            <div className="modern-stat-value gradient-blue">1,200<span className="modern-stat-plus">+</span></div>
+          </div>
+          {/* Khóa học */}
+          <div className="modern-stat-card">
+            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #34d399 0%, #38bdf8 100%)'}}>
+              <BookOutlined />
+            </div>
+            <div className="modern-stat-label">Khóa học</div>
+            <div className="modern-stat-value gradient-green">50<span className="modern-stat-plus">+</span></div>
+          </div>
+          {/* Giảng viên */}
+          <div className="modern-stat-card">
+            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #fbbf24 0%, #f472b6 100%)'}}>
+              <CrownOutlined />
+            </div>
+            <div className="modern-stat-label">Giảng viên</div>
+            <div className="modern-stat-value gradient-orange">12<span className="modern-stat-plus">+</span></div>
+          </div>
+          {/* Đánh giá */}
+          <div className="modern-stat-card">
+            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #f472b6 0%, #f87171 100%)'}}>
+              <HeartOutlined />
+            </div>
+            <div className="modern-stat-label">Đánh giá</div>
+            <div className="modern-stat-value gradient-pink">4.9/5</div>
+          </div>
+        </div>
       </SectionWrapper>
 
       {/* Vouchers Section */}
       <SectionWrapper className="vouchers-section">
         <div className="section-header">
+          <div className="section-badge">
+            <GiftOutlined className="badge-icon" />
+            <span>Ưu đãi đặc biệt</span>
+          </div>
           <Title level={2} className="section-title">
-            <GiftOutlined className="section-icon" />
-            Ưu đãi hấp dẫn
+            Mã giảm giá hấp dẫn
           </Title>
-          <Text className="section-subtitle">Đừng bỏ lỡ các mã giảm giá đặc biệt từ EduPro!</Text>
+          <Text className="section-subtitle">Đừng bỏ lỡ các ưu đãi đặc biệt từ EduPro!</Text>
         </div>
 
         <Row gutter={[24, 24]} className="vouchers-grid">
@@ -399,61 +436,69 @@ const Homepage = () => {
               >
                 <Card className="voucher-card" hoverable>
                   <div className="voucher-header">
-                    <Title level={3} className="voucher-discount">{formatDiscount(voucher)}</Title>
-                    <Text className="voucher-description">{voucher.description}</Text>
+                    <div className="voucher-discount-container">
+                      <Title level={3} className="voucher-discount">{formatDiscount(voucher)}</Title>
+                      <Text className="voucher-description">{voucher.description}</Text>
+                    </div>
+                    {voucher.isHot && (
+                      <div className="hot-badge">
+                        <FireOutlined />
+                      </div>
+                    )}
                   </div>
                   
                   <div className="voucher-body">
                     <div className="voucher-code-section">
                       <Text className="voucher-code-label">Mã giảm giá</Text>
-                      <div
+                        <div
                         className={`voucher-code ${voucher.status === 'available' ? 'clickable' : 'disabled'}`}
-                        onClick={() => voucher.status === 'available' && copyToClipboard(voucher.code)}
-                      >
+                          onClick={() => voucher.status === 'available' && copyToClipboard(voucher.code)}
+                        >
                         <Text strong className="voucher-code-text">{voucher.code}</Text>
-                        {voucher.status === 'available' && (
-                          <Tooltip title="Sao chép mã">
+                          {voucher.status === 'available' && (
+                            <Tooltip title="Sao chép mã">
                             <CopyOutlined className="copy-icon" />
-                          </Tooltip>
-                        )}
+                            </Tooltip>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    {voucher.status === 'unavailable' && (
+                      {voucher.status === 'unavailable' && (
                       <div className="voucher-status-message">
                         <Text className="status-text">{voucher.statusMessage}</Text>
                       </div>
                     )}
 
                     <Space direction="vertical" size="small" className="voucher-details">
-                      {voucher.minAmount && (
+                                              {voucher.minAmount && (
+                          <Text className="voucher-detail">
+                            <Tag color='blue' icon={<AimOutlined />}>Điều kiện</Tag> 
+                            Đơn hàng từ {voucher.minAmount.toLocaleString()}đ
+                          </Text>
+                        )}
+                        {voucher.maxDiscount && voucher.discountType === 'percentage' && (
+                          <Text className="voucher-detail">
+                            <Tag color='green' icon={<RiseOutlined />}>Tối đa</Tag> 
+                            Giảm đến {voucher.maxDiscount.toLocaleString()}đ
+                          </Text>
+                        )}
                         <Text className="voucher-detail">
-                          <Tag color='blue'>Điều kiện</Tag> 
-                          Đơn hàng từ {voucher.minAmount.toLocaleString()}đ
+                          <ClockIcon className="detail-icon" />
+                          Hạn sử dụng: {new Date(voucher.validTo).toLocaleDateString('vi-VN')}
                         </Text>
-                      )}
-                      {voucher.maxDiscount && voucher.discountType === 'percentage' && (
                         <Text className="voucher-detail">
-                          <Tag color='blue'>Tối đa</Tag> 
-                          Giảm đến {voucher.maxDiscount.toLocaleString()}đ
+                          <Tag color='orange' icon={<TeamOutlined />}>Đã sử dụng</Tag> 
+                          {voucher.usedCount}/{voucher.usageLimit}
                         </Text>
-                      )}
-                      <Text className="voucher-detail">
-                        <ClockIcon className="detail-icon" />
-                        Hạn sử dụng: {new Date(voucher.validTo).toLocaleDateString('vi-VN')}
-                      </Text>
-                      <Text className="voucher-detail">
-                        <Tag color='orange'>Đã sử dụng</Tag> 
-                        {voucher.usedCount}/{voucher.usageLimit}
-                      </Text>
-                    </Space>
+                      </Space>
 
                     <Button 
                       type="primary" 
                       block 
                       size="large" 
-                      className={`voucher-button ${voucher.status === 'unavailable' ? 'disabled' : ''}`}
+                        className={`voucher-button ${voucher.status === 'unavailable' ? 'disabled' : ''}`}
                       disabled={voucher.status === 'unavailable'}
+                        icon={voucher.status === 'available' ? <GiftOutlined /> : <SafetyOutlined />}
                     >
                       {voucher.status === 'available' ? 'Lưu mã' : 'Hết voucher'}
                     </Button>
@@ -469,20 +514,30 @@ const Homepage = () => {
         </Row>
         
         <div className="section-footer">
-          <Button 
-            type="primary" 
-            size="large" 
-            onClick={() => navigate('/vouchers')}
-            className="section-cta-button"
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
           >
-            Khám phá nhiều ưu đãi hơn
-          </Button>
+            <Button 
+                type="primary" 
+                size="large" 
+                onClick={() => navigate('/vouchers')}
+              className="section-cta-button"
+              icon={<GiftOutlined />}
+            >
+                Khám phá nhiều ưu đãi hơn
+            </Button>
+          </motion.div>
         </div>
       </SectionWrapper>
 
       {/* Courses Section */}
       <SectionWrapper className="courses-section">
         <div className="section-header">
+          <div className="section-badge">
+            <BookOutlined className="badge-icon" />
+            <span>Khóa học chất lượng</span>
+          </div>
           <Title level={2} className="section-title">Khám phá khóa học</Title>
           <Text className="section-subtitle">Chọn lựa khóa học phù hợp nhất với mục tiêu của bạn</Text>
         </div>
@@ -587,20 +642,30 @@ const Homepage = () => {
         />
         
         <div className="section-footer">
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
           <Button 
             type="default" 
             size="large" 
             onClick={() => navigate('/courses')}
-            className="section-cta-button secondary"
+              className="section-cta-button secondary"
+              icon={<BookOutlined />}
           >
             Xem tất cả khóa học
           </Button>
+          </motion.div>
         </div>
       </SectionWrapper>
 
       {/* Testimonials Section */}
       <SectionWrapper className="testimonials-section">
         <div className="section-header">
+          <div className="section-badge">
+            <HeartOutlined className="badge-icon" />
+            <span>Đánh giá từ học viên</span>
+          </div>
           <Title level={2} className="section-title">Học viên nói về EduPro</Title>
           <Text className="section-subtitle">Những chia sẻ thực tế từ cộng đồng học viên của chúng tôi</Text>
         </div>
@@ -615,30 +680,35 @@ const Homepage = () => {
         >
           {testimonials.map((testimonial, index) => (
             <div key={index} className="testimonial-slide">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6 }}
                 className="testimonial-card-wrapper"
               >
                 <Card className="testimonial-card" variant="borderless">
                   <Space direction="vertical" size="large" className="testimonial-content">
-                    <Avatar 
-                      src={`https://i.pravatar.cc/80?u=${testimonial.name}`} 
-                      alt={testimonial.name} 
-                      size={80}
-                      className="testimonial-avatar"
-                    />
+                    <div className="testimonial-avatar-container">
+                      <Avatar 
+                        src={testimonial.avatar} 
+                        alt={testimonial.name} 
+                        size={80}
+                        className="testimonial-avatar"
+                      />
+                      <div className="quote-icon">
+                        <HeartOutlined />
+                      </div>
+                    </div>
                     <Paragraph className="testimonial-text">"{testimonial.content}"</Paragraph>
                     <Rate value={testimonial.rating} disabled className="testimonial-rating" />
                     <div className="testimonial-author">
                       <Text strong className="author-name">{testimonial.name}</Text>
-                      <br />
+                            <br />
                       <Text className="author-role">{testimonial.role}</Text>
-                    </div>
-                  </Space>
-                </Card>
-              </motion.div>
+                        </div>
+                        </Space>
+                    </Card>
+                </motion.div>
             </div>
           ))}
         </Carousel>
@@ -646,21 +716,34 @@ const Homepage = () => {
 
       {/* CTA Section */}
       <SectionWrapper className="cta-section">
+        <div className="cta-background">
+          <div className="cta-pattern"></div>
+        </div>
         <div className="cta-content">
+          <div className="cta-badge">
+            <ThunderboltOutlined className="badge-icon" />
+            <span>Bắt đầu ngay hôm nay</span>
+          </div>
           <Title level={2} className="cta-title">
-            Sẵn sàng nâng tầm sự nghiệp?
-          </Title>
+            Sẵn sàng nâng tầm <span className="gradient-text">sự nghiệp</span>?
+        </Title>
           <Paragraph className="cta-subtitle">
-            Đăng ký ngay hôm nay để nhận ưu đãi đặc biệt và bắt đầu hành trình chinh phục kiến thức mới!
-          </Paragraph>
-          <Button 
-            type="primary" 
-            size="large" 
-            className="cta-button"
-            onClick={() => navigate('/register')}
+          Đăng ký ngay hôm nay để nhận ưu đãi đặc biệt và bắt đầu hành trình chinh phục kiến thức mới!
+        </Paragraph>
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <RocketOutlined /> Đăng ký ngay
-          </Button>
+            <Button 
+              type="primary" 
+              size="large" 
+              className="cta-button"
+              onClick={() => navigate('/register')}
+              icon={<RocketOutlined />}
+            >
+          Đăng ký ngay
+        </Button>
+          </motion.div>
         </div>
       </SectionWrapper>
     </div>
