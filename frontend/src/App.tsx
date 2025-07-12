@@ -117,6 +117,7 @@ function App() {
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
         {path:  "/blog/:id", element: <BlogPage />},
+        { path: "/blog/post/:id", element: <BlogPage /> },
         { path: "cart", element: <CartPage /> },
         { path: "checkout", element: <CheckoutPage /> },
         { path: "orders", element: <OrdersPage /> },
