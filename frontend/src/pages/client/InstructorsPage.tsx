@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Layout, Input, Select, Card, Tag, Typography, Badge, Rate, Avatar, Button, Pagination, Spin } from 'antd';
-import { SearchOutlined, FilterOutlined, UserOutlined, StarFilled, BookOutlined, TeamOutlined, TrophyOutlined, GlobalOutlined } from '@ant-design/icons';
+import { Layout, Card, Tag, Typography, Badge, Rate, Avatar, Pagination, Spin } from 'antd';
+import { UserOutlined, StarFilled, BookOutlined, TeamOutlined, TrophyOutlined, GlobalOutlined } from '@ant-design/icons';
 import { config } from '../../api/axios';
 import { useNavigate } from 'react-router-dom';
 import './InstructorsPage.css';
-import { getAllCategories } from '../../services/categoryService';
-import type { Category } from '../../interfaces/Category.interface';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
-const { Sider, Content } = Layout;
+const { Content } = Layout;
 
 interface Instructor {
     id: string;
+    slug: string;
     fullname: string;
     avatar: string;
     bio: string;
@@ -55,159 +53,34 @@ interface ApiInstructor {
     slug: string;
 }
 
-const instructorCategories = ['Tất cả', 'Full-Stack Development', 'UI/UX Design', 'Data Science', 'Mobile Development', 'DevOps', 'Digital Marketing'];
-
+// Banner
 const InstructorBanner = () => (
-    <div className="rounded-3xl bg-gradient-to-r from-blue-100 via-blue-50 to-white p-8 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg">
+    <div className="instructor-banner-gradient rounded-3xl p-8 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
         <div>
-            <Title level={2} className="!mb-2 !text-blue-700 font-extrabold">Đội ngũ Giảng viên Chất lượng</Title>
-            <Text className="text-lg text-gray-700">Khám phá và kết nối với các chuyên gia hàng đầu trong nhiều lĩnh vực. Tất cả giảng viên đều được kiểm duyệt kỹ lưỡng về chuyên môn và kinh nghiệm thực tiễn.</Text>
+            <Title level={2} className="!mb-2 !text-blue-800 font-extrabold instructor-banner-title">Đội ngũ Giảng viên Chất lượng</Title>
+            <Text className="text-lg text-gray-700 instructor-banner-desc">Khám phá và kết nối với các chuyên gia hàng đầu trong nhiều lĩnh vực. Tất cả giảng viên đều được kiểm duyệt kỹ lưỡng về chuyên môn và kinh nghiệm thực tiễn.</Text>
         </div>
-        <img src="/vite.svg" alt="Instructors" className="w-32 h-32 md:w-40 md:h-40 object-contain" />
+        <img src="/vite.svg" alt="Instructors" className="w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-xl" />
     </div>
 );
 
-const FilterSidebar = ({ setFilters }: {
-    setFilters: (filters: {
-        searchTerm: string;
-        category: string;
-        rating: number;
-        experience: number;
-        priceRange: [number, number];
-    }) => void
-}) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [category, setCategory] = useState('Tất cả');
-    const [rating, setRating] = useState(0);
-    const [experience, setExperience] = useState(0);
-    const [priceRange] = useState<[number, number]>([0, 1000000]);
-    // State cho danh mục
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [loadingCategories, setLoadingCategories] = useState(false);
-
-    useEffect(() => {
-        setLoadingCategories(true);
-        getAllCategories()
-            .then(res => {
-                if (res.success) setCategories(res.data.filter(cat => cat.status === 'active'));
-            })
-            .finally(() => setLoadingCategories(false));
-    }, []);
-
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            setFilters({ searchTerm, category, rating, experience, priceRange });
-        }, 500);
-        return () => clearTimeout(handler);
-    }, [searchTerm, category, rating, experience, priceRange, setFilters]);
-
-    return (
-        <Sider width={300} className="bg-white p-0 shadow-lg rounded-3xl border border-blue-100 mr-4" theme="light" style={{
-            position: 'sticky',
-            top: 68,
-            height: 'calc(100vh - 68px)',
-            overflowY: 'auto',
-            minWidth: 260,
-            maxWidth: 340,
-        }}>
-            <div className="p-6 pb-3 border-b border-blue-50 bg-gradient-to-r from-blue-50 to-white rounded-t-3xl flex items-center gap-2">
-                <FilterOutlined className="text-2xl text-blue-500 mr-2" />
-                <Title level={4} className="!mb-0 !text-blue-700 font-bold tracking-wide">Bộ lọc giảng viên</Title>
-            </div>
-            <div className="space-y-5 p-6 pt-4">
-                {/* Tìm kiếm */}
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100 flex flex-col gap-2 shadow-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                        <SearchOutlined className="text-blue-400" />
-                        <Text strong className="text-blue-700">Tìm kiếm</Text>
-                    </div>
-                    <Input
-                        size="large"
-                        placeholder="Tên giảng viên..."
-                        prefix={<SearchOutlined className="text-blue-400" />}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="rounded-full border-blue-200 focus:border-blue-500 focus:shadow !mt-0"
-                    />
-                </div>
-                {/* Chuyên môn */}
-                <div className="bg-white rounded-xl p-4 border border-blue-50 flex flex-col gap-2 shadow-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                        <BookOutlined className="text-purple-400" />
-                        <Text strong className="text-blue-700">Chuyên môn</Text>
-                    </div>
-                    <Select
-                        size="large"
-                        value={category}
-                        className="w-full rounded-full border-blue-200 focus:border-blue-500"
-                        onChange={value => setCategory(value)}
-                        classNames={{ popup: { root: 'rounded-xl' } }}
-                        loading={loadingCategories}
-                    >
-                        <Option value="Tất cả">Tất cả</Option>
-                        {categories.map(cat => (
-                            <Option key={cat._id} value={cat.name}>{cat.name}</Option>
-                        ))}
-                    </Select>
-                </div>
-                {/* Đánh giá */}
-                <div className="bg-white rounded-xl p-4 border border-blue-50 flex flex-col gap-2 shadow-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                        <StarFilled className="text-yellow-400" />
-                        <Text strong className="text-blue-700">Đánh giá</Text>
-                    </div>
-                    <Select
-                        size="large"
-                        defaultValue={0}
-                        className="w-full rounded-full border-blue-200 focus:border-blue-500"
-                        onChange={value => setRating(value)}
-                        classNames={{ popup: { root: 'rounded-xl' } }}
-                    >
-                        <Option value={0}>Tất cả</Option>
-                        <Option value={4.5}><Rate disabled allowHalf defaultValue={4.5} style={{ fontSize: 14 }} /> & 4.5 sao trở lên</Option>
-                        <Option value={4}><Rate disabled defaultValue={4} style={{ fontSize: 14 }} /> & 4 sao trở lên</Option>
-                        <Option value={3.5}><Rate disabled defaultValue={3.5} style={{ fontSize: 14 }} /> & 3.5 sao trở lên</Option>
-                    </Select>
-                </div>
-                {/* Kinh nghiệm */}
-                <div className="bg-white rounded-xl p-4 border border-blue-50 flex flex-col gap-2 shadow-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                        <TrophyOutlined className="text-green-400" />
-                        <Text strong className="text-blue-700">Kinh nghiệm (năm)</Text>
-                    </div>
-                    <Select
-                        size="large"
-                        defaultValue={0}
-                        className="w-full rounded-full border-blue-200 focus:border-blue-500"
-                        onChange={value => setExperience(value)}
-                        classNames={{ popup: { root: 'rounded-xl' } }}
-                    >
-                        <Option value={0}>Tất cả</Option>
-                        <Option value={5}>5+ năm</Option>
-                        <Option value={3}>3+ năm</Option>
-                        <Option value={1}>1+ năm</Option>
-                    </Select>
-                </div>
-            </div>
-        </Sider>
-    );
-};
-
+// Card
 const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
     const [isHovered, setIsHovered] = useState(false);
     const navigate = useNavigate();
     return (
         <motion.div
-            className="h-full"
-            whileHover={{ y: -8, scale: 1.04, boxShadow: '0 12px 32px rgba(24,144,255,0.18)' }}
+            className="h-full instructor-card-glass"
+            whileHover={{ y: -8, scale: 1.045, boxShadow: '0 12px 32px rgba(24,144,255,0.18)' }}
             onHoverStart={() => setIsHovered(true)}
             onHoverEnd={() => setIsHovered(false)}
             style={{ cursor: 'pointer', transition: 'box-shadow 0.3s, transform 0.3s' }}
             onClick={() => navigate(`/users/${instructor.slug}`)}
         >
             <Card
-                className="h-full instructor-card border-0 shadow-xl rounded-3xl transition-all duration-300"
+                className="h-full border-0 shadow-xl rounded-3xl instructor-card-modern"
                 style={{
-                    background: isHovered ? 'linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)' : '#fff',
+                    background: isHovered ? 'linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)' : 'rgba(255,255,255,0.85)',
                     boxShadow: isHovered ? '0 12px 32px rgba(24,144,255,0.18)' : '0 2px 8px rgba(0,0,0,0.08)',
                     borderRadius: 32,
                     border: 'none',
@@ -222,7 +95,7 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                                 src={instructor.avatar}
                                 icon={<UserOutlined />}
                                 style={{
-                                    border: isHovered ? '4px solid #1890ff' : '4px solid #e0e7ef',
+                                    border: isHovered ? '4px solid #38bdf8' : '4px solid #e0e7ef',
                                     boxShadow: isHovered ? '0 0 0 6px #bae6fd' : 'none',
                                     transition: 'all 0.3s',
                                     background: '#fff',
@@ -234,7 +107,7 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                         </div>
                         <div>
                             <div className="flex items-center space-x-2">
-                                <Title level={4} className="!mb-1 !text-lg !font-bold text-blue-700">{instructor.fullname}</Title>
+                                <Title level={4} className="!mb-1 !text-lg !font-bold text-blue-700 instructor-name-title">{instructor.fullname}</Title>
                                 {instructor.isVerified && (
                                     <Badge count={<TrophyOutlined style={{ color: '#faad14' }} />} />
                                 )}
@@ -276,7 +149,7 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
                         {instructor.expertise && instructor.expertise.length > 0 ? (
                             <>
                                 {instructor.expertise.slice(0, 3).map((spec, index) => (
-                                    <Tag key={index} color="blue" className="text-xs rounded-full px-2 py-1">{spec}</Tag>
+                                    <Tag key={index} color="blue" className="text-xs rounded-full px-2 py-1 instructor-tag-gradient">{spec}</Tag>
                                 ))}
                                 {instructor.expertise.length > 3 && (
                                     <Tag color="default" className="text-xs rounded-full px-2 py-1">+{instructor.expertise.length - 3}</Tag>
@@ -312,16 +185,8 @@ const InstructorCard = ({ instructor }: { instructor: Instructor }) => {
 };
 
 const InstructorsPage = () => {
-    const [instructors, setInstructors] = useState<Instructor[]>([]);
     const [filteredInstructors, setFilteredInstructors] = useState<Instructor[]>([]);
     const [loading, setLoading] = useState(false);
-    const [filters, setFilters] = useState({
-        searchTerm: '',
-        category: 'Tất cả',
-        rating: 0,
-        experience: 0,
-        priceRange: [0, 1000000] as [number, number],
-    });
     const [currentPage, setCurrentPage] = useState(1);
     const [pagination, setPagination] = useState({
         total: 0,
@@ -340,14 +205,8 @@ const InstructorsPage = () => {
                 limit: instructorsPerPage
             };
 
-            if (filters.searchTerm) {
-                params.search = filters.searchTerm;
-            }
-
             const response = await config.get("/users/approved-instructors", { params });
             const data = response.data.data;
-            console.log("Data", data)
-
             // Map API response to our interface
             const mappedInstructors = data.instructors.map((instructor: ApiInstructor) => ({
                 id: instructor.id,
@@ -371,12 +230,10 @@ const InstructorsPage = () => {
                 approvalStatus: 'approved'
             }));
 
-            setInstructors(mappedInstructors);
             setFilteredInstructors(mappedInstructors);
             setPagination(data.pagination);
         } catch (error) {
             console.error('Error fetching instructors:', error);
-            setInstructors([]);
             setFilteredInstructors([]);
         } finally {
             setLoading(false);
@@ -385,45 +242,7 @@ const InstructorsPage = () => {
 
     useEffect(() => {
         fetchInstructors();
-    }, [currentPage, filters.searchTerm]);
-
-    useEffect(() => {
-        let filtered = instructors;
-
-        // Filter by category
-        if (filters.category !== 'Tất cả') {
-            const categoryMap: { [key: string]: string[] } = {
-                'Full-Stack Development': ['React', 'Node.js', 'TypeScript', 'JavaScript', 'Full-Stack'],
-                'UI/UX Design': ['UI/UX Design', 'Figma', 'Adobe Creative Suite', 'User Research', 'Design'],
-                'Data Science': ['Python', 'Machine Learning', 'Deep Learning', 'Data Science', 'AI'],
-                'Mobile Development': ['React Native', 'Flutter', 'iOS', 'Android', 'Mobile'],
-                'DevOps': ['Docker', 'Kubernetes', 'AWS', 'CI/CD', 'DevOps'],
-                'Digital Marketing': ['SEO', 'Google Ads', 'Facebook Ads', 'Content Marketing', 'Marketing']
-            };
-            const categorySpecs = categoryMap[filters.category];
-            if (categorySpecs) {
-                filtered = filtered.filter(instructor =>
-                    instructor.expertise?.some(spec =>
-                        categorySpecs.some(catSpec =>
-                            spec.toLowerCase().includes(catSpec.toLowerCase())
-                        )
-                    )
-                );
-            }
-        }
-
-        // Filter by rating
-        if (filters.rating > 0) {
-            filtered = filtered.filter(instructor => instructor.rating >= filters.rating);
-        }
-
-        // Filter by experience
-        if (filters.experience > 0) {
-            filtered = filtered.filter(instructor => instructor.experienceYears >= filters.experience);
-        }
-
-        setFilteredInstructors(filtered);
-    }, [filters, instructors]);
+    }, [currentPage]);
 
     const containerVariants = {
         hidden: { opacity: 0 },
@@ -440,7 +259,6 @@ const InstructorsPage = () => {
 
     return (
         <Layout>
-            <FilterSidebar setFilters={setFilters} />
             <Content className="p-4 md:p-8 bg-gray-50 min-h-screen">
                 <InstructorBanner />
                 <motion.div
@@ -450,7 +268,7 @@ const InstructorsPage = () => {
                     variants={containerVariants}
                 >
                     <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                        <Title level={2} className="!mb-0">Giảng viên ({pagination.total})</Title>
+                        <Title level={2} className="!mb-0">Giảng viên</Title>
                     </motion.div>
 
                     {loading ? (

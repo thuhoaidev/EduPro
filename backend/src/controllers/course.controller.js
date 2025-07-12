@@ -615,7 +615,7 @@ exports.deleteCourse = async (req, res, next) => {
 exports.updateCourseStatus = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status, displayStatus } = req.body;
 
         // Lấy user và course
         const user = await User.findById(req.user.id);
@@ -631,21 +631,39 @@ exports.updateCourseStatus = async (req, res, next) => {
             throw new ApiError(404, 'Không tìm thấy khóa học');
         }
 
-        // Instructor chỉ được gửi duyệt (draft -> pending)
+        // Instructor chỉ được gửi duyệt (draft -> pending) và thay đổi displayStatus
         if (user.roles.includes('instructor') && !user.roles.includes('admin') && !user.roles.includes('moderator')) {
-            if (course.status !== 'draft' || status !== 'pending') {
-                throw new ApiError(403, 'Giảng viên chỉ được gửi duyệt khóa học từ trạng thái draft sang pending');
+            // Gửi duyệt (draft -> pending)
+            if (status === 'pending' && course.status === 'draft') {
+                course.status = 'pending';
+                await course.save();
+                return res.json({ success: true, data: course });
             }
-            course.status = 'pending';
-            await course.save();
-            return res.json({ success: true, data: course });
+            
+            // Thay đổi displayStatus (chỉ khi đã được duyệt)
+            if (displayStatus && (course.status === 'approved' || course.status === 'published')) {
+                if (displayStatus === 'hidden' || displayStatus === 'published') {
+                    course.displayStatus = displayStatus;
+                    await course.save();
+                    return res.json({ success: true, data: course });
+                }
+            }
+            
+            throw new ApiError(403, 'Giảng viên chỉ được gửi duyệt khóa học hoặc thay đổi trạng thái hiển thị khi đã được duyệt');
         }
 
-        // Admin hoặc moderator được duyệt hoặc từ chối (pending -> published/rejected)
+        // Admin hoặc moderator được duyệt hoặc từ chối (pending -> approved/rejected)
         if (user.roles.includes('admin') || user.roles.includes('moderator')) {
-            if (course.status === 'pending' && (status === 'published' || status === 'rejected')) {
+            if (course.status === 'pending' && (status === 'approved' || status === 'rejected')) {
                 course.status = status;
+                // Khi duyệt, tự động chuyển sang hiển thị
+                if (status === 'approved') {
+                    course.displayStatus = 'published';
+                } else {
+                    course.displayStatus = 'hidden';
+                }
                 await course.save();
+                
                 // Gửi email cho giảng viên
                 if (course.instructor && course.instructor.user && course.instructor.user.email) {
                   await sendCourseApprovalResultEmail(
@@ -657,18 +675,17 @@ exports.updateCourseStatus = async (req, res, next) => {
                 }
                 return res.json({ success: true, data: course });
             }
-            // Cho phép chuyển published -> archived, rejected -> draft nếu cần
-            if (course.status === 'published' && status === 'archived') {
-                course.status = 'archived';
+            
+            // Cho phép chuyển approved -> rejected, rejected -> approved
+            if ((course.status === 'approved' && status === 'rejected') || 
+                (course.status === 'rejected' && status === 'approved')) {
+                course.status = status;
+                course.displayStatus = status === 'approved' ? 'published' : 'hidden';
                 await course.save();
                 return res.json({ success: true, data: course });
             }
-            if (course.status === 'rejected' && status === 'draft') {
-                course.status = 'draft';
-                await course.save();
-                return res.json({ success: true, data: course });
-            }
-            throw new ApiError(403, 'Chỉ được duyệt/từ chối khóa học ở trạng thái pending, hoặc lưu trữ/khôi phục theo quy định');
+            
+            throw new ApiError(403, 'Chỉ được duyệt/từ chối khóa học ở trạng thái pending, hoặc thay đổi trạng thái approved/rejected');
         }
 
         throw new ApiError(403, 'Bạn không có quyền cập nhật trạng thái khóa học');
@@ -1142,25 +1159,41 @@ exports.enrollCourse = async (req, res, next) => {
 // Lấy danh sách khóa học của instructor hiện tại
 exports.getInstructorCourses = async (req, res, next) => {
     try {
-        // Tìm instructor profile của user hiện tại
-        const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+        let courses;
         
-        if (!instructorProfile) {
-            throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên');
-        }
+        // Nếu là admin, lấy tất cả khóa học
+        if (req.user.roles.includes('admin')) {
+            courses = await Course.find({})
+                .populate('category', 'name')
+                .populate({
+                    path: 'instructor',
+                    select: 'user bio expertise',
+                    populate: {
+                        path: 'user',
+                        select: 'fullname avatar'
+                    }
+                })
+                .sort({ createdAt: -1 });
+        } else {
+            // Nếu là instructor, chỉ lấy khóa học của mình
+            const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+            
+            if (!instructorProfile) {
+                throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên');
+            }
 
-        // Lấy tất cả khóa học của instructor này
-        const courses = await Course.find({ instructor: instructorProfile._id })
-            .populate('category', 'name')
-            .populate({
-                path: 'instructor',
-                select: 'user bio expertise',
-                populate: {
-                    path: 'user',
-                    select: 'fullname avatar'
-                }
-            })
-            .sort({ createdAt: -1 });
+            courses = await Course.find({ instructor: instructorProfile._id })
+                .populate('category', 'name')
+                .populate({
+                    path: 'instructor',
+                    select: 'user bio expertise',
+                    populate: {
+                        path: 'user',
+                        select: 'fullname avatar'
+                    }
+                })
+                .sort({ createdAt: -1 });
+        }
 
         const formatCourse = (course) => {
             const obj = course.toObject();

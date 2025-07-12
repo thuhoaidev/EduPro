@@ -105,7 +105,7 @@ const InstructorLayout = () => {
 
   // --- Role Check ---
   useEffect(() => {
-    if (!loading && !checkRole(user, "instructor")) {
+    if (!loading && !checkRole(user, "instructor") && !checkRole(user, "admin")) {
       message.error("Bạn không có quyền truy cập trang giảng viên");
       navigate("/");
     }
@@ -195,7 +195,7 @@ const InstructorLayout = () => {
   if (loading) {
     return <div className={styles.loadingScreen}>Loading...</div>;
   }
-  if (!user || !checkRole(user, "instructor")) {
+  if (!user || (!checkRole(user, "instructor") && !checkRole(user, "admin"))) {
     return null;
   }
 

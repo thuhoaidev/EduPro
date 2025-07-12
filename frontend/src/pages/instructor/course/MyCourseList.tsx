@@ -95,18 +95,14 @@ const MyCourseList: React.FC = () => {
 
   const handleSubmit = async (courseId: string) => {
     try {
-      const response = await courseService.submitCourseForApproval(courseId);
-      if (response.success) {
-        // Cập nhật trạng thái khóa học trong state
-        setCourses((prev) => 
-          prev.map((course) => 
-            course.id === courseId ? { ...course, status: 'pending' } : course
-          )
-        );
-        message.success("Đã gửi khóa học để duyệt thành công.");
-      } else {
-        message.error("Không thể gửi khóa học để duyệt. Vui lòng thử lại.");
-      }
+      await courseService.updateCourseStatus(courseId, { status: 'pending' });
+      // Cập nhật trạng thái khóa học trong state
+      setCourses((prev) => 
+        prev.map((course) => 
+          course.id === courseId ? { ...course, status: 'pending' } : course
+        )
+      );
+      message.success("Đã gửi khóa học để duyệt thành công.");
     } catch (error: unknown) {
       console.error('Lỗi khi gửi khóa học:', error);
       const errorMessage = error instanceof Error ? error.message : "Có lỗi xảy ra khi gửi khóa học.";
@@ -153,24 +149,73 @@ const MyCourseList: React.FC = () => {
           'draft': 'default',
           'pending': 'orange',
           'approved': 'green',
-          'rejected': 'red',
-          'hidden': 'gray',
-          'published': 'blue'
+          'rejected': 'red'
         };
         
         const statusLabels: Record<string, string> = {
-          'draft': 'Chưa Duyệt',
-          'pending': 'Chờ Duyệt',
-          'approved': 'Đã Duyệt',
-          'rejected': 'Bị Từ Chối',
-          'hidden': 'Ẩn',
-          'published': 'Hiển Thị'
+          'draft': 'Bản nháp',
+          'pending': 'Chờ duyệt',
+          'approved': 'Đã duyệt',
+          'rejected': 'Bị từ chối'
         };
 
         return (
           <Tag color={statusColors[status] || 'default'}>
             {statusLabels[status] || status}
           </Tag>
+        );
+      },
+    },
+    {
+      title: "Trạng thái hiển thị",
+      key: "displayStatus",
+      render: (_, record) => {
+        const isApproved = record.status === 'approved' || record.status === 'published';
+        const isHidden = record.status === 'hidden';
+        
+        const handleToggleDisplay = async () => {
+          try {
+            if (isHidden) {
+              // Chuyển từ ẩn sang hiển thị
+              await courseService.updateCourseStatus(record.id, { displayStatus: 'published' });
+              setCourses((prev) => 
+                prev.map((course) => 
+                  course.id === record.id ? { ...course, displayStatus: 'published' } : course
+                )
+              );
+              message.success('Đã chuyển khóa học sang trạng thái hiển thị');
+            } else {
+              // Chuyển từ hiển thị sang ẩn
+              await courseService.updateCourseStatus(record.id, { displayStatus: 'hidden' });
+              setCourses((prev) => 
+                prev.map((course) => 
+                  course.id === record.id ? { ...course, displayStatus: 'hidden' } : course
+                )
+              );
+              message.success('Đã ẩn khóa học');
+            }
+          } catch (error) {
+            console.error('Lỗi khi thay đổi trạng thái hiển thị:', error);
+            message.error('Không thể thay đổi trạng thái hiển thị');
+          }
+        };
+
+        return (
+          <Space>
+            <Tag color={isHidden ? 'gray' : 'blue'}>
+              {isHidden ? 'Ẩn' : 'Hiển thị'}
+            </Tag>
+            {isApproved && (
+              <Button
+                type="link"
+                size="small"
+                onClick={handleToggleDisplay}
+                style={{ padding: 0, height: 'auto' }}
+              >
+                {isHidden ? 'Hiển thị' : 'Ẩn'}
+              </Button>
+            )}
+          </Space>
         );
       },
     },
@@ -346,12 +391,12 @@ const MyCourseList: React.FC = () => {
                 style={{ width: 150 }}
               >
                 <Option value="all">Tất cả trạng thái</Option>
-                <Option value="draft">Chưa Duyệt</Option>
-                <Option value="pending">Chờ Duyệt</Option>
-                <Option value="approved">Đã Duyệt</Option>
-                <Option value="rejected">Bị Từ Chối</Option>
+                <Option value="draft">Bản nháp</Option>
+                <Option value="pending">Chờ duyệt</Option>
+                <Option value="approved">Đã duyệt</Option>
+                <Option value="rejected">Bị từ chối</Option>
                 <Option value="hidden">Ẩn</Option>
-                <Option value="published">Hiển Thị</Option>
+                <Option value="published">Hiển thị</Option>
               </Select>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/instructor/courses/create')}>
                 Tạo khóa học mới

@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import {
   Card,
-  Badge,
   Input,
   Select,
   Pagination,
@@ -14,67 +13,29 @@ import {
   Statistic,
   Button,
   Space,
+  Table,
+  Image,
 } from "antd";
 import {
-  EyeOutlined,
-  EditOutlined,
-  DeleteOutlined,
   BookOutlined,
   DollarOutlined,
   UserOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { courseService } from '../../../services/courseService';
+import { courseService } from '../../../services/apiService';
+import type { Course } from '../../../services/apiService';
+import type { ColumnsType } from 'antd/es/table';
 
-export interface Course {
-  id: string;
-  title: string;
-  thumbnail: string;
-  author: string;
-  price: number;
-  category: string;
-  isNew?: boolean;
-  status: string;
-}
-
-export const getCourses = async (): Promise<Course[]> => {
-  return [
-    {
-      id: "1",
-      title: "React Cơ Bản",
-      thumbnail: "https://i.imgur.com/xsKJ4Eh.png",
-      author: "Nguyễn Văn A",
-      price: 0,
-      category: "Frontend",
-      isNew: true,
-      status: "published",
-    },
-    {
-      id: "2",
-      title: "NodeJS Nâng Cao",
-      thumbnail: "https://i.imgur.com/xsKJ4Eh.png",
-      author: "Trần Thị B",
-      price: 499000,
-      category: "Backend",
-      isNew: false,
-      status: "published",
-    },
-    // ... thêm khóa học khác nếu muốn
-  ];
-};
-
-const { Meta } = Card;
 const { Search } = Input;
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 
 // Thêm mapping màu cho trạng thái
-const statusColorMap = {
+const statusColorMap: Record<string, string> = {
   draft: 'default',
   pending: 'orange',
-  published: 'green',
+  approved: 'green',
   rejected: 'red',
-  archived: 'gray',
 };
 
 const CourseList: React.FC = () => {
@@ -82,13 +43,56 @@ const CourseList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCourses = async () => {
-      // Lấy khóa học của instructor từ API
-      const data = await courseService.getInstructorCourses('me'); // 'me' sẽ được backend hiểu là instructor hiện tại
-      setCourses(data);
+      setLoading(true);
+      try {
+        // Kiểm tra token trước khi gọi API
+        const token = localStorage.getItem('token');
+        if (!token) {
+          message.error('Vui lòng đăng nhập để truy cập');
+          return;
+        }
+
+        // Kiểm tra role của user
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          const userRole = user.role?.name || user.role_id?.name;
+          console.log('User role:', userRole);
+          
+          // Cho phép admin và instructor truy cập
+          const allowedRoles = ['instructor', 'admin'];
+          if (!allowedRoles.includes(userRole)) {
+            message.error('Bạn không có quyền truy cập trang giảng viên');
+            return;
+          }
+        }
+
+        // Lấy khóa học của instructor từ API
+        const data = await courseService.getInstructorCourses();
+        setCourses(data);
+      } catch (error: unknown) {
+        console.error('Lỗi khi lấy danh sách khóa học:', error);
+        
+        if (error && typeof error === 'object' && 'response' in error) {
+          const axiosError = error as { response?: { status?: number } };
+          if (axiosError.response?.status === 403) {
+            message.error('Bạn không có quyền truy cập. Vui lòng kiểm tra lại tài khoản giảng viên.');
+          } else if (axiosError.response?.status === 401) {
+            message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+          } else {
+            message.error('Không thể tải danh sách khóa học');
+          }
+        } else {
+          message.error('Không thể tải danh sách khóa học');
+        }
+      } finally {
+        setLoading(false);
+      }
     };
     fetchCourses();
   }, []);
@@ -103,9 +107,9 @@ const CourseList: React.FC = () => {
     }
 
     if (filterType === "free") {
-      result = result.filter((course) => course.price === 0);
+      result = result.filter((course) => course.isFree);
     } else if (filterType === "paid") {
-      result = result.filter((course) => course.price > 0);
+      result = result.filter((course) => !course.isFree);
     }
 
     return result;
@@ -116,16 +120,69 @@ const CourseList: React.FC = () => {
     return filteredCourses.slice(start, start + PAGE_SIZE);
   }, [filteredCourses, currentPage]);
 
-  const handleDelete = (id: string) => {
+  const handleApprove = async (courseId: string) => {
     Modal.confirm({
-      title: "Xác nhận xóa",
-      content: "Bạn có chắc chắn muốn xóa khóa học này?",
-      okText: "Xóa",
-      okType: "danger",
-      cancelText: "Hủy",
-      onOk: () => {
-        setCourses((prev) => prev.filter((course) => course.id !== id));
-        message.success("Đã xóa khóa học.");
+      title: 'Duyệt khóa học',
+      content: 'Bạn có chắc chắn muốn duyệt khóa học này?',
+      okText: 'Duyệt',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          await courseService.approveCourse(courseId, 'approve');
+          message.success('Đã duyệt khóa học thành công!');
+          // Refresh danh sách khóa học
+          const data = await courseService.getInstructorCourses();
+          setCourses(data);
+        } catch (error) {
+          console.error('Lỗi khi duyệt khóa học:', error);
+          message.error('Duyệt khóa học thất bại!');
+        }
+      },
+    });
+  };
+
+  const handleReject = async (courseId: string) => {
+    Modal.confirm({
+      title: 'Từ chối khóa học',
+      content: 'Bạn có chắc chắn muốn từ chối khóa học này?',
+      okText: 'Từ chối',
+      okType: 'danger',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          await courseService.approveCourse(courseId, 'reject');
+          message.success('Đã từ chối khóa học!');
+          // Refresh danh sách khóa học
+          const data = await courseService.getInstructorCourses();
+          setCourses(data);
+        } catch (error) {
+          console.error('Lỗi khi từ chối khóa học:', error);
+          message.error('Từ chối khóa học thất bại!');
+        }
+      },
+    });
+  };
+
+  const handleToggleDisplay = async (courseId: string, currentDisplayStatus: string) => {
+    const newDisplayStatus = currentDisplayStatus === 'hidden' ? 'published' : 'hidden';
+    const actionText = newDisplayStatus === 'published' ? 'hiển thị' : 'ẩn';
+    
+    Modal.confirm({
+      title: `Thay đổi trạng thái hiển thị`,
+      content: `Bạn có chắc chắn muốn ${actionText} khóa học này?`,
+      okText: 'Xác nhận',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          await courseService.updateCourseStatus(courseId, { displayStatus: newDisplayStatus });
+          message.success(`Đã ${actionText} khóa học thành công!`);
+          // Refresh danh sách khóa học
+          const data = await courseService.getInstructorCourses();
+          setCourses(data);
+        } catch (error) {
+          console.error('Lỗi khi thay đổi trạng thái hiển thị:', error);
+          message.error(`Không thể ${actionText} khóa học!`);
+        }
       },
     });
   };
@@ -143,29 +200,167 @@ const CourseList: React.FC = () => {
   // Calculate statistics
   const stats = {
     totalCourses: courses.length,
-    freeCourses: courses.filter(course => course.price === 0).length,
-    paidCourses: courses.filter(course => course.price > 0).length,
-    totalStudents: 1234, // Mock data - replace with actual data
+    freeCourses: courses.filter(course => course.isFree).length,
+    paidCourses: courses.filter(course => !course.isFree).length,
+    totalStudents: courses.reduce((sum, course) => sum + (course.reviews || 0), 0), // Using reviews as proxy for students
   };
 
   // Hàm xuất bản khóa học (gửi duyệt)
   const handlePublish = async (courseId: string) => {
-    Modal.info({
+    Modal.confirm({
       title: 'Gửi xét duyệt khóa học',
-      content: 'Khóa học của bạn đã được gửi đi xét duyệt. Vui lòng chờ trong 24h để được kiểm duyệt.',
-      okText: 'Đã hiểu',
+      content: 'Bạn có chắc chắn muốn gửi khóa học này đi xét duyệt? Khóa học sẽ được kiểm duyệt trong vòng 24h.',
+      okText: 'Gửi duyệt',
+      cancelText: 'Hủy',
       onOk: async () => {
         try {
-          await courseService.updateCourseStatus(courseId, 'pending');
+          await courseService.submitCourseForApproval(courseId);
           message.success('Đã gửi khóa học đi xét duyệt!');
+          // Refresh danh sách khóa học
           const data = await courseService.getInstructorCourses();
           setCourses(data);
-        } catch (err) {
+        } catch (error) {
+          console.error('Lỗi khi gửi xét duyệt:', error);
           message.error('Gửi xét duyệt thất bại!');
         }
       },
     });
   };
+
+  // Định nghĩa columns cho table
+  const columns: ColumnsType<Course> = [
+    {
+      title: 'Khóa học',
+      key: 'course',
+      width: '50%',
+      render: (_, record) => (
+        <div 
+          className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+          onClick={() => navigate(`/instructor/courses/${record.id}`)}
+        >
+          <Image
+            src={record.Image}
+            alt={record.title}
+            width={60}
+            height={40}
+            className="rounded object-cover"
+            fallback="https://via.placeholder.com/60x40/4A90E2/FFFFFF?text=Khóa+học"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 truncate hover:text-blue-600 transition-colors">{record.title}</div>
+            <div className="text-sm text-gray-500">{record.author.name}</div>
+          </div>
+        </div>
+      ),
+    },
+
+    {
+      title: 'Giá',
+      key: 'price',
+      width: '15%',
+      render: (_, record) => (
+        <div>
+          {record.isFree ? (
+            <Tag color="success" className="text-xs">Miễn phí</Tag>
+          ) : (
+            <span className="font-medium text-green-600">
+              {record.price.toLocaleString()}đ
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: 'Trạng thái',
+      key: 'status',
+      width: '15%',
+      render: (_, record) => {
+        const statusText: Record<string, string> = {
+          'draft': 'Bản nháp',
+          'pending': 'Chờ duyệt',
+          'approved': 'Đã duyệt',
+          'rejected': 'Bị từ chối'
+        };
+        return (
+          <Tag color={statusColorMap[record.status] || 'default'} className="text-xs">
+            {statusText[record.status] || record.status}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: 'Trạng thái hiển thị',
+      key: 'displayStatus',
+      width: '15%',
+      render: (_, record) => {
+        const isApproved = record.status === 'approved';
+        const isHidden = record.displayStatus === 'hidden';
+        
+        return (
+          <Space>
+            <Tag color={isHidden ? 'gray' : 'blue'} className="text-xs">
+              {isHidden ? 'Ẩn' : 'Hiển thị'}
+            </Tag>
+            {isApproved && (
+              <Button
+                type="link"
+                size="small"
+                onClick={() => handleToggleDisplay(record.id, record.displayStatus || 'hidden')}
+                style={{ padding: 0, height: 'auto', fontSize: '12px' }}
+              >
+                {isHidden ? 'Hiển thị' : 'Ẩn'}
+              </Button>
+            )}
+          </Space>
+        );
+      },
+    },
+
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      width: '20%',
+      render: (_, record) => (
+        <Space size="small">
+          {record.status === 'pending' && (
+            <>
+              <Tooltip title="Duyệt khóa học">
+                <Button
+                  type="primary"
+                  onClick={() => handleApprove(record.id)}
+                  size="small"
+                  className="bg-green-500"
+                >
+                  Duyệt
+                </Button>
+              </Tooltip>
+              <Tooltip title="Từ chối khóa học">
+                <Button
+                  danger
+                  onClick={() => handleReject(record.id)}
+                  size="small"
+                >
+                  Từ chối
+                </Button>
+              </Tooltip>
+            </>
+          )}
+          {record.status === 'draft' && (
+            <Tooltip title="Gửi xét duyệt">
+              <Button
+                type="primary"
+                onClick={() => handlePublish(record.id)}
+                size="small"
+                className="bg-orange-500"
+              >
+                Gửi duyệt
+              </Button>
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    },
+  ];
 
   return (
     <div className="p-6">
@@ -255,106 +450,19 @@ const CourseList: React.FC = () => {
         </Space>
       </Card>
 
-      {/* Course List Card */}
+      {/* Course List Table */}
       <Card className="shadow-sm border-none">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {paginatedCourses.map((course) => (
-            <Badge.Ribbon
-              key={course.id}
-              text={course.isNew ? "Mới" : ""}
-              color="#1a73e8"
-            >
-              <Card
-                hoverable
-                className="h-full transition-all duration-300 hover:shadow-lg border-none"
-                cover={
-                  <div className="relative">
-                    <img
-                      alt={course.title}
-                      src={course.thumbnail || course.Image}
-                      className="h-[200px] w-full object-cover rounded-t-lg"
-                    />
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-center py-2">
-                      <span className="text-sm font-medium">{course.category || course.type}</span>
-                    </div>
-                  </div>
-                }
-                actions={[
-                  <Tooltip title="Xem chi tiết" key="view">
-                    <Button 
-                      type="text" 
-                      icon={<EyeOutlined className="text-[#1a73e8]" />} 
-                      onClick={() => navigate(`/instructor/courses/${course.id}`)}
-                    />
-                  </Tooltip>,
-                  <Tooltip title="Chỉnh sửa" key="edit">
-                    <Button 
-                      type="text" 
-                      icon={<EditOutlined className="text-[#34a853]" />} 
-                      onClick={() => navigate(`/instructor/courses/${course.id}/edit`)}
-                      disabled={!(course.status === 'draft' || course.status === 'rejected')}
-                    />
-                  </Tooltip>,
-                  <Tooltip title="Xóa" key="delete">
-                    <Button 
-                      type="text" 
-                      danger
-                      icon={<DeleteOutlined />} 
-                      onClick={() => handleDelete(course.id)}
-                      disabled={!(course.status === 'draft' || course.status === 'rejected')}
-                    />
-                  </Tooltip>,
-                  // Thêm nút xuất bản nếu là draft
-                  course.status === 'draft' && (
-                    <Tooltip title="Xuất bản (gửi xét duyệt)" key="publish">
-                      <Button
-                        type="primary"
-                        onClick={() => handlePublish(course.id)}
-                        size="small"
-                        className="bg-orange-500"
-                      >
-                        Xuất bản
-                      </Button>
-                    </Tooltip>
-                  )
-                ].filter(Boolean)}
-              >
-                <Meta
-                  title={
-                    <div className="text-lg font-medium text-gray-800 line-clamp-2">
-                      {course.title}
-                      {/* Hiển thị trạng thái */}
-                      <Tag color={statusColorMap[course.status] || 'default'} className="ml-2">
-                        {course.status === 'draft' && 'Chưa xuất bản'}
-                        {course.status === 'pending' && 'Chờ duyệt'}
-                        {course.status === 'published' && 'Đã xuất bản'}
-                        {course.status === 'rejected' && 'Bị từ chối'}
-                        {course.status === 'archived' && 'Lưu trữ'}
-                      </Tag>
-                    </div>
-                  }
-                  description={
-                    <div className="flex justify-between items-center mt-3">
-                      <span>
-                        {course.price === 0 ? (
-                          <Tag color="success" className="px-2 py-1 text-sm">Miễn phí</Tag>
-                        ) : (
-                          <Tag color="processing" className="px-2 py-1 text-sm">
-                            {course.price.toLocaleString()}đ
-                          </Tag>
-                        )}
-                      </span>
-                      <span className="text-sm text-gray-500">{course.author?.name || course.author}</span>
-                    </div>
-                  }
-                />
-              </Card>
-            </Badge.Ribbon>
-          ))}
-        </div>
-
+        <Table
+          columns={columns}
+          dataSource={paginatedCourses}
+          rowKey="id"
+          loading={loading}
+          pagination={false}
+          className="course-table"
+        />
+        
         {/* Pagination */}
-        <div className="mt-8 text-center">
+        <div className="mt-6 text-center">
           <Pagination
             current={currentPage}
             pageSize={PAGE_SIZE}
@@ -370,23 +478,13 @@ const CourseList: React.FC = () => {
       {/* Custom styles */}
       <style>
         {`
-          .ant-card-meta-title {
-            margin-bottom: 12px !important;
-          }
-          .ant-card-actions {
+          .course-table .ant-table-thead > tr > th {
             background: #fafafa;
+            font-weight: 600;
+            color: #262626;
           }
-          .ant-card-actions > li {
-            margin: 0 !important;
-          }
-          .ant-card-actions .ant-btn {
-            width: 100%;
-            height: 100%;
-            border: none;
-            padding: 12px 0;
-          }
-          .ant-card-actions .ant-btn:hover {
-            background: #f0f0f0;
+          .course-table .ant-table-tbody > tr:hover > td {
+            background: #f5f5f5;
           }
           .custom-pagination .ant-pagination-item-active {
             background-color: #1a73e8;

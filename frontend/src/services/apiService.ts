@@ -70,6 +70,7 @@ export interface Course {
   hasDiscount: boolean;
   discountPercent?: number;
   status: string;
+  displayStatus?: string;
   language: string;
   level: string;
 }
@@ -122,6 +123,7 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
     hasDiscount,
     discountPercent: hasDiscount ? apiCourse.discount : undefined,
     status: apiCourse.status,
+    displayStatus: apiCourse.displayStatus,
     language: apiCourse.language,
     level: apiCourse.level
   };
@@ -227,16 +229,16 @@ export const courseService = {
     }
   },
 
-  mapApiCourseToAppCourse,
-
-  updateCourseStatus: async (courseId: string, status: string) => {
+  updateCourseStatus: async (courseId: string, data: { status?: string; displayStatus?: string }) => {
     try {
-      const response = await apiClient.patch(`/courses/${courseId}/status`, { status });
+      const response = await apiClient.patch(`/courses/${courseId}/status`, data);
       return response.data;
     } catch (error: any) {
       throw error.response?.data || error;
     }
   },
+
+  mapApiCourseToAppCourse,
 
   submitCourseForApproval: async (courseId: string) => {
     try {

@@ -102,13 +102,16 @@ const updateCourseSchema = createCourseSchema.fork(
 
 const updateCourseStatusSchema = Joi.object({
     status: Joi.string()
-        .required()
-        .valid('draft', 'pending', 'published', 'rejected', 'archived')
+        .valid('draft', 'pending', 'approved', 'rejected')
         .messages({
-            'any.only': 'Trạng thái phải là draft, pending, published, rejected hoặc archived',
-            'any.required': 'Trạng thái là bắt buộc'
+            'any.only': 'Trạng thái phải là draft, pending, approved hoặc rejected'
+        }),
+    displayStatus: Joi.string()
+        .valid('hidden', 'published')
+        .messages({
+            'any.only': 'Trạng thái hiển thị phải là hidden hoặc published'
         })
-});
+}).or('status', 'displayStatus');
 
 module.exports = {
     createCourseSchema,

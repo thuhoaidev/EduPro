@@ -17,7 +17,7 @@ router.delete('/:id', auth, requireAuth(['instructor']), courseController.delete
 router.get('/', courseController.getCourses);
 
 // Lấy danh sách khóa học của instructor hiện tại
-router.get('/instructor', auth, requireAuth(['instructor']), courseController.getInstructorCourses);
+router.get('/instructor', auth, requireAuth(['instructor', 'admin']), courseController.getInstructorCourses);
 
 // Lấy chi tiết khóa học
 router.get('/:id', courseController.getCourseById);
