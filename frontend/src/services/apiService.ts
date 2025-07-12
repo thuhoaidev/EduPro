@@ -383,21 +383,22 @@ fetchSavedPosts: async () => {
     const res = await apiClient.get(`/blogs/${postId}/comments`);
     return res.data;
   },
-
-  addComment: async (postId: string, content: string) => {
-  const res = await apiClient.post(`/blogs/${postId}/comments`, { content });
+addComment: async (postId: string, content: string) => {
+  const res = await apiClient.post(`/blogs/${postId}/comment`, { content }); // ✅ sửa lại /comment
   if (res.data?.success && res.data.data) {
-    return res.data.data; // ✅ chỉ trả về comment
+    return res.data.data;
   }
   throw new Error('Không thể thêm bình luận');
 },
 
-
-
   replyToComment: async (commentId: string, content: string) => {
-    const res = await apiClient.post(`/blogs/comments/${commentId}/reply`, { content });
-    return res.data;
+  const res = await apiClient.post(`/blogs/comment/${commentId}/reply`, { content }); // ✅ đúng route
+  if (res.data?.success && res.data.data) {
+    return res.data.data; // trả về dữ liệu phản hồi
   }
+  throw new Error('Không thể gửi phản hồi');
+}
+
 };
 
 export { apiClient, apiService };

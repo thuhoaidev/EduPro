@@ -625,11 +625,12 @@ const extractFirstImageFromContent = (content: string): string | null => {
   {`
     .blog-content img {
       width: 100%;
-      height: 250px;
-      object-fit: cover; /* hoặc 'contain' nếu muốn toàn bộ ảnh */
+      max-height: 400px;
+      object-fit: contain;
       border-radius: 12px;
       display: block;
       margin: 1rem 0;
+      background: #f0f0f0; /* nền xám nhạt giúp ảnh nổi bật hơn nếu không đủ chiều cao */
     }
   `}
 </style>

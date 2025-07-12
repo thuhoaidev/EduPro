@@ -119,7 +119,7 @@ const handleReplyComment = async (blogId: string, parentCommentId: string) => {
   if (!content) return;
 
   try {
-    const reply = await apiService.replyToComment(parentCommentId, content);
+    const reply = await apiService.replyToComment(parentCommentId, content); // ✅ sửa ở đây
     setComments(prev => ({
       ...prev,
       [blogId]: prev[blogId].map(comment =>
@@ -202,7 +202,7 @@ const handleAddComment = async (blogId: string) => {
     cancelText: 'Hủy',
     onOk: async () => {
       try {
-        const newComment = await apiService.addComment(blogId, content); // ✅ newComment = đúng object
+        const newComment = await apiService.addComment(blogId, content); // ✅ sửa ở đây
         setComments(prev => ({
           ...prev,
           [blogId]: [newComment, ...(prev[blogId] || [])]
@@ -210,11 +210,13 @@ const handleAddComment = async (blogId: string) => {
         setCommentInput(prev => ({ ...prev, [blogId]: '' }));
         message.success('Đã gửi bình luận');
       } catch (err) {
+        console.error('❌ Bình luận lỗi:', err);
         message.error('Không thể gửi bình luận');
       }
     }
   });
 };
+
 
 
   const formatDate = (dateString: string) => {
