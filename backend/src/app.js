@@ -32,6 +32,7 @@ const teacherWalletRoutes = require('./routes/teacherWallet.routes');
 const commentLikeRoutes = require('./routes/commentLike.route');
 const progressRoutes = require('./routes/progress.routes');
 const courseReviewRoutes = require('./routes/courseReview.routes');
+const paymentZaloRouter = require('./routes/paymentZaloRouter');
 
 
 // Khởi tạo app
@@ -108,6 +109,7 @@ app.use('/api/teacher-wallet', teacherWalletRoutes);
 app.use('/api/comment-likes', commentLikeRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/course-reviews', courseReviewRoutes);
+app.use('/api/payment-zalo', paymentZaloRouter);
 
 
 // Error handling middleware
