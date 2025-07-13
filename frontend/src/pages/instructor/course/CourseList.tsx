@@ -236,7 +236,7 @@ const CourseList: React.FC = () => {
       render: (_, record) => (
         <div 
           className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
-          onClick={() => navigate(`/instructor/courses/${record.id}`)}
+          onClick={() => navigate(`/admin/courses/${record.id}`)}
         >
           <Image
             src={record.Image}

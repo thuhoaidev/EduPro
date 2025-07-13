@@ -46,6 +46,7 @@ const MyCourseList: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [displayStatusFilter, setDisplayStatusFilter] = useState("all");
   const [loading, setLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -70,9 +71,12 @@ const MyCourseList: React.FC = () => {
     return courses.filter((course) => {
       const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || course.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesDisplayStatus = displayStatusFilter === 'all' || 
+        (displayStatusFilter === 'hidden' && course.displayStatus === 'hidden') ||
+        (displayStatusFilter === 'published' && course.displayStatus === 'published');
+      return matchesSearch && matchesStatus && matchesDisplayStatus;
     });
-  }, [courses, searchTerm, statusFilter]);
+  }, [courses, searchTerm, statusFilter, displayStatusFilter]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -171,8 +175,9 @@ const MyCourseList: React.FC = () => {
       key: "displayStatus",
       render: (_, record) => {
         const isApproved = record.status === 'approved' || record.status === 'published';
-        const isHidden = record.status === 'hidden';
-        
+        const isHidden = record.displayStatus === 'hidden';
+        // const isPublished = record.displayStatus === 'published'; // Đã bỏ, không dùng nữa
+
         const handleToggleDisplay = async () => {
           try {
             if (isHidden) {
@@ -194,8 +199,8 @@ const MyCourseList: React.FC = () => {
               );
               message.success('Đã ẩn khóa học');
             }
-          } catch (error) {
-            console.error('Lỗi khi thay đổi trạng thái hiển thị:', error);
+          } catch (err) {
+            console.error('Lỗi khi thay đổi trạng thái hiển thị:', err);
             message.error('Không thể thay đổi trạng thái hiển thị');
           }
         };
@@ -206,14 +211,25 @@ const MyCourseList: React.FC = () => {
               {isHidden ? 'Ẩn' : 'Hiển thị'}
             </Tag>
             {isApproved && (
-              <Button
-                type="link"
-                size="small"
-                onClick={handleToggleDisplay}
-                style={{ padding: 0, height: 'auto' }}
-              >
-                {isHidden ? 'Hiển thị' : 'Ẩn'}
-              </Button>
+              isHidden ? (
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={handleToggleDisplay}
+                  style={{ padding: 0, height: 'auto' }}
+                >
+                  Hiển thị
+                </Button>
+              ) : (
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={handleToggleDisplay}
+                  style={{ padding: 0, height: 'auto' }}
+                >
+                  Ẩn
+                </Button>
+              )
             )}
           </Space>
         );
@@ -395,8 +411,15 @@ const MyCourseList: React.FC = () => {
                 <Option value="pending">Chờ duyệt</Option>
                 <Option value="approved">Đã duyệt</Option>
                 <Option value="rejected">Bị từ chối</Option>
-                <Option value="hidden">Ẩn</Option>
-                <Option value="published">Hiển thị</Option>
+              </Select>
+              <Select
+                defaultValue="all"
+                onChange={setDisplayStatusFilter}
+                style={{ width: 150 }}
+              >
+                <Option value="all">Tất cả hiển thị</Option>
+                <Option value="published">Đang hiển thị</Option>
+                <Option value="hidden">Đang ẩn</Option>
               </Select>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/instructor/courses/create')}>
                 Tạo khóa học mới

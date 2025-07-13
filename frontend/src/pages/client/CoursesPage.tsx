@@ -12,6 +12,9 @@ import { config } from '../../api/axios';
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
 
+/**
+ * Trang hiển thị tất cả các khóa học có trạng thái "published" từ tất cả giảng viên
+ */
 const CoursesPage: React.FC = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
@@ -28,6 +31,7 @@ const CoursesPage: React.FC = () => {
                 setLoading(true);
                 let fetchedCourses: Course[];
                 
+                // Lấy khóa học từ tất cả giảng viên với trạng thái published
                 if (searchTerm) {
                     fetchedCourses = await courseService.searchCourses(searchTerm);
                 } else if (categoryId) {

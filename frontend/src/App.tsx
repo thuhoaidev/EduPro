@@ -55,6 +55,7 @@ import LessonVideoPage from './pages/client/lessons/LessonVideoPage';
 import LessonQuizPage from './pages/client/lessons/LessonQuizPage';
 import CourseList from "./pages/instructor/course/CourseList";
 import CourseEdit from "./pages/instructor/course/CourseEdit";
+import AdminCourseDetail from "./pages/admin/courses/AdminCourseDetail";
 import UserReportRoute from "./pages/client/UserReportRoute";
 
 import UserProfile from "./pages/client/Profile/UserProfile";
@@ -170,6 +171,7 @@ function App() {
         { path: "history", element: <TransactionHistory /> },
         { path: "vouchers", element: <VoucherPage />},
         { path: "courses", element: <CourseList />},
+        { path: "courses/:id", element: <AdminCourseDetail />},
         { path: "transactions", element: <TransactionHistory /> },
         { path: "earnings", element: <WithdrawRequestsAdmin />},
       ],

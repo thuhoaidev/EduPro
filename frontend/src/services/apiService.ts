@@ -130,6 +130,7 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
 };
 
 export const courseService = {
+  // Lấy tất cả khóa học có trạng thái published từ tất cả giảng viên
   getAllCourses: async (): Promise<Course[]> => {
     try {
       const response = await apiClient.get<ApiResponse<ApiCourse[]>>('/courses');
@@ -142,6 +143,7 @@ export const courseService = {
     }
   },
 
+  // Tìm kiếm khóa học có trạng thái published
   searchCourses: async (searchTerm: string): Promise<Course[]> => {
     try {
       const response = await apiClient.get<ApiResponse<ApiCourse[]>>(`/courses?search=${encodeURIComponent(searchTerm)}`);
@@ -154,6 +156,7 @@ export const courseService = {
     }
   },
 
+  // Lấy khóa học theo danh mục có trạng thái published
   getCoursesByCategory: async (categoryId: string): Promise<Course[]> => {
     try {
       const response = await apiClient.get<ApiResponse<ApiCourse[]>>(`/courses?category=${categoryId}`);

@@ -9,6 +9,8 @@ const User = require('../models/User');
 const Enrollment = require('../models/Enrollment');
 const { sendCourseApprovalResultEmail } = require('../utils/sendEmail');
 
+console.log('course.controller.js loaded at', new Date().toISOString());
+
 // Gửi khóa học để duyệt
 exports.submitCourseForApproval = async (req, res, next) => {
     try {
@@ -632,9 +634,9 @@ exports.updateCourseStatus = async (req, res, next) => {
         }
 
         // Instructor chỉ được gửi duyệt (draft -> pending) và thay đổi displayStatus
-        if (user.roles.includes('instructor') && !user.roles.includes('admin') && !user.roles.includes('moderator')) {
+        if (Array.isArray(user.roles) && user.roles.includes('instructor') && !user.roles.includes('admin') && !user.roles.includes('moderator')) {
             // Gửi duyệt (draft -> pending)
-            if (status === 'pending' && course.status === 'draft') {
+            if (typeof status === 'string' && status === 'pending' && course.status === 'draft') {
                 course.status = 'pending';
                 await course.save();
                 return res.json({ success: true, data: course });
@@ -653,8 +655,8 @@ exports.updateCourseStatus = async (req, res, next) => {
         }
 
         // Admin hoặc moderator được duyệt hoặc từ chối (pending -> approved/rejected)
-        if (user.roles.includes('admin') || user.roles.includes('moderator')) {
-            if (course.status === 'pending' && (status === 'approved' || status === 'rejected')) {
+        if (Array.isArray(user.roles) && (user.roles.includes('admin') || user.roles.includes('moderator'))) {
+            if (course.status === 'pending' && (typeof status === 'string' && (status === 'approved' || status === 'rejected'))) {
                 course.status = status;
                 // Khi duyệt, tự động chuyển sang hiển thị
                 if (status === 'approved') {
@@ -677,8 +679,8 @@ exports.updateCourseStatus = async (req, res, next) => {
             }
             
             // Cho phép chuyển approved -> rejected, rejected -> approved
-            if ((course.status === 'approved' && status === 'rejected') || 
-                (course.status === 'rejected' && status === 'approved')) {
+            if ((course.status === 'approved' && typeof status === 'string' && status === 'rejected') || 
+                (course.status === 'rejected' && typeof status === 'string' && status === 'approved')) {
                 course.status = status;
                 course.displayStatus = status === 'approved' ? 'published' : 'hidden';
                 await course.save();
@@ -727,17 +729,17 @@ exports.getCourses = async (req, res, next) => {
         
         if (status) {
             // Hỗ trợ multiple status values được phân tách bằng dấu phẩy
-            if (status.includes(',')) {
+            if (typeof status === 'string' && status.includes(',')) {
                 query.status = { $in: status.split(',').map(s => s.trim()) };
             } else {
                 query.status = status;
             }
         } else if (instructor === 'true' && includeDraft === 'true') {
             // Nếu lấy khóa học của instructor và bao gồm draft, lấy tất cả trạng thái
-            query.status = { $in: ['draft', 'pending', 'published', 'rejected', 'archived'] };
+            query.status = { $in: ['draft', 'pending', 'approved', 'rejected'] };
         } else {
-            // Mặc định chỉ lấy khóa học đã được phê duyệt
-            query.status = { $in: ['published', 'active'] };
+            // Mặc định chỉ lấy khóa học có trạng thái published
+            query.displayStatus = 'published';
         }
         if (category) query.category = category;
         if (level) query.level = level;
@@ -798,7 +800,10 @@ exports.getCourseBySlug = async (req, res, next) => {
     try {
         const { slug } = req.params;
 
-        const course = await Course.findOne({ slug })
+        const course = await Course.findOne({ 
+            slug,
+            displayStatus: 'published' // Chỉ hiển thị khóa học có trạng thái published
+        })
             .populate({
                 path: 'instructor',
                 populate: {
@@ -903,7 +908,10 @@ exports.getCourseById = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const course = await Course.findById(id)
+        const course = await Course.findOne({ 
+            _id: id,
+            displayStatus: 'published' // Chỉ hiển thị khóa học có trạng thái published
+        })
             .populate('category', 'name')
             .populate({
                 path: 'instructor',
@@ -990,6 +998,8 @@ exports.getAllCourses = async (req, res, next) => {
         } = req.query;
 
         const filter = {};
+        // Chỉ hiển thị khóa học có trạng thái published
+        filter.displayStatus = 'published';
         if (category) filter.category = category;
         if (level) filter.level = level;
         if (language) filter.language = language;
@@ -1049,7 +1059,10 @@ exports.getAllCourses = async (req, res, next) => {
 exports.getCoursesByCategory = async (req, res, next) => {
     try {
         const { categoryId } = req.params;
-        const courses = await Course.find({ category: categoryId })
+        const courses = await Course.find({ 
+            category: categoryId,
+            displayStatus: 'published' // Chỉ hiển thị khóa học có trạng thái published
+        })
             .populate('category', 'name')
             .populate({
                 path: 'instructor',
@@ -1090,7 +1103,10 @@ exports.searchCourses = async (req, res, next) => {
         if (!searchTerm) {
             return res.status(200).json({ success: true, data: [] });
         }
-        const courses = await Course.find({ $text: { $search: searchTerm } })
+        const courses = await Course.find({ 
+            $text: { $search: searchTerm },
+            displayStatus: 'published' // Chỉ hiển thị khóa học có trạng thái published
+        })
             .populate('category', 'name')
             .populate({
                 path: 'instructor',
