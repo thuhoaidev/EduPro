@@ -66,17 +66,14 @@ const axiosClient = {
 };
 
 const parseMarkdownToText = (markdown: string): string => {
-  if (!markdown) return '';
-  
   return markdown
-    .replace(/!\[.*?\]\(.*?\)/g, '') // Loại bỏ image markdown
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Chuyển [text](url) thành text
-    .replace(/#{1,6}\s*/g, '') // Loại bỏ headers
-    .replace(/[*_`~]/g, '') // Loại bỏ bold, italic, code
-    .replace(/\n+/g, ' ') // Thay xuống dòng bằng space
-    .replace(/\s+/g, ' ') // Loại bỏ space thừa
+    .replace(/!\[.*?\]\(.*?\)/g, '') // Bỏ ảnh markdown
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Bỏ link
+    .replace(/[#*_`~]/g, '') // Bỏ các ký tự markdown
+    .replace(/\n+/g, ' ') // Bỏ newline
     .trim();
 };
+
 const BlogPage = () => {
   const [blogs, setBlogs] = useState<any[]>([]);
   const [selectedBlog, setSelectedBlog] = useState<any | null>(null);
@@ -94,21 +91,13 @@ const BlogPage = () => {
   const commentEndRef = useRef<HTMLDivElement>(null);
  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
   const target = e.currentTarget;
-const parseMarkdownToText = (markdown: string): string => {
-  return markdown
-    .replace(/!\[.*?\]\(.*?\)/g, '') // Loại bỏ image markdown
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Chuyển [text](url) thành text
-    .replace(/[#*`_~]/g, '') // Loại bỏ các ký tự markdown khác
-    .replace(/\n+/g, ' ') // Thay thế xuống dòng bằng space
-    .trim();
-};
-  // Dựa vào alt để phân biệt loại ảnh
   if (target.alt === 'avatar') {
     target.src = '/images/default-avatar.png';
   } else {
     target.src = '/images/no-image.png';
   }
 };
+
 
 
   const scrollToBottom = () => {
@@ -685,16 +674,6 @@ const extractFirstImageFromContent = (content: string): string | null => {
       <MessageCircle className="w-5 h-5" />
       <span className="font-medium">{comments.length} bình luận</span>
     </div>
-    <button
-  onClick={() => {
-    navigator.clipboard.writeText(window.location.href);
-    toast.success('📋 Đã sao chép liên kết bài viết!');
-  }}
-  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
->
-  <Share2 className="w-5 h-5 text-gray-400" />
-</button>
-
   </div>
 </div>
 

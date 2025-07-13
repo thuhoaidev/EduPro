@@ -418,29 +418,24 @@ const handleAddComment = async (blogId: string) => {
                           key: 'view',
                           label: 'Xem bài viết',
                           icon: <EyeOutlined />,
-                          onClick: () => navigate(`/blog/post/${blog._id}`)
-                        },
-                        {
-                          key: 'share',
-                          label: 'Chia sẻ',
-                          icon: <ShareAltOutlined />,
                           onClick: () => {
-                            navigator.clipboard.writeText(`${window.location.origin}/blog/post/${blog._id}`);
-                            message.success('Đã copy link bài viết');
-                          }
+                            console.log('Đi tới:', `/blog/post/${blog._id}`);
+                            navigate(`/blog/${blog._id}`);
+                          },
                         },
                         {
                           key: 'unsave',
                           label: 'Bỏ lưu',
                           icon: <DeleteOutlined />,
                           danger: true,
-                          onClick: () => handleUnsavePost(blog._id, blog.title)
-                        }
-                      ]
+                          onClick: () => handleUnsavePost(blog._id, blog.title),
+                        },
+                      ],
                     }}
                   >
                     <Button type="text" icon={<MoreOutlined />} />
                   </Dropdown>
+
                 </Space>
               </div>
             </div>
