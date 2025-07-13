@@ -20,7 +20,7 @@ interface FormValues {
   fullName: string;
   phone: string;
   email: string;
-  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay';
+  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
   notes?: string;
 }
 
@@ -134,6 +134,23 @@ const handleSubmit = async (values: FormValues) => {
       window.location.href = res.payUrl;
       return;
     }
+    // Nếu chọn ZaloPay
+    if (values.paymentMethod === 'zalopay') {
+       localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
+
+    const { data: res } = await axios.post(
+       `http://localhost:5000/create_zalopay_payment`,
+    {
+      amount: checkoutData.total,
+      name: values.fullName,
+      email: values.email
+    }
+    );
+
+  window.location.href = res.payUrl;
+  return;
+}
+
 
     // Với các phương thức còn lại (nội bộ)
     const createOrderPayload: CreateOrderData = {
@@ -263,6 +280,7 @@ const handleSubmit = async (values: FormValues) => {
                 <Select>
                   <Option value="momo"><WalletOutlined /> MoMo</Option>
                   <Option value="vnpay"><WalletOutlined /> VNPAY</Option>
+                  <Option value="zalopay"><WalletOutlined /> ZaloPay</Option>
                 </Select>
               </Form.Item>
               <Form.Item name="notes" label="Ghi chú">
