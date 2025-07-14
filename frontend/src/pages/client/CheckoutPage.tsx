@@ -4,13 +4,14 @@ import {
   Row, Col, Card, Button, Typography, Divider, message, Form, Input, Select, Spin, Result, Steps
 } from 'antd';
 import {
-  ShoppingCartOutlined, CreditCardOutlined, CheckCircleOutlined,
+  ShoppingCartOutlined, CreditCardOutlined,
   UserOutlined, PhoneOutlined, MailOutlined, WalletOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../hooks/Auths/useAuth';
 import orderService from '../../services/orderService';
-import axios from 'axios';
+import config from '../../api/axios';
 import type { CreateOrderData } from '../../services/orderService';
+import { useCart } from '../../contexts/CartContext';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -51,11 +52,11 @@ const CheckoutPage: React.FC = () => {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState('');
   const { user, token } = useAuth();
+  const { clearCart } = useCart();
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
 
-  const [zalopayUrl, setZalopayUrl] = useState('');
-  const [showZaloConfirm, setShowZaloConfirm] = useState(false);
+  // const [zalopayUrl, setZalopayUrl] = useState(''); // Không dùng
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -112,8 +113,8 @@ const handleSubmit = async (values: FormValues) => {
     if (values.paymentMethod === 'vnpay') {
       localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
 
-      const { data: res } = await axios.get(
-        `http://localhost:5000/create_payment?amount=${checkoutData.total}`
+      const { data: res } = await config.get(
+        `/create_payment?amount=${checkoutData.total}`
       );
 
       window.location.href = res.paymentUrl;
@@ -124,8 +125,8 @@ const handleSubmit = async (values: FormValues) => {
     if (values.paymentMethod === 'momo') {
       localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
 
-      const { data: res } = await axios.post(
-        `http://localhost:5000/create_momo_payment`,
+      const { data: res } = await config.post(
+        `/create_momo_payment`,
         {
           amount: checkoutData.total,
           name: values.fullName,
@@ -141,8 +142,8 @@ const handleSubmit = async (values: FormValues) => {
     if (values.paymentMethod === 'zalopay') {
       localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
 
-      const { data: res } = await axios.post(
-        'http://localhost:5000/api/payment-zalo/create_zalopay_payment',
+      const { data: res } = await config.post(
+        `/api/payment-zalo/create_zalopay_payment`,
         {
           amount: checkoutData.total,
           name: values.fullName,
@@ -171,16 +172,16 @@ const handleSubmit = async (values: FormValues) => {
     setOrderId(response.order.id);
     setOrderSuccess(true);
     localStorage.removeItem('checkoutData');
-
-    // Cập nhật lại thông tin user
+    clearCart(); // Xóa giỏ hàng ở context sau khi thanh toán thành công
+    // Cập nhật lại user sau khi thanh toán
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        const res = await axios.get('http://localhost:5000/api/auth/me', {
+        const res = await config.get('/api/auth/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
 
-        let userData = res.data.user || res.data;
+        const userData = res.data.user || res.data;
         if (!userData.role && userData.role_id?.name) {
           userData.role = { name: userData.role_id.name };
         }
@@ -189,7 +190,7 @@ const handleSubmit = async (values: FormValues) => {
         localStorage.setItem('role', userData.role?.name || userData.role || '');
         window.location.reload();
       }
-    } catch (err) {
+    } catch {
       // Không cần xử lý lỗi ở đây
     }
 
@@ -292,25 +293,7 @@ const handleSubmit = async (values: FormValues) => {
               </div>
             </Form>
 
-            {showZaloConfirm && (
-              <Card className="mt-4 border border-blue-300 bg-blue-50 shadow">
-                <Title level={4} style={{ color: '#1890ff' }}>
-                  Xác nhận thanh toán với ZaloPay
-                </Title>
-                <p>Số tiền: <Text strong>{formatCurrency(checkoutData.total)}</Text></p>
-                <p>Nhà cung cấp: <Text>https://vnshop.vn/</Text></p>
-                <p>Mã đơn hàng: <Text>{'ZALO_' + Date.now()}</Text></p>
-                <p className="text-red-500">Giao dịch sẽ hết hạn trong 15 phút.</p>
-                <div className="mt-3 flex gap-3">
-                  <Button type="primary" onClick={() => window.location.href = zalopayUrl}>
-                    Tiếp tục với ZaloPay
-                  </Button>
-                  <Button onClick={() => setShowZaloConfirm(false)}>
-                    Hủy
-                  </Button>
-                </div>
-              </Card>
-            )}
+            {/* Đã loại bỏ phần xác nhận ZaloPay vì không còn dùng zalopayUrl */}
           </Card>
         </Col>
       </Row>

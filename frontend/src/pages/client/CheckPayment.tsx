@@ -6,6 +6,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import orderService from "../../services/orderService";
 import { useAuth } from "../../hooks/Auths/useAuth";
 
+interface PendingOrderItem {
+  courseId: string;
+  quantity?: number;
+}
+
 function CheckPayment() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -72,8 +77,8 @@ function CheckPayment() {
           console.log("🔍 Parsed items:", parsed.items);
 
           // Kiểm tra hợp lệ từng item
-          const validItems = parsed.items.filter(
-            (item: any) => item.courseId && typeof item.courseId === "string"
+          const validItems = (parsed.items as PendingOrderItem[]).filter(
+            (item) => item.courseId && typeof item.courseId === "string"
           );
           
           console.log("🔍 Valid items after filter:", validItems);
@@ -81,7 +86,7 @@ function CheckPayment() {
           if (validItems.length === 0) {
             console.error("❌ No valid items found. All items:", parsed.items);
             console.error("❌ Item details:");
-            parsed.items.forEach((item: any, index: number) => {
+            (parsed.items as PendingOrderItem[]).forEach((item, index) => {
               console.error(`  Item ${index}:`, {
                 courseId: item.courseId,
                 courseIdType: typeof item.courseId,
@@ -94,7 +99,7 @@ function CheckPayment() {
           }
 
           const orderData = {
-            items: validItems.map((item: any) => ({
+            items: validItems.map((item) => ({
               courseId: item.courseId,
               quantity: item.quantity ?? 1,
             })),
@@ -123,12 +128,26 @@ function CheckPayment() {
           setStatus("success");
           setTitle("Đơn hàng đã được ghi nhận!");
           setSubTitle(`Mã đơn hàng: ${res.order.id}`);
+
+          // Sau khi thanh toán thành công, chuyển hướng về trang chi tiết khóa học và reload lại trang
+          setTimeout(() => {
+            if (validItems.length > 0) {
+              const courseId = validItems[0].courseId;
+              window.location.href = `/courses/${courseId}`;
+            } else {
+              window.location.href = "/profile/orders";
+            }
+          }, 2000);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("❌ Payment processing error:", error);
         setStatus("error");
         setTitle("Đã có lỗi xảy ra khi xác nhận thanh toán");
-        setSubTitle(error.message || "Vui lòng thử lại hoặc liên hệ hỗ trợ.");
+        if (error instanceof Error) {
+          setSubTitle(error.message || "Vui lòng thử lại hoặc liên hệ hỗ trợ.");
+        } else {
+          setSubTitle("Vui lòng thử lại hoặc liên hệ hỗ trợ.");
+        }
         message.error("Lỗi xử lý thanh toán!");
       } finally {
         setIsProcessing(false);

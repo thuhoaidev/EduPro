@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb, message } from 'antd';
-import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, HeartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined } from '@ant-design/icons';
+import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, HeartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { courseService } from '../../services/apiService';
-import type { Course, Section } from '../../services/apiService';
+import type { Course, Section, Lesson } from '../../services/apiService';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { config } from '../../api/axios';
 import { getCourseReviews, getMyReview, addOrUpdateReview } from '../../services/courseReviewService';
@@ -32,7 +32,7 @@ const CourseDetailPage: React.FC = () => {
     const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [reviews, setReviews] = useState<{
-        user: any; rating: number; comment: string 
+        user: { fullname?: string; avatar?: string }; rating: number; comment: string 
 }[]>([]);
     const [myReview, setMyReview] = useState<{ rating: number; comment: string } | null>(null);
     const [reviewLoading, setReviewLoading] = useState(false);
@@ -40,6 +40,70 @@ const CourseDetailPage: React.FC = () => {
     const [reviewValue, setReviewValue] = useState<number>(0);
     const [reviewComment, setReviewComment] = useState('');
     const navigate = useNavigate();
+
+    // Function to calculate total duration from course content
+    const calculateTotalDuration = (sections: Section[]): string => {
+        let totalSeconds = 0;
+        let hasVideoDuration = false;
+        
+        sections.forEach(section => {
+            section.lessons.forEach(lesson => {
+                // Check if lesson has video with duration
+                if (lesson.video && lesson.video.duration && lesson.video.duration > 0) {
+                    totalSeconds += lesson.video.duration;
+                    hasVideoDuration = true;
+                }
+            });
+        });
+        
+        // If no video duration available, fall back to course.duration or estimate
+        if (!hasVideoDuration) {
+            return course?.duration || '0 giờ';
+        }
+        
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        
+        if (hours > 0) {
+            return `${hours} giờ ${minutes} phút`;
+        } else {
+            return `${minutes} phút`;
+        }
+    };
+
+    // Function to format individual lesson duration
+    const formatLessonDuration = (lesson: Lesson): string => {
+        if (lesson.video && lesson.video.duration && lesson.video.duration > 0) {
+            const minutes = Math.floor(lesson.video.duration / 60);
+            const seconds = lesson.video.duration % 60;
+            if (minutes > 0) {
+                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            } else {
+                return `${seconds}s`;
+            }
+        }
+        return '~15 phút'; // Fallback for lessons without video duration
+    };
+
+    // Function to calculate section duration
+    const calculateSectionDuration = (section: Section): string => {
+        let totalSeconds = 0;
+        let hasVideoDuration = false;
+        
+        section.lessons.forEach(lesson => {
+            if (lesson.video && lesson.video.duration && lesson.video.duration > 0) {
+                totalSeconds += lesson.video.duration;
+                hasVideoDuration = true;
+            }
+        });
+        
+        if (!hasVideoDuration) {
+            return `~${Math.ceil(section.lessons.length * 15)} phút`;
+        }
+        
+        const minutes = Math.floor(totalSeconds / 60);
+        return `${minutes} phút`;
+    };
 
     useEffect(() => {
         const fetchCourseData = async () => {
@@ -238,7 +302,7 @@ const CourseDetailPage: React.FC = () => {
                                     <Text className='font-bold'>•</Text>
                                     <Text><span className="font-bold text-cyan-600">{totalLessons}</span> bài học</Text>
                                     <Text className='font-bold'>•</Text>
-                                    <Text>Thời lượng <span className="font-bold text-cyan-600">{course.duration}</span></Text>
+                                    <Text>Thời lượng <span className="font-bold text-cyan-600">{calculateTotalDuration(courseContent)}</span></Text>
                                 </div>
                                 <AnimatePresence>
                                     {contentLoading ? <div className="text-center p-8"><Spin tip="Đang tải nội dung..."/></div> : courseContent.length > 0 ? (
@@ -266,7 +330,7 @@ const CourseDetailPage: React.FC = () => {
                                                                 <div className="flex items-center gap-4 mt-2">
                                                                     <span className="text-gray-400 text-sm">({section.lessons.length} bài học)</span>
                                                                     <span className="text-gray-400 text-sm">•</span>
-                                                                    <span className="text-gray-400 text-sm">~{Math.ceil(section.lessons.length * 15)} phút</span>
+                                                                    <span className="text-gray-400 text-sm">{calculateSectionDuration(section)}</span>
                                                                 </div>
                                                             </div>
                                                             <motion.div
@@ -309,7 +373,7 @@ const CourseDetailPage: React.FC = () => {
                                                                                     ) : (
                                                                                         <>
                                                                                             <LockOutlined className="text-gray-400" />
-                                                                                            <span className="text-gray-400 text-sm">~15 phút</span>
+                                                                                            <span className="text-gray-400 text-sm">{formatLessonDuration(lesson)}</span>
                                                                                         </>
                                                                                     )}
                                                                                 </div>
@@ -539,16 +603,6 @@ const CourseDetailPage: React.FC = () => {
                                             Thêm vào giỏ hàng
                                         </Button>
                                     )}
-                                    <div className="pt-2">
-                                        <Button 
-                                            size="large" 
-                                            block 
-                                            className="!h-12 !border-2 !border-cyan-200 !text-cyan-700 hover:!border-cyan-400 hover:!text-cyan-800 hover:!bg-cyan-50 transition-all duration-300 !font-medium" 
-                                            icon={<HeartOutlined />}
-                                        >
-                                            Lưu vào yêu thích
-                                        </Button>
-                                    </div>
                                 </div>
 
                                 {/* Course Features */}
@@ -579,6 +633,14 @@ const CourseDetailPage: React.FC = () => {
                                             </div>
                                             <div>
                                                 <Text className="text-gray-500 text-xs">{totalLessons} bài giảng</Text>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 flex items-center justify-center">
+                                                <ClockCircleOutlined className="text-white text-sm" />
+                                            </div>
+                                            <div>
+                                                <Text className="text-gray-500 text-xs">{calculateTotalDuration(courseContent)}</Text>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">

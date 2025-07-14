@@ -87,6 +87,11 @@ export interface Lesson {
   title: string;
   position: number;
   is_preview: boolean;
+  video?: {
+    _id: string;
+    url: string;
+    duration: number;
+  };
 }
 
 const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
