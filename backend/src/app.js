@@ -101,7 +101,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/carts', cartRoutes);
 app.use('/api', uploadRoutes);
-app.use('/', paymentRouter);
+app.use('/api', paymentRouter);
 app.use('/api/orders', orderRoutes);
 app.use('/api/reports', report);
 app.use('/api/teacher-wallet', teacherWalletRoutes);
