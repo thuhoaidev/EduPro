@@ -41,7 +41,7 @@ function CheckPayment() {
           }
         } else {
           const { data } = await axios.get(
-            `http://localhost:5000/check_payment?${searchParams.toString()}`
+            `http://localhost:5000/api/check_payment?${searchParams.toString()}`
           );
           const code = data?.data?.vnp_ResponseCode;
 
