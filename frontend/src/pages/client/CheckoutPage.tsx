@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import {
   ShoppingCartOutlined, CreditCardOutlined, CheckCircleOutlined,
-  UserOutlined, PhoneOutlined, MailOutlined, BankOutlined, WalletOutlined
+  UserOutlined, PhoneOutlined, MailOutlined, WalletOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../hooks/Auths/useAuth';
 import orderService from '../../services/orderService';
@@ -54,6 +54,9 @@ const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
 
+  const [zalopayUrl, setZalopayUrl] = useState('');
+  const [showZaloConfirm, setShowZaloConfirm] = useState(false);
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
@@ -92,10 +95,9 @@ const handleSubmit = async (values: FormValues) => {
   setIsSubmitting(true);
 
   try {
-    // Dữ liệu đơn hàng sẽ gửi lên backend hoặc lưu localStorage
     const orderPayload = {
       items: checkoutData.items.map(item => ({
-        courseId: item.courseId, // item.courseId đã được lưu đúng từ CartPage
+        courseId: item.courseId,
         quantity: item.quantity
       })),
       voucherCode: checkoutData.voucherCode,
@@ -106,7 +108,7 @@ const handleSubmit = async (values: FormValues) => {
       notes: values.notes
     };
 
-    // Nếu chọn VNPAY
+    // ✅ Nếu chọn VNPAY
     if (values.paymentMethod === 'vnpay') {
       localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
 
@@ -118,7 +120,7 @@ const handleSubmit = async (values: FormValues) => {
       return;
     }
 
-    // Nếu chọn MOMO
+    // ✅ Nếu chọn MOMO
     if (values.paymentMethod === 'momo') {
       localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
 
@@ -134,25 +136,25 @@ const handleSubmit = async (values: FormValues) => {
       window.location.href = res.payUrl;
       return;
     }
-    // Nếu chọn ZaloPay
+
+    // ✅ Nếu chọn ZaloPay → chuyển thẳng luôn
     if (values.paymentMethod === 'zalopay') {
-       localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
+      localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
 
-    const { data: res } = await axios.post(
-       `http://localhost:5000/create_zalopay_payment`,
-    {
-      amount: checkoutData.total,
-      name: values.fullName,
-      email: values.email
+      const { data: res } = await axios.post(
+        'http://localhost:5000/api/payment-zalo/create_zalopay_payment',
+        {
+          amount: checkoutData.total,
+          name: values.fullName,
+          email: values.email
+        }
+      );
+
+      window.location.href = res.payUrl;
+      return;
     }
-    );
 
-  window.location.href = res.payUrl;
-  return;
-}
-
-
-    // Với các phương thức còn lại (nội bộ)
+    // ✅ Với các phương thức còn lại
     const createOrderPayload: CreateOrderData = {
       items: orderPayload.items,
       voucherCode: orderPayload.voucherCode,
@@ -166,34 +168,31 @@ const handleSubmit = async (values: FormValues) => {
     };
 
     const response = await orderService.createOrder(createOrderPayload, token);
-
     setOrderId(response.order.id);
     setOrderSuccess(true);
     localStorage.removeItem('checkoutData');
-    // Cập nhật lại user sau khi thanh toán
+
+    // Cập nhật lại thông tin user
     try {
       const token = localStorage.getItem('token');
       if (token) {
         const res = await axios.get('http://localhost:5000/api/auth/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
+
         let userData = res.data.user || res.data;
-        // Đảm bảo luôn có user.role.name
-        if (!userData.role && userData.role_id && userData.role_id.name) {
+        if (!userData.role && userData.role_id?.name) {
           userData.role = { name: userData.role_id.name };
         }
+
         localStorage.setItem('user', JSON.stringify(userData));
-        if (userData.role && userData.role.name) {
-          localStorage.setItem('role', userData.role.name);
-        } else if (typeof userData.role === 'string') {
-          localStorage.setItem('role', userData.role);
-        }
-        // Reload lại trang để context/layout nhận diện quyền mới nhất
+        localStorage.setItem('role', userData.role?.name || userData.role || '');
         window.location.reload();
       }
     } catch (err) {
       // Không cần xử lý lỗi ở đây
     }
+
     message.success('Thanh toán thành công!');
   } catch (error) {
     console.error('Create order error:', error);
@@ -202,6 +201,7 @@ const handleSubmit = async (values: FormValues) => {
     setIsSubmitting(false);
   }
 };
+
 
   const handleBackToCart = () => {
     if (checkoutData?.voucherValidation) {
@@ -291,6 +291,26 @@ const handleSubmit = async (values: FormValues) => {
                 <Button type="primary" htmlType="submit" loading={isSubmitting}>Thanh toán</Button>
               </div>
             </Form>
+
+            {showZaloConfirm && (
+              <Card className="mt-4 border border-blue-300 bg-blue-50 shadow">
+                <Title level={4} style={{ color: '#1890ff' }}>
+                  Xác nhận thanh toán với ZaloPay
+                </Title>
+                <p>Số tiền: <Text strong>{formatCurrency(checkoutData.total)}</Text></p>
+                <p>Nhà cung cấp: <Text>https://vnshop.vn/</Text></p>
+                <p>Mã đơn hàng: <Text>{'ZALO_' + Date.now()}</Text></p>
+                <p className="text-red-500">Giao dịch sẽ hết hạn trong 15 phút.</p>
+                <div className="mt-3 flex gap-3">
+                  <Button type="primary" onClick={() => window.location.href = zalopayUrl}>
+                    Tiếp tục với ZaloPay
+                  </Button>
+                  <Button onClick={() => setShowZaloConfirm(false)}>
+                    Hủy
+                  </Button>
+                </div>
+              </Card>
+            )}
           </Card>
         </Col>
       </Row>

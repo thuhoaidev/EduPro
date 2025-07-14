@@ -19,9 +19,10 @@ paymentZaloRouter.post("/create_zalopay_payment", async (req, res) => {
   const items = [{}];
 
   const embed_data = {
-    preferred_payment_method: ["international_card"],
-    redirecturl: "http://localhost:5173/payment-result?paymentMethod=zalopay",
-  };
+  preferred_payment_method: ["international_card"],
+  return_url: "http://localhost:5173/payment-result?paymentMethod=zalopay",
+};
+
 
   const order = {
     app_id: config.app_id,
@@ -57,8 +58,9 @@ paymentZaloRouter.post("/create_zalopay_payment", async (req, res) => {
   try {
     const response = await axios.post(config.endpoint, null, { params: order });
     return res.status(200).json({
-      data: response.data,
-    });
+  payUrl: response.data.order_url,
+});
+
   } catch (error) {
     res.status(500).json({
       message: "Something went wrong",

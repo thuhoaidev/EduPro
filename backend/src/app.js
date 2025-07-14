@@ -110,8 +110,6 @@ app.use('/api/comment-likes', commentLikeRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/course-reviews', courseReviewRoutes);
 app.use('/api/payment-zalo', paymentZaloRouter);
-
-
 // Error handling middleware
 app.use((err, req, res, _next) => {
   console.error(err.stack);
