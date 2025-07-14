@@ -96,6 +96,9 @@ exports.updateCurrentUser = async (req, res) => {
       avatarUrl = 'default-avatar.jpg'; // Giá trị mặc định
     }
 
+    // Luôn cập nhật avatar vào updateFields
+    updateFields.avatar = avatarUrl;
+
     // Xử lý social_links
     if (req.body.social_links) {
       try {

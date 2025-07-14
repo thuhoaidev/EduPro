@@ -90,9 +90,9 @@ const ProfileEdit = () => {
 
       // Handle avatar upload
       if (values.avatar && Array.isArray(values.avatar) && values.avatar.length > 0) {
-        const file = values.avatar[0] instanceof File ? values.avatar[0] : (values.avatar[0] as FileWithOriginFileObj).originFileObj;
-        if (file) {
-          formData.append('avatar', file);
+        const fileObj = (values.avatar[0] as any).originFileObj || values.avatar[0];
+        if (fileObj instanceof File) {
+          formData.append('avatar', fileObj);
         }
       }
 
@@ -117,7 +117,12 @@ const ProfileEdit = () => {
 
       if (response.data.success) {
         message.success('Cập nhật thông tin thành công');
-        window.dispatchEvent(new Event('user-updated'));
+        // Refetch user mới nhất và cập nhật localStorage
+        const userRes = await config.get('/users/me');
+        if (userRes.data && userRes.data.data) {
+          localStorage.setItem('user', JSON.stringify(userRes.data.data));
+          window.dispatchEvent(new Event('user-updated'));
+        }
         navigate('/profile');
       } else {
         message.error(response.data.message || 'Cập nhật thất bại');

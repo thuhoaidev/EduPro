@@ -850,13 +850,16 @@ exports.getCourseBySlug = async (req, res, next) => {
     }
 }; // Đóng ngoặc hàm getCourseBySlug
 
-// Lấy danh sách chương học và bài học theo khóa học
+// Lấy danh sách chương học và bài học theo khóa học (public)
 exports.getCourseSectionsAndLessons = async (req, res, next) => {
     try {
         const { course_id } = req.params;
 
-        // Kiểm tra khóa học tồn tại
-        const course = await Course.findById(course_id);
+        // Kiểm tra khóa học tồn tại và có trạng thái published
+        const course = await Course.findOne({ 
+            _id: course_id,
+            displayStatus: 'published'
+        });
         if (!course) {
             throw new ApiError(404, 'Không tìm thấy khóa học');
         }
@@ -870,7 +873,7 @@ exports.getCourseSectionsAndLessons = async (req, res, next) => {
                 options: { sort: { position: 1 } },
             });
 
-        // Lấy thông tin video cho từng lesson
+        // Lấy thông tin video cho từng lesson (chỉ duration, không có URL)
         const Video = require('../models/Video');
         const sectionsWithDetails = await Promise.all(
             sections.map(async (section) => {
@@ -878,17 +881,21 @@ exports.getCourseSectionsAndLessons = async (req, res, next) => {
                     section.lessons.map(async (lesson) => {
                         const video = await Video.findOne({ lesson_id: lesson._id });
                         return {
-                            ...lesson.toObject(),
+                            _id: lesson._id,
+                            title: lesson.title,
+                            position: lesson.position,
+                            is_preview: lesson.is_preview,
                             video: video ? {
-                                _id: video._id,
-                                url: video.url,
                                 duration: video.duration
                             } : null
                         };
                     })
                 );
                 return {
-                    ...section.toObject(),
+                    _id: section._id,
+                    title: section.title,
+                    description: section.description,
+                    position: section.position,
                     lessons: lessonsWithDetails
                 };
             })
@@ -1146,10 +1153,20 @@ exports.enrollCourse = async (req, res, next) => {
     const userId = req.user._id;
     const courseId = req.params.courseId;
 
-    const course = await Course.findById(courseId);
-    if (!course) return res.status(404).json({ message: 'Course not found' });
+    const course = await Course.findById(courseId)
+      .populate('instructor', 'user');
+    if (!course) {
+      return res.status(404).json({ message: 'Không tìm thấy khóa học' });
+    }
 
-    // Kiểm tra miễn phí hoặc đã mua (giả sử có trường price)
+    // Kiểm tra xem người dùng có phải là giảng viên của khóa học này không
+    if (course.instructor && course.instructor.user && course.instructor.user.toString() === userId.toString()) {
+      return res.status(403).json({ 
+        message: 'Bạn không thể đăng ký khóa học của chính mình. Giảng viên đã có quyền truy cập đầy đủ vào khóa học của mình.' 
+      });
+    }
+
+    // Kiểm tra miễn phí hoặc đã mua
     const isFree = course.price === 0;
     // TODO: Thay thế đoạn này bằng logic kiểm tra đã mua thực tế
     const hasPurchased = isFree ? true : false; // Tạm thời chỉ cho phép miễn phí

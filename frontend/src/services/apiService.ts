@@ -202,13 +202,17 @@ export const courseService = {
 
   getCourseContent: async (courseId: string): Promise<Section[]> => {
     try {
-      const response = await apiClient.get<{ success: boolean; data: Section[] }>(`/courses/${courseId}/sections`);
+      console.log(`🔍 Fetching course content for course ID: ${courseId}`);
+      const response = await apiClient.get<{ success: boolean; data: Section[] }>(`/courses/${courseId}/content`);
+      console.log(`📡 API Response:`, response.data);
       if (response.data?.success && Array.isArray(response.data.data)) {
+        console.log(`✅ Course content loaded successfully. Sections: ${response.data.data.length}`);
         return response.data.data;
       }
+      console.log(`⚠️ No course content found or invalid response`);
       return [];
     } catch (error) {
-      console.error(`Lỗi khi lấy nội dung khóa học ${courseId}:`, error);
+      console.error(`❌ Lỗi khi lấy nội dung khóa học ${courseId}:`, error);
       return [];
     }
   },

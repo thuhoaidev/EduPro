@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button, Form, Input, Select, Upload, DatePicker, message } from "antd";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -25,6 +25,14 @@ import dayjs from 'dayjs';
 const { TextArea } = Input;
 const { Option } = Select;
 
+// Định nghĩa type cho file upload
+interface UploadFile {
+  uid: string;
+  name: string;
+  status: 'done' | 'uploading' | 'error';
+  originFileObj?: File;
+}
+
 interface InstructorRegistrationForm {
   fullName: string;
   email: string;
@@ -41,10 +49,10 @@ interface InstructorRegistrationForm {
   specializations: string[];
   teachingExperience: number | string;
   experienceDescription: string;
-  avatar: any[];
-  cv: any[];
-  certificates: any[];
-  demoVideo: any[];
+  avatar: UploadFile[];
+  cv: UploadFile[];
+  certificates: UploadFile[];
+  demoVideo: UploadFile[];
   bio: string;
   linkedin?: string;
   github?: string;
@@ -63,7 +71,7 @@ interface InstructorRegistrationResponse {
       email_verified: boolean;
       approval_status: string;
     };
-    instructorInfo: any;
+    instructorInfo: Record<string, unknown>;
   };
 }
 
@@ -104,7 +112,7 @@ export function InstructorRegistrationPage() {
       const result = await response.json();
       console.log('✅ Fallback API call successful:', result);
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Fallback API call failed:', error);
       throw error;
     }
@@ -140,9 +148,10 @@ export function InstructorRegistrationPage() {
         if (!dayjs.isDayjs(dateToFormat)) throw new Error('Ngày sinh không hợp lệ!');
         const formattedDate = dateToFormat.format('YYYY-MM-DD');
         formData.append('dateOfBirth', formattedDate);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Date formatting error:', error);
-        throw new Error(error.message || 'Vui lòng chọn ngày sinh hợp lệ!');
+        const errorMessage = error instanceof Error ? error.message : 'Vui lòng chọn ngày sinh hợp lệ!';
+        throw new Error(errorMessage);
       }
       formData.append('address', values.address || form.getFieldValue('address') || '');
 
@@ -164,8 +173,6 @@ export function InstructorRegistrationPage() {
             formData.append(`specializations[${idx}]`, spec.trim());
           }
         });
-      } else if (typeof specializationsValue === 'string' && specializationsValue.trim()) {
-        formData.append('specializations[0]', specializationsValue.trim());
       }
       formData.append('teachingExperience', (values.teachingExperience || form.getFieldValue('teachingExperience') || '').toString());
       formData.append('experienceDescription', (values.experienceDescription || form.getFieldValue('experienceDescription') || '').toString().trim());
@@ -177,18 +184,20 @@ export function InstructorRegistrationPage() {
       if (values.website || form.getFieldValue('website')) formData.append('website', values.website || form.getFieldValue('website'));
 
       // Thêm files
-      if (values.avatar && values.avatar.length > 0) {
+      if (values.avatar && values.avatar.length > 0 && values.avatar[0].originFileObj) {
         formData.append('avatar', values.avatar[0].originFileObj);
       }
-      if (values.cv && values.cv.length > 0) {
+      if (values.cv && values.cv.length > 0 && values.cv[0].originFileObj) {
         formData.append('cv', values.cv[0].originFileObj);
       }
       if (values.certificates && values.certificates.length > 0) {
         values.certificates.forEach(cert => {
-          formData.append('certificates', cert.originFileObj);
+          if (cert.originFileObj) {
+            formData.append('certificates', cert.originFileObj);
+          }
         });
       }
-      if (values.demoVideo && values.demoVideo.length > 0) {
+      if (values.demoVideo && values.demoVideo.length > 0 && values.demoVideo[0].originFileObj) {
         formData.append('demoVideo', values.demoVideo[0].originFileObj);
       }
 
@@ -228,13 +237,14 @@ export function InstructorRegistrationPage() {
       } else {
         throw new Error(result.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Lỗi đăng ký:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Đã xảy ra lỗi. Vui lòng thử lại.';
       setNotification({
         isVisible: true,
         type: 'error',
         title: 'Lỗi đăng ký!',
-        message: error.message || 'Đã xảy ra lỗi. Vui lòng thử lại.'
+        message: errorMessage
       });
     } finally {
       setLoading(false);
@@ -242,15 +252,44 @@ export function InstructorRegistrationPage() {
   };
 
   const nextStep = () => {
-    form.validateFields().then(() => {
+    if (currentStep === 2) {
       setCurrentStep(currentStep + 1);
-    }).catch((errorInfo) => {
+      // Reset validate cho các trường bước 3
+      setTimeout(() => {
+        form.setFields([
+          { name: 'avatar', errors: [], touched: false },
+          { name: 'cv', errors: [], touched: false },
+          { name: 'certificates', errors: [], touched: false },
+          { name: 'bio', errors: [], touched: false },
+        ]);
+      }, 0);
+      return;
+    }
+    // Validate các bước trước
+    const currentStepFields = getCurrentStepFields();
+    form.validateFields(currentStepFields).then(() => {
+      setCurrentStep(currentStep + 1);
+    }).catch(() => {
       message.error('Vui lòng điền đầy đủ thông tin bắt buộc!');
     });
   };
 
   const prevStep = () => {
     setCurrentStep(currentStep - 1);
+  };
+
+  // Hàm helper để lấy danh sách field cần validate cho từng bước
+  const getCurrentStepFields = () => {
+    switch (currentStep) {
+      case 1:
+        return ['fullName', 'email', 'phone', 'gender', 'dateOfBirth', 'address', 'password', 'confirmPassword'];
+      case 2:
+        return ['degree', 'institution', 'major', 'graduationYear', 'specializations', 'teachingExperience', 'experienceDescription'];
+      case 3:
+        return ['avatar', 'cv', 'certificates', 'bio'];
+      default:
+        return [];
+    }
   };
 
   const renderStep1 = () => (
@@ -815,7 +854,7 @@ export function InstructorRegistrationPage() {
         type={notification.type}
         title={notification.title}
         message={notification.message}
-        onClose={() => setNotification({ ...notification, isVisible: false })}
+        onComplete={() => setNotification({ ...notification, isVisible: false })}
       />
     </div>
   );

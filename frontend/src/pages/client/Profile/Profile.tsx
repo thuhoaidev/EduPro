@@ -252,7 +252,7 @@ const Profile = () => {
               </motion.div>
 
               {/* Bio Section */}
-              {user?.bio && (
+              {user?.bio && user?.role?.name !== 'instructor' && (
                 <motion.div
                   className="text-center mb-4"
                   initial={{ y: 20, opacity: 0 }}
@@ -315,12 +315,7 @@ const Profile = () => {
                   ) : 'Chưa cập nhật'}</div>
                   <div><b>Kinh nghiệm giảng dạy:</b> {typeof user?.instructorInfo?.experience_years === 'number' ? user.instructorInfo.experience_years : 'Chưa cập nhật'} năm</div>
                   <div><b>Giới thiệu:</b> {user?.instructorInfo?.teaching_experience?.description ? user.instructorInfo.teaching_experience.description : 'Không có mô tả'}</div>
-                  {user?.instructorInfo?.cv_file && (
-                    <div><b>CV:</b> <a href={user.instructorInfo.cv_file} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Xem CV</a></div>
-                  )}
-                  {user?.instructorInfo?.demo_video && (
-                    <div><b>Video demo:</b> <a href={user.instructorInfo.demo_video} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Xem video</a></div>
-                  )}
+                  {/* Ẩn CV và demo video ở card trái nếu là instructor */}
                 </div>
               </motion.div>
             )}

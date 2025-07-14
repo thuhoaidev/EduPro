@@ -23,8 +23,11 @@ router.get('/instructor', auth, requireAuth(['instructor', 'admin']), courseCont
 router.get('/:id', courseController.getCourseById);
 router.get('/slug/:slug', courseController.getCourseBySlug);
 
-// Lấy danh sách chương học và bài học theo khóa học (với quiz)
+// Lấy danh sách chương học và bài học theo khóa học (với quiz) - cho instructor/admin
 router.get('/:course_id/sections', auth, requireAuth(['instructor', 'admin', 'moderator']), sectionController.getSectionsByCourse);
+
+// Lấy nội dung khóa học công khai (cho tất cả mọi người)
+router.get('/:course_id/content', courseController.getCourseSectionsAndLessons);
 
 router.post('/:courseId/enroll', auth, enrollCourse);
 

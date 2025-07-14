@@ -73,6 +73,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error adding to cart:', error);
       if (error.response) {
         console.error('Backend response:', error.response.data);
+        
+        // Hiển thị thông báo lỗi cụ thể từ backend
+        if (error.response.data?.error) {
+          // Sử dụng message từ antd để hiển thị thông báo
+          const { message } = await import('antd');
+          message.error(error.response.data.error);
+        }
       }
       if (error.response?.status === 401) {
         console.log('Token không hợp lệ khi thêm vào giỏ hàng');
