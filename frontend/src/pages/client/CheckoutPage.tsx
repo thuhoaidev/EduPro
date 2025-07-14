@@ -123,27 +123,27 @@ const handleSubmit = async (values: FormValues) => {
 
     // ✅ Nếu chọn MOMO
     if (values.paymentMethod === 'momo') {
-      localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
+  localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
 
-      const { data: res } = await config.post(
-        `/create_momo_payment`,
-        {
-          amount: checkoutData.total,
-          name: values.fullName,
-          email: values.email
-        }
-      );
-
-      window.location.href = res.payUrl;
-      return;
+  const { data: res } = await config.post(
+    `/payment-momo/create_momo_payment`,
+    {
+      amount: checkoutData.total,
+      name: values.fullName,
+      email: values.email
     }
+  );
+
+  window.location.href = res.payUrl;
+  return;
+}
 
     // ✅ Nếu chọn ZaloPay → chuyển thẳng luôn
     if (values.paymentMethod === 'zalopay') {
       localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
 
       const { data: res } = await config.post(
-        `/api/payment-zalo/create_zalopay_payment`,
+        `/payment-zalo/create_zalopay_payment`,
         {
           amount: checkoutData.total,
           name: values.fullName,
