@@ -11,6 +11,7 @@ import { useAuth } from '../../hooks/Auths/useAuth';
 import orderService from '../../services/orderService';
 import axios from 'axios';
 import type { CreateOrderData } from '../../services/orderService';
+import { useCart } from '../../contexts/CartContext';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -51,6 +52,7 @@ const CheckoutPage: React.FC = () => {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState('');
   const { user, token } = useAuth();
+  const { clearCart } = useCart();
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
 
@@ -170,6 +172,7 @@ const handleSubmit = async (values: FormValues) => {
     setOrderId(response.order.id);
     setOrderSuccess(true);
     localStorage.removeItem('checkoutData');
+    clearCart(); // Xóa giỏ hàng ở context sau khi thanh toán thành công
     // Cập nhật lại user sau khi thanh toán
     try {
       const token = localStorage.getItem('token');
