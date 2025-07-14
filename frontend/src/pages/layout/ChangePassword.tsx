@@ -1,19 +1,25 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Form, Input, Button, message, Card, Typography, Divider, Alert } from 'antd';
-import { LockOutlined, SafetyOutlined, EyeInvisibleOutlined, EyeTwoTone, CheckCircleOutlined } from '@ant-design/icons';
+import { LockOutlined, EyeInvisibleOutlined, EyeTwoTone, CheckCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { config } from '../../api/axios';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
+
+interface ChangePasswordForm {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
 
 const ChangePassword: React.FC = () => {
   const navigate = useNavigate();
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<ChangePasswordForm>();
   const [loading, setLoading] = React.useState(false);
   const [passwordStrength, setPasswordStrength] = React.useState(0);
 
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: ChangePasswordForm) => {
     setLoading(true);
     try {
       await config.patch('/auth/change-password', {
@@ -22,17 +28,15 @@ const ChangePassword: React.FC = () => {
       });
       message.success('Mật khẩu đã được thay đổi thành công!');
       navigate('/profile');
-    } catch (error: any) {
-      message.error(
-        error.response?.data?.message || 'Có lỗi xảy ra khi thay đổi mật khẩu'
-      );
+    } catch (error: unknown) {
+      // @ts-expect-error: error có thể là object từ axios với thuộc tính response
+      message.error(error?.response?.data?.message || 'Có lỗi xảy ra khi thay đổi mật khẩu');
     } finally {
       setLoading(false);
     }
   };
 
-  const validatePassword = (_: any, value: string) => {
-    // Lấy email từ localStorage (hoặc thay bằng context nếu cần)
+  const validatePassword = (_: unknown, value: string) => {
     const email = localStorage.getItem('userEmail') || '';
     if (
       value &&
@@ -42,15 +46,13 @@ const ChangePassword: React.FC = () => {
         'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ thường, số và ký tự đặc biệt'
       );
     }
-    // Kiểm tra mật khẩu không chứa email
     if (value && email && value.toLowerCase().includes(email.toLowerCase())) {
       return Promise.reject('Mật khẩu không được chứa thông tin cá nhân (email)');
     }
-    // TODO: Nếu muốn kiểm tra thêm tên người dùng, truyền biến tên vào đây và kiểm tra tương tự
     return Promise.resolve();
   };
 
-  const validateConfirmPassword = (_: any, value: string) => {
+  const validateConfirmPassword = (_: unknown, value: string) => {
     const newPassword = form.getFieldValue('newPassword');
     if (value && value !== newPassword) {
       return Promise.reject('Mật khẩu không khớp');
@@ -104,41 +106,43 @@ const ChangePassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 flex items-center justify-center">
       <motion.div
-        className="max-w-2xl mx-auto px-4"
+        className="w-full max-w-[98vw] md:max-w-[90vw] lg:max-w-[1200px] px-0 md:px-8"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
         <motion.div variants={itemVariants}>
           <Card 
-            className="shadow-xl border-0"
+            className="shadow-2xl border-0 glass-card"
+            style={{ borderRadius: 32, width: '100%' }}
             headStyle={{ 
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
               border: 'none',
-              borderRadius: '8px 8px 0 0'
+              borderRadius: '32px 32px 0 0'
             }}
             title={
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-lg md:text-xl">
                 <LockOutlined />
-                <span>Thông tin mật khẩu</span>
+                <span>Đổi mật khẩu</span>
               </div>
             }
+            bodyStyle={{ padding: '3.5rem 2rem' }}
           >
             <Form
               form={form}
               name="change_password"
               onFinish={onFinish}
               layout="vertical"
-              className="space-y-6"
+              className="space-y-8 w-full"
             >
               <motion.div variants={itemVariants}>
                 <Form.Item
                   name="currentPassword"
                   label={
-                    <Text strong className="text-gray-700">
+                    <Text strong className="text-gray-700 text-base md:text-lg">
                       Mật khẩu hiện tại
                     </Text>
                   }
@@ -150,7 +154,7 @@ const ChangePassword: React.FC = () => {
                     prefix={<LockOutlined className="text-gray-400" />}
                     placeholder="Nhập mật khẩu hiện tại"
                     size="large"
-                    className="!rounded-lg"
+                    className="!rounded-xl !bg-white/80"
                     iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
                   />
                 </Form.Item>
@@ -162,7 +166,7 @@ const ChangePassword: React.FC = () => {
                 <Form.Item
                   name="newPassword"
                   label={
-                    <Text strong className="text-gray-700">
+                    <Text strong className="text-gray-700 text-base md:text-lg">
                       Mật khẩu mới
                     </Text>
                   }
@@ -175,7 +179,7 @@ const ChangePassword: React.FC = () => {
                     prefix={<LockOutlined className="text-gray-400" />}
                     placeholder="Nhập mật khẩu mới"
                     size="large"
-                    className="!rounded-lg"
+                    className="!rounded-xl !bg-white/80"
                     iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
                     onChange={(e) => checkPasswordStrength(e.target.value)}
                   />
@@ -236,7 +240,7 @@ const ChangePassword: React.FC = () => {
                 <Form.Item
                   name="confirmPassword"
                   label={
-                    <Text strong className="text-gray-700">
+                    <Text strong className="text-gray-700 text-base md:text-lg">
                       Xác nhận mật khẩu
                     </Text>
                   }
@@ -250,18 +254,18 @@ const ChangePassword: React.FC = () => {
                     prefix={<LockOutlined className="text-gray-400" />}
                     placeholder="Xác nhận mật khẩu"
                     size="large"
-                    className="!rounded-lg"
+                    className="!rounded-xl !bg-white/80"
                     iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
                   />
                 </Form.Item>
               </motion.div>
 
               <motion.div variants={itemVariants}>
-                <Form.Item className="!mb-0">
-                  <div className="flex gap-4">
+                <Form.Item className="!mb-0 mt-8">
+                  <div className="flex gap-4 justify-end">
                     <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
                       className="flex-1"
                     >
                       <Button 
@@ -269,19 +273,19 @@ const ChangePassword: React.FC = () => {
                         htmlType="submit" 
                         loading={loading}
                         size="large"
-                        className="!h-12 !text-base !font-semibold !rounded-lg"
+                        className="!h-14 !text-lg !font-semibold !rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 border-0 shadow-lg"
                         icon={<CheckCircleOutlined />}
                       >
                         Đổi mật khẩu
                       </Button>
                     </motion.div>
                     <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
                     >
                       <Button 
                         size="large"
-                        className="!h-12 !px-6 !rounded-lg"
+                        className="!h-14 !px-8 !rounded-xl shadow-md"
                         onClick={() => navigate('/profile')}
                       >
                         Hủy bỏ
@@ -299,11 +303,11 @@ const ChangePassword: React.FC = () => {
           variants={itemVariants}
           className="mt-6"
         >
-          <Card className="shadow-lg border-0 bg-gradient-to-r from-green-50 to-emerald-50">
+          <Card className="shadow-lg border-0 glass-card bg-gradient-to-r from-green-50 to-emerald-50">
             <div className="flex items-start gap-3">
               <CheckCircleOutlined style={{ fontSize: 20, color: '#52c41a', marginTop: 2 }} />
               <div>
-                <Text strong className="text-green-800">Lời khuyên bảo mật:</Text>
+                <Text strong className="text-green-800 text-base md:text-lg">Lời khuyên bảo mật:</Text>
                 <ul className="mt-2 text-sm text-green-700 space-y-1">
                   <li>• Sử dụng mật khẩu dài ít nhất 8 ký tự</li>
                   <li>• Kết hợp chữ hoa, chữ thường, số và ký tự đặc biệt</li>
@@ -315,6 +319,14 @@ const ChangePassword: React.FC = () => {
           </Card>
         </motion.div>
       </motion.div>
+      <style>{`
+        .glass-card {
+          background: rgba(255,255,255,0.7);
+          box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
+          backdrop-filter: blur(8px);
+          border-radius: 24px;
+        }
+      `}</style>
     </div>
   );
 };

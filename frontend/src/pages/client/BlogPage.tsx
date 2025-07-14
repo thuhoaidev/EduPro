@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { marked } from 'marked';
+import { Pagination } from 'antd';
 const API_BASE = 'http://localhost:5000/api';
 
 const axiosClient = {
@@ -87,6 +88,8 @@ const BlogPage = () => {
   const [filterType, setFilterType] = useState('all');
   const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
   const [commentLikesCount, setCommentLikesCount] = useState<{ [key: string]: number }>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const blogsPerPage = 6;
 
   const commentEndRef = useRef<HTMLDivElement>(null);
  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -386,6 +389,10 @@ const handleSave = async (blogId: string) => {
     return matchesSearch;
   });
 
+  // Pagination logic
+  const totalBlogs = filteredBlogs.length;
+  const pagedBlogs = filteredBlogs.slice((currentPage - 1) * blogsPerPage, currentPage * blogsPerPage);
+
   if (loading)
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -403,25 +410,25 @@ const extractFirstImageFromContent = (content: string): string | null => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {!selectedBlog ? (
-        <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto px-4 py-12">
           {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+          <div className="text-center mb-14">
+            <h1 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600 drop-shadow-lg mb-4 tracking-tight">
               Blog Community
             </h1>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto font-medium">
               Khám phá những câu chuyện thú vị, chia sẻ kiến thức và kết nối cộng đồng
             </p>
           </div>
 
           {/* Search and Filter */}
-          <div className="flex flex-col md:flex-row gap-4 mb-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+          <div className="flex flex-col md:flex-row gap-4 mb-10 bg-white/80 rounded-3xl p-8 shadow-2xl border border-gray-100 backdrop-blur-md">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-6 h-6" />
               <input
                 type="text"
                 placeholder="Tìm kiếm bài viết..."
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-14 pr-4 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg shadow-sm bg-white/70"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -436,13 +443,13 @@ const extractFirstImageFromContent = (content: string): string | null => {
                 <button
                   key={key}
                   onClick={() => setFilterType(key)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
-                    filterType === key
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold text-base transition-all shadow-sm border-0
+                    ${filterType === key
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg scale-105'
+                      : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'}
+                  `}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-5 h-5" />
                   {label}
                 </button>
               ))}
@@ -450,355 +457,368 @@ const extractFirstImageFromContent = (content: string): string | null => {
           </div>
 
           {/* Blog Grid */}
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-            {filteredBlogs.map((blog) => (
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-10">
+            {pagedBlogs.map((blog, idx) => (
               <div
                 key={blog._id}
-                className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-blue-200 cursor-pointer transform hover:-translate-y-1"
+                className="group bg-white/90 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-blue-200 cursor-pointer transform hover:-translate-y-2"
                 onClick={() => loadDetail(blog._id)}
+                style={{ transitionDelay: `${idx * 40}ms` }}
               >
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="p-7">
+                  <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
-                     <img
-  src={
-    blog.author?.avatar && blog.author.avatar.trim() !== ''
-      ? blog.author.avatar
-      : '/images/default-avatar.png'
-  }
-  alt="avatar"
-  className="w-10 h-10 rounded-full object-cover"
-  onError={handleImageError}
-/>
-
-         <div>
-                        <p className="font-semibold text-gray-800">{blog.author?.fullname || 'Ẩn danh'}</p>
+                      <img
+                        src={blog.author?.avatar && blog.author.avatar.trim() !== '' ? blog.author.avatar : '/images/default-avatar.png'}
+                        alt="avatar"
+                        className="w-12 h-12 rounded-full object-cover border-2 border-blue-100 shadow"
+                        onError={handleImageError}
+                      />
+                      <div>
+                        <p className="font-semibold text-gray-800 text-lg">{blog.author?.fullname || 'Ẩn danh'}</p>
                         <p className="text-sm text-gray-500 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
+                          <Calendar className="w-4 h-4" />
                           {formatDate(blog.createdAt)}
                         </p>
                       </div>
                     </div>
                     <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSave(blog._id);
-                        }}
-                        className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                      >
-                        {savedBlogs.has(blog._id) ? (
-                          <BookmarkCheck className="w-5 h-5 text-blue-600" />
-                        ) : (
-                          <Bookmark className="w-5 h-5 text-gray-400" />
-                        )}
-                      </button>
-
-
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSave(blog._id);
+                      }}
+                      className="p-2 rounded-full hover:bg-blue-50 transition-colors border border-blue-100 shadow-sm"
+                    >
+                      {savedBlogs.has(blog._id) ? (
+                        <BookmarkCheck className="w-6 h-6 text-blue-600" />
+                      ) : (
+                        <Bookmark className="w-6 h-6 text-gray-400" />
+                      )}
+                    </button>
                   </div>
-                  
-                  <h2 className="font-bold text-xl mb-3 line-clamp-2 text-gray-800 group-hover:text-blue-600 transition-colors">
+                  <h2 className="font-bold text-2xl mb-3 line-clamp-2 text-gray-800 group-hover:text-blue-600 transition-colors">
                     {blog.title}
                   </h2>
                   {/* Blog Image */}
                   {(() => {
-  const fallbackImage =
-    blog.image?.trim() !== ''
-      ? blog.image
-      : extractFirstImageFromContent(blog.content) || '/images/no-image.png';
-
-  return (
-    <img
-      src={fallbackImage}
-      alt={blog.title}
-      className="w-full h-48 object-cover rounded-xl"
-      onError={handleImageError}
-    />
-  );
-})()}
-
-                 <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed">
-  {parseMarkdownToText(blog.content)}
-</p>
-                  
+                    const fallbackImage =
+                      blog.image?.trim() !== ''
+                        ? blog.image
+                        : extractFirstImageFromContent(blog.content) || '/images/no-image.png';
+                    return (
+                      <img
+                        src={fallbackImage}
+                        alt={blog.title}
+                        className="w-full h-52 object-cover rounded-2xl mb-4 shadow-sm"
+                        onError={handleImageError}
+                      />
+                    );
+                  })()}
+                  <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed text-base">
+                    {parseMarkdownToText(blog.content)}
+                  </p>
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1 text-red-500 font-medium">
-                      <Heart className="w-4 h-4" />
-                      {blog.likes_count || 0}
-                    </span>
-                    <span className="flex items-center gap-1 text-blue-500 font-medium">
-                      <MessageCircle className="w-4 h-4" />
-                      {blog.comments_count || 0}
-                    </span>
-                    <span className="flex items-center gap-1 text-gray-500">
-                      <Eye className="w-4 h-4" />
-                      {blog.views || 0}
-                    </span>
-                    <span className="flex items-center gap-1 text-green-600">
-                      <BookmarkCheck className="w-4 h-4" />
-                      {blog.saves?.length || 0}
-                    </span>
-
+                    <div className="flex items-center gap-5">
+                      <span className="flex items-center gap-1 text-red-500 font-semibold">
+                        <Heart className="w-5 h-5" />
+                        {blog.likes_count || 0}
+                      </span>
+                      <span className="flex items-center gap-1 text-blue-500 font-semibold">
+                        <MessageCircle className="w-5 h-5" />
+                        {blog.comments_count || 0}
+                      </span>
+                      <span className="flex items-center gap-1 text-gray-500">
+                        <Eye className="w-5 h-5" />
+                        {blog.views || 0}
+                      </span>
+                      <span className="flex items-center gap-1 text-green-600">
+                        <BookmarkCheck className="w-5 h-5" />
+                        {blog.saves?.length || 0}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-yellow-500" />
+                      <span className="text-sm text-gray-500 font-medium">Đọc thêm</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-yellow-500" />
-                    <span className="text-sm text-gray-500">Đọc thêm</span>
-                  </div>
-                </div>
-
                 </div>
               </div>
             ))}
           </div>
+          {/* Pagination */}
+          {totalBlogs > blogsPerPage && (
+            <div className="flex justify-center mt-12">
+              <div className="inline-block px-8 py-5 bg-white/80 rounded-2xl shadow-xl border border-blue-200">
+                <Pagination
+                  current={currentPage}
+                  pageSize={blogsPerPage}
+                  total={totalBlogs}
+                  onChange={page => setCurrentPage(page)}
+                  showSizeChanger={false}
+                />
+              </div>
+            </div>
+          )}
 
           {filteredBlogs.length === 0 && (
-            <div className="text-center py-16">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search className="w-8 h-8 text-gray-400" />
+            <div className="text-center py-20">
+              <div className="w-28 h-28 bg-gradient-to-tr from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Search className="w-10 h-10 text-gray-400" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">Không tìm thấy bài viết</h3>
-              <p className="text-gray-500">Thử tìm kiếm với từ khóa khác hoặc thay đổi bộ lọc</p>
+              <h3 className="text-2xl font-bold text-gray-600 mb-2">Không tìm thấy bài viết</h3>
+              <p className="text-gray-500 text-lg">Thử tìm kiếm với từ khóa khác hoặc thay đổi bộ lọc</p>
             </div>
           )}
         </div>
       ) : (
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="w-full max-w-full mx-auto px-0 md:px-12 py-12">
           {/* Back Button */}
           <button
             onClick={() => setSelectedBlog(null)}
-            className="mb-8 flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-md hover:shadow-lg transition-all text-blue-600 font-medium"
+            className="mb-0 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-2xl shadow-lg hover:scale-105 hover:shadow-xl transition-all font-semibold text-base backdrop-blur-md"
           >
-            <ArrowLeft className="w-5 h-5" />
-            Quay lại
+            <ArrowLeft className="w-5 h-5 mr-1" />
+            Quay lại trang Blog
           </button>
+          <div className="h-8" />
+
+          {/* Blog Cover Image (nếu có) */}
+          {selectedBlog.image && selectedBlog.image.trim() !== '' && (
+            <div className="mb-10">
+              <img
+                src={selectedBlog.image}
+                alt={selectedBlog.title}
+                className="w-full max-h-[380px] object-cover rounded-3xl shadow-xl border-4 border-white/80 bg-gradient-to-br from-blue-50 to-purple-50"
+                style={{ objectPosition: 'center' }}
+              />
+            </div>
+          )}
 
           {/* Article Header */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-8">
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <img
-                  src={selectedBlog.author?.avatar || '/images/default-avatar.png'}
-                  alt="avatar"
-                  className="w-12 h-12 rounded-full object-cover"
-                  onError={handleImageError}
-                />
+          <div className="bg-white/90 rounded-3xl shadow-2xl border border-gray-100 overflow-hidden mb-10 backdrop-blur-md p-0">
+            <div className="p-0 md:p-12">
+              <div className="flex flex-col md:flex-row items-center md:items-start justify-between mb-10 gap-6 md:gap-0">
+                <div className="flex items-center gap-6">
+                  <div className="relative">
+                    <div className="w-20 h-20 md:w-24 md:h-24 rounded-full p-1 bg-gradient-to-tr from-blue-400 to-purple-400 shadow-xl">
+                      <img
+                        src={selectedBlog.author?.avatar || '/images/default-avatar.png'}
+                        alt="avatar"
+                        className="w-full h-full rounded-full border-4 border-white object-cover"
+                        onError={handleImageError}
+                      />
+                    </div>
+                  </div>
                   <div>
-                 <h3 className="font-semibold text-gray-800">
-                  {selectedBlog.author?.fullname || 'Ẩn danh'}
-                </h3>
-                    <p className="text-gray-500 flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
+                    <h3 className="font-extrabold text-2xl md:text-3xl text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-1">
+                      {selectedBlog.author?.fullname || 'Ẩn danh'}
+                    </h3>
+                    <p className="text-gray-500 flex items-center gap-2 text-base font-medium">
+                      <Calendar className="w-5 h-5" />
                       {formatDate(selectedBlog.createdAt)}
                     </p>
                   </div>
                 </div>
-                <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                  <MoreHorizontal className="w-5 h-5 text-gray-400" />
-                </button>
+                {/* Bỏ nút dấu 3 chấm ở góc trên bên phải */}
               </div>
 
-              <h1 className="text-3xl font-bold text-gray-800 mb-6 leading-tight">
+              <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600 mb-10 leading-tight tracking-tight drop-shadow-lg">
                 {selectedBlog.title}
               </h1>
 
-             <div className="prose max-w-none mb-8">
-  <div
-    className="blog-content text-gray-700 leading-relaxed"
-    dangerouslySetInnerHTML={{
-      __html: marked.parse(selectedBlog.content || ''),
-    }}
-  />
-</div>
-<style>
-  {`
-    .blog-content img {
-      width: 100%;
-      max-height: 400px;
-      object-fit: contain;
-      border-radius: 12px;
-      display: block;
-      margin: 1rem 0;
-      background: #f0f0f0; /* nền xám nhạt giúp ảnh nổi bật hơn nếu không đủ chiều cao */
-    }
-  `}
-</style>
+              <div className="prose max-w-none mb-12">
+                <div
+                  className="blog-content text-gray-700 leading-relaxed text-xl md:text-2xl"
+                  dangerouslySetInnerHTML={{
+                    __html: marked.parse(selectedBlog.content || ''),
+                  }}
+                />
+              </div>
+              <style>
+                {`
+                  .blog-content img {
+                    width: 100%;
+                    max-height: 420px;
+                    object-fit: contain;
+                    border-radius: 24px;
+                    display: block;
+                    margin: 2rem 0;
+                    background: #f0f0f0;
+                    box-shadow: 0 8px 32px 0 rgba(80,80,180,0.10);
+                  }
+                  .blog-content blockquote {
+                    border-left: 6px solid #a78bfa;
+                    background: #f8f5ff;
+                    color: #6d28d9;
+                    font-style: italic;
+                    padding: 1rem 1.5rem;
+                    border-radius: 1rem;
+                  }
+                  .blog-content pre {
+                    background: #f3f4f6;
+                    border-radius: 1rem;
+                    padding: 1.2rem;
+                    font-size: 1rem;
+                  }
+                  .blog-content h1, .blog-content h2, .blog-content h3 {
+                    font-weight: bold;
+                    color: #7c3aed;
+                  }
+                `}
+              </style>
 
               {/* Action Buttons */}
-<div className="flex items-center justify-between pt-6 border-t border-gray-100">
-  {/* Left actions: Like & Save */}
-  <div className="flex items-center gap-4">
+              <div className="flex items-center justify-between pt-10 border-t border-gray-100 mt-10">
+                {/* Left actions: Like & Save */}
+                <div className="flex items-center gap-8">
+                  {/* ❤️ Like button */}
+                  <button
+                    onClick={handleLike}
+                    className={`flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-xl transition-all
+                      ${selectedBlog.isLiked
+                        ? 'bg-gradient-to-r from-red-100 to-pink-100 text-red-600 border border-red-200 shadow-lg scale-105'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm'}`}
+                  >
+                    <Heart
+                      className={`w-7 h-7 ${selectedBlog.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`}
+                    />
+                    <span>{selectedBlog.likes_count || selectedBlog.likes || 0}</span>
+                  </button>
 
-    {/* ❤️ Like button */}
-    <button
-      onClick={handleLike}
-      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
-        selectedBlog.isLiked
-          ? 'bg-red-50 text-red-600 border border-red-200'
-          : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-      }`}
-    >
-      <Heart
-        className={`w-5 h-5 ${selectedBlog.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-500'}`}
-      />
-      <span>{selectedBlog.likes_count || selectedBlog.likes || 0}</span>
-    </button>
+                  {/* 💾 Save button */}
+                  <button
+                    onClick={() => handleSave(selectedBlog._id)}
+                    className={`flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-xl transition-all
+                      ${savedBlogs.has(selectedBlog._id)
+                        ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 border border-blue-200 shadow-lg scale-105'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-sm'}`}
+                  >
+                    {savedBlogs.has(selectedBlog._id) ? (
+                      <>
+                        <BookmarkCheck className="w-7 h-7" />
+                        Đã lưu
+                      </>
+                    ) : (
+                      <>
+                        <Bookmark className="w-7 h-7" />
+                        Lưu
+                      </>
+                    )}
+                  </button>
+                </div>
 
-    {/* 💾 Save button */}
-    <button
-      onClick={() => handleSave(selectedBlog._id)}
-      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
-        savedBlogs.has(selectedBlog._id)
-          ? 'bg-blue-50 text-blue-600 border border-blue-200'
-          : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-      }`}
-    >
-      {savedBlogs.has(selectedBlog._id) ? (
-        <>
-          <BookmarkCheck className="w-5 h-5" />
-          Đã lưu
-        </>
-      ) : (
-        <>
-          <Bookmark className="w-5 h-5" />
-          Lưu
-        </>
-      )}
-    </button>
-
-  </div>
-
-  {/* Right: Comment count & Share */}
-  <div className="flex items-center gap-4">
-    <div className="flex items-center gap-2 text-blue-600">
-      <MessageCircle className="w-5 h-5" />
-      <span className="font-medium">{comments.length} bình luận</span>
-    </div>
-  </div>
-</div>
-
+                {/* Right: Comment count & Share */}
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-3 text-blue-600 text-xl font-bold">
+                    <MessageCircle className="w-7 h-7" />
+                    <span>{comments.length} bình luận</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Comment Section */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Bình luận</h2>
-            
+          <div className="bg-white/90 rounded-3xl shadow-2xl border border-gray-100 p-10 backdrop-blur-md">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-8">Bình luận</h2>
             {/* Add Comment */}
-            <div className="mb-8">
+            <div className="mb-10">
               <textarea
-                className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full p-5 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-lg shadow-sm"
                 rows={4}
                 placeholder="Chia sẻ suy nghĩ của bạn..."
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
               />
-              <div className="flex justify-end mt-3">
+              <div className="flex justify-end mt-4">
                 <button
                   onClick={handleComment}
-                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+                  className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl hover:scale-105 hover:shadow-xl transition-all font-semibold text-lg"
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-5 h-5" />
                   Gửi bình luận
                 </button>
               </div>
             </div>
-
             {/* Comments List */}
-            <div className="space-y-6">
-      {comments.map((cmt) => (
-  <div key={cmt._id} className="bg-gray-50 rounded-xl p-6">
-    <div className="flex items-start gap-4">
-      <img
-  src={
-    cmt.author?.avatar && cmt.author.avatar.trim() !== ''
-      ? cmt.author.avatar
-      : '/images/default-avatar.png'
-  }
-  alt="avatar"
-  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-  onError={handleImageError}
-/>
-
-      <div className="flex-1">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="font-semibold text-gray-800">{cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'}</span>
-          <span className="text-sm text-gray-500">{formatDate(cmt.createdAt)}</span>
-        </div>
-        <p className="text-gray-700 mb-3 leading-relaxed">{cmt.content}</p>
-
-        {/* ✅ Like & Reply Buttons */}
-        <div className="flex items-center gap-4">
-          {/* ❤️ Nút thả tim */}
-          <button
-            onClick={() => handleToggleCommentLike(cmt._id)}
-            className={`flex items-center gap-1 ${
-              likedComments.has(cmt._id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
-            } transition-colors`}
-          >
-            <Heart className={`w-4 h-4 ${likedComments.has(cmt._id) ? 'fill-red-500' : ''}`} />
-            <span className="text-sm">{commentLikesCount[cmt._id] || 0}</span>
-          </button>
-
-          {/* 💬 Nút trả lời */}
-          <button
-            onClick={() => setReplyingTo(cmt._id)}
-            className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors"
-          >
-            <Reply className="w-4 h-4" />
-            <span className="text-sm">Trả lời ({cmt.replies?.length || 0})</span>
-          </button>
-        </div>
-
-
+            <div className="space-y-8">
+              {comments.map((cmt) => (
+                <div key={cmt._id} className="bg-gray-50 rounded-2xl p-7">
+                  <div className="flex items-start gap-5">
+                    <img
+                      src={cmt.author?.avatar && cmt.author.avatar.trim() !== '' ? cmt.author.avatar : '/images/default-avatar.png'}
+                      alt="avatar"
+                      className="w-12 h-12 rounded-full object-cover flex-shrink-0 border-2 border-blue-100 shadow"
+                      onError={handleImageError}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="font-semibold text-gray-800 text-lg">{cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'}</span>
+                        <span className="text-base text-gray-500">{formatDate(cmt.createdAt)}</span>
+                      </div>
+                      <p className="text-gray-700 mb-4 leading-relaxed text-base">{cmt.content}</p>
+                      {/* ✅ Like & Reply Buttons */}
+                      <div className="flex items-center gap-6">
+                        {/* ❤️ Nút thả tim */}
+                        <button
+                          onClick={() => handleToggleCommentLike(cmt._id)}
+                          className={`flex items-center gap-1 text-lg font-semibold
+                            ${likedComments.has(cmt._id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'} transition-colors`}
+                        >
+                          <Heart className={`w-5 h-5 ${likedComments.has(cmt._id) ? 'fill-red-500' : ''}`} />
+                          <span>{commentLikesCount[cmt._id] || 0}</span>
+                        </button>
+                        {/* 💬 Nút trả lời */}
+                        <button
+                          onClick={() => setReplyingTo(cmt._id)}
+                          className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors text-lg font-semibold"
+                        >
+                          <Reply className="w-5 h-5" />
+                          <span>Trả lời ({cmt.replies?.length || 0})</span>
+                        </button>
+                      </div>
                       {replyingTo === cmt._id && (
-                        <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200">
+                        <div className="mt-5 p-5 bg-white rounded-2xl border border-gray-200">
                           <textarea
-                            className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base"
                             rows={3}
                             value={replyContent}
                             onChange={(e) => setReplyContent(e.target.value)}
                             placeholder="Nhập phản hồi..."
                           />
-                          <div className="flex justify-end gap-2 mt-3">
+                          <div className="flex justify-end gap-2 mt-4">
                             <button
                               onClick={() => setReplyingTo(null)}
-                              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                              className="px-5 py-2 text-gray-600 hover:text-gray-800 transition-colors text-base"
                             >
                               Hủy
                             </button>
                             <button
                               onClick={handleReply}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                              className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:scale-105 hover:shadow-lg transition-all text-base font-semibold"
                             >
                               Gửi
                             </button>
                           </div>
                         </div>
                       )}
-
                       {cmt.replies?.length > 0 && (
-                        <div className="mt-4 ml-6 space-y-4">
+                        <div className="mt-5 ml-8 space-y-4">
                           {cmt.replies.map((reply: any) => (
                             <div key={reply._id} className="bg-white rounded-xl p-4 border border-gray-200">
                               <div className="flex items-start gap-3">
-                               <img
-  src={
-    reply.author?.avatar && reply.author.avatar.trim() !== ''
-      ? reply.author.avatar
-      : '/images/default-avatar.png'
-  }
-  alt="avatar"
-  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-  onError={handleImageError}
-/>
-
+                                <img
+                                  src={reply.author?.avatar && reply.author.avatar.trim() !== '' ? reply.author.avatar : '/images/default-avatar.png'}
+                                  alt="avatar"
+                                  className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-blue-100 shadow"
+                                  onError={handleImageError}
+                                />
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
-                                    <span className="font-medium text-gray-800">{reply.author?.name}</span>
+                                    <span className="font-medium text-gray-800 text-base">{reply.author?.name}</span>
                                     <span className="text-xs text-gray-500">{formatDate(reply.createdAt)}</span>
                                   </div>
-                                  <p className="text-gray-700 text-sm">{reply.content}</p>
+                                  <p className="text-gray-700 text-base">{reply.content}</p>
                                 </div>
                               </div>
                             </div>
@@ -811,12 +831,11 @@ const extractFirstImageFromContent = (content: string): string | null => {
               ))}
               <div ref={commentEndRef}></div>
             </div>
-
             {comments.length === 0 && (
-              <div className="text-center py-12">
-                <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-600 mb-2">Chưa có bình luận nào</h3>
-                <p className="text-gray-500">Hãy là người đầu tiên chia sẻ suy nghĩ của bạn!</p>
+              <div className="text-center py-16">
+                <MessageCircle className="w-20 h-20 text-gray-300 mx-auto mb-6" />
+                <h3 className="text-2xl font-bold text-gray-600 mb-2">Chưa có bình luận nào</h3>
+                <p className="text-gray-500 text-lg">Hãy là người đầu tiên chia sẻ suy nghĩ của bạn!</p>
               </div>
             )}
           </div>

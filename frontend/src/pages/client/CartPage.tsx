@@ -335,33 +335,34 @@ const CartPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-white to-purple-100">
+      <div className="container mx-auto px-2 md:px-8 py-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
+          className="space-y-8"
         >
           {/* Header Gradient */}
-          <div className="flex items-center justify-between bg-gradient-to-r from-cyan-500 to-purple-500 rounded-2xl shadow-xl p-6 mb-6">
-            <div className="flex items-center gap-4">
-              <ShoppingCartOutlined className="text-4xl text-white drop-shadow-lg" />
-              <Title level={2} className="!mb-0 !text-white drop-shadow-lg">Giỏ hàng</Title>
-              <Badge count={cartItems.length} showZero style={{ background: '#fff', color: '#7c3aed', fontWeight: 700, boxShadow: '0 2px 8px rgba(56,189,248,0.10)' }} />
+          <div className="flex items-center justify-between bg-gradient-to-r from-cyan-500 to-purple-500 rounded-3xl shadow-2xl p-8 mb-10">
+            <div className="flex items-center gap-6">
+              <ShoppingCartOutlined className="text-5xl text-white drop-shadow-lg" />
+              <Title level={2} className="!mb-0 !text-white drop-shadow-lg text-3xl md:text-4xl font-extrabold tracking-tight">Giỏ hàng</Title>
+              <Badge count={cartItems.length} showZero style={{ background: 'white', color: '#7c3aed', fontWeight: 700, boxShadow: '0 2px 8px rgba(56,189,248,0.10)', fontSize: 18, padding: '0 10px', borderRadius: 16 }} />
             </div>
           </div>
 
-          <Row gutter={24}>
+          <Row gutter={32}>
             {/* Cart Items Column */}
             <Col xs={24} lg={16}>
-              <div className="bg-white rounded-2xl shadow-lg p-6">
-                <div className="flex items-center justify-between mb-6 pb-4 border-b">
-                  <Title level={4} className="!mb-0 text-cyan-700">Khóa học trong giỏ</Title>
+              <div className="bg-white/90 rounded-3xl shadow-2xl p-8">
+                <div className="flex items-center justify-between mb-8 pb-4 border-b">
+                  <Title level={4} className="!mb-0 text-cyan-700 font-bold text-xl">Khóa học trong giỏ</Title>
                   <div className="flex items-center gap-4">
                     <Checkbox 
                       checked={selectedItems.length === cartItems.length && cartItems.length > 0}
                       indeterminate={selectedItems.length > 0 && selectedItems.length < cartItems.length}
                       onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="text-lg font-semibold"
                     >
                       Chọn tất cả ({selectedItems.length})
                     </Checkbox>
@@ -377,7 +378,7 @@ const CartPage: React.FC = () => {
                         danger 
                         disabled={selectedItems.length === 0} 
                         icon={<DeleteOutlined />} 
-                        className="transition-all duration-300"
+                        className="transition-all duration-300 rounded-full px-5 py-2 font-semibold text-base"
                       >
                         Xóa mục đã chọn
                       </Button>
@@ -394,7 +395,7 @@ const CartPage: React.FC = () => {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, x: -50, scale: 0.9 }}
                       transition={{ duration: 0.4, ease: "easeInOut" }}
-                      className="grid grid-cols-12 items-center gap-6 mb-6 p-4 rounded-xl hover:shadow-lg hover:bg-cyan-50 transition-all duration-300 border"
+                      className="grid grid-cols-12 items-center gap-8 mb-8 p-5 rounded-2xl hover:shadow-2xl hover:bg-cyan-50 transition-all duration-300 border border-gray-100"
                     >
                       {/* Checkbox & Image */}
                       <div className="col-span-3 flex items-center gap-4">
@@ -406,39 +407,36 @@ const CartPage: React.FC = () => {
                         <img 
                           src={item.course.thumbnail} 
                           alt={item.course.title}
-                          className="w-32 h-20 object-cover rounded-lg shadow-md"
+                          className="w-36 h-24 object-cover rounded-2xl shadow-lg border-2 border-cyan-100"
                         />
                       </div>
-                      
                       {/* Course Info */}
                       <div className="col-span-5">
                         <Link to={`/courses/${item.course.slug}`} className="hover:underline">
-                          <Title level={5} className="!mb-2 !text-gray-800 font-semibold truncate">
+                          <Title level={5} className="!mb-2 !text-gray-800 font-bold truncate text-lg">
                             {item.course.title}
                           </Title>
                         </Link>
-                        <Text type="secondary" className="text-sm">
+                        <Text type="secondary" className="text-base">
                           Bởi {item.course.instructor?.name || 'EduPro'}
                         </Text>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                          <Tag color="yellow">⭐ {item.course.rating}</Tag>
-                          <Tag color="blue">👥 {item.course.students?.toLocaleString()}</Tag>
-                          <Tag color="purple">⏱️ {item.course.duration}</Tag>
+                        <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
+                          <Tag color="yellow" className="rounded-full px-3 py-1 text-base">⭐ {item.course.rating}</Tag>
+                          <Tag color="blue" className="rounded-full px-3 py-1 text-base">👥 {item.course.students?.toLocaleString()}</Tag>
+                          <Tag color="purple" className="rounded-full px-3 py-1 text-base">⏱️ {item.course.duration}</Tag>
                         </div>
                       </div>
-
                       {/* Price */}
                       <div className="col-span-3 text-right">
-                        <Text strong className="text-xl text-red-600 block">
+                        <Text strong className="text-2xl text-red-600 block">
                           {formatCurrency(item.priceAtAddition)}
                         </Text>
                         {item.course.discount && (
-                          <Text delete type="secondary" className="block">
+                          <Text delete type="secondary" className="block text-base">
                             {formatCurrency(item.course.price)}
                           </Text>
                         )}
                       </div>
-                      
                       {/* Actions */}
                       <div className="col-span-1 text-center">
                         <Popconfirm
@@ -451,7 +449,7 @@ const CartPage: React.FC = () => {
                             type="text" 
                             danger 
                             shape="circle" 
-                            icon={<DeleteOutlined className="text-xl" />} 
+                            icon={<DeleteOutlined className="text-2xl" />} 
                             className="hover:bg-red-100 transition-colors"
                           />
                         </Popconfirm>
@@ -461,65 +459,61 @@ const CartPage: React.FC = () => {
                 </AnimatePresence>
               </div>
             </Col>
-            
             {/* Order Summary Column */}
             <Col xs={24} lg={8}>
               <motion.div variants={itemVariants}>
                 <Card 
                   title={
-                    <div className="flex items-center gap-2">
-                      <CreditCardOutlined style={{ color: '#1890ff' }} />
-                      <span>Tóm tắt đơn hàng</span>
+                    <div className="flex items-center gap-3">
+                      <CreditCardOutlined style={{ color: '#1890ff', fontSize: 28 }} />
+                      <span className="font-bold text-lg">Tóm tắt đơn hàng</span>
                     </div>
                   } 
-                  className="shadow-xl border-0 sticky top-24"
+                  className="shadow-2xl border-0 sticky top-24 bg-white/80 rounded-3xl backdrop-blur-md"
                   styles={{
                     header: {
                       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                       color: 'white',
-                      border: 'none'
+                      border: 'none',
+                      borderRadius: '1.5rem 1.5rem 0 0',
+                      fontWeight: 700
                     }
                   }}
                 >
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                      <Text>Tạm tính ({selectedItems.length} khóa học):</Text>
-                      <Text strong className="text-lg">{formatCurrency(subtotal)}</Text>
+                      <Text className="text-base">Tạm tính ({selectedItems.length} khóa học):</Text>
+                      <Text strong className="text-xl">{formatCurrency(subtotal)}</Text>
                     </div>
-                    
                     {discount > 0 && (
                       <motion.div 
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="flex justify-between items-center bg-green-50 p-3 rounded-lg"
+                        className="flex justify-between items-center bg-green-50 p-4 rounded-xl"
                       >
-                        <Text className="text-green-600">Giảm giá:</Text>
-                        <Text strong className="text-green-600 text-lg">-{formatCurrency(discount)}</Text>
+                        <Text className="text-green-600 text-base">Giảm giá:</Text>
+                        <Text strong className="text-green-600 text-xl">-{formatCurrency(discount)}</Text>
                       </motion.div>
                     )}
-                    
                     <Divider className="my-4" />
-                    
                     <div className="flex justify-between items-baseline">
                       <Title level={4} className="!mb-0">Tổng cộng:</Title>
                       <Title level={2} className="!mb-0 text-red-500">{formatCurrency(total)}</Title>
                     </div>
-                    
                     {/* Voucher Section */}
                     <div className="border-t pt-4">
                       <div className="flex items-center gap-2 mb-3">
-                        <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                        <Text strong>Mã giảm giá</Text>
+                        <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 22 }} />
+                        <Text strong className="text-base">Mã giảm giá</Text>
                       </div>
-                      
                       {voucherValidation ? (
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="bg-green-50 p-3 rounded-lg border border-green-200"
+                          className="bg-green-50 p-4 rounded-xl border border-green-200"
                         >
                           <div className="flex items-center justify-between mb-2">
-                            <Text strong className="text-green-600">
+                            <Text strong className="text-green-600 text-lg">
                               {voucherValidation.voucher.code}
                             </Text>
                             <Button 
@@ -531,7 +525,7 @@ const CartPage: React.FC = () => {
                               Xóa
                             </Button>
                           </div>
-                          <Text className="text-sm text-green-600">
+                          <Text className="text-base text-green-600">
                             {voucherValidation.voucher.title}
                           </Text>
                         </motion.div>
@@ -544,25 +538,26 @@ const CartPage: React.FC = () => {
                               onChange={(e) => setVoucher(e.target.value)}
                               onPressEnter={handleApplyVoucher}
                               disabled={isApplyingVoucher}
+                              className="rounded-xl text-base px-4 py-2 shadow-sm"
                             />
                             <Button 
                               type="primary"
                               onClick={handleApplyVoucher}
                               loading={isApplyingVoucher}
                               disabled={!voucher.trim() || selectedItems.length === 0}
+                              className="bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl px-5 py-2 shadow-md border-0 hover:scale-105 hover:shadow-lg transition-all"
                             >
                               Áp dụng
                             </Button>
                           </div>
                           {voucherError && (
-                            <Text type="danger" className="text-sm">
+                            <Text type="danger" className="text-base">
                               {voucherError}
                             </Text>
                           )}
                         </div>
                       )}
                     </div>
-                    
                     <motion.div
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -571,7 +566,7 @@ const CartPage: React.FC = () => {
                         type="primary" 
                         size="large" 
                         block 
-                        className="!h-14 !text-lg !font-semibold"
+                        className="!h-16 !text-xl !font-bold bg-gradient-to-r from-cyan-500 to-purple-500 border-0 shadow-xl rounded-2xl hover:scale-105 hover:shadow-2xl transition-all"
                         icon={<SafetyOutlined />}
                         disabled={selectedItems.length === 0 || isCheckingOut}
                         loading={isCheckingOut}
@@ -580,7 +575,6 @@ const CartPage: React.FC = () => {
                         {isCheckingOut ? 'Đang xử lý...' : 'Tiến hành thanh toán'}
                       </Button>
                     </motion.div>
-                    
                     <Link to="/courses">
                       <motion.div
                         whileHover={{ x: -5 }}
@@ -590,7 +584,7 @@ const CartPage: React.FC = () => {
                           type="link" 
                           block 
                           icon={<ArrowLeftOutlined />}
-                          className="!h-10"
+                          className="!h-12 !text-base font-semibold text-cyan-700 hover:text-purple-700"
                         >
                           Tiếp tục mua sắm
                         </Button>

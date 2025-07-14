@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Button, Modal, List, Avatar, message, Card, List as AntList, Dropdown, Menu } from 'antd';
-import { UserOutlined, TeamOutlined, BookOutlined, DownOutlined, UpOutlined, MessageOutlined, UserDeleteOutlined } from '@ant-design/icons';
-import CourseCard from '../../../components/course/CourseCard';
+import { Button, Modal, List, Avatar, message, Card, List as AntList, Dropdown } from 'antd';
+import { UserOutlined, TeamOutlined, BookOutlined, DownOutlined, UpOutlined, MessageOutlined, UserDeleteOutlined, UserAddOutlined, MoreOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getToken, isTokenValid } from '../../../utils/tokenUtils';
 
@@ -87,7 +86,7 @@ const UserProfile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followers, setFollowers] = useState<User[]>([]);
-  const [following, setFollowing] = useState<User[]>([]);
+  const [following] = useState<User[]>([]);
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -169,7 +168,22 @@ const UserProfile: React.FC = () => {
       await api.post(`/api/users/${user?._id}/follow`);
       setIsFollowing(true);
       setFollowers(prev => [...prev, { ...user!, _id: currentUserId! }]);
-      message.success('Đã theo dõi');
+      message.open({
+        content: (
+          <div className="flex items-center gap-3">
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-blue-400 to-purple-400">
+              <UserAddOutlined className="text-white text-xl" />
+            </span>
+            <div>
+              <div className="font-bold text-base text-blue-700">Đã theo dõi</div>
+              <div className="text-xs text-gray-500">Bạn sẽ nhận được cập nhật mới từ người này.</div>
+            </div>
+          </div>
+        ),
+        duration: 2,
+        className: 'custom-follow-message',
+        style: { boxShadow: '0 4px 24px 0 rgba(80,80,180,0.10)', borderRadius: 16, padding: 12 }
+      });
     } catch (err: unknown) {
       const msg = isAxiosErrorWithMessage(err)
         ? err.response.data.message
@@ -184,20 +198,24 @@ const UserProfile: React.FC = () => {
       await api.delete(`/api/users/${user._id}/follow`);
       setIsFollowing(false);
       setFollowers(prev => prev.filter(u => u._id !== currentUserId));
-      message.success('Đã bỏ theo dõi');
-      window.location.reload(); // Reload lại trang sau khi bỏ theo dõi
+      message.open({
+        content: (
+          <div className="flex items-center gap-3">
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-pink-400 to-purple-400">
+              <UserDeleteOutlined className="text-white text-xl" />
+            </span>
+            <div>
+              <div className="font-bold text-base text-pink-700">Đã bỏ theo dõi</div>
+              <div className="text-xs text-gray-500">Bạn sẽ không nhận được cập nhật mới từ người này.</div>
+            </div>
+          </div>
+        ),
+        duration: 2,
+        className: 'custom-follow-message',
+        style: { boxShadow: '0 4px 24px 0 rgba(180,80,180,0.10)', borderRadius: 16, padding: 12 }
+      });
     } catch {
       message.error('Bỏ theo dõi thất bại');
-    }
-  };
-
-  const fetchFollowing = async () => {
-    try {
-      const res = await api.get(`/api/users/${user?._id}/following`);
-      setFollowing(res.data.data);
-      setShowFollowing(true);
-    } catch {
-      // nothing
     }
   };
 
@@ -208,97 +226,135 @@ const UserProfile: React.FC = () => {
     <div className="w-full max-w-6xl mx-auto px-2 sm:px-6 py-8">
       <div className="flex flex-col md:flex-row gap-8 items-start">
         {/* Left: Thông tin cá nhân */}
-        <div className="md:w-1/3 w-full flex flex-col items-center bg-white rounded-3xl shadow-xl p-6 self-start">
-            {/* Avatar lớn, viền gradient */}
-            <div className="relative mb-4">
-              <div className="w-36 h-36 rounded-full bg-gradient-to-tr from-blue-400 via-purple-400 to-pink-400 p-1 shadow-lg">
-                <Avatar
-                  size={128}
-                  src={user.avatar}
-                  icon={<UserOutlined />}
-                  className="w-full h-full rounded-full border-4 border-white shadow"
-                  style={{ fontSize: 48, background: '#fff' }}
-                >
-                  {user.fullname[0]}
-                </Avatar>
-              </div>
+        <div className="md:w-1/3 w-full flex flex-col items-center bg-white rounded-3xl shadow-2xl p-8 self-start border border-blue-100">
+          {/* Avatar lớn, viền gradient động */}
+          <div className="relative mb-6 group">
+            <div className="w-40 h-40 rounded-full p-1 bg-gradient-to-tr from-blue-400 via-purple-400 to-pink-400 animate-gradient-spin shadow-xl group-hover:scale-105 transition-transform duration-300">
+              <Avatar
+                size={144}
+                src={user.avatar}
+                icon={<UserOutlined />}
+                className="w-full h-full rounded-full border-4 border-white shadow"
+                style={{ fontSize: 56, background: '#fff' }}
+              >
+                {user.fullname[0]}
+              </Avatar>
             </div>
-            <h2 className="text-3xl font-bold mb-1 text-gray-900 text-center">{user.fullname}</h2>
-            {user.nickname && <div className="text-blue-500 text-lg mb-2">@{user.nickname}</div>}
-            <div className="mb-3 text-gray-600 text-center max-w-xl">{user.bio}</div>
-            {/* Social links */}
-            {user.social_links && (user.social_links.facebook || user.social_links.github || user.social_links.website) && (
-              <div className="flex flex-col gap-2 mb-3 w-full items-center">
-                {user.social_links.facebook && (
-                  <a href={user.social_links.facebook} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-base font-medium">
-                    <i className="fab fa-facebook text-xl"></i>
-                    <span>{user.social_links.facebook.replace(/^https?:\/\//, '')}</span>
-                  </a>
-                )}
-                {user.social_links.github && (
-                  <a href={user.social_links.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-800 hover:text-black text-base font-medium">
-                    <i className="fab fa-github text-xl"></i>
-                    <span>{user.social_links.github.replace(/^https?:\/\//, '')}</span>
-                  </a>
-                )}
-                {user.social_links.website && (
-                  <a href={user.social_links.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-purple-700 hover:text-purple-900 text-base font-medium">
-                    <BookOutlined className="text-xl" />
-                    <span>{user.social_links.website.replace(/^https?:\/\//, '')}</span>
-                  </a>
-                )}
-              </div>
-            )}
-            {/* Stats */}
-            <div className="flex gap-8 mb-4 items-center">
-              <button className="flex flex-col items-center" onClick={() => setShowFollowers(true)}>
-                <span className="text-xl font-bold text-blue-600 flex items-center gap-1"><TeamOutlined />{followers.length}</span>
-                <span className="text-xs text-gray-500">Người theo dõi</span>
-              </button>
-              <button className="flex flex-col items-center" onClick={fetchFollowing}>
-                <span className="text-xl font-bold text-green-600 flex items-center gap-1"><TeamOutlined />{user.following_count ?? 0}</span>
-                <span className="text-xs text-gray-500">Đang theo dõi</span>
-              </button>
-              {/* Nút theo dõi/hủy theo dõi và nhắn tin nằm cạnh 2 nút trên */}
-              {isLoggedIn && currentUserId && currentUserId !== user._id && (
-                isFollowing ? (
-                  <Dropdown
-                    overlay={
-                      <Menu>
-                        <Menu.Item
-                          key="message"
-                          icon={<MessageOutlined />}
-                          onClick={() => message.info('Tính năng đang phát triển')}
-                        >
-                          Nhắn tin
-                        </Menu.Item>
-                        <Menu.Item
-                          key="unfollow"
-                          icon={<UserDeleteOutlined />}
-                          onClick={handleUnfollow}
-                          danger
-                        >
-                          Bỏ theo dõi
-                        </Menu.Item>
-                      </Menu>
-                    }
-                    trigger={['click']}
-                  >
-                    <Button shape="round" size="large" className="ml-4">
-                      Tùy chọn <DownOutlined />
-                    </Button>
-                  </Dropdown>
-                ) : (
-                  <Button type="primary" shape="round" size="large" className="ml-4" onClick={handleFollow}>Theo dõi</Button>
-                )
+            {/* Hiệu ứng online */}
+            <span className="absolute bottom-4 right-4 w-5 h-5 bg-green-400 border-4 border-white rounded-full shadow"></span>
+          </div>
+          {/* Tên và nickname */}
+          <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-1 text-center">{user.fullname}</h2>
+          {user.nickname && <div className="text-blue-400 text-lg font-mono mb-2">@{user.nickname}</div>}
+          <div className="mb-3 text-gray-500 text-center text-base font-light max-w-xl">{user.bio}</div>
+          {/* Social links */}
+          {user.social_links && (user.social_links.facebook || user.social_links.github || user.social_links.website) && (
+            <div className="flex gap-4 justify-center mb-4">
+              {user.social_links.facebook && (
+                <a href={user.social_links.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:scale-110 transition-transform text-2xl"><i className="fab fa-facebook"></i></a>
+              )}
+              {user.social_links.github && (
+                <a href={user.social_links.github} target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:scale-110 transition-transform text-2xl"><i className="fab fa-github"></i></a>
+              )}
+              {user.social_links.website && (
+                <a href={user.social_links.website} target="_blank" rel="noopener noreferrer" className="text-purple-700 hover:scale-110 transition-transform text-2xl"><BookOutlined /></a>
               )}
             </div>
+          )}
+          {/* Stats */}
+          <div className="flex gap-8 justify-center mb-6">
+            <div className="flex flex-col items-center bg-blue-50 rounded-xl px-4 py-2 shadow">
+              <TeamOutlined className="text-blue-400 text-2xl mb-1" />
+              <span className="font-bold text-lg text-blue-700">{followers.length}</span>
+              <span className="text-xs text-gray-500">Người theo dõi</span>
+            </div>
+            <div className="flex flex-col items-center bg-green-50 rounded-xl px-4 py-2 shadow">
+              <TeamOutlined className="text-green-400 text-2xl mb-1" />
+              <span className="font-bold text-lg text-green-700">{user.following_count ?? 0}</span>
+              <span className="text-xs text-gray-500">Đang theo dõi</span>
+            </div>
           </div>
+          {/* Nút theo dõi/hủy theo dõi và nhắn tin */}
+          {isLoggedIn && currentUserId && currentUserId !== user._id && (
+            isFollowing ? (
+              <Dropdown
+                overlay={
+                  <motion.ul
+                    initial={{ opacity: 0, y: -12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.22, type: 'spring' }}
+                    className="rounded-2xl shadow-2xl bg-white/70 backdrop-blur-xl p-2 min-w-[220px] relative"
+                    style={{
+                      boxShadow: '0 8px 32px 0 rgba(80,80,180,0.13)',
+                    }}
+                  >
+                    <li
+                      className="flex items-center gap-4 px-5 py-4 rounded-xl font-semibold text-base cursor-pointer transition-all hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 group"
+                      onClick={() => message.info('Tính năng đang phát triển')}
+                    >
+                      <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-blue-100 to-purple-100 group-hover:from-blue-200 group-hover:to-purple-200 transition-all">
+                        <MessageOutlined className="text-2xl bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text" />
+                      </span>
+                      <span className="text-gray-900">Nhắn tin</span>
+                    </li>
+                    <div className="my-1 h-[1px] bg-gradient-to-r from-blue-100 via-purple-100 to-pink-100 opacity-60" />
+                    <li
+                      className="flex items-center gap-4 px-5 py-4 rounded-xl font-semibold text-base cursor-pointer transition-all hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 group"
+                      onClick={handleUnfollow}
+                    >
+                      <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-pink-100 to-purple-100 group-hover:from-pink-200 group-hover:to-purple-200 transition-all">
+                        <UserDeleteOutlined className="text-2xl bg-gradient-to-r from-pink-500 to-red-500 text-transparent bg-clip-text" />
+                      </span>
+                      <span className="text-red-600">Bỏ theo dõi</span>
+                    </li>
+                  </motion.ul>
+                }
+                trigger={['click']}
+                overlayClassName="!p-0 !bg-transparent !border-0"
+              >
+                <Button
+                  shape="round"
+                  size="large"
+                  className="ml-4 px-7 py-2 font-bold bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-xl border-0 hover:scale-105 hover:shadow-2xl transition-all duration-200 flex items-center gap-2"
+                  icon={<MoreOutlined className="text-xl" />}
+                  style={{
+                    background: 'linear-gradient(90deg, #3b82f6 0%, #a78bfa 100%)',
+                    color: '#fff',
+                  }}
+                >
+                  Tùy chọn
+                </Button>
+              </Dropdown>
+            ) : (
+              <Button
+                type="primary"
+                shape="round"
+                size="large"
+                className="ml-4 px-7 py-2 font-bold bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-xl border-0 hover:scale-105 hover:shadow-2xl transition-all duration-200 flex items-center gap-2"
+                icon={<UserAddOutlined className="text-xl" />}
+                onClick={handleFollow}
+                style={{
+                  background: 'linear-gradient(90deg, #ec4899 0%, #a78bfa 100%)',
+                  color: '#fff',
+                }}
+              >
+                Theo dõi
+              </Button>
+            )
+          )}
+        </div>
         {/* Right: Khóa học đã tạo & đã tham gia */}
         <div className="md:w-2/3 w-full flex flex-col gap-10">
-          {createdCourses.length > 0 && (
-            <div>
-              <h3 className="text-xl font-bold mb-4 text-blue-700 flex items-center gap-2"><BookOutlined />Khóa học </h3>
+          {/* Khóa học đã tạo */}
+          <div>
+            <h3 className="text-xl font-bold mb-4 text-blue-700 flex items-center gap-2"><BookOutlined />Khóa học </h3>
+            {createdCourses.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <BookOutlined className="text-5xl text-gray-300 mb-4" />
+                <div className="text-gray-400 text-lg font-medium">Chưa có khóa học nào.</div>
+              </div>
+            ) : (
               <AnimatePresence initial={false}>
                 <motion.div
                   key={showAllCourses ? 'all' : 'short'}
@@ -306,7 +362,7 @@ const UserProfile: React.FC = () => {
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.4, ease: 'easeInOut' }}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
                 >
                   <AnimatePresence initial={false}>
                     {(showAllCourses ? createdCourses : createdCourses.slice(0, 3)).map((course, idx) => (
@@ -316,47 +372,45 @@ const UserProfile: React.FC = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
                         transition={{ duration: 0.3, delay: idx * 0.07 }}
+                        className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 group"
                       >
-                        <CourseCard course={{
-                          ...course,
-                          Image: course.thumbnail || '',
-                          reviews: course.totalReviews ?? 0,
-                          price: course.finalPrice ?? course.price ?? 0,
-                          oldPrice: course.price ?? 0,
-                          isFree: (course.finalPrice ?? course.price ?? 0) === 0,
-                          rating: course.rating ?? 0,
-                          slug: course.slug || course._id,
-                          id: course._id,
-                          subtitle: '',
-                          author: { name: '', avatar: '', bio: '' },
-                          type: '',
-                          duration: '',
-                          lessons: 0,
-                          status: '',
-                          requirements: [],
-                          hasDiscount: false,
-                          language: '',
-                          level: course.level || '',
-                        }} />
+                        <div className="relative">
+                          <img
+                            alt={course.title}
+                            src={course.thumbnail || '/default-course.jpg'}
+                            className="rounded-t-3xl h-40 object-cover group-hover:scale-105 transition-transform duration-300 w-full"
+                          />
+                          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-purple-400"></div>
+                        </div>
+                        <div className="p-5">
+                          <h3 className="font-bold text-lg text-gray-900 mb-1">{course.title}</h3>
+                          <div className="text-sm text-gray-600">Giá: {course.finalPrice ? `${course.finalPrice.toLocaleString()}₫` : 'Miễn phí'}</div>
+                          <div className="text-xs text-gray-500">Đánh giá: {course.rating || 0} ({course.totalReviews || 0} đánh giá)</div>
+                        </div>
                       </motion.div>
                     ))}
                   </AnimatePresence>
                 </motion.div>
               </AnimatePresence>
-              {createdCourses.length > 3 && (
-                <div className="flex justify-center mt-4">
-                  <button
-                    className="px-6 py-2 rounded-full bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 transition flex items-center gap-2 shadow-sm"
-                    onClick={() => setShowAllCourses(v => !v)}
-                  >
-                    {showAllCourses ? 'Thu gọn' : 'Xem thêm'}
-                    {showAllCourses ? <UpOutlined /> : <DownOutlined />}
-                  </button>
-                </div>
-              )}
+            )}
+            {createdCourses.length > 3 && (
+              <div className="flex justify-center mt-4">
+                <button
+                  className="px-6 py-2 rounded-full bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 transition flex items-center gap-2 shadow-sm"
+                  onClick={() => setShowAllCourses(v => !v)}
+                >
+                  {showAllCourses ? 'Thu gọn' : 'Xem thêm'}
+                  {showAllCourses ? <UpOutlined /> : <DownOutlined />}
+                </button>
+              </div>
+            )}
+          </div>
+          {enrolledCourses.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <BookOutlined className="text-5xl text-gray-300 mb-4" />
+              <div className="text-gray-400 text-lg font-medium">Chưa tham gia khóa học nào.</div>
             </div>
-          )}
-          {enrolledCourses.length > 0 && (
+          ) : (
             <div>
               <h3 className="text-xl font-bold mb-4 text-green-700 flex items-center gap-2"><BookOutlined />Khóa học đã tham gia</h3>
               <AntList
