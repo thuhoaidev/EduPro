@@ -83,6 +83,33 @@ interface VoucherData {
   [key: string]: unknown;
 }
 
+interface Instructor {
+  _id: string;
+  fullname?: string;
+  name?: string;
+  avatar?: string;
+  profilePicture?: string;
+  specialty?: string;
+  bio?: string;
+  courseCount?: number;
+  courses?: unknown[];
+  studentCount?: number;
+  students?: number;
+}
+
+interface Blog {
+  _id: string;
+  title: string;
+  summary?: string;
+  content?: string;
+  thumbnail?: string;
+  author?: {
+    fullname?: string;
+    avatar?: string;
+  };
+  createdAt?: string;
+}
+
 // Sửa CustomArrow để không truyền currentSlide, slideCount vào DOM
 const CustomArrow = ({ children, ...rest }: {
   children: React.ReactNode;
@@ -193,6 +220,9 @@ const Homepage = () => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+  // Thêm state cho instructors và blogs
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [blogs, setBlogs] = useState<Blog[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -240,6 +270,26 @@ const Homepage = () => {
           }
         } catch (voucherError) {
           console.error('Error fetching vouchers:', voucherError);
+        }
+        // Fetch instructors
+        try {
+          const res = await fetch('http://localhost:5000/api/users?role=instructor&limit=4');
+          if (res.ok) {
+            const data = await res.json();
+            setInstructors(data.data || []);
+          }
+        } catch (err) {
+          console.error('Error fetching instructors:', err);
+        }
+        // Fetch blogs
+        try {
+          const res = await fetch('http://localhost:5000/api/blogs?sort=popular&limit=4');
+          if (res.ok) {
+            const data = await res.json();
+            setBlogs(data.data || []);
+          }
+        } catch (err) {
+          console.error('Error fetching blogs:', err);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -657,6 +707,65 @@ const Homepage = () => {
           </Button>
           </motion.div>
         </div>
+      </SectionWrapper>
+
+      {/* Instructors Section */}
+      <SectionWrapper className="instructors-section">
+        <div className="section-header">
+          <div className="section-badge">
+            <CrownOutlined className="badge-icon" />
+            <span>Giảng viên tiêu biểu</span>
+          </div>
+          <Title level={2} className="section-title">Đội ngũ giảng viên xuất sắc</Title>
+          <Text className="section-subtitle">Học hỏi từ các chuyên gia hàng đầu</Text>
+        </div>
+        <Row gutter={[24, 24]} className="instructors-grid">
+          {instructors.map((instructor, idx) => (
+            <Col xs={24} sm={12} md={8} lg={6} key={instructor._id || idx}>
+              <Card className="instructor-card" hoverable>
+                <Avatar src={instructor.avatar || instructor.profilePicture || '/public/images/default-avatar.png'} size={80} />
+                <Title level={4} style={{ marginTop: 12 }}>{instructor.fullname || instructor.name}</Title>
+                <Text>{instructor.specialty || instructor.bio || 'Chuyên gia đào tạo'}</Text>
+                <div style={{ marginTop: 8 }}>
+                  <Tag color="blue">Khóa học: {instructor.courseCount || instructor.courses?.length || 0}</Tag>
+                  <Tag color="green">Học viên: {instructor.studentCount || instructor.students || 0}</Tag>
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </SectionWrapper>
+
+      {/* Blogs Section */}
+      <SectionWrapper className="blogs-section">
+        <div className="section-header">
+          <div className="section-badge">
+            <BookOutlined className="badge-icon" />
+            <span>Bài viết nổi bật</span>
+          </div>
+          <Title level={2} className="section-title">Tin tức & Chia sẻ</Title>
+          <Text className="section-subtitle">Cập nhật kiến thức, xu hướng mới nhất</Text>
+        </div>
+        <Row gutter={[24, 24]} className="blogs-grid">
+          {blogs.map((blog, idx) => (
+            <Col xs={24} sm={12} md={8} lg={6} key={blog._id || idx}>
+              <Card
+                className="blog-card"
+                hoverable
+                cover={<img alt={blog.title} src={blog.thumbnail || '/public/images/no-image.png'} style={{ height: 160, objectFit: 'cover' }} />}
+                onClick={() => navigate(`/blogs/${blog._id}`)}
+              >
+                <Title level={4}>{blog.title}</Title>
+                <Paragraph ellipsis={{ rows: 2 }}>{blog.summary || blog.content?.slice(0, 80) || ''}</Paragraph>
+                <div style={{ display: 'flex', alignItems: 'center', marginTop: 8 }}>
+                  <Avatar src={blog.author?.avatar || '/public/images/default-avatar.png'} size={24} />
+                  <span style={{ marginLeft: 8 }}>{blog.author?.fullname || 'Tác giả'}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color: '#888' }}>{blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : ''}</span>
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
       </SectionWrapper>
 
       {/* Testimonials Section */}
