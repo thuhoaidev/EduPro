@@ -16,7 +16,7 @@ const blogLikeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Ngăn không cho 1 user like 1 blog nhiều lần
+// Ngăn không cho 1 user like 1 blog nhiều làn
 blogLikeSchema.index({ blog: 1, user: 1 }, { unique: true });
 
 module.exports = mongoose.model('BlogLike', blogLikeSchema);
