@@ -1,5 +1,7 @@
 const LessonComment = require('../models/LessonComment');
 const ApiError = require('../utils/ApiError');
+const leoProfanity = require('leo-profanity');
+leoProfanity.add(['địt', 'cứt', 'đỵt', 'bòi', 'đít', 'cặc', 'lồn', 'đụ', 'đéo', 'dcm', 'dm', 'dmm', 'vãi', 'rape']);
 
 // Thêm bình luận mới cho bài học
 exports.addComment = async (req, res, next) => {
@@ -8,6 +10,7 @@ exports.addComment = async (req, res, next) => {
     const { content } = req.body;
     const userId = req.user._id;
     if (!content || !content.trim()) throw new ApiError(400, 'Nội dung bình luận không được để trống');
+    if (leoProfanity.check(content)) throw new ApiError(400, 'Bình luận chứa ngôn từ không phù hợp!');
     const comment = await LessonComment.create({ lesson: lessonId, user: userId, content });
     res.status(201).json({ success: true, data: comment });
   } catch (err) { next(err); }
@@ -34,6 +37,7 @@ exports.replyComment = async (req, res, next) => {
     const parentComment = await LessonComment.findById(commentId);
     if (!parentComment) throw new ApiError(404, 'Không tìm thấy bình luận gốc');
     if (!content || !content.trim()) throw new ApiError(400, 'Nội dung trả lời không được để trống');
+    if (leoProfanity.check(content)) throw new ApiError(400, 'Bình luận chứa ngôn từ không phù hợp!');
     const reply = await LessonComment.create({ lesson: parentComment.lesson, user: userId, content, parent: commentId });
     res.status(201).json({ success: true, data: reply });
   } catch (err) { next(err); }

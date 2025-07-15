@@ -64,6 +64,7 @@ import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
 
 import BlogPage from "./pages/client/BlogPage";
 import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
+import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
 
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
 import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
@@ -182,6 +183,7 @@ function App() {
       children: [
         { path: "reports", element: <ReportsPage /> },
         { path: "blogs", element: <BlogModeration /> },
+        { path: "comments", element: <CommentsModerationPage /> },
       ],
     },
     {

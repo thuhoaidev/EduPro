@@ -37,6 +37,7 @@ import {
   SendOutlined,
   UserOutlined
 } from '@ant-design/icons';
+import leoProfanity from 'leo-profanity';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -107,8 +108,13 @@ const MyBlogPosts = () => {
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [newReply, setNewReply] = useState('');
+  const [commentWarning, setCommentWarning] = useState('');
+  const [replyWarning, setReplyWarning] = useState('');
 
   useEffect(() => {
+    leoProfanity.add([
+      'đm', 'dm', 'cc', 'vcl', 'clm', 'cl', 'dcm', 'địt', 'dit', 'lồn', 'lon', 'cặc', 'cu', 'buồi', 'buoi', 'đụ', 'đéo', 'má', 'me', 'mẹ', 'bố', 'bo', 'chim', 'cai', 'cai...', 'thang', 'thang...', 'con', 'con...', 'chó', 'cho', 'cho chet', 'do ngu', 'mặt dày', 'mat day', 'chó chết', 'cho chet', 'ngu', 'fuck', 'shit'
+    ]);
     fetchMyPosts();
   }, [currentPage, statusFilter]);
 
@@ -272,20 +278,23 @@ setComments(data.data || data);
         body: JSON.stringify({ content: newComment.trim() })
       });
 
+      const data = await response.json();
       if (!response.ok) {
-        throw new Error('Failed to add comment');
+        if (data?.message && data.message.includes('ngôn từ không phù hợp')) {
+          message.error('Bình luận của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+        } else {
+          message.error(data?.message || 'Không thể thêm bình luận');
+        }
+        return;
       }
 
       setNewComment('');
       fetchComments(selectedPost._id);
-      
-      // Update comment count in posts list
       setPosts(posts.map(post => 
         post._id === selectedPost._id 
           ? { ...post, comments: post.comments + 1 }
           : post
       ));
-
       message.success('Đã thêm bình luận');
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -295,7 +304,11 @@ setComments(data.data || data);
 
   const handleAddReply = async (commentId: string) => {
     if (!newReply.trim()) {
-      message.error('Vui lòng nhập phản hồi');
+      setReplyWarning('Vui lòng nhập phản hồi');
+      return;
+    }
+    if (leoProfanity.check(newReply)) {
+      setReplyWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
       return;
     }
 
@@ -309,8 +322,14 @@ setComments(data.data || data);
         body: JSON.stringify({ content: newReply.trim() })
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to add reply');
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        if (data?.message && data.message.includes('ngôn từ không phù hợp')) {
+          message.error('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+        } else {
+          message.error(data?.message || 'Không thể thêm phản hồi');
+        }
+        return;
       }
 
       setNewReply('');
@@ -701,14 +720,19 @@ const navigate = useNavigate();
             rows={3}
             placeholder="Viết bình luận của bạn..."
             value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
+            onChange={(e) => {
+              setNewComment(e.target.value);
+              if (leoProfanity.check(e.target.value)) setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+              else setCommentWarning('');
+            }}
             style={{ marginBottom: 12 }}
           />
+          {commentWarning && <div style={{ color: 'red', marginBottom: 8 }}>{commentWarning}</div>}
           <Button 
             type="primary" 
             icon={<SendOutlined />}
             onClick={handleAddComment}
-            disabled={!newComment.trim()}
+            disabled={!newComment.trim() || !!commentWarning}
             style={{ 
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               border: 'none'
@@ -771,16 +795,21 @@ const navigate = useNavigate();
                         rows={2}
                         placeholder="Viết phản hồi..."
                         value={newReply}
-                        onChange={(e) => setNewReply(e.target.value)}
+                        onChange={(e) => {
+                          setNewReply(e.target.value);
+                          if (leoProfanity.check(e.target.value)) setReplyWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+                          else setReplyWarning('');
+                        }}
                         style={{ marginBottom: 8 }}
                       />
+                      {replyWarning && <div style={{ color: 'red', marginBottom: 8 }}>{replyWarning}</div>}
                       <Space>
                         <Button 
                           type="primary" 
                           size="small" 
                           icon={<SendOutlined />}
                           onClick={() => handleAddReply(comment._id)}
-                          disabled={!newReply.trim()}
+                          disabled={!newReply.trim() || !!replyWarning}
                         >
                           Gửi
                         </Button>

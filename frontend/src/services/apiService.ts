@@ -401,37 +401,37 @@ const apiService = {
       return null;
     }
   },
-unlikePost: async (postId: string) => {
-  try {
-    const res = await apiClient.delete(`/blogs/${postId}/like`);
-    return res.data; // trả về { liked, likes_count }
-  } catch (err: any) {
-    console.error(`❌ Lỗi khi bỏ like post ${postId}:`, err.response?.data || err.message);
-    throw err;
-  }
-},
-
-fetchSavedPosts: async () => {
-  try {
-    const res = await apiClient.get('/blogs/saved-posts'); // ❌ bỏ headers thủ công
-    if (res.data?.success === false) {
-      throw new Error(res.data.message || 'Lỗi từ API');
+  unlikePost: async (postId: string) => {
+    try {
+      const res = await apiClient.delete(`/blogs/${postId}/like`);
+      return res.data; // trả về { liked, likes_count }
+    } catch (err: any) {
+      console.error(`❌ Lỗi khi bỏ like post ${postId}:`, err.response?.data || err.message);
+      throw err;
     }
-    return res.data?.data || [];
-  } catch (err: any) {
-    console.error('❌ Lỗi khi lấy bài viết đã lưu:', err.response?.data || err.message);
-    throw err;
-  }
-},
+  },
+
+  fetchSavedPosts: async () => {
+    try {
+      const res = await apiClient.get('/blogs/saved-posts'); // ❌ bỏ headers thủ công
+      if (res.data?.success === false) {
+        throw new Error(res.data.message || 'Lỗi từ API');
+      }
+      return res.data?.data || [];
+    } catch (err: any) {
+      console.error('❌ Lỗi khi lấy bài viết đã lưu:', err.response?.data || err.message);
+      throw err;
+    }
+  },
   likePost: async (postId: string) => {
-  try {
-    const res = await apiClient.post(`/blogs/${postId}/like`);
-    return res.data; // trả về { liked, likes_count }
-  } catch (err: any) {
-    console.error(`❌ Lỗi khi like post ${postId}:`, err.response?.data || err.message);
-    throw err;
-  }
-},
+    try {
+      const res = await apiClient.post(`/blogs/${postId}/like`);
+      return res.data; // trả về { liked, likes_count }
+    } catch (err: any) {
+      console.error(`❌ Lỗi khi like post ${postId}:`, err.response?.data || err.message);
+      throw err;
+    }
+  },
 
 
   unsavePost: async (savedPostId: string) => {
@@ -440,29 +440,26 @@ fetchSavedPosts: async () => {
 
   // src/services/apiService.ts
   toggleSavePost: async (blogId: string) => {
-  return apiClient.post(`/blogs/${blogId}/toggle-save`);
-},
+    return apiClient.post(`/blogs/${blogId}/toggle-save`);
+  },
 
 
   fetchComments: async (postId: string) => {
     const res = await apiClient.get(`/blogs/${postId}/comments`);
     return res.data;
   },
-addComment: async (postId: string, content: string) => {
-  const res = await apiClient.post(`/blogs/${postId}/comment`, { content }); // ✅ sửa lại /comment
-  if (res.data?.success && res.data.data) {
-    return res.data.data;
-  }
-  throw new Error('Không thể thêm bình luận');
-},
+  addComment: async (postId: string, content: string) => {
+    const res = await apiClient.post(`/blogs/${postId}/comment`, { content }); // ✅ sửa lại /comment
+    if (res.data?.success && res.data.data) {
+      return res.data.data;
+    }
+    throw new Error('Không thể thêm bình luận');
+  },
 
   replyToComment: async (commentId: string, content: string) => {
-  const res = await apiClient.post(`/blogs/comment/${commentId}/reply`, { content }); // ✅ đúng route
-  if (res.data?.success && res.data.data) {
-    return res.data.data; // trả về dữ liệu phản hồi
-  }
-  throw new Error('Không thể gửi phản hồi');
-}
+    const res = await apiClient.post(`/blogs/comment/${commentId}/reply`, { content });
+    return res.data; // Trả về toàn bộ response
+  },
 
 };
 

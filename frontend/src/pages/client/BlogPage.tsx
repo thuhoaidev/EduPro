@@ -22,6 +22,9 @@ import {
 import { toast } from 'react-hot-toast';
 import { marked } from 'marked';
 import { Pagination } from 'antd';
+// Nếu dùng TypeScript và gặp lỗi thiếu types cho leo-profanity, thêm khai báo sau vào đầu file hoặc tạo file leo-profanity.d.ts
+// @ts-ignore
+import leoProfanity from 'leo-profanity';
 const API_BASE = 'http://localhost:5000/api';
 
 const axiosClient = {
@@ -90,6 +93,8 @@ const BlogPage = () => {
   const [commentLikesCount, setCommentLikesCount] = useState<{ [key: string]: number }>({});
   const [currentPage, setCurrentPage] = useState(1);
   const blogsPerPage = 6;
+  const [commentWarning, setCommentWarning] = useState('');
+  const [replyWarning, setReplyWarning] = useState('');
 
   const commentEndRef = useRef<HTMLDivElement>(null);
  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -308,19 +313,23 @@ const handleSave = async (blogId: string) => {
 
   const handleComment = async () => {
   if (!newComment.trim()) return;
-
-  if (!selectedBlog || !selectedBlog._id) {
-    console.error('❌ selectedBlog hoặc _id không hợp lệ');
-    return;
-  }
+  if (!selectedBlog || !selectedBlog._id) return;
 
   try {
-    await axiosClient.post(`/blogs/${selectedBlog._id}/comment`, {
+    const res = await axiosClient.post(`/blogs/${selectedBlog._id}/comment`, {
       content: newComment,
     });
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (res.success === false) {
+      if (res.message && res.message.includes('ngôn từ không phù hợp')) {
+        toast.error('Bình luận của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+      } else {
+        toast.error(res.message || 'Không thể gửi bình luận');
+      }
+      return;
+    }
 
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
     setComments([
       ...comments,
       {
@@ -334,17 +343,35 @@ const handleSave = async (blogId: string) => {
     setNewComment('');
     scrollToBottom();
   } catch (error) {
-    console.error('❌ Error when commenting:', error);
+    toast.error('Không thể gửi bình luận');
   }
 };
 
+  const handleCommentInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    console.log('onChange comment:', value, 'profanity:', leoProfanity.check(value));
+    setNewComment(value);
+    if (leoProfanity.check(value)) {
+      setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+    } else {
+      setCommentWarning('');
+    }
+  };
 
   const handleReply = async () => {
     if (!replyContent.trim() || !replyingTo) return;
     try {
-      await axiosClient.post(`/blogs/comment/${replyingTo}/reply`, {
+      const res = await axiosClient.post(`/blogs/comment/${replyingTo}/reply`, {
         content: replyContent,
       });
+      if (res.success === false) {
+        if (res.message && res.message.includes('ngôn từ không phù hợp')) {
+          toast.error('Phản hồi của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+        } else {
+          toast.error(res.message || 'Không thể gửi phản hồi');
+        }
+        return;
+      }
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const newReply = {
         _id: Date.now().toString(),
@@ -361,12 +388,32 @@ const handleSave = async (blogId: string) => {
       setReplyingTo(null);
       scrollToBottom();
     } catch {
-      console.error('Không thể trả lời');
+      toast.error('Không thể gửi phản hồi');
     }
+  };
+
+  const handleReplyInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    console.log('onChange reply:', value, 'profanity:', leoProfanity.check(value));
+    setReplyContent(value);
+    if (leoProfanity.check(value)) {
+      setReplyWarning('⚠️ Phản hồi của bạn chứa ngôn từ không phù hợp!');
+    } else {
+      setReplyWarning('');
+    }
+    console.log('replyWarning:', replyWarning); // Debug giá trị replyWarning
   };
 
   useEffect(() => {
     loadBlogs();
+  }, []);
+
+  useEffect(() => {
+    // Thêm các từ tục tĩu tiếng Việt vào từ điển
+    leoProfanity.add([
+      'đm', 'dm', 'cc', 'vcl', 'clm', 'cl', 'dcm', 'địt', 'dit', 'lồn', 'lon', 'cặc', 'cu', 'buồi', 'buoi', 'đụ', 'đéo', 'má', 'me', 'mẹ', 'bố', 'bo', 'chim', 'cai', 'cai...', 'thang', 'thang...', 'con', 'con...', 'chó', 'cho', 'cho chet', 'do ngu', 'mặt dày', 'mat day', 'chó chết', 'cho chet', 'ngu', 'fuck', 'shit'
+      // ... thêm các từ khác bạn muốn chặn
+    ]);
   }, []);
 
   const formatDate = (date: string) =>
@@ -728,8 +775,11 @@ const extractFirstImageFromContent = (content: string): string | null => {
                 rows={4}
                 placeholder="Chia sẻ suy nghĩ của bạn..."
                 value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
+                onChange={handleCommentInput}
               />
+              {commentWarning && (
+                <div className="text-red-500 text-sm mt-1">{commentWarning}</div>
+              )}
               <div className="flex justify-end mt-4">
                 <button
                   onClick={handleComment}
@@ -770,7 +820,11 @@ const extractFirstImageFromContent = (content: string): string | null => {
                         </button>
                         {/* 💬 Nút trả lời */}
                         <button
-                          onClick={() => setReplyingTo(cmt._id)}
+                          onClick={() => {
+                            setReplyingTo(cmt._id);
+                            setReplyWarning(''); // Reset cảnh báo khi chuyển sang trả lời comment khác
+                            setReplyContent(''); // Reset nội dung trả lời
+                          }}
                           className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors text-lg font-semibold"
                         >
                           <Reply className="w-5 h-5" />
@@ -783,9 +837,12 @@ const extractFirstImageFromContent = (content: string): string | null => {
                             className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base"
                             rows={3}
                             value={replyContent}
-                            onChange={(e) => setReplyContent(e.target.value)}
+                            onChange={handleReplyInput}
                             placeholder="Nhập phản hồi..."
                           />
+                          {replyWarning && (
+                            <div className="text-red-500 text-sm mt-1">{replyWarning}</div>
+                          )}
                           <div className="flex justify-end gap-2 mt-4">
                             <button
                               onClick={() => setReplyingTo(null)}
@@ -796,6 +853,7 @@ const extractFirstImageFromContent = (content: string): string | null => {
                             <button
                               onClick={handleReply}
                               className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:scale-105 hover:shadow-lg transition-all text-base font-semibold"
+                              disabled={!replyContent.trim() || !!replyWarning}
                             >
                               Gửi
                             </button>
