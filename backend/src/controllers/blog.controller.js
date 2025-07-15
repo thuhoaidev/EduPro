@@ -4,7 +4,7 @@ const BlogSave = require('../models/BlogSave');
 const BlogComment = require('../models/BlogComment');
 const BlogLike = require('../models/BlogLike');
 const { uploadBufferToCloudinary } = require('../utils/cloudinary');
-const getUserId = require('../utils/getUserId'); 
+const getUserId = require('../utils/getUserId');
 
 const SENSITIVE_WORDS = [
   'sex', 'địt', 'fuck', 'rape', 'vãi', 'dcm', 'cặc', 'lồn', 'dm', 'dmm',
@@ -53,8 +53,8 @@ const getAllBlogs = async (req, res) => {
     const query = { status: 'approved' };
 
     const blogs = await Blog.find()
-  .populate('author', 'fullname avatar nickname')
-  .sort({ createdAt: -1 });
+      .populate('author', 'fullname avatar nickname')
+      .sort({ createdAt: -1 });
     // === Lấy danh sách blogId mà user đã like
     let likedBlogIds = [];
     if (author) {
@@ -62,7 +62,7 @@ const getAllBlogs = async (req, res) => {
       likedBlogIds = liked.map(item => item.blog.toString());
     }
 
-        const blogsWithExtras = blogs.map(blog => {
+    const blogsWithExtras = blogs.map(blog => {
       const blogObj = blog.toObject();
       return {
         ...blogObj,
@@ -197,7 +197,7 @@ const replyComment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Bình luận chứa từ ngữ không phù hợp.' });
     }
     if (!mongoose.Types.ObjectId.isValid(commentId)) {
-  return res.status(400).json({ success: false, message: 'ID bình luận không hợp lệ.' });
+      return res.status(400).json({ success: false, message: 'ID bình luận không hợp lệ.' });
     }
     const userId = getUserId(req);
     const parentComment = await BlogComment.findById(commentId);
@@ -400,12 +400,20 @@ const approveOrRejectBlog = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Chỉ duyệt blog pending.' });
     }
     if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ success: false, message: 'ID không hợp lệ.' });
+      return res.status(400).json({ success: false, message: 'ID không hợp lệ.' });
     }
     const approverId = getUserId(req);
+    if (status === 'rejected') {
+      // Xóa blog khỏi DB nếu bị từ chối
+      await Blog.findByIdAndDelete(id);
+      await BlogComment.deleteMany({ blog: id });
+      await BlogLike.deleteMany({ blog: id });
+      await BlogSave.deleteMany({ blog: id });
+      return res.json({ success: true, message: 'Đã từ chối và xóa blog.' });
+    }
     blog.status = status;
     blog.approved_by = approverId || null;
-    blog.rejected_reason = status === 'rejected' ? rejected_reason : '';
+    blog.rejected_reason = '';
     await blog.save();
 
     res.json({
