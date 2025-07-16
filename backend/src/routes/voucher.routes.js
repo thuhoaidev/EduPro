@@ -168,24 +168,10 @@ router.get("/available", async (req, res) => {
     const conditionalTypes = ['new-user', 'birthday', 'first-order', 'order-count', 'order-value', 'flash-sale'];
     const result = [];
     for (const v of vouchers) {
-      if (v.code === 'NGUOIMOI') {
-        console.log('---DEBUG VOUCHER NGUOIMOI---');
-        console.log('Voucher:', v);
-        console.log('User:', user);
-      }
       if (conditionalTypes.includes(v.type)) {
         // Voucher điều kiện: chỉ trả về khi có user và user đủ điều kiện
         if (user) {
-          if (v.code === 'NGUOIMOI') {
-            const now = new Date();
-            const userCreatedAt = user.createdAt || user.created_at;
-            const days = Math.floor((now - new Date(userCreatedAt)) / (1000*60*60*24));
-            console.log('Check new-user:', { days, maxAccountAge: v.maxAccountAge, createdAt: userCreatedAt, now });
-          }
           const validation = await isVoucherValidForUser(v, user);
-          if (v.code === 'NGUOIMOI') {
-            console.log('Validation result:', validation);
-          }
           if (validation.valid) {
             result.push({
               id: v._id,
@@ -212,8 +198,8 @@ router.get("/available", async (req, res) => {
         }
         // Nếu không có user thì KHÔNG push voucher điều kiện vào result
       } else {
-        // Voucher default: chỉ hiển thị nếu chưa hết hạn
-        if (!v.endDate || v.endDate > now) {
+        // Voucher default: chỉ hiển thị nếu chưa hết hạn và đã đến thời gian bắt đầu
+        if ((!v.endDate || v.endDate > now) && (!v.startDate || v.startDate <= now)) {
           result.push({
             id: v._id,
             code: v.code,
