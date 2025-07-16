@@ -4,7 +4,7 @@ const BlogSave = require('../models/BlogSave');
 const BlogComment = require('../models/BlogComment');
 const BlogLike = require('../models/BlogLike');
 const { uploadBufferToCloudinary } = require('../utils/cloudinary');
-const getUserId = require('../utils/getUserId'); 
+const getUserId = require('../utils/getUserId');
 
 const SENSITIVE_WORDS = [
   'sex', 'địt', 'fuck', 'rape', 'vãi', 'dcm', 'cặc', 'lồn', 'dm', 'dmm',
@@ -53,8 +53,8 @@ const getAllBlogs = async (req, res) => {
     const query = { status: 'approved' };
 
     const blogs = await Blog.find()
-  .populate('author', 'fullname avatar nickname')
-  .sort({ createdAt: -1 });
+      .populate('author', 'fullname avatar nickname')
+      .sort({ createdAt: -1 });
     // === Lấy danh sách blogId mà user đã like
     let likedBlogIds = [];
     if (author) {
@@ -62,7 +62,7 @@ const getAllBlogs = async (req, res) => {
       likedBlogIds = liked.map(item => item.blog.toString());
     }
 
-        const blogsWithExtras = blogs.map(blog => {
+    const blogsWithExtras = blogs.map(blog => {
       const blogObj = blog.toObject();
       return {
         ...blogObj,
@@ -197,7 +197,7 @@ const replyComment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Bình luận chứa từ ngữ không phù hợp.' });
     }
     if (!mongoose.Types.ObjectId.isValid(commentId)) {
-  return res.status(400).json({ success: false, message: 'ID bình luận không hợp lệ.' });
+      return res.status(400).json({ success: false, message: 'ID bình luận không hợp lệ.' });
     }
     const userId = getUserId(req);
     const parentComment = await BlogComment.findById(commentId);
@@ -340,6 +340,50 @@ const getSavedPosts = async (req, res) => {
     res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }
 };
+// === COMMENT LIKE ===
+const CommentLike = require('../models/CommentLike');
+
+const toggleLikeComment = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { commentId } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+      return res.status(400).json({ success: false, message: 'ID bình luận không hợp lệ.' });
+    }
+
+    const comment = await BlogComment.findById(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bình luận.' });
+    }
+
+    const existed = await CommentLike.findOne({ user: userId, comment: commentId });
+
+    if (existed) {
+      await existed.deleteOne();
+      return res.json({ success: true, liked: false, message: 'Đã bỏ tym.' });
+    } else {
+      await CommentLike.create({ user: userId, comment: commentId });
+      return res.json({ success: true, liked: true, message: 'Đã thả tym.' });
+    }
+  } catch (error) {
+    console.error('❌ Lỗi toggleLikeComment:', error);
+    res.status(500).json({ success: false, message: 'Lỗi xử lý like bình luận', error: error.message });
+  }
+};
+
+const getLikedComments = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const liked = await CommentLike.find({ user: userId }).select('comment');
+    const likedCommentIds = liked.map((item) => item.comment.toString());
+    res.json({ success: true, likedCommentIds });
+  } catch (error) {
+    console.error('❌ Lỗi getLikedComments:', error);
+    res.status(500).json({ success: false, message: 'Lỗi lấy comment đã like', error: error.message });
+  }
+};
+
 
 // === ADMIN ===
 const approveOrRejectBlog = async (req, res) => {
@@ -356,12 +400,20 @@ const approveOrRejectBlog = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Chỉ duyệt blog pending.' });
     }
     if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ success: false, message: 'ID không hợp lệ.' });
+      return res.status(400).json({ success: false, message: 'ID không hợp lệ.' });
     }
     const approverId = getUserId(req);
+    if (status === 'rejected') {
+      // Xóa blog khỏi DB nếu bị từ chối
+      await Blog.findByIdAndDelete(id);
+      await BlogComment.deleteMany({ blog: id });
+      await BlogLike.deleteMany({ blog: id });
+      await BlogSave.deleteMany({ blog: id });
+      return res.json({ success: true, message: 'Đã từ chối và xóa blog.' });
+    }
     blog.status = status;
     blog.approved_by = approverId || null;
-    blog.rejected_reason = status === 'rejected' ? rejected_reason : '';
+    blog.rejected_reason = '';
     await blog.save();
 
     res.json({
@@ -530,5 +582,7 @@ module.exports = {
   updateBlog,
   deleteBlog,
   getMyPosts,
+  toggleLikeComment,
+  getLikedComments,
   publishBlog
 };

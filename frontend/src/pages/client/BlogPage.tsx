@@ -22,6 +22,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { marked } from 'marked';
 import { Pagination } from 'antd';
+import CommentItem from '../../components/CommentItem';
 const API_BASE = 'http://localhost:5000/api';
 
 const axiosClient = {
@@ -131,38 +132,39 @@ const BlogPage = () => {
   }
 };
 
-  const loadDetail = async (id: string) => {
+const loadDetail = async (id: string) => {
   try {
     setLoading(true);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const blog = await axiosClient.get(`/blogs/${id}`);
     const cmts = await axiosClient.get(`/blogs/${id}/comments`);
+
     setSelectedBlog(blog.data);
-// Thêm phần check nếu blog đã lưu thì cập nhật `savedBlogs`
-if (blog.data?.saves?.includes(user._id)) {
-  setSavedBlogs(prev => new Set(prev).add(blog.data._id));
-}
 
-setComments((cmts?.data || []).map((cmt: any) => ({
-  ...cmt,
-  author: {
-    ...cmt.author,
-    name: cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'
-  },
-  replies: (cmt.replies || []).map((r: any) => ({
-    ...r,
-    author: {
-      ...r.author,
-      name: r.author?.name || r.author?.fullname || 'Ẩn danh'
+    if (blog.data?.saves?.includes(user._id)) {
+      setSavedBlogs(prev => new Set(prev).add(blog.data._id));
     }
-  }))
-})));
 
+    const mappedComments = (cmts?.data || []).map((cmt: any) => ({
+      ...cmt,
+      author: {
+        ...cmt.author,
+        name: cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'
+      },
+      replies: (cmt.replies || []).map((r: any) => ({
+        ...r,
+        author: {
+          ...r.author,
+          name: r.author?.name || r.author?.fullname || 'Ẩn danh'
+        }
+      }))
+    }));
 
+    setComments(mappedComments);
 
-const fetchLikesForComments = async () => {
-  for (const cmt of cmts?.data || []) {
-    try {
+    // ✅ Xử lý like cho cả comment và reply
+    const all = flattenComments(mappedComments);
+    for (const cmt of all) {
       const check = await axiosClient.get(`/comment-likes/check/${cmt._id}`);
       const count = await axiosClient.get(`/comment-likes/count/${cmt._id}`);
 
@@ -177,20 +179,15 @@ const fetchLikesForComments = async () => {
         ...prev,
         [cmt._id]: count.count || 0,
       }));
-    } catch (err) {
-      console.error(`❌ Lỗi khi load like comment ${cmt._id}:`, err);
     }
+  } catch {
+    console.error('Lỗi khi tải chi tiết bài viết');
+  } finally {
+    setLoading(false);
   }
 };
-fetchLikesForComments();
 
 
-    } catch {
-      console.error('Lỗi khi tải chi tiết bài viết');
-    } finally {
-      setLoading(false);
-    }
-  };
 
 const handleLike = async () => {
   if (!selectedBlog || !selectedBlog._id) return;
@@ -229,11 +226,29 @@ const handleLike = async () => {
   }
 };
 
+const flattenComments = (comments: any[]): any[] => {
+  let result: any[] = [];
+
+  const traverse = (items: any[]) => {
+    for (const item of items) {
+      result.push(item);
+      if (item.replies && item.replies.length > 0) {
+        traverse(item.replies);
+      }
+    }
+  };
+
+  traverse(comments);
+  return result;
+};
 
 const handleToggleCommentLike = async (commentId: string) => {
   try {
     const res = await axiosClient.post(`/comment-likes/toggle/${commentId}`, {});
     const isLiked = res.liked;
+
+    // 🔁 Reload lại count thực tế từ server
+    const countRes = await axiosClient.get(`/comment-likes/count/${commentId}`);
 
     setLikedComments(prev => {
       const newSet = new Set(prev);
@@ -244,16 +259,59 @@ const handleToggleCommentLike = async (commentId: string) => {
 
     setCommentLikesCount(prev => ({
       ...prev,
-      [commentId]: (prev[commentId] || 0) + (isLiked ? 1 : -1),
+      [commentId]: countRes.count || 0, // dùng giá trị thực tế
     }));
 
-    // ✅ Thêm toast thông báo
     toast.success(isLiked ? '❤️ Đã thích bình luận!' : '❌ Đã bỏ thích bình luận!');
   } catch (err) {
     console.error('❌ Không thể like comment:', err);
     toast.error('⚠️ Có lỗi khi thích/bỏ thích bình luận!');
   }
 };
+const reloadComments = async (blogId: string) => {
+  const cmts = await axiosClient.get(`/blogs/${blogId}/comments`);
+  const mapped = (cmts?.data || []).map((cmt: any) => ({
+    ...cmt,
+    author: {
+      ...cmt.author,
+      name: cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'
+    },
+    replies: (cmt.replies || []).map((r: any) => ({
+      ...r,
+      author: {
+        ...r.author,
+        name: r.author?.name || r.author?.fullname || 'Ẩn danh'
+      }
+    }))
+  }));
+
+  setComments(mapped);
+
+  // ✅ Gộp comment + reply rồi xử lý like
+  const all = flattenComments(mapped);
+  for (const cmt of all) {
+    try {
+      const check = await axiosClient.get(`/comment-likes/check/${cmt._id}`);
+      const count = await axiosClient.get(`/comment-likes/count/${cmt._id}`);
+
+      setLikedComments(prev => {
+        const newSet = new Set(prev);
+        if (check.liked) newSet.add(cmt._id);
+        else newSet.delete(cmt._id);
+        return newSet;
+      });
+
+      setCommentLikesCount(prev => ({
+        ...prev,
+        [cmt._id]: count.count || 0,
+      }));
+    } catch (err) {
+      console.error(`❌ Lỗi khi reload like comment ${cmt._id}:`, err);
+    }
+  }
+};
+
+
 const handleSave = async (blogId: string) => {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -306,32 +364,16 @@ const handleSave = async (blogId: string) => {
   }
 };
 
-  const handleComment = async () => {
-  if (!newComment.trim()) return;
-
-  if (!selectedBlog || !selectedBlog._id) {
-    console.error('❌ selectedBlog hoặc _id không hợp lệ');
-    return;
-  }
+const handleComment = async () => {
+  if (!newComment.trim() || !selectedBlog?._id) return;
 
   try {
     await axiosClient.post(`/blogs/${selectedBlog._id}/comment`, {
       content: newComment,
     });
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-    setComments([
-      ...comments,
-      {
-        _id: Date.now().toString(),
-        content: newComment,
-        author: { name: user.fullname || 'Bạn' },
-        createdAt: new Date().toISOString(),
-        replies: [],
-      },
-    ]);
     setNewComment('');
+    await reloadComments(selectedBlog._id); // tải lại danh sách bình luận thật
     scrollToBottom();
   } catch (error) {
     console.error('❌ Error when commenting:', error);
@@ -339,31 +381,23 @@ const handleSave = async (blogId: string) => {
 };
 
 
-  const handleReply = async () => {
-    if (!replyContent.trim() || !replyingTo) return;
-    try {
-      await axiosClient.post(`/blogs/comment/${replyingTo}/reply`, {
-        content: replyContent,
-      });
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const newReply = {
-        _id: Date.now().toString(),
-        content: replyContent,
-        author: { name: user.fullname || 'Bạn' },
-        createdAt: new Date().toISOString(),
-      };
-      setComments((prev) =>
-        prev.map((c) =>
-          c._id === replyingTo ? { ...c, replies: [...(c.replies || []), newReply] } : c
-        )
-      );
-      setReplyContent('');
-      setReplyingTo(null);
-      scrollToBottom();
-    } catch {
-      console.error('Không thể trả lời');
-    }
-  };
+
+ const handleReply = async () => {
+  if (!replyContent.trim() || !replyingTo || !selectedBlog?._id) return;
+
+  try {
+    await axiosClient.post(`/blogs/comment/${replyingTo}/reply`, {
+      content: replyContent,
+    });
+
+    setReplyContent('');
+    setReplyingTo(null);
+    await reloadComments(selectedBlog._id); // tải lại bình luận thật
+    scrollToBottom();
+  } catch {
+    console.error('Không thể trả lời');
+  }
+};
 
   useEffect(() => {
     loadBlogs();
@@ -743,92 +777,41 @@ const extractFirstImageFromContent = (content: string): string | null => {
             {/* Comments List */}
             <div className="space-y-8">
               {comments.map((cmt) => (
-                <div key={cmt._id} className="bg-gray-50 rounded-2xl p-7">
-                  <div className="flex items-start gap-5">
-                    <img
-                      src={cmt.author?.avatar && cmt.author.avatar.trim() !== '' ? cmt.author.avatar : '/images/default-avatar.png'}
-                      alt="avatar"
-                      className="w-12 h-12 rounded-full object-cover flex-shrink-0 border-2 border-blue-100 shadow"
-                      onError={handleImageError}
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="font-semibold text-gray-800 text-lg">{cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'}</span>
-                        <span className="text-base text-gray-500">{formatDate(cmt.createdAt)}</span>
-                      </div>
-                      <p className="text-gray-700 mb-4 leading-relaxed text-base">{cmt.content}</p>
-                      {/* ✅ Like & Reply Buttons */}
-                      <div className="flex items-center gap-6">
-                        {/* ❤️ Nút thả tim */}
-                        <button
-                          onClick={() => handleToggleCommentLike(cmt._id)}
-                          className={`flex items-center gap-1 text-lg font-semibold
-                            ${likedComments.has(cmt._id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'} transition-colors`}
-                        >
-                          <Heart className={`w-5 h-5 ${likedComments.has(cmt._id) ? 'fill-red-500' : ''}`} />
-                          <span>{commentLikesCount[cmt._id] || 0}</span>
-                        </button>
-                        {/* 💬 Nút trả lời */}
-                        <button
-                          onClick={() => setReplyingTo(cmt._id)}
-                          className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors text-lg font-semibold"
-                        >
-                          <Reply className="w-5 h-5" />
-                          <span>Trả lời ({cmt.replies?.length || 0})</span>
-                        </button>
-                      </div>
-                      {replyingTo === cmt._id && (
-                        <div className="mt-5 p-5 bg-white rounded-2xl border border-gray-200">
-                          <textarea
-                            className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base"
-                            rows={3}
-                            value={replyContent}
-                            onChange={(e) => setReplyContent(e.target.value)}
-                            placeholder="Nhập phản hồi..."
-                          />
-                          <div className="flex justify-end gap-2 mt-4">
-                            <button
-                              onClick={() => setReplyingTo(null)}
-                              className="px-5 py-2 text-gray-600 hover:text-gray-800 transition-colors text-base"
-                            >
-                              Hủy
-                            </button>
-                            <button
-                              onClick={handleReply}
-                              className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:scale-105 hover:shadow-lg transition-all text-base font-semibold"
-                            >
-                              Gửi
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      {cmt.replies?.length > 0 && (
-                        <div className="mt-5 ml-8 space-y-4">
-                          {cmt.replies.map((reply: any) => (
-                            <div key={reply._id} className="bg-white rounded-xl p-4 border border-gray-200">
-                              <div className="flex items-start gap-3">
-                                <img
-                                  src={reply.author?.avatar && reply.author.avatar.trim() !== '' ? reply.author.avatar : '/images/default-avatar.png'}
-                                  alt="avatar"
-                                  className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-blue-100 shadow"
-                                  onError={handleImageError}
-                                />
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="font-medium text-gray-800 text-base">{reply.author?.name}</span>
-                                    <span className="text-xs text-gray-500">{formatDate(reply.createdAt)}</span>
-                                  </div>
-                                  <p className="text-gray-700 text-base">{reply.content}</p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+  <CommentItem
+    key={cmt._id}
+    cmt={cmt}
+    onReply={setReplyingTo}
+    onLike={handleToggleCommentLike}
+    likedComments={likedComments}
+    commentLikesCount={commentLikesCount}
+    handleReplySubmit={async (parentId: string, content: string) => {
+      try {
+        await axiosClient.post(`/blogs/comment/${parentId}/reply`, { content });
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const newReply = {
+          _id: Date.now().toString(),
+          content,
+          author: { name: user.fullname || 'Bạn' },
+          createdAt: new Date().toISOString(),
+          replies: [],
+          likeCount: 0,
+        };
+
+        const insertReply = (comments: any[]): any[] =>
+          comments.map(c =>
+            c._id === parentId
+              ? { ...c, replies: [...(c.replies || []), newReply] }
+              : { ...c, replies: insertReply(c.replies || []) }
+          );
+
+        setComments(prev => insertReply(prev));
+      } catch (e) {
+        console.error('❌ Lỗi khi phản hồi bình luận', e);
+      }
+    }}
+  />
+))}
+
               <div ref={commentEndRef}></div>
             </div>
             {comments.length === 0 && (
