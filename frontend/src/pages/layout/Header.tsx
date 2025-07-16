@@ -32,6 +32,7 @@ import AccountTypeModal from '../../components/common/AccountTypeModal';
 import { useCart } from '../../contexts/CartContext';
 import { courseService } from '../../services/apiService';
 import './Header.css';
+import { io } from 'socket.io-client';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
@@ -76,53 +77,55 @@ const AppHeader = () => {
     message: ''
   });
 
-  // Mock notifications data
-  const [notifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'success',
-      title: 'Khóa học mới',
-      message: 'Khóa học ReactJS từ cơ bản đến nâng cao đã được phát hành',
-      time: '5 phút trước',
-      isRead: false,
-      link: '/courses'
-    },
-    {
-      id: '2',
-      type: 'warning',
-      title: 'Cập nhật hệ thống',
-      message: 'Hệ thống sẽ bảo trì từ 2:00 - 4:00 sáng ngày mai',
-      time: '1 giờ trước',
-      isRead: false
-    },
-    {
-      id: '3',
-      type: 'info',
-      title: 'Thông báo từ giảng viên',
-      message: 'Giảng viên Nguyễn Văn An đã trả lời câu hỏi của bạn',
-      time: '2 giờ trước',
-      isRead: true,
-      link: '/profile'
-    },
-    {
-      id: '4',
-      type: 'success',
-      title: 'Thanh toán thành công',
-      message: 'Bạn đã mua thành công khóa học Node.js với giá 450,000đ',
-      time: '1 ngày trước',
-      isRead: true,
-      link: '/courses'
-    },
-    {
-      id: '5',
-      type: 'info',
-      title: 'Nhắc nhở học tập',
-      message: 'Bạn có 3 bài học chưa hoàn thành trong tuần này',
-      time: '2 ngày trước',
-      isRead: true,
-      link: '/profile'
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+
+  useEffect(() => {
+    setLoadingNotifications(true);
+    const token = localStorage.getItem('token');
+    fetch('/api/notifications', {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    })
+      .then(res => res.json())
+      .then(data => setNotifications(
+        (data.data || []).map(notification => ({
+          id: notification._id || notification.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.content,
+          time: notification.created_at ? new Date(notification.created_at).toLocaleString() : '',
+          isRead: notification.status === 'read',
+          link: notification.meta?.link
+        }))
+      ))
+      .finally(() => setLoadingNotifications(false));
+
+    // --- SOCKET.IO REALTIME ---
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user._id) {
+      const socket = io('http://localhost:5000');
+      socket.emit('join', user._id);
+      socket.on('new-notification', (notification: any) => {
+        console.log('Nhận notification realtime:', notification);
+        const mapped = {
+          id: notification._id || notification.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.content,
+          time: notification.created_at ? new Date(notification.created_at).toLocaleString() : '',
+          isRead: notification.status === 'read',
+          link: notification.meta?.link
+        };
+        setNotifications(prev => [mapped, ...prev]);
+      });
+      return () => {
+        socket.off('new-notification');
+        socket.disconnect();
+      };
     }
-  ]);
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -151,6 +154,18 @@ const AppHeader = () => {
   };
 
   const handleNotificationClick = (notification: Notification) => {
+    const token = localStorage.getItem('token');
+    // Đánh dấu đã đọc trên backend
+    fetch(`/api/notifications/${notification.id}/read`, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    // Đánh dấu đã đọc trên frontend
+    setNotifications(prev =>
+      prev.map(n =>
+        n.id === notification.id ? { ...n, isRead: true } : n
+      )
+    );
     if (notification.link) {
       navigate(notification.link);
     }
@@ -338,7 +353,15 @@ const AppHeader = () => {
         styles={{ body: { padding: 0, maxHeight: 400, overflowY: 'auto' } }}
       >
         <AnimatePresence>
-          {notifications.length > 0 ? (
+          {loadingNotifications ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="loading-notifications"
+            >
+              <Spin />
+            </motion.div>
+          ) : notifications.length > 0 ? (
             <List
               itemLayout="horizontal"
               dataSource={notifications}

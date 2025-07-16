@@ -67,7 +67,25 @@ app.use((req, res) => {
 });
 
 // Khởi động server
-const server = app.listen(PORT, () => {
+
+const http = require('http');
+const socketio = require('socket.io');
+const httpServer = http.createServer(app);
+const io = socketio(httpServer, {
+  cors: {
+    origin: 'http://localhost:5173',
+    credentials: true
+  }
+});
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  socket.on('join', (userId) => {
+    if (userId) socket.join(userId);
+  });
+});
+
+httpServer.listen(PORT, () => {
   console.log(`Server đang chạy trên port ${PORT}`);
 });
 

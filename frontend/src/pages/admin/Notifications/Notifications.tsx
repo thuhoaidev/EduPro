@@ -17,46 +17,14 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   EyeOutlined,
+  ExclamationCircleOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 import type { Notification } from "../../../interfaces/Admin.interface";
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const { Search } = Input;
-
-// Dữ liệu giả lập cục bộ (mock data) - Adjusted mock data
-let notifications: Notification[] = [
-  {
-    id: 1,
-    title: "Thông báo khóa học mới",
-    content: "Một khóa học mới về React vừa được đăng tải.",
-    status: "unread",
-    createdAt: "2025-05-22T10:00:00Z",
-    userId: 1,
-  },
-  {
-    id: 2,
-    title: "Có phản hồi về bài viết của bạn",
-    content: "Bài viết 'Hướng dẫn TypeScript' của bạn vừa nhận được một bình luận mới.",
-    status: "read",
-    createdAt: "2025-05-21T09:00:00Z",
-    userId: 1,
-  },
-   {
-    id: 3,
-    title: "Khóa học đã được duyệt",
-    content: "Khóa học 'Node.js cơ bản' của bạn đã được phê duyệt và đăng tải.",
-    status: "read",
-    createdAt: "2025-05-20T14:30:00Z",
-    userId: 1,
-  },
-   {
-    id: 4,
-    title: "Báo cáo vi phạm mới",
-    content: "Có một báo cáo mới về nội dung vi phạm.",
-    status: "unread",
-    createdAt: "2025-05-22T11:15:00Z",
-    userId: 1,
-  },
-];
 
 // Mock API: fetch notifications theo page, limit, searchText
 const fetchNotifications = async (
@@ -64,8 +32,25 @@ const fetchNotifications = async (
   limit: number,
   search: string
 ): Promise<{ data: Notification[]; total: number }> => {
-  let filtered = notifications;
-
+  const token = localStorage.getItem('token');
+  const res = await axios.get('/api/notifications', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  // Map dữ liệu từ backend sang frontend
+  const data = res.data.data.map((n: any) => ({
+    id: n._id,
+    title: n.title,
+    content: n.content,
+    status: n.status,
+    createdAt: n.created_at,
+    type: n.type,
+    icon: n.icon,
+    meta: n.meta,
+    userId: n.receiver,
+    notifyTime: n.created_at,
+  }));
+  // Có thể filter/search phía client nếu cần
+  let filtered = data;
   if (search) {
     filtered = filtered.filter(
       (n) =>
@@ -73,38 +58,79 @@ const fetchNotifications = async (
         n.content.toLowerCase().includes(search.toLowerCase())
     );
   }
-
   const total = filtered.length;
   const start = (page - 1) * limit;
-  const data = filtered.slice(start, start + limit);
-
-  // Giả lập độ trễ mạng
-  return new Promise((resolve) =>
-    setTimeout(() => resolve({ data, total }), 300)
-  );
+  const paged = filtered.slice(start, start + limit);
+  return { data: paged, total };
 };
 
 // Mock API: mark notification đã đọc
-const markAsRead = async (id: number): Promise<void> => {
-  notifications = notifications.map((n) =>
-    n.id === id ? { ...n, status: "read" } : n
-  );
-  return new Promise((resolve) => setTimeout(resolve, 200));
+const markAsRead = async (id: string): Promise<void> => {
+  const token = localStorage.getItem('token');
+  await axios.patch(`/api/notifications/${id}/read`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+
+// Hàm lấy icon theo type hoặc icon backend
+const getIcon = (type: string, icon?: string) => {
+  if (icon) {
+    // Có thể dùng icon backend nếu dùng thư viện icon động
+    return <span className="text-xl mr-2">{icon}</span>;
+  }
+  switch (type) {
+    case 'success': return <CheckCircleOutlined className="text-green-500 text-xl mr-2" />;
+    case 'warning': return <ExclamationCircleOutlined className="text-yellow-500 text-xl mr-2" />;
+    case 'info': return <InfoCircleOutlined className="text-blue-500 text-xl mr-2" />;
+    default: return <InfoCircleOutlined className="text-gray-400 text-xl mr-2" />;
+  }
+};
+// Hàm lấy màu tag theo type
+const getTagColor = (type: string) => {
+  switch (type) {
+    case 'success': return 'green';
+    case 'warning': return 'orange';
+    case 'info': return 'blue';
+    default: return 'default';
+  }
+};
+// Hàm lấy nhãn type
+const getTypeLabel = (type: string) => {
+  switch (type) {
+    case 'success': return 'Thành công';
+    case 'warning': return 'Cảnh báo';
+    case 'info': return 'Thông tin';
+    default: return 'Khác';
+  }
 };
 
 const NotificationsPage = () => {
-  const [data, setData] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [limit] = useState(8); // Increased limit
   const [searchText, setSearchText] = useState("");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    fetch('/api/notifications', {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    })
+      .then(res => res.json())
+      .then(data => setNotifications(data.data || []))
+      .finally(() => setLoading(false));
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const res = await fetchNotifications(page, limit, searchText);
-      setData(res.data);
+      setNotifications(res.data); // Update notifications state
       setTotal(res.total);
     } catch (error: any) { // Use error: any to satisfy linter
       console.error(error); // Log error if needed
@@ -118,7 +144,7 @@ const NotificationsPage = () => {
     loadData();
   }, [page, searchText]);
 
-  const handleMarkAsRead = async (id: number) => {
+  const handleMarkAsRead = async (id: string) => {
     setLoading(true);
     try {
       await markAsRead(id);
@@ -132,12 +158,10 @@ const NotificationsPage = () => {
     }
   };
 
-   // Calculate statistics
-   const stats = {
-    totalNotifications: notifications.length,
-    read: notifications.filter(n => n.status === 'read').length,
-    unread: notifications.filter(n => n.status === 'unread').length,
-  };
+  // Thay vào đó, tính toán số lượng từ data thật:
+  const unreadCount = notifications.filter(n => n.status === 'unread').length;
+  const readCount = notifications.filter(n => n.status === 'read').length;
+  const totalNotifications = notifications.length;
 
   const columns: ColumnsType<Notification> = [
     {
@@ -151,12 +175,17 @@ const NotificationsPage = () => {
       dataIndex: "title",
       key: "title",
       render: (text, record) => (
-        <Space direction="vertical" size={0} className="py-2">
-          <span className="font-medium text-gray-800">{text}</span>
+        <Space direction="vertical" size={0} className="py-2 cursor-pointer" onClick={() => {
+          if (record.meta?.link) navigate(record.meta.link);
+        }}>
+          <span className="font-medium text-gray-800 flex items-center">
+            {getIcon(record.type, record.icon)}{text}
+            <Tag color={getTagColor(record.type)} className="ml-2">{getTypeLabel(record.type)}</Tag>
+          </span>
           <small className="text-gray-600">{record.content}</small>
         </Space>
       ),
-       className: "w-auto",
+      className: "w-auto",
     },
     {
       title: "Trạng thái",
@@ -169,7 +198,7 @@ const NotificationsPage = () => {
       ),
       width: 100,
       align: "center",
-       className: "text-gray-600 text-sm"
+      className: "text-gray-600 text-sm"
     },
     {
       title: "Ngày tạo",
@@ -202,7 +231,15 @@ const NotificationsPage = () => {
       {/* Header Section */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Quản lý Thông báo</h2>
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+            Quản lý Thông báo
+            {/* Badge số chưa đọc */}
+            {unreadCount > 0 && (
+              <span className="ml-3 bg-orange-500 text-white rounded-full px-2 py-0.5 text-xs font-semibold">
+                {unreadCount}
+              </span>
+            )}
+          </h2>
           <p className="text-gray-500 mt-1">Xem và quản lý các thông báo hệ thống</p>
         </div>
       </div>
@@ -213,7 +250,7 @@ const NotificationsPage = () => {
           <Card className="shadow-sm hover:shadow-md transition-shadow">
             <Statistic
               title="Tổng số thông báo"
-              value={stats.totalNotifications}
+              value={totalNotifications}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -223,7 +260,7 @@ const NotificationsPage = () => {
           <Card className="shadow-sm hover:shadow-md transition-shadow">
             <Statistic
               title="Chưa đọc"
-              value={stats.unread}
+              value={unreadCount}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
@@ -233,7 +270,7 @@ const NotificationsPage = () => {
           <Card className="shadow-sm hover:shadow-md transition-shadow">
             <Statistic
               title="Đã đọc"
-              value={stats.read}
+              value={readCount}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -258,7 +295,7 @@ const NotificationsPage = () => {
 
         <Table
           columns={columns}
-          dataSource={data}
+          dataSource={notifications}
           rowKey="id"
           loading={loading}
           pagination={{

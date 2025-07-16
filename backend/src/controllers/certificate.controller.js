@@ -3,6 +3,7 @@ const Enrollment = require('../models/Enrollment');
 const Course = require('../models/Course');
 const ApiError = require('../utils/ApiError');
 const crypto = require('crypto');
+const Notification = require('../models/Notification');
 
 // Cấp chứng chỉ khi hoàn thành khóa học
 exports.issueCertificate = async (req, res, next) => {
@@ -22,6 +23,19 @@ exports.issueCertificate = async (req, res, next) => {
     // Tạo mã chứng chỉ duy nhất
     const code = crypto.randomBytes(8).toString('hex').toUpperCase();
     cert = await Certificate.create({ user: userId, course: courseId, code });
+    // Gửi thông báo cho user
+    const notification = await Notification.create({
+      title: 'Chúc mừng bạn nhận được chứng chỉ!',
+      content: 'Bạn đã hoàn thành khóa học và nhận được chứng chỉ. Hãy kiểm tra hồ sơ của bạn.',
+      type: 'success',
+      receiver: userId,
+      icon: 'award',
+      meta: { link: `/certificates/${cert._id}` }
+    });
+    const io = req.app.get && req.app.get('io');
+    if (io && notification.receiver) {
+      io.to(notification.receiver.toString()).emit('new-notification', notification);
+    }
     res.status(201).json({ success: true, data: cert });
   } catch (err) { next(err); }
 };

@@ -7,6 +7,7 @@ const { uploadBufferToCloudinary } = require('../utils/cloudinary');
 const getUserId = require('../utils/getUserId');
 const leoProfanity = require('leo-profanity');
 leoProfanity.add(['địt', 'cặc', 'lồn', 'đụ', 'đéo', 'dcm', 'dm', 'dmm', 'vãi', 'rape']);
+const Notification = require('../models/Notification');
 
 // === BLOG ===
 const createBlog = async (req, res) => {
@@ -31,6 +32,19 @@ const createBlog = async (req, res) => {
     });
 
     await blog.save();
+    // Gửi thông báo global khi có bài viết mới
+    const notification = await Notification.create({
+      title: 'Bài viết mới',
+      content: `Bài viết "${blog.title}" đã được đăng tải và chờ duyệt.`,
+      type: 'info',
+      is_global: true,
+      icon: 'file-text',
+      meta: { link: `/blogs/${blog._id}` }
+    });
+    const io = req.app.get && req.app.get('io');
+    if (io) {
+      io.emit('new-notification', notification); // emit global
+    }
     res.status(201).json({ success: true, message: 'Bài viết đã gửi và chờ duyệt.', data: blog });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi tạo blog', error: error.message });
