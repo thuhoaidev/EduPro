@@ -3,6 +3,11 @@ const router = express.Router();
 const Voucher = require("../models/Voucher");
 const VoucherUsage = require("../models/VoucherUsage");
 const { auth } = require("../middlewares/auth");
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // Helper function để kiểm tra voucher có hợp lệ không
 const isVoucherValid = (voucher) => {
@@ -86,9 +91,9 @@ const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
     }
   }
   if (voucher.type === 'flash-sale') {
-    // Chỉ hiển thị trong khung giờ 0h-1h sáng giờ Việt Nam (UTC+7) mỗi ngày
-    const nowVN = new Date(now.getTime() + 7 * 60 * 60 * 1000); // Giờ VN
-    const hour = nowVN.getHours();
+    // Sử dụng dayjs để lấy giờ Việt Nam chính xác
+    const nowVN = dayjs().tz('Asia/Ho_Chi_Minh');
+    const hour = nowVN.hour();
     if (hour < 0 || hour >= 1) {
       console.log('DEBUG flash-sale: ngoài khung giờ 0h-1h VN', { hour });
       return { valid: false, reason: "Chỉ áp dụng từ 0h đến 1h sáng mỗi ngày" };
