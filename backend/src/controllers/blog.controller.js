@@ -5,18 +5,8 @@ const BlogComment = require('../models/BlogComment');
 const BlogLike = require('../models/BlogLike');
 const { uploadBufferToCloudinary } = require('../utils/cloudinary');
 const getUserId = require('../utils/getUserId');
-
-const SENSITIVE_WORDS = [
-  'sex', 'địt', 'fuck', 'rape', 'vãi', 'dcm', 'cặc', 'lồn', 'dm', 'dmm',
-  'đụ', 'đéo', 'shit', 'bitch', 'asshole', 'pussy', 'faggot', 'nigger',
-  'nigga', 'motherfucker', 'cunt'
-];
-
-function containsSensitiveWords(text) {
-  if (!text) return false;
-  const lower = text.toLowerCase();
-  return SENSITIVE_WORDS.some(word => lower.includes(word));
-}
+const leoProfanity = require('leo-profanity');
+leoProfanity.add(['địt', 'cặc', 'lồn', 'đụ', 'đéo', 'dcm', 'dm', 'dmm', 'vãi', 'rape']);
 
 // === BLOG ===
 const createBlog = async (req, res) => {
@@ -37,7 +27,7 @@ const createBlog = async (req, res) => {
       category,
       status: status || 'pending',
       author,
-      approved_by: author
+      approved_by: author,
     });
 
     await blog.save();
@@ -68,7 +58,7 @@ const getAllBlogs = async (req, res) => {
         ...blogObj,
         isLiked: likedBlogIds.includes(blog._id.toString()),
         isSaved: blog.saves?.some(id => id.toString() === author?.toString()),
-        save_count: blog.saves?.length || 0
+        save_count: blog.saves?.length || 0,
       };
     });
 
@@ -106,7 +96,7 @@ const getMyPosts = async (req, res) => {
         ...blog,
         isLiked: likedBlogIds.includes(blog._id.toString()),
         likes_count: blog.likes_count || 0,
-        comments_count: blog.comments_count || 0
+        comments_count: blog.comments_count || 0,
       };
     });
 
@@ -142,7 +132,7 @@ const toggleLikeBlog = async (req, res) => {
         success: true,
         liked: false,
         message: 'Đã bỏ thả tim.',
-        likes_count: blog.likes_count
+        likes_count: blog.likes_count,
       });
     } else {
       await BlogLike.create({ blog: blogObjectId, user: userObjectId });
@@ -152,7 +142,7 @@ const toggleLikeBlog = async (req, res) => {
         success: true,
         liked: true,
         message: 'Đã thả tim.',
-        likes_count: blog.likes_count
+        likes_count: blog.likes_count,
       });
     }
 
@@ -172,8 +162,8 @@ const commentBlog = async (req, res) => {
       return res.status(400).json({ success: false, message: 'ID bài viết không hợp lệ.' });
     }
 
-    if (containsSensitiveWords(content)) {
-      return res.status(400).json({ success: false, message: 'Bình luận chứa từ ngữ không phù hợp.' });
+    if (leoProfanity.check(content)) {
+      return res.status(400).json({ success: false, message: 'Bình luận chứa ngôn từ không phù hợp!' });
     }
 
     const userId = getUserId(req);
@@ -193,8 +183,8 @@ const replyComment = async (req, res) => {
   try {
     const { commentId } = req.params;
     const { content } = req.body;
-    if (containsSensitiveWords(content)) {
-      return res.status(400).json({ success: false, message: 'Bình luận chứa từ ngữ không phù hợp.' });
+    if (leoProfanity.check(content)) {
+      return res.status(400).json({ success: false, message: 'Bình luận chứa ngôn từ không phù hợp!' });
     }
     if (!mongoose.Types.ObjectId.isValid(commentId)) {
       return res.status(400).json({ success: false, message: 'ID bình luận không hợp lệ.' });
@@ -419,7 +409,7 @@ const approveOrRejectBlog = async (req, res) => {
     res.json({
       success: true,
       message: `Đã cập nhật trạng thái: ${status}`,
-      data: blog
+      data: blog,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi duyệt blog', error: error.message });

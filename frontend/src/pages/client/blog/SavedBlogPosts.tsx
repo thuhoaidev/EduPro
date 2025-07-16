@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import { Comment } from '@ant-design/compatible';
 import { apiService } from '../../../services/apiService';
+import leoProfanity from 'leo-profanity';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -71,10 +72,17 @@ const SavedBlogPosts = () => {
   const [replyInput, setReplyInput] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [activeCommentBlogId, setActiveCommentBlogId] = useState<string | null>(null);
+  const [replyWarning, setReplyWarning] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchSavedPosts();
+  }, []);
+
+  useEffect(() => {
+    leoProfanity.add([
+      'đm', 'dm', 'cc', 'vcl', 'clm', 'cl', 'dcm', 'địt', 'dit', 'lồn', 'lon', 'cặc', 'cu', 'buồi', 'buoi', 'đụ', 'đéo', 'má', 'me', 'mẹ', 'bố', 'bo', 'chim', 'cai', 'cai...', 'thang', 'thang...', 'con', 'con...', 'chó', 'cho', 'cho chet', 'do ngu', 'mặt dày', 'mat day', 'chó chết', 'cho chet', 'ngu', 'fuck', 'shit'
+    ]);
   }, []);
 
 const fetchSavedPosts = async () => {
@@ -116,17 +124,32 @@ validPosts.forEach(item => {
 
 const handleReplyComment = async (blogId: string, parentCommentId: string) => {
   const content = replyInput[parentCommentId]?.trim();
-  if (!content) return;
+  if (!content) {
+    setReplyWarning('Vui lòng nhập phản hồi');
+    return;
+  }
+  if (leoProfanity.check(content)) {
+    setReplyWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+    return;
+  }
 
   try {
-    const reply = await apiService.replyToComment(parentCommentId, content); // ✅ sửa ở đây
+    const reply = await apiService.replyToComment(parentCommentId, content);
+    if (!reply || reply.success === false) {
+      if (reply?.message && reply.message.includes('ngôn từ không phù hợp')) {
+        message.error('Phản hồi của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+      } else {
+        message.error(reply?.message || 'Không thể gửi phản hồi');
+      }
+      return;
+    }
     setComments(prev => ({
       ...prev,
       [blogId]: prev[blogId].map(comment =>
         comment._id === parentCommentId
           ? {
               ...comment,
-              replies: [reply, ...(comment.replies || [])]
+              replies: [reply.data, ...(comment.replies || [])]
             }
           : comment
       )
@@ -134,9 +157,13 @@ const handleReplyComment = async (blogId: string, parentCommentId: string) => {
     setReplyInput(prev => ({ ...prev, [parentCommentId]: '' }));
     setReplyingTo(null);
     message.success('Đã gửi phản hồi');
-  } catch (err) {
-    console.error('❌ Lỗi gửi phản hồi:', err);
-    message.error('Không thể gửi phản hồi');
+  } catch (err: any) {
+    if (err?.response?.data?.message && err.response.data.message.includes('ngôn từ không phù hợp')) {
+      message.error('Phản hồi của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+    } else {
+      console.error('❌ Lỗi gửi phản hồi:', err);
+      message.error('Không thể gửi phản hồi');
+    }
   }
 };
 
@@ -272,12 +299,15 @@ const handleAddComment = async (blogId: string) => {
                     placeholder="Nhập phản hồi..."
                     rows={2}
                     value={replyInput[item._id] || ''}
-                    onChange={(e) =>
-                      setReplyInput((prev) => ({ ...prev, [item._id]: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      setReplyInput((prev) => ({ ...prev, [item._id]: e.target.value }));
+                      if (leoProfanity.check(e.target.value)) setReplyWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+                      else setReplyWarning('');
+                    }}
                   />
+                  {replyWarning && <div style={{ color: 'red', marginBottom: 8 }}>{replyWarning}</div>}
                   <div style={{ marginTop: 8 }}>
-                    <Button type="primary" onClick={() => handleReplyComment(blogId, item._id)}>
+                    <Button type="primary" onClick={() => handleReplyComment(blogId, item._id)} disabled={!replyInput[item._id]?.trim() || !!replyWarning}>
                       Gửi phản hồi
                     </Button>
                     <Button style={{ marginLeft: 8 }} onClick={() => setReplyingTo(null)}>

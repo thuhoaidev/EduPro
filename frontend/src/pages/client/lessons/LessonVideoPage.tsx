@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import useAuth from '../../../hooks/Auths/useAuth';
+import leoProfanity from 'leo-profanity';
 dayjs.extend(relativeTime);
 
 const { Title, Paragraph, Text } = Typography;
@@ -54,6 +55,7 @@ const LessonVideoPage: React.FC = () => {
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
+  const [commentWarning, setCommentWarning] = useState('');
 
   // Debounce function để tránh gọi API liên tục
   const debouncedUpdateProgress = useCallback((courseId: string, lessonId: string, time: number, duration: number) => {
@@ -333,14 +335,26 @@ const LessonVideoPage: React.FC = () => {
   const handleComment = async () => {
     if (!newComment.trim() || !lessonId) return;
     try {
-      await addComment(lessonId, newComment);
+      const res = await addComment(lessonId, newComment);
+      if (res && res.success === false) {
+        if (res.message && res.message.includes('ngôn từ không phù hợp')) {
+          message.error('Bình luận của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+        } else {
+          message.error(res.message || 'Không thể gửi bình luận');
+        }
+        return;
+      }
       setNewComment('');
       // Reload comments
       const commentsData = await getComments(lessonId);
       setComments(commentsData || []);
       message.success('Đã gửi bình luận!');
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Không gửi được bình luận.');
+    } catch (e: any) {
+      if (e?.response?.data?.message && e.response.data.message.includes('ngôn từ không phù hợp')) {
+        message.error('Bình luận của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+      } else {
+        message.error(e instanceof Error ? e.message : 'Không gửi được bình luận.');
+      }
     }
   };
 
@@ -390,6 +404,11 @@ const LessonVideoPage: React.FC = () => {
   // Định nghĩa điều kiện hiển thị quiz: chỉ cần có quiz hoặc đã từng nộp bài
   const shouldShowQuiz = !!quiz && videoProgress >= 0.9;
 
+  useEffect(() => {
+    leoProfanity.add([
+      'đm', 'dm', 'cc', 'vcl', 'clm', 'cl', 'dcm', 'địt', 'dit', 'lồn', 'lon', 'cặc', 'cu', 'buồi', 'buoi', 'đụ', 'đéo', 'má', 'me', 'mẹ', 'bố', 'bo', 'chim', 'cai', 'cai...', 'thang', 'thang...', 'con', 'con...', 'chó', 'cho', 'cho chet', 'do ngu', 'mặt dày', 'mat day', 'chó chết', 'cho chet', 'ngu', 'fuck', 'shit'
+    ]);
+  }, []);
 
   if (loading) return <div className="flex justify-center items-center min-h-screen"><Spin size="large" /></div>;
   if (error) return <Alert message="Lỗi" description={error} type="error" showIcon />;
@@ -519,12 +538,17 @@ const LessonVideoPage: React.FC = () => {
                   <TextArea
                     rows={3}
                     value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
+                    onChange={(e) => {
+                      setNewComment(e.target.value);
+                      if (leoProfanity.check(e.target.value)) setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+                      else setCommentWarning('');
+                    }}
                     placeholder="Viết bình luận của bạn..."
                   />
+                  {commentWarning && <div style={{ color: 'red', marginBottom: 8 }}>{commentWarning}</div>}
                 </Col>
                 <Col>
-                  <Button type="primary" icon={<SendOutlined />} onClick={handleComment} style={{ height: '100%' }}>
+                  <Button type="primary" icon={<SendOutlined />} onClick={handleComment} style={{ height: '100%' }} disabled={!newComment.trim() || !!commentWarning}>
                     Gửi
                   </Button>
                 </Col>

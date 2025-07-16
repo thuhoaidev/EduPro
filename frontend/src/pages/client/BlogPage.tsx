@@ -22,7 +22,9 @@ import {
 import { toast } from 'react-hot-toast';
 import { marked } from 'marked';
 import { Pagination } from 'antd';
-import CommentItem from '../../components/CommentItem';
+// Nếu dùng TypeScript và gặp lỗi thiếu types cho leo-profanity, thêm khai báo sau vào đầu file hoặc tạo file leo-profanity.d.ts
+// @ts-ignore
+import leoProfanity from 'leo-profanity';
 const API_BASE = 'http://localhost:5000/api';
 
 const axiosClient = {
@@ -91,6 +93,8 @@ const BlogPage = () => {
   const [commentLikesCount, setCommentLikesCount] = useState<{ [key: string]: number }>({});
   const [currentPage, setCurrentPage] = useState(1);
   const blogsPerPage = 6;
+  const [commentWarning, setCommentWarning] = useState('');
+  const [replyWarning, setReplyWarning] = useState('');
 
   const commentEndRef = useRef<HTMLDivElement>(null);
  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -364,43 +368,110 @@ const handleSave = async (blogId: string) => {
   }
 };
 
-const handleComment = async () => {
-  if (!newComment.trim() || !selectedBlog?._id) return;
+  const handleComment = async () => {
+  if (!newComment.trim()) return;
+  if (!selectedBlog || !selectedBlog._id) return;
 
   try {
-    await axiosClient.post(`/blogs/${selectedBlog._id}/comment`, {
+    const res = await axiosClient.post(`/blogs/${selectedBlog._id}/comment`, {
       content: newComment,
     });
 
+    if (res.success === false) {
+      if (res.message && res.message.includes('ngôn từ không phù hợp')) {
+        toast.error('Bình luận của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+      } else {
+        toast.error(res.message || 'Không thể gửi bình luận');
+      }
+      return;
+    }
+
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    setComments([
+      ...comments,
+      {
+        _id: Date.now().toString(),
+        content: newComment,
+        author: { name: user.fullname || 'Bạn' },
+        createdAt: new Date().toISOString(),
+        replies: [],
+      },
+    ]);
     setNewComment('');
     await reloadComments(selectedBlog._id); // tải lại danh sách bình luận thật
     scrollToBottom();
   } catch (error) {
-    console.error('❌ Error when commenting:', error);
+    toast.error('Không thể gửi bình luận');
   }
 };
 
+  const handleCommentInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    console.log('onChange comment:', value, 'profanity:', leoProfanity.check(value));
+    setNewComment(value);
+    if (leoProfanity.check(value)) {
+      setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+    } else {
+      setCommentWarning('');
+    }
+  };
 
-
- const handleReply = async () => {
-  if (!replyContent.trim() || !replyingTo || !selectedBlog?._id) return;
-
+  const handleReply = async () => {
+  if (!replyContent.trim() || !replyingTo) return;
   try {
-    await axiosClient.post(`/blogs/comment/${replyingTo}/reply`, {
+    const res = await axiosClient.post(`/blogs/comment/${replyingTo}/reply`, {
       content: replyContent,
     });
-
+    if (res.success === false) {
+      if (res.message && res.message.includes('ngôn từ không phù hợp')) {
+        toast.error('Phản hồi của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+      } else {
+        toast.error(res.message || 'Không thể gửi phản hồi');
+      }
+      return;
+    }
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const newReply = {
+      _id: Date.now().toString(),
+      content: replyContent,
+      author: { name: user.fullname || 'Bạn' },
+      createdAt: new Date().toISOString(),
+    };
+    setComments((prev) =>
+      prev.map((c) =>
+        c._id === replyingTo ? { ...c, replies: [...(c.replies || []), newReply] } : c
+      )
+    );
     setReplyContent('');
     setReplyingTo(null);
-    await reloadComments(selectedBlog._id); // tải lại bình luận thật
     scrollToBottom();
   } catch {
-    console.error('Không thể trả lời');
+    toast.error('Không thể gửi phản hồi');
   }
 };
+
+  const handleReplyInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    console.log('onChange reply:', value, 'profanity:', leoProfanity.check(value));
+    setReplyContent(value);
+    if (leoProfanity.check(value)) {
+      setReplyWarning('⚠️ Phản hồi của bạn chứa ngôn từ không phù hợp!');
+    } else {
+      setReplyWarning('');
+    }
+    console.log('replyWarning:', replyWarning); // Debug giá trị replyWarning
+  };
 
   useEffect(() => {
     loadBlogs();
+  }, []);
+
+  useEffect(() => {
+    // Thêm các từ tục tĩu tiếng Việt vào từ điển
+    leoProfanity.add([
+      'đm', 'dm', 'cc', 'vcl', 'clm', 'cl', 'dcm', 'địt', 'dit', 'lồn', 'lon', 'cặc', 'cu', 'buồi', 'buoi', 'đụ', 'đéo', 'má', 'me', 'mẹ', 'bố', 'bo', 'chim', 'cai', 'cai...', 'thang', 'thang...', 'con', 'con...', 'chó', 'cho', 'cho chet', 'do ngu', 'mặt dày', 'mat day', 'chó chết', 'cho chet', 'ngu', 'fuck', 'shit'
+      // ... thêm các từ khác bạn muốn chặn
+    ]);
   }, []);
 
   const formatDate = (date: string) =>
@@ -762,8 +833,11 @@ const extractFirstImageFromContent = (content: string): string | null => {
                 rows={4}
                 placeholder="Chia sẻ suy nghĩ của bạn..."
                 value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
+                onChange={handleCommentInput}
               />
+              {commentWarning && (
+                <div className="text-red-500 text-sm mt-1">{commentWarning}</div>
+              )}
               <div className="flex justify-end mt-4">
                 <button
                   onClick={handleComment}
@@ -777,41 +851,100 @@ const extractFirstImageFromContent = (content: string): string | null => {
             {/* Comments List */}
             <div className="space-y-8">
               {comments.map((cmt) => (
-  <CommentItem
-    key={cmt._id}
-    cmt={cmt}
-    onReply={setReplyingTo}
-    onLike={handleToggleCommentLike}
-    likedComments={likedComments}
-    commentLikesCount={commentLikesCount}
-    handleReplySubmit={async (parentId: string, content: string) => {
-      try {
-        await axiosClient.post(`/blogs/comment/${parentId}/reply`, { content });
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const newReply = {
-          _id: Date.now().toString(),
-          content,
-          author: { name: user.fullname || 'Bạn' },
-          createdAt: new Date().toISOString(),
-          replies: [],
-          likeCount: 0,
-        };
-
-        const insertReply = (comments: any[]): any[] =>
-          comments.map(c =>
-            c._id === parentId
-              ? { ...c, replies: [...(c.replies || []), newReply] }
-              : { ...c, replies: insertReply(c.replies || []) }
-          );
-
-        setComments(prev => insertReply(prev));
-      } catch (e) {
-        console.error('❌ Lỗi khi phản hồi bình luận', e);
-      }
-    }}
-  />
+  <div key={cmt._id} className="bg-gray-50 rounded-2xl p-7">
+    <div className="flex items-start gap-5">
+      <img
+        src={cmt.author?.avatar && cmt.author.avatar.trim() !== '' ? cmt.author.avatar : '/images/default-avatar.png'}
+        alt="avatar"
+        className="w-12 h-12 rounded-full object-cover flex-shrink-0 border-2 border-blue-100 shadow"
+        onError={handleImageError}
+      />
+      <div className="flex-1">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="font-semibold text-gray-800 text-lg">{cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'}</span>
+          <span className="text-base text-gray-500">{formatDate(cmt.createdAt)}</span>
+        </div>
+        <p className="text-gray-700 mb-4 leading-relaxed text-base">{cmt.content}</p>
+        {/* ✅ Like & Reply Buttons */}
+        <div className="flex items-center gap-6">
+          {/* ❤️ Nút thả tim */}
+          <button
+            onClick={() => handleToggleCommentLike(cmt._id)}
+            className={`flex items-center gap-1 text-lg font-semibold
+              ${likedComments.has(cmt._id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'} transition-colors`}
+          >
+            <Heart className={`w-5 h-5 ${likedComments.has(cmt._id) ? 'fill-red-500' : ''}`} />
+            <span>{commentLikesCount[cmt._id] || 0}</span>
+          </button>
+          {/* 💬 Nút trả lời */}
+          <button
+            onClick={() => {
+              setReplyingTo(cmt._id);
+              setReplyWarning(''); // Reset cảnh báo khi chuyển sang trả lời comment khác
+              setReplyContent(''); // Reset nội dung trả lời
+            }}
+            className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors text-lg font-semibold"
+          >
+            <Reply className="w-5 h-5" />
+            <span>Trả lời ({cmt.replies?.length || 0})</span>
+          </button>
+        </div>
+        {replyingTo === cmt._id && (
+          <div className="mt-5 p-5 bg-white rounded-2xl border border-gray-200">
+            <textarea
+              className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base"
+              rows={3}
+              value={replyContent}
+              onChange={handleReplyInput}
+              placeholder="Nhập phản hồi..."
+            />
+            {replyWarning && (
+              <div className="text-red-500 text-sm mt-1">{replyWarning}</div>
+            )}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setReplyingTo(null)}
+                className="px-5 py-2 text-gray-600 hover:text-gray-800 transition-colors text-base"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleReply}
+                className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:scale-105 hover:shadow-lg transition-all text-base font-semibold"
+                disabled={!replyContent.trim() || !!replyWarning}
+              >
+                Gửi
+              </button>
+            </div>
+          </div>
+        )}
+        {cmt.replies?.length > 0 && (
+          <div className="mt-5 ml-8 space-y-4">
+            {cmt.replies.map((reply: any) => (
+              <div key={reply._id} className="bg-white rounded-xl p-4 border border-gray-200">
+                <div className="flex items-start gap-3">
+                  <img
+                    src={reply.author?.avatar && reply.author.avatar.trim() !== '' ? reply.author.avatar : '/images/default-avatar.png'}
+                    alt="avatar"
+                    className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-blue-100 shadow"
+                    onError={handleImageError}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-medium text-gray-800 text-base">{reply.author?.name}</span>
+                      <span className="text-xs text-gray-500">{formatDate(reply.createdAt)}</span>
+                    </div>
+                    <p className="text-gray-700 text-base">{reply.content}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
 ))}
-
               <div ref={commentEndRef}></div>
             </div>
             {comments.length === 0 && (

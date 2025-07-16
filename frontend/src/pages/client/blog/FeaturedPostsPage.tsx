@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Eye, Clock, Share2, ChevronDown, Send, ThumbsUp } from 'lucide-react';
+import { message } from 'antd'; // Added message import
+import leoProfanity from 'leo-profanity';
 
 const FeaturedBlogPage = () => {
   const [blogs, setBlogs] = useState([]);
@@ -9,6 +11,8 @@ const FeaturedBlogPage = () => {
   const [replyText, setReplyText] = useState('');
   const [activeReply, setActiveReply] = useState(null);
   const [comments, setComments] = useState([]);
+  const [commentWarning, setCommentWarning] = useState('');
+  const [replyWarning, setReplyWarning] = useState('');
 
   // Mock data - replace with real API calls
   const mockBlogs = [
@@ -112,6 +116,12 @@ const FeaturedBlogPage = () => {
     }, 1000);
   }, []);
 
+  useEffect(() => {
+    leoProfanity.add([
+      'đm', 'dm', 'cc', 'vcl', 'clm', 'cl', 'dcm', 'địt', 'dit', 'lồn', 'lon', 'cặc', 'cu', 'buồi', 'buoi', 'đụ', 'đéo', 'má', 'me', 'mẹ', 'bố', 'bo', 'chim', 'cai', 'cai...', 'thang', 'thang...', 'con', 'con...', 'chó', 'cho', 'cho chet', 'do ngu', 'mặt dày', 'mat day', 'chó chết', 'cho chet', 'ngu', 'fuck', 'shit'
+    ]);
+  }, []);
+
   const handleLike = async (blogId) => {
     try {
       const blog = blogs.find(b => b.id === blogId);
@@ -151,6 +161,7 @@ const FeaturedBlogPage = () => {
       
       setComments([...comments, newComment]);
       setCommentText('');
+      setCommentWarning('');
       
       // Real API call would be:
       // await fetch(`http://localhost:5000/api/blogs/${blogId}/comment`, {
@@ -164,9 +175,29 @@ const FeaturedBlogPage = () => {
   };
 
   const handleReply = async (commentId) => {
-    if (!replyText.trim()) return;
-    
+    if (!replyText.trim()) {
+      setReplyWarning('Vui lòng nhập phản hồi');
+      return;
+    }
+    if (leoProfanity.check(replyText)) {
+      setReplyWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+      return;
+    }
     try {
+      const response = await fetch(`http://localhost:5000/api/blogs/comment/${commentId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ content: replyText })
+      });
+      const data = await response.json();
+      if (!response.ok || data.success === false) {
+        if (data?.message && data.message.includes('ngôn từ không phù hợp')) {
+          message.error('Phản hồi của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+        } else {
+          message.error(data?.message || 'Không thể gửi phản hồi');
+        }
+        return;
+      }
       const newReply = {
         id: Date.now().toString(),
         content: replyText,
@@ -177,7 +208,6 @@ const FeaturedBlogPage = () => {
         createdAt: new Date().toISOString(),
         likes: 0
       };
-      
       setComments(comments.map(comment => 
         comment.id === commentId 
           ? { ...comment, replies: [...comment.replies, newReply] }
@@ -185,15 +215,9 @@ const FeaturedBlogPage = () => {
       ));
       setReplyText('');
       setActiveReply(null);
-      
-      // Real API call would be:
-      // await fetch(`http://localhost:5000/api/blogs/comment/${commentId}/reply`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ content: replyText })
-      // });
+      setReplyWarning('');
     } catch (error) {
-      console.error('Error posting reply:', error);
+      message.error('Không thể gửi phản hồi');
     }
   };
 
@@ -425,13 +449,19 @@ const FeaturedBlogPage = () => {
                               <input
                                 type="text"
                                 value={replyText}
-                                onChange={(e) => setReplyText(e.target.value)}
+                                onChange={(e) => {
+                                  setReplyText(e.target.value);
+                                  if (leoProfanity.check(e.target.value)) setReplyWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+                                  else setReplyWarning('');
+                                }}
                                 placeholder="Viết trả lời..."
                                 className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
                               />
+                              {replyWarning && <div style={{ color: 'red', marginBottom: 8 }}>{replyWarning}</div>}
                               <button
                                 onClick={() => handleReply(comment.id)}
                                 className="px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
+                                disabled={!replyText.trim() || !!replyWarning}
                               >
                                 <Send className="w-4 h-4" />
                               </button>
@@ -456,13 +486,19 @@ const FeaturedBlogPage = () => {
                   <input
                     type="text"
                     value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
+                    onChange={(e) => {
+                      setCommentText(e.target.value);
+                      if (leoProfanity.check(e.target.value)) setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+                      else setCommentWarning('');
+                    }}
                     placeholder="Viết bình luận..."
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
+                  {commentWarning && <div style={{ color: 'red', marginBottom: 8 }}>{commentWarning}</div>}
                   <button
                     onClick={() => handleComment(selectedBlog.id)}
                     className="px-6 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
+                    disabled={!commentText.trim() || !!commentWarning}
                   >
                     <Send className="w-5 h-5" />
                   </button>
