@@ -19,10 +19,9 @@ paymentZaloRouter.post("/create_zalopay_payment", async (req, res) => {
   const items = [{}];
 
   const embed_data = {
-  preferred_payment_method: ["international_card"],
-  return_url: "http://localhost:5173/payment-result?paymentMethod=zalopay",
-};
-
+    return_url: "http://localhost:3000/payment-result?paymentMethod=zalopay&status=1",
+    redirecturl: "http://localhost:3000/payment-result?paymentMethod=zalopay&status=1"
+  };
 
   const order = {
     app_id: config.app_id,
@@ -52,15 +51,13 @@ paymentZaloRouter.post("/create_zalopay_payment", async (req, res) => {
     "|" +
     order.item;
 
-  // Tính MAC
   order.mac = CryptoJS.HmacSHA256(data, config.key1).toString();
 
   try {
     const response = await axios.post(config.endpoint, null, { params: order });
     return res.status(200).json({
-  payUrl: response.data.order_url,
-});
-
+      payUrl: response.data.order_url,
+    });
   } catch (error) {
     res.status(500).json({
       message: "Something went wrong",
@@ -70,22 +67,17 @@ paymentZaloRouter.post("/create_zalopay_payment", async (req, res) => {
 
 paymentZaloRouter.post("/callback", (req, res) => {
   let result = {};
-
   try {
     let dataStr = req.body.data;
     let reqMac = req.body.mac;
-
     let mac = CryptoJS.HmacSHA256(dataStr, config.key2).toString();
-    console.log("mac =", mac);
 
-    // kiểm tra callback hợp lệ (đến từ ZaloPay server)
     if (reqMac !== mac) {
       result.return_code = -1;
       result.return_message = "mac not equal";
     } else {
       let dataJson = JSON.parse(dataStr);
-      console.log("update order's status = success where app_trans_id =", dataJson["app_trans_id"]);
-
+      console.log("✅ ZaloPay callback success:", dataJson["app_trans_id"]);
       result.return_code = 1;
       result.return_message = "success";
     }
@@ -93,7 +85,6 @@ paymentZaloRouter.post("/callback", (req, res) => {
     result.return_code = 0;
     result.return_message = ex.message;
   }
-
   res.json(result);
 });
 

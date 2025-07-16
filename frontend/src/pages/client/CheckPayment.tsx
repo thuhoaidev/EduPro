@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import orderService from "../../services/orderService";
 import { useAuth } from "../../hooks/Auths/useAuth";
+import { useCart } from "../../contexts/CartContext"; // ✅ Import đúng vị trí
 
 interface PendingOrderItem {
   courseId: string;
@@ -15,6 +16,7 @@ function CheckPayment() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { clearCart } = useCart(); // ✅ Hook phải gọi ở top-level
 
   const [status, setStatus] = useState<"success" | "error">("error");
   const [title, setTitle] = useState("Đang xác minh thanh toán...");
@@ -28,7 +30,7 @@ function CheckPayment() {
       try {
         let isPaid = false;
 
-        /** ✅ BƯỚC 1: Xác minh thanh toán */
+        // ✅ BƯỚC 1: Xác minh thanh toán
         if (paymentMethod === "zalopay") {
           const status = searchParams.get("status");
           if (Number(status) === 1) {
@@ -60,7 +62,7 @@ function CheckPayment() {
           }
         }
 
-        /** ✅ BƯỚC 2: Gửi đơn hàng */
+        // ✅ BƯỚC 2: Gửi đơn hàng
         if (isPaid) {
           const rawOrder = localStorage.getItem("pendingOrder");
 
@@ -72,29 +74,12 @@ function CheckPayment() {
           }
 
           const parsed = JSON.parse(rawOrder);
-          
-          console.log("🔍 Raw pendingOrder data:", parsed);
-          console.log("🔍 Parsed items:", parsed.items);
 
-          // Kiểm tra hợp lệ từng item
           const validItems = (parsed.items as PendingOrderItem[]).filter(
             (item) => item.courseId && typeof item.courseId === "string"
           );
-          
-          console.log("🔍 Valid items after filter:", validItems);
 
           if (validItems.length === 0) {
-            console.error("❌ No valid items found. All items:", parsed.items);
-            console.error("❌ Item details:");
-            (parsed.items as PendingOrderItem[]).forEach((item, index) => {
-              console.error(`  Item ${index}:`, {
-                courseId: item.courseId,
-                courseIdType: typeof item.courseId,
-                hasCourseId: !!item.courseId,
-                fullItem: item,
-                keys: Object.keys(item)
-              });
-            });
             throw new Error("Khóa học không hợp lệ hoặc thiếu courseId!");
           }
 
@@ -115,21 +100,23 @@ function CheckPayment() {
 
           const res = await orderService.createOrder(orderData, token);
 
+          // ✅ Xóa giỏ hàng và localStorage
+          clearCart();
           localStorage.removeItem("pendingOrder");
           localStorage.removeItem("checkoutData");
 
-          // Refresh enrollment data để user thấy ngay khóa học đã mua
+          // ✅ Load lại dữ liệu khóa học đã mua
           try {
-            await config.get('/users/me/enrollments');
+            await config.get("/users/me/enrollments");
           } catch (error) {
-            console.log('Refresh enrollment data failed:', error);
+            console.log("Refresh enrollment data failed:", error);
           }
 
           setStatus("success");
           setTitle("Đơn hàng đã được ghi nhận!");
           setSubTitle(`Mã đơn hàng: ${res.order.id}`);
 
-          // Sau khi thanh toán thành công, chuyển hướng về trang chi tiết khóa học và reload lại trang
+          // ✅ Chuyển trang sau 2 giây
           setTimeout(() => {
             if (validItems.length > 0) {
               const courseId = validItems[0].courseId;
@@ -155,7 +142,7 @@ function CheckPayment() {
     };
 
     handlePayment();
-  }, [searchParams, paymentMethod, token]);
+  }, [searchParams, paymentMethod, token, clearCart]);
 
   if (isProcessing) {
     return (
