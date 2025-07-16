@@ -26,6 +26,7 @@ import {
   FireOutlined,
   StarOutlined,
   SettingOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import AuthNotification from '../../components/common/AuthNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
@@ -170,6 +171,16 @@ const AppHeader = () => {
       navigate(notification.link);
     }
     setNotificationsOpen(false);
+  };
+
+  const handleDeleteNotification = (notification: Notification) => {
+    const token = localStorage.getItem('token');
+    fetch(`/api/notifications/${notification.id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).then(() => {
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    });
   };
 
   const getNotificationIcon = (type: string) => {
@@ -376,6 +387,17 @@ const AppHeader = () => {
                   <List.Item
                     onClick={() => handleNotificationClick(notification)}
                     className={`notification-item ${notification.isRead ? 'read' : 'unread'}`}
+                    actions={[
+                      <Button
+                        type="text"
+                        icon={<DeleteOutlined />}
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleDeleteNotification(notification);
+                        }}
+                        danger
+                      />
+                    ]}
                   >
                     <List.Item.Meta
                       avatar={
