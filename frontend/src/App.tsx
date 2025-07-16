@@ -72,6 +72,7 @@ import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
 import LessonEdit from './pages/instructor/lessons/LessonEdit';
 import VideoManager from './pages/instructor/videos/VideoManager';
 import QuizManager from './pages/instructor/quiz/QuizManager';
+import CoursesModerationPage from './pages/Moderator/Courses/CoursesModerationPage';
 
 const queryClient = new QueryClient();
 
@@ -184,6 +185,7 @@ function App() {
         { path: "reports", element: <ReportsPage /> },
         { path: "blogs", element: <BlogModeration /> },
         { path: "comments", element: <CommentsModerationPage /> },
+        { path: "courses", element: <CoursesModerationPage /> },
       ],
     },
     {

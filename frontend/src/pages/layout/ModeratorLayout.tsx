@@ -6,6 +6,7 @@ import {
   BarChartOutlined,
   SettingOutlined,
   UserOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -164,6 +165,11 @@ const ModeratorLayout = () => {
           key: "/moderator/blogs",
           icon: <FileSearchOutlined />,
           label: renderLabel("Duyệt Blog"),
+        },
+        {
+          key: "/moderator/courses",
+          icon: <BookOutlined />,
+          label: renderLabel("Duyệt Khóa học"),
         },
         {
           key: "/moderator/comments",
