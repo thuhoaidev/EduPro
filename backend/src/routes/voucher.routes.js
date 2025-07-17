@@ -3,6 +3,11 @@ const router = express.Router();
 const Voucher = require("../models/Voucher");
 const VoucherUsage = require("../models/VoucherUsage");
 const { auth } = require("../middlewares/auth");
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // Helper function để kiểm tra voucher có hợp lệ không
 const isVoucherValid = (voucher) => {
@@ -86,9 +91,9 @@ const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
     }
   }
   if (voucher.type === 'flash-sale') {
-    // Chỉ hiển thị trong khung giờ 0h-1h sáng giờ Việt Nam (UTC+7) mỗi ngày
-    const nowVN = new Date(now.getTime() + 7 * 60 * 60 * 1000); // Giờ VN
-    const hour = nowVN.getHours();
+    // Sử dụng dayjs để lấy giờ Việt Nam chính xác
+    const nowVN = dayjs().tz('Asia/Ho_Chi_Minh');
+    const hour = nowVN.hour();
     if (hour < 0 || hour >= 1) {
       console.log('DEBUG flash-sale: ngoài khung giờ 0h-1h VN', { hour });
       return { valid: false, reason: "Chỉ áp dụng từ 0h đến 1h sáng mỗi ngày" };
@@ -168,24 +173,10 @@ router.get("/available", async (req, res) => {
     const conditionalTypes = ['new-user', 'birthday', 'first-order', 'order-count', 'order-value', 'flash-sale'];
     const result = [];
     for (const v of vouchers) {
-      if (v.code === 'NGUOIMOI') {
-        console.log('---DEBUG VOUCHER NGUOIMOI---');
-        console.log('Voucher:', v);
-        console.log('User:', user);
-      }
       if (conditionalTypes.includes(v.type)) {
         // Voucher điều kiện: chỉ trả về khi có user và user đủ điều kiện
         if (user) {
-          if (v.code === 'NGUOIMOI') {
-            const now = new Date();
-            const userCreatedAt = user.createdAt || user.created_at;
-            const days = Math.floor((now - new Date(userCreatedAt)) / (1000*60*60*24));
-            console.log('Check new-user:', { days, maxAccountAge: v.maxAccountAge, createdAt: userCreatedAt, now });
-          }
           const validation = await isVoucherValidForUser(v, user);
-          if (v.code === 'NGUOIMOI') {
-            console.log('Validation result:', validation);
-          }
           if (validation.valid) {
             result.push({
               id: v._id,
@@ -212,8 +203,8 @@ router.get("/available", async (req, res) => {
         }
         // Nếu không có user thì KHÔNG push voucher điều kiện vào result
       } else {
-        // Voucher default: chỉ hiển thị nếu chưa hết hạn
-        if (!v.endDate || v.endDate > now) {
+        // Voucher default: chỉ hiển thị nếu chưa hết hạn và đã đến thời gian bắt đầu
+        if ((!v.endDate || v.endDate > now) && (!v.startDate || v.startDate <= now)) {
           result.push({
             id: v._id,
             code: v.code,
