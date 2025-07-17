@@ -139,6 +139,27 @@ router.post('/', auth, async (req, res) => {
     await cart.save({ session });
     await session.commitTransaction();
     
+    // --- TẠO NOTIFICATION VÀ EMIT REALTIME ---
+    try {
+      const Notification = require('../models/Notification');
+      const io = req.app.get && req.app.get('io');
+      const notification = await Notification.create({
+        title: 'Đã thêm vào giỏ hàng',
+        content: `Bạn vừa thêm khóa học "${course.title}" vào giỏ hàng!`,
+        type: 'info',
+        receiver: userId,
+        icon: 'shopping-cart',
+        meta: { link: `/cart` }
+      });
+      console.log('ĐÃ TẠO notification:', notification);
+      if (io && notification.receiver) {
+        io.to(notification.receiver.toString()).emit('new-notification', notification);
+        console.log('Emit notification realtime tới user:', notification.receiver.toString(), notification);
+      }
+    } catch (notiErr) {
+      console.error('Lỗi tạo hoặc emit notification:', notiErr);
+    }
+
     const populatedCart = await cart.populate({
       path: 'items.course',
       select: 'title price discount thumbnail slug'

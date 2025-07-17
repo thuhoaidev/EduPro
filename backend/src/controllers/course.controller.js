@@ -8,6 +8,7 @@ const Section = require('../models/Section');
 const User = require('../models/User');
 const Enrollment = require('../models/Enrollment');
 const { sendCourseApprovalResultEmail } = require('../utils/sendEmail');
+const Notification = require('../models/Notification');
 
 console.log('course.controller.js loaded at', new Date().toISOString());
 
@@ -273,6 +274,19 @@ exports.createCourse = async (req, res, next) => {
                         await Section.insertMany(sectionsToCreate);
                         console.log(`Đã tạo ${sectionsToCreate.length} chương cho khóa học`);
                     }
+                }
+                // Gửi thông báo global khi có khóa học mới
+                const notification = await Notification.create({
+                  title: 'Khóa học mới',
+                  content: `Khóa học ${course.title} đã được phát hành!`,
+                  type: 'success',
+                  is_global: true,
+                  icon: 'check-circle',
+                  meta: { link: `/courses/${course._id}` }
+                });
+                const io = req.app.get && req.app.get('io');
+                if (io) {
+                  io.emit('new-notification', notification); // emit global
                 }
 
                 // Trả về kết quả

@@ -2,6 +2,8 @@ const Enrollment = require('../models/Enrollment');
 const Lesson = require('../models/Lesson');
 const ApiError = require('../utils/ApiError');
 const Section = require('../models/Section');
+const Notification = require('../models/Notification');
+const Course = require('../models/Course');
 
 // Lấy tiến độ học của học viên trong một khóa học
 exports.getProgress = async (req, res, next) => {
@@ -36,9 +38,15 @@ exports.updateProgress = async (req, res, next) => {
     }
     // Đánh dấu videoCompleted nếu đủ 90% (và không bao giờ set lại false)
     const watchedPercent = (watchedSeconds / (videoDuration || 1)) * 100;
+    let justCompleted = false;
     if (watchedPercent >= 90) {
       enrollment.progress[lessonId].videoCompleted = true;
-
+      // completed chỉ true khi đã xem đủ 90% và qua quiz
+      const wasCompleted = enrollment.progress[lessonId].completed;
+      enrollment.progress[lessonId].completed = enrollment.progress[lessonId].videoCompleted && quizPassed === true;
+      if (!wasCompleted && enrollment.progress[lessonId].completed) {
+        justCompleted = true;
+      }
       // Tìm và mở khóa bài học tiếp theo nếu có
       const sections = await Section.find({ course_id: courseId }).sort({ position: 1 }).lean();
       let found = false;
@@ -78,9 +86,28 @@ exports.updateProgress = async (req, res, next) => {
       }
     }
     // completed chỉ true khi đã xem đủ 90% và qua quiz
-    enrollment.progress[lessonId].completed = enrollment.progress[lessonId].videoCompleted && quizPassed === true;
+    if (!enrollment.progress[lessonId].completed) {
+      enrollment.progress[lessonId].completed = enrollment.progress[lessonId].videoCompleted && quizPassed === true;
+    }
     enrollment.markModified('progress');
     await enrollment.save();
+    // Gửi thông báo khi vừa hoàn thành bài học
+    if (justCompleted) {
+      const lesson = await Lesson.findById(lessonId);
+      const course = await Course.findById(courseId);
+      const notification = await Notification.create({
+        title: 'Chúc mừng bạn đã hoàn thành bài học!',
+        content: `Bạn vừa hoàn thành bài học "${lesson?.title || ''}" trong khóa "${course?.title || ''}".`,
+        type: 'success',
+        receiver: userId,
+        icon: 'book-open',
+        meta: { link: `/courses/${courseId}/lessons/${lessonId}` }
+      });
+      const io = req.app.get && req.app.get('io');
+      if (io && notification.receiver) {
+        io.to(notification.receiver.toString()).emit('new-notification', notification);
+      }
+    }
     res.json({ success: true, data: enrollment.progress[lessonId] });
   } catch (err) { next(err); }
 };

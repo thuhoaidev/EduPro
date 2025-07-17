@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const InstructorProfile = require('../models/InstructorProfile');
 const Enrollment = require('../models/Enrollment');
 const Follow = require('../models/Follow');
+const Notification = require('../models/Notification');
 
 // Lấy thông tin người dùng hiện tại
 exports.getCurrentUser = async (req, res) => {
@@ -377,6 +378,15 @@ exports.createUser = async (req, res) => {
         year: parseInt(user.instructorInfo.graduation_year) || new Date().getFullYear(),
       }],
       profileImage: avatarUrl || 'default-avatar.jpg',
+    });
+    // Gửi thông báo cho user mới
+    await Notification.create({
+      title: 'Chào mừng bạn đến với hệ thống!',
+      content: 'Tài khoản của bạn đã được tạo thành công.',
+      type: 'success',
+      receiver: user._id,
+      icon: 'user-plus',
+      meta: { link: '/profile' }
     });
 
     res.status(201).json({
