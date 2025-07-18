@@ -27,6 +27,7 @@ import {
   StarOutlined,
   SettingOutlined,
   DeleteOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import AuthNotification from '../../components/common/AuthNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
@@ -37,6 +38,8 @@ import { io } from 'socket.io-client';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
+const role = localStorage.getItem('role');
+
 
 interface User {
   avatar?: string;
@@ -311,6 +314,13 @@ const AppHeader = () => {
             { key: '/report', icon: <BarChartOutlined />, label: 'Báo cáo!' }
           ],
         },
+        ...(!['admin', 'instructor', 'moderator'].includes(getRoleName(user) || '') ? [{
+          type: 'group' as const,
+          label: 'Ví',
+          children: [
+            { key: '/wallet', icon: <WalletOutlined />, label: 'Ví của tôi' }
+          ],
+        }] : []),
         { type: 'divider' as const },
         { key: 'logout', icon: <LogoutOutlined />, label: <span className="logout-text">Đăng xuất</span> },
       ].filter((item, idx, arr) => {

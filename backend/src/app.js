@@ -36,6 +36,10 @@ const paymentZaloRouter = require('./routes/paymentZaloRouter');
 const momoRouter = require('./routes/paymentMomoRouter');
 const commentRoutes = require('./routes/comment.routes');
 const notificationRoutes = require('./routes/notification.routes');
+const vnpayRouter = require('./routes/paymentRouter');
+const userWalletRoutes = require('./routes/userWallet.routes');
+
+
 // Khởi tạo app
 const app = express();
 
@@ -114,6 +118,8 @@ app.use('/api/payment-zalo', paymentZaloRouter);
 app.use('/api/payment-momo', momoRouter);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api', vnpayRouter);
+app.use('/api/wallet', userWalletRoutes);
 // Error handling middleware
 app.use((err, req, res, _next) => {
   console.error(err.stack);
