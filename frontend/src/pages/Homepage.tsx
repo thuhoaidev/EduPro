@@ -116,7 +116,8 @@ const CustomArrow = ({ children, ...rest }: {
   [key: string]: unknown;
 }) => {
   // Loại bỏ currentSlide, slideCount khỏi props truyền vào span
-  return <span {...rest}>{children}</span>;
+  const { currentSlide, slideCount, ...filteredProps } = rest;
+  return <span {...filteredProps}>{children}</span>;
 };
 
 const SectionWrapper = ({ children, style = {}, className = "" }: { children: React.ReactNode, style?: React.CSSProperties, className?: string }) => {
@@ -238,7 +239,8 @@ const Homepage = () => {
         setPopularCourses(popular);
         
         const response = await fetch('http://localhost:5000/api/blogs/68547db672358427a53d9ece/comments');
-        const commentsData = await response.json();
+        const commentsRes = await response.json();
+        const commentsData = commentsRes.data || [];
         if (Array.isArray(commentsData)) {
           const mappedTestimonials: Testimonial[] = commentsData.map((comment: CommentData) => ({
             name: comment.user?.fullname || 'Học viên',
@@ -256,32 +258,49 @@ const Homepage = () => {
         try {
           const vouchersResponse = await fetch('http://localhost:5000/api/vouchers');
           if (vouchersResponse.ok) {
-            const vouchersData = await vouchersResponse.json();
-            const processedVouchers = vouchersData.map((voucher: VoucherData) => {
-              const now = new Date();
-              const validTo = new Date(voucher.validTo);
-              const isExpired = now > validTo;
-              const daysLeft = Math.ceil((validTo.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-              
-              return {
-                ...voucher,
-                isExpired,
-                daysLeft: isExpired ? 0 : daysLeft,
-                status: isExpired || voucher.usedCount >= voucher.usageLimit ? 'unavailable' : 'available',
-                statusMessage: isExpired ? 'Đã hết hạn' : voucher.usedCount >= voucher.usageLimit ? 'Hết voucher' : 'Có thể sử dụng'
-              };
-            });
-            setVouchers(processedVouchers);
+            const vouchersDataRes = await vouchersResponse.json();
+            const vouchersArr = vouchersDataRes.data || vouchersDataRes;
+            if (Array.isArray(vouchersArr)) {
+              const processedVouchers = vouchersArr.map((voucher: VoucherData) => {
+                const now = new Date();
+                const validTo = new Date(voucher.validTo);
+                const isExpired = now > validTo;
+                const daysLeft = Math.ceil((validTo.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                return {
+                  id: String(voucher.id || voucher._id || ''),
+                  code: String(voucher.code || ''),
+                  title: String(voucher.title || ''),
+                  description: String(voucher.description || ''),
+                  discount: Number(voucher.discountValue ?? voucher.discount ?? 0),
+                  discountType: (voucher.discountType === 'percentage' ? 'percentage' : 'fixed') as 'percentage' | 'fixed',
+                  minAmount: Number(voucher.minOrderValue ?? voucher.minAmount ?? 0),
+                  maxDiscount: voucher.maxDiscount ? Number(voucher.maxDiscount) : undefined,
+                  validFrom: String(voucher.startDate || voucher.validFrom || ''),
+                  validTo: String(voucher.endDate || voucher.validTo || ''),
+                  usageLimit: Number(voucher.usageLimit ?? 0),
+                  usedCount: Number(voucher.usedCount ?? 0),
+                  category: String(voucher.category || ''),
+                  isHot: Boolean(voucher.isHot),
+                  isNew: Boolean(voucher.isNew),
+                  isExpired,
+                  daysLeft: isExpired ? 0 : daysLeft,
+                  statusMessage: isExpired ? 'Đã hết hạn' : Number(voucher.usedCount ?? 0) >= Number(voucher.usageLimit ?? 0) ? 'Hết voucher' : 'Có thể sử dụng'
+                };
+              });
+              setVouchers(processedVouchers);
+            } else {
+              setVouchers([]);
+            }
           }
         } catch (voucherError) {
           console.error('Error fetching vouchers:', voucherError);
         }
         // Fetch instructors
         try {
-          const res = await fetch('http://localhost:5000/api/users?role=instructor&limit=4');
+          const res = await fetch('http://localhost:5000/api/users/approved-instructors?limit=4');
           if (res.ok) {
             const data = await res.json();
-            setInstructors(data.data || []);
+            setInstructors((data.data && data.data.instructors) || []);
           }
         } catch (err) {
           console.error('Error fetching instructors:', err);
@@ -620,7 +639,7 @@ const Homepage = () => {
                 </span>
               ),
               children: (
-                <AnimatePresence mode="wait">
+                <AnimatePresence>
                   <Row gutter={[24, 24]} className="courses-grid">
                     {freeCourses.map((course, idx) => (
                       <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>
@@ -647,7 +666,7 @@ const Homepage = () => {
                 </span>
               ),
               children: (
-                <AnimatePresence mode="wait">
+                <AnimatePresence>
                   <Row gutter={[24, 24]} className="courses-grid">
                     {popularCourses.map((course, idx) => (
                       <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>
@@ -674,7 +693,7 @@ const Homepage = () => {
                 </span>
               ),
               children: (
-                <AnimatePresence mode="wait">
+                <AnimatePresence>
                   <Row gutter={[24, 24]} className="courses-grid">
                     {paidCourses.map((course, idx) => (
                       <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>

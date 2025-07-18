@@ -647,15 +647,41 @@ exports.updateCourseStatus = async (req, res, next) => {
             throw new ApiError(404, 'Không tìm thấy khóa học');
         }
 
-        // Instructor chỉ được gửi duyệt (draft -> pending) và thay đổi displayStatus
+        // Cho phép giảng viên thay đổi trạng thái khóa học linh hoạt hơn
         if (Array.isArray(user.roles) && user.roles.includes('instructor') && !user.roles.includes('admin') && !user.roles.includes('moderator')) {
+            // Kiểm tra instructor phải là chủ sở hữu khóa học
+            const instructorProfile = await InstructorProfile.findOne({ user: user._id });
+            if (!instructorProfile || !course.instructor || course.instructor._id.toString() !== instructorProfile._id.toString()) {
+                throw new ApiError(403, 'Bạn không phải là giảng viên sở hữu khóa học này');
+            }
             // Gửi duyệt (draft -> pending)
             if (typeof status === 'string' && status === 'pending' && course.status === 'draft') {
                 course.status = 'pending';
                 await course.save();
                 return res.json({ success: true, data: course });
             }
-            
+            // Cho phép instructor chuyển trạng thái giữa các trạng thái hợp lệ (trừ duyệt thẳng sang approved/rejected/published)
+            const allowedTransitions = [
+                ['pending', 'draft'],
+                ['draft', 'pending'],
+                ['approved', 'pending'],
+                ['pending', 'approved'],
+                ['rejected', 'pending'],
+                ['pending', 'rejected'],
+                ['approved', 'published'],
+                ['published', 'approved'],
+                ['rejected', 'draft'],
+                ['draft', 'rejected']
+            ];
+            if (
+                typeof status === 'string' &&
+                status !== course.status &&
+                allowedTransitions.some(([from, to]) => course.status === from && status === to)
+            ) {
+                course.status = status;
+                await course.save();
+                return res.json({ success: true, data: course });
+            }
             // Thay đổi displayStatus (chỉ khi đã được duyệt)
             if (displayStatus && (course.status === 'approved' || course.status === 'published')) {
                 if (displayStatus === 'hidden' || displayStatus === 'published') {
@@ -664,8 +690,7 @@ exports.updateCourseStatus = async (req, res, next) => {
                     return res.json({ success: true, data: course });
                 }
             }
-            
-            throw new ApiError(403, 'Giảng viên chỉ được gửi duyệt khóa học hoặc thay đổi trạng thái hiển thị khi đã được duyệt');
+            throw new ApiError(403, 'Giảng viên chỉ được gửi duyệt, thay đổi trạng thái hợp lệ hoặc thay đổi trạng thái hiển thị khi đã được duyệt');
         }
 
         // Admin hoặc moderator được duyệt hoặc từ chối (pending -> approved/rejected)
