@@ -167,22 +167,18 @@ const CourseDetailPage: React.FC = () => {
     useEffect(() => {
         const checkEnrolled = async () => {
             if (!course) return;
-            const token = localStorage.getItem('token');
-            if (!token) {
-                setIsEnrolled(false);
-                return;
-            }
             try {
-                const res = await config.get('/users/me/enrollments');
-                const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
-                console.log('🔍 Course ID:', course.id);
-                console.log('🔍 Enrolled IDs:', enrolledIds);
-                console.log('🔍 Is enrolled:', enrolledIds.includes(course.id));
-                if (enrolledIds.includes(course.id)) {
-                    setIsEnrolled(true);
-                } else {
-                    setIsEnrolled(false);
+                const token = localStorage.getItem('token');
+                let enrolled = false;
+                if (token) {
+                    const res = await config.get('/users/me/enrollments');
+                    const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => String(enroll.course?._id || enroll.course?.id));
+                    console.log('🔍 Course ID:', course.id);
+                    console.log('🔍 Enrolled IDs:', enrolledIds);
+                    console.log('🔍 Is enrolled:', enrolledIds.includes(String(course.id)));
+                    enrolled = enrolledIds.includes(String(course.id));
                 }
+                setIsEnrolled(enrolled);
             } catch {
                 setIsEnrolled(false);
             }
@@ -625,7 +621,7 @@ const CourseDetailPage: React.FC = () => {
                                         >
                                             Quản lý khóa học
                                         </Button>
-                                    ) : isEnrolled ? (
+                                    ) : isEnrolled || course.isFree ? (
                                         <Button 
                                             type="primary" 
                                             size="large" 
@@ -643,39 +639,6 @@ const CourseDetailPage: React.FC = () => {
                                         >
                                             {getButtonText()}
                                         </Button>
-                                    ) : course.isFree ? (
-                                        <Button 
-                                            type="primary" 
-                                            size="large" 
-                                            block 
-                                            className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
-                                            icon={getButtonIcon()} 
-                                            onClick={async () => {
-                                                const token = localStorage.getItem('token');
-                                                if (!token) {
-                                                    localStorage.removeItem('token');
-                                                    localStorage.removeItem('user');
-                                                    localStorage.removeItem('refresh_token');
-                                                    message.warning('Vui lòng đăng nhập!');
-                                                    setTimeout(() => navigate('/login'), 800);
-                                                    return;
-                                                }
-                                                try {
-                                                    await config.post(`/courses/${course.id}/enroll`);
-                                                    setIsEnrolled(true);
-                                                    message.success('Đăng ký học thành công!');
-                                                } catch (err: unknown) {
-                                                    if (err && typeof err === 'object' && 'response' in err) {
-                                                        // @ts-expect-error err.response is available
-                                                        message.error(err.response?.data?.message || 'Có lỗi khi đăng ký học!');
-                                                    } else {
-                                                        message.error('Có lỗi khi đăng ký học!');
-                                                    }
-                                                }
-                                            }}
-                                        >
-                                            {getButtonText()}
-                                        </Button>
                                     ) : (
                                         <Button 
                                             type="primary" 
@@ -688,7 +651,6 @@ const CourseDetailPage: React.FC = () => {
                                                     navigate(`/instructor/courses/${course.id}`);
                                                     return;
                                                 }
-                                                
                                                 const token = localStorage.getItem('token');
                                                 if (!token) {
                                                     localStorage.removeItem('token');
@@ -698,13 +660,11 @@ const CourseDetailPage: React.FC = () => {
                                                     setTimeout(() => navigate('/login'), 800);
                                                     return;
                                                 }
-                                                
                                                 const courseInCart = isInCart(course.id);
                                                 if (courseInCart) {
                                                     navigate('/cart');
                                                     return;
                                                 }
-                                                
                                                 setIsAddingToCart(true);
                                                 try {
                                                     const success = await addToCart(course.id);
@@ -712,10 +672,8 @@ const CourseDetailPage: React.FC = () => {
                                                         message.success('Đã thêm khóa học vào giỏ hàng!');
                                                         await updateCartCount();
                                                     }
-                                                    // Không cần else vì addToCart đã xử lý thông báo lỗi
                                                 } catch (error: unknown) {
                                                     console.error('Error adding to cart:', error);
-                                                    // Hiển thị thông báo lỗi cụ thể nếu có
                                                     if (error && typeof error === 'object' && 'response' in error) {
                                                         const err = error as { response?: { data?: { error?: string } } };
                                                         if (err.response?.data?.error) {

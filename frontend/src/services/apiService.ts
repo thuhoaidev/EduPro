@@ -73,6 +73,7 @@ export interface Course {
   displayStatus?: string;
   language: string;
   level: string;
+  updatedAt: string;
 }
 
 export interface Section {
@@ -130,7 +131,8 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
     status: apiCourse.status,
     displayStatus: apiCourse.displayStatus,
     language: apiCourse.language,
-    level: apiCourse.level
+    level: apiCourse.level,
+    updatedAt: apiCourse.updatedAt
   };
 };
 

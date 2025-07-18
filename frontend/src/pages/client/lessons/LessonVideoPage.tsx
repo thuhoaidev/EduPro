@@ -32,7 +32,7 @@ const LessonVideoPage: React.FC = () => {
   const [courseSections, setCourseSections] = useState<Section[]>([]);
   const [currentLessonId, setCurrentLessonId] = useState<string | null>(null);
   const [sidebarLoading, setSidebarLoading] = useState(false);
-  const [progress, setProgress] = useState<{ completedLessons: string[]; lastWatched?: string }>({ completedLessons: [] });
+  const [progress, setProgress] = useState<{ completedLessons: string[]; lastWatched?: string; [lessonId: string]: any }>({ completedLessons: [] });
   const [quiz, setQuiz] = useState<{ _id: string; questions: { question: string; options: string[]; correctIndex?: number }[] } | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizError, setQuizError] = useState<string | null>(null);
@@ -56,6 +56,8 @@ const LessonVideoPage: React.FC = () => {
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
   const [commentWarning, setCommentWarning] = useState('');
+  const [isEnrolled, setIsEnrolled] = useState<boolean | null>(null);
+  const [isFree, setIsFree] = useState<boolean | null>(null);
 
   // Debounce function để tránh gọi API liên tục
   const debouncedUpdateProgress = useCallback((courseId: string, lessonId: string, time: number, duration: number) => {
@@ -122,13 +124,10 @@ const LessonVideoPage: React.FC = () => {
       getVideoProgress(courseId, lessonId)
         .then(progress => {
           // Chỉ set nếu lessonId vẫn là bài học hiện tại
-          if (progress && typeof progress.watchedSeconds === 'number' && lessonId === currentLessonId) {
-            // Nếu bài học vừa unlock (videoCompleted === false và watchedSeconds < 5), luôn phát từ đầu
-            if (progress.videoCompleted === false && (!progress.watchedSeconds || progress.watchedSeconds < 5)) {
-              setSavedVideoTime(0);
-            } else {
-              setSavedVideoTime(progress.watchedSeconds);
-            }
+          if (progress && 'videoCompleted' in progress && progress.videoCompleted === false && (!progress.watchedSeconds || progress.watchedSeconds < 5)) {
+            setSavedVideoTime(0);
+          } else {
+            setSavedVideoTime(progress.watchedSeconds);
           }
         })
         .catch(err => console.error("Lỗi lấy tiến độ video", err));
@@ -239,7 +238,20 @@ const LessonVideoPage: React.FC = () => {
         setProgress(progressData || {});
         const unlocked = await getUnlockedLessons(courseId);
         setUnlockedLessons(unlocked || []);
-      } catch (e) { }
+        // Fetch course details to get isFree
+        const courseRes = await import('../../../services/apiService');
+        const courseApi = courseRes.courseService;
+        const courseData = await courseApi.getCourseById(courseId);
+        if (courseData) {
+          // Use mapApiCourseToAppCourse to get isFree
+          const mapped = courseApi.mapApiCourseToAppCourse(courseData);
+          setIsFree(mapped.isFree);
+        } else {
+          setIsFree(false);
+        }
+      } catch (e) {
+        setIsFree(false);
+      }
     })().catch(() => { });
   }, [courseId, lessonId]);
 
@@ -410,6 +422,44 @@ const LessonVideoPage: React.FC = () => {
     ]);
   }, []);
 
+  // Kiểm tra enroll trước khi cho phép học
+  useEffect(() => {
+    const checkEnrolled = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setIsEnrolled(false);
+        return;
+      }
+      try {
+        // Lấy courseId từ section/lesson
+        let courseIdToCheck = courseId;
+        if (!courseIdToCheck && lessonId) {
+          // Lấy lesson để lấy section_id
+          const lessonRes = await config.get(`/lessons/${lessonId}`);
+          const sectionId = lessonRes.data.data.section_id;
+          // Lấy section để lấy course_id
+          const sectionRes = await config.get(`/sections/${sectionId}`);
+          courseIdToCheck = sectionRes.data.data.course_id;
+        }
+        if (!courseIdToCheck) {
+          setIsEnrolled(false);
+          return;
+        }
+        const res = await config.get('/users/me/enrollments');
+        const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => String(enroll.course?._id || enroll.course?.id));
+        setIsEnrolled(enrolledIds.includes(String(courseIdToCheck)));
+      } catch {
+        setIsEnrolled(false);
+      }
+    };
+    checkEnrolled();
+  }, [courseId, lessonId]);
+
+  // Nếu chưa enroll và không phải khóa học free
+  if (isEnrolled === false && !isFree) {
+    return <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />;
+  }
+
   if (loading) return <div className="flex justify-center items-center min-h-screen"><Spin size="large" /></div>;
   if (error) return <Alert message="Lỗi" description={error} type="error" showIcon />;
 
@@ -423,7 +473,6 @@ const LessonVideoPage: React.FC = () => {
         onSelectLesson={(lessonId) => {
           navigate(`/lessons/${lessonId}/video`);
         }}
-        canAccessLesson={canAccessLesson}
       />
       <motion.div
         initial={{ x: 300, opacity: 0 }}

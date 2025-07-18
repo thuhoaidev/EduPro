@@ -288,33 +288,33 @@ const CourseList: React.FC = () => {
         );
       },
     },
-    {
-      title: 'Trạng thái hiển thị',
-      key: 'displayStatus',
-      width: '15%',
-      render: (_, record) => {
-        const isApproved = record.status === 'approved';
-        const isHidden = record.displayStatus === 'hidden';
-        
-        return (
-          <Space>
-            <Tag color={isHidden ? 'gray' : 'blue'} className="text-xs">
-              {isHidden ? 'Ẩn' : 'Hiển thị'}
-            </Tag>
-            {isApproved && (
-              <Button
-                type="link"
-                size="small"
-                onClick={() => handleToggleDisplay(record.id, record.displayStatus || 'hidden')}
-                style={{ padding: 0, height: 'auto', fontSize: '12px' }}
-              >
-                {isHidden ? 'Hiển thị' : 'Ẩn'}
-              </Button>
-            )}
-          </Space>
-        );
-      },
-    },
+    // Đã ẩn cột trạng thái hiển thị
+    // {
+    //   title: 'Trạng thái hiển thị',
+    //   key: 'displayStatus',
+    //   width: '15%',
+    //   render: (_, record) => {
+    //     const isApproved = record.status === 'approved';
+    //     const isHidden = record.displayStatus === 'hidden';
+    //     return (
+    //       <Space>
+    //         <Tag color={isHidden ? 'gray' : 'blue'} className="text-xs">
+    //           {isHidden ? 'Ẩn' : 'Hiển thị'}
+    //         </Tag>
+    //         {isApproved && (
+    //           <Button
+    //             type="link"
+    //             size="small"
+    //             onClick={() => handleToggleDisplay(record.id, record.displayStatus || 'hidden')}
+    //             style={{ padding: 0, height: 'auto', fontSize: '12px' }}
+    //           >
+    //             {isHidden ? 'Hiển thị' : 'Ẩn'}
+    //           </Button>
+    //         )}
+    //       </Space>
+    //     );
+    //   },
+    // },
 
     {
       title: 'Thao tác',

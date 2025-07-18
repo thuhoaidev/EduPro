@@ -262,11 +262,11 @@ const Homepage = () => {
             const vouchersArr = vouchersDataRes.data || vouchersDataRes;
             if (Array.isArray(vouchersArr)) {
               const processedVouchers = vouchersArr.map((voucher: VoucherData) => {
-                const now = new Date();
-                const validTo = new Date(voucher.validTo);
-                const isExpired = now > validTo;
-                const daysLeft = Math.ceil((validTo.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                return {
+              const now = new Date();
+              const validTo = new Date(voucher.validTo);
+              const isExpired = now > validTo;
+              const daysLeft = Math.ceil((validTo.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              return {
                   id: String(voucher.id || voucher._id || ''),
                   code: String(voucher.code || ''),
                   title: String(voucher.title || ''),
@@ -282,12 +282,12 @@ const Homepage = () => {
                   category: String(voucher.category || ''),
                   isHot: Boolean(voucher.isHot),
                   isNew: Boolean(voucher.isNew),
-                  isExpired,
-                  daysLeft: isExpired ? 0 : daysLeft,
+                isExpired,
+                daysLeft: isExpired ? 0 : daysLeft,
                   statusMessage: isExpired ? 'Đã hết hạn' : Number(voucher.usedCount ?? 0) >= Number(voucher.usageLimit ?? 0) ? 'Hết voucher' : 'Có thể sử dụng'
-                };
-              });
-              setVouchers(processedVouchers);
+              };
+            });
+            setVouchers(processedVouchers);
             } else {
               setVouchers([]);
             }

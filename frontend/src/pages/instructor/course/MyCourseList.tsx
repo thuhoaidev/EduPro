@@ -175,62 +175,33 @@ const MyCourseList: React.FC = () => {
       key: "displayStatus",
       render: (_, record) => {
         const isApproved = record.status === 'approved' || record.status === 'published';
-        const isHidden = record.displayStatus === 'hidden';
-        // const isPublished = record.displayStatus === 'published'; // Đã bỏ, không dùng nữa
-
-        const handleToggleDisplay = async () => {
+        const displayOptions = [
+          { value: 'published', label: 'Hiển thị' },
+          { value: 'hidden', label: 'Ẩn' }
+        ];
+        const handleChangeDisplay = async (value: string) => {
           try {
-            if (isHidden) {
-              // Chuyển từ ẩn sang hiển thị
-              await courseService.updateCourseStatus(record.id, { displayStatus: 'published' });
-              setCourses((prev) => 
-                prev.map((course) => 
-                  course.id === record.id ? { ...course, displayStatus: 'published' } : course
-                )
-              );
-              message.success('Đã chuyển khóa học sang trạng thái hiển thị');
-            } else {
-              // Chuyển từ hiển thị sang ẩn
-              await courseService.updateCourseStatus(record.id, { displayStatus: 'hidden' });
-              setCourses((prev) => 
-                prev.map((course) => 
-                  course.id === record.id ? { ...course, displayStatus: 'hidden' } : course
-                )
-              );
-              message.success('Đã ẩn khóa học');
-            }
+            await courseService.updateCourseStatus(record.id, { displayStatus: value });
+            setCourses((prev) =>
+              prev.map((course) =>
+                course.id === record.id ? { ...course, displayStatus: value } : course
+              )
+            );
+            message.success(value === 'published' ? 'Đã chuyển sang hiển thị' : 'Đã ẩn khóa học');
           } catch (err) {
             console.error('Lỗi khi thay đổi trạng thái hiển thị:', err);
             message.error('Không thể thay đổi trạng thái hiển thị');
           }
         };
-
         return (
           <Space>
-            <Tag color={isHidden ? 'gray' : 'blue'}>
-              {isHidden ? 'Ẩn' : 'Hiển thị'}
-            </Tag>
-            {isApproved && (
-              isHidden ? (
-                <Button
-                  type="link"
-                  size="small"
-                  onClick={handleToggleDisplay}
-                  style={{ padding: 0, height: 'auto' }}
-                >
-                  Hiển thị
-                </Button>
-              ) : (
-                <Button
-                  type="link"
-                  size="small"
-                  onClick={handleToggleDisplay}
-                  style={{ padding: 0, height: 'auto' }}
-                >
-                  Ẩn
-                </Button>
-              )
-            )}
+            <Select
+              value={record.displayStatus || 'published'}
+              style={{ width: 120 }}
+              onChange={handleChangeDisplay}
+              disabled={!isApproved}
+              options={displayOptions}
+            />
           </Space>
         );
       },
@@ -239,7 +210,7 @@ const MyCourseList: React.FC = () => {
       title: "Cập nhật lần cuối",
       dataIndex: "updatedAt",
       key: "updatedAt",
-      render: () => dayjs().subtract(Math.floor(Math.random() * 30), 'day').format('DD/MM/YYYY'),
+      render: (updatedAt: string) => dayjs(updatedAt).format('DD/MM/YYYY HH:mm'),
     },
     {
       title: "Hành động",

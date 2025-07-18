@@ -12,13 +12,17 @@ const {
   getLessonById,
 } = require('../controllers/lesson.controller');
 
-// Tất cả các routes đều yêu cầu xác thực
-router.use(auth);
-
 // Test endpoint
 router.get('/test', (req, res) => {
   res.json({ success: true, message: 'Lesson routes working' });
 });
+
+// Public GET routes for lesson info
+router.get('/section/:section_id', getLessonsBySection);
+router.get('/:id', getLessonById);
+
+// Protect all routes below with auth
+router.use(auth);
 
 // Routes cho giảng viên và admin
 router.post('/', requireAuth(['admin', 'instructor']), createLessons);
@@ -36,11 +40,5 @@ router.put('/section/:section_id/order', requireAuth(['admin', 'instructor']), (
     .then(() => next())
     .catch(next);
 }, updateLessonsOrder);
-
-// Route cho tất cả người dùng đã xác thực
-router.get('/section/:section_id', getLessonsBySection);
-
-// Route lấy thông tin 1 bài học theo id
-router.get('/:id', getLessonById);
 
 module.exports = router; 

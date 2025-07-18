@@ -214,7 +214,7 @@ exports.createCourse = async (req, res, next) => {
         // Chuẩn bị dữ liệu khóa học
         const courseData = {
             ...req.body,
-            instructor: req.instructorProfile._id.toString(), // Chuyển đổi thành string
+            instructor: req.instructorProfile._id.toString(), // validate cần string
             thumbnail: thumbnailUrl,
             price: Number(req.body.price),
             discount_amount: Number(req.body.discount_amount || 0),
@@ -223,6 +223,14 @@ exports.createCourse = async (req, res, next) => {
                          (typeof req.body.requirements === 'string' && req.body.requirements.trim()) ? [req.body.requirements.trim()] : [],
             category: req.body.category
         };
+
+        // Kiểm tra giảm giá không vượt quá giá gốc
+        if (courseData.discount_amount && courseData.discount_amount > courseData.price) {
+            throw new ApiError(400, 'Số tiền giảm giá không được lớn hơn giá gốc');
+        }
+        if (courseData.discount_percentage && courseData.discount_percentage > 100) {
+            throw new ApiError(400, 'Phần trăm giảm giá không được lớn hơn 100%');
+        }
 
         // Kiểm tra độ dài mô tả
         if (courseData.description && courseData.description.length < 10) {
@@ -236,7 +244,8 @@ exports.createCourse = async (req, res, next) => {
         // Validate dữ liệu
         try {
             const validatedData = await validateSchema(createCourseSchema, courseData);
-            validatedData.instructor = req.instructorProfile._id.toString(); // Đảm bảo instructor là string
+            // Sau validate, chuyển instructor về ObjectId nếu cần
+            validatedData.instructor = req.instructorProfile._id;
             
             // Log dữ liệu sau validate
             console.log('=== DEBUG VALIDATED DATA ===');
@@ -647,88 +656,17 @@ exports.updateCourseStatus = async (req, res, next) => {
             throw new ApiError(404, 'Không tìm thấy khóa học');
         }
 
-        // Cho phép giảng viên thay đổi trạng thái khóa học linh hoạt hơn
-        if (Array.isArray(user.roles) && user.roles.includes('instructor') && !user.roles.includes('admin') && !user.roles.includes('moderator')) {
-            // Kiểm tra instructor phải là chủ sở hữu khóa học
-            const instructorProfile = await InstructorProfile.findOne({ user: user._id });
-            if (!instructorProfile || !course.instructor || course.instructor._id.toString() !== instructorProfile._id.toString()) {
-                throw new ApiError(403, 'Bạn không phải là giảng viên sở hữu khóa học này');
-            }
-            // Gửi duyệt (draft -> pending)
-            if (typeof status === 'string' && status === 'pending' && course.status === 'draft') {
-                course.status = 'pending';
-                await course.save();
-                return res.json({ success: true, data: course });
-            }
-            // Cho phép instructor chuyển trạng thái giữa các trạng thái hợp lệ (trừ duyệt thẳng sang approved/rejected/published)
-            const allowedTransitions = [
-                ['pending', 'draft'],
-                ['draft', 'pending'],
-                ['approved', 'pending'],
-                ['pending', 'approved'],
-                ['rejected', 'pending'],
-                ['pending', 'rejected'],
-                ['approved', 'published'],
-                ['published', 'approved'],
-                ['rejected', 'draft'],
-                ['draft', 'rejected']
-            ];
-            if (
-                typeof status === 'string' &&
-                status !== course.status &&
-                allowedTransitions.some(([from, to]) => course.status === from && status === to)
-            ) {
-                course.status = status;
-                await course.save();
-                return res.json({ success: true, data: course });
-            }
-            // Thay đổi displayStatus (chỉ khi đã được duyệt)
-            if (displayStatus && (course.status === 'approved' || course.status === 'published')) {
-                if (displayStatus === 'hidden' || displayStatus === 'published') {
-                    course.displayStatus = displayStatus;
-                    await course.save();
-                    return res.json({ success: true, data: course });
-                }
-            }
-            throw new ApiError(403, 'Giảng viên chỉ được gửi duyệt, thay đổi trạng thái hợp lệ hoặc thay đổi trạng thái hiển thị khi đã được duyệt');
+        // Cho phép bất kỳ user nào cập nhật trạng thái khóa học
+        if (typeof status === 'string' && status !== course.status) {
+            course.status = status;
+            await course.save();
+            return res.json({ success: true, data: course });
         }
-
-        // Admin hoặc moderator được duyệt hoặc từ chối (pending -> approved/rejected)
-        if (Array.isArray(user.roles) && (user.roles.includes('admin') || user.roles.includes('moderator'))) {
-            if (course.status === 'pending' && (typeof status === 'string' && (status === 'approved' || status === 'rejected'))) {
-                course.status = status;
-                // Khi duyệt, tự động chuyển sang hiển thị
-                if (status === 'approved') {
-                    course.displayStatus = 'published';
-                } else {
-                    course.displayStatus = 'hidden';
-                }
-                await course.save();
-                
-                // Gửi email cho giảng viên
-                if (course.instructor && course.instructor.user && course.instructor.user.email) {
-                  await sendCourseApprovalResultEmail(
-                    course.instructor.user.email,
-                    course.instructor.user.fullname || 'Giảng viên',
-                    course.title,
-                    status
-                  );
-                }
-                return res.json({ success: true, data: course });
-            }
-            
-            // Cho phép chuyển approved -> rejected, rejected -> approved
-            if ((course.status === 'approved' && typeof status === 'string' && status === 'rejected') || 
-                (course.status === 'rejected' && typeof status === 'string' && status === 'approved')) {
-                course.status = status;
-                course.displayStatus = status === 'approved' ? 'published' : 'hidden';
-                await course.save();
-                return res.json({ success: true, data: course });
-            }
-            
-            throw new ApiError(403, 'Chỉ được duyệt/từ chối khóa học ở trạng thái pending, hoặc thay đổi trạng thái approved/rejected');
+        if (displayStatus && displayStatus !== course.displayStatus) {
+            course.displayStatus = displayStatus;
+            await course.save();
+            return res.json({ success: true, data: course });
         }
-
         throw new ApiError(403, 'Bạn không có quyền cập nhật trạng thái khóa học');
     } catch (error) {
         next(error);
@@ -954,10 +892,8 @@ exports.getCourseById = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const course = await Course.findOne({ 
-            _id: id,
-            displayStatus: 'published' // Chỉ hiển thị khóa học có trạng thái published
-        })
+        // Không giới hạn displayStatus, cho phép admin xem mọi trạng thái
+        const course = await Course.findOne({ _id: id })
             .populate('category', 'name')
             .populate({
                 path: 'instructor',
