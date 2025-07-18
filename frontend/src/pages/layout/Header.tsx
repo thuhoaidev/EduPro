@@ -26,6 +26,11 @@ import {
   FireOutlined,
   StarOutlined,
   SettingOutlined,
+<<<<<<< Updated upstream
+=======
+  DeleteOutlined,
+  WalletOutlined,
+>>>>>>> Stashed changes
 } from '@ant-design/icons';
 import AuthNotification from '../../components/common/AuthNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
@@ -35,6 +40,7 @@ import './Header.css';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
+const role = localStorage.getItem('role');
 
 interface User {
   avatar?: string;
@@ -76,6 +82,7 @@ const AppHeader = () => {
     message: ''
   });
 
+<<<<<<< Updated upstream
   // Mock notifications data
   const [notifications] = useState<Notification[]>([
     {
@@ -121,6 +128,55 @@ const AppHeader = () => {
       time: '2 ngày trước',
       isRead: true,
       link: '/profile'
+=======
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+
+  useEffect(() => {
+    setLoadingNotifications(true);
+    const token = localStorage.getItem('token');
+    fetch('/api/notifications', {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    })
+      .then(res => res.json())
+      .then(data => setNotifications(
+        (data.data || []).map((notification: { _id: any; id: any; type: any; title: any; content: any; created_at: string | number | Date; status: string; meta: string; }) => ({
+          id: notification._id || notification.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.content,
+          time: notification.created_at ? new Date(notification.created_at).toLocaleString() : '',
+          isRead: notification.status === 'read',
+          link: notification.meta?.link
+        }))
+      ))
+      .finally(() => setLoadingNotifications(false));
+
+    // --- SOCKET.IO REALTIME ---
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user._id) {
+      const socket = io('http://localhost:5000');
+      socket.emit('join', user._id);
+      socket.on('new-notification', (notification: any) => {
+        console.log('Nhận notification realtime:', notification);
+        const mapped = {
+          id: notification._id || notification.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.content,
+          time: notification.created_at ? new Date(notification.created_at).toLocaleString() : '',
+          isRead: notification.status === 'read',
+          link: notification.meta?.link
+        };
+        setNotifications(prev => [mapped, ...prev]);
+      });
+      return () => {
+        socket.off('new-notification');
+        socket.disconnect();
+      };
+>>>>>>> Stashed changes
     }
   ]);
 
@@ -285,6 +341,13 @@ const AppHeader = () => {
             { key: '/report', icon: <BarChartOutlined />, label: 'Báo cáo!' }
           ],
         },
+         ...(!['admin', 'instructor', 'moderator'].includes(getRoleName(user) || '') ? [{
+          type: 'group' as const,
+          label: 'Ví',
+          children: [
+            { key: '/wallet', icon: <WalletOutlined />, label: 'Ví của tôi' }
+          ],
+        }] : []),
         { type: 'divider' as const },
         { key: 'logout', icon: <LogoutOutlined />, label: <span className="logout-text">Đăng xuất</span> },
       ].filter((item, idx, arr) => {

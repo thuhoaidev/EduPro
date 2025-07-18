@@ -19,8 +19,8 @@ paymentZaloRouter.post("/create_zalopay_payment", async (req, res) => {
   const items = [{}];
 
   const embed_data = {
-    return_url: "http://localhost:3000/payment-result?paymentMethod=zalopay&status=1",
-    redirecturl: "http://localhost:3000/payment-result?paymentMethod=zalopay&status=1"
+    return_url: "http://localhost:5173/payment-result?paymentMethod=zalopay&status=1",
+    redirecturl: "http://localhost:5173/payment-result?paymentMethod=zalopay&status=1"
   };
 
   const order = {

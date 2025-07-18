@@ -34,7 +34,7 @@ const progressRoutes = require('./routes/progress.routes');
 const courseReviewRoutes = require('./routes/courseReview.routes');
 const paymentZaloRouter = require('./routes/paymentZaloRouter');
 const momoRouter = require('./routes/paymentMomoRouter');
-const commentRoutes = require('./routes/comment.routes');
+const vnpayRouter = require('./routes/paymentRouter')
 // Khởi tạo app
 const app = express();
 
@@ -111,7 +111,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/course-reviews', courseReviewRoutes);
 app.use('/api/payment-zalo', paymentZaloRouter);
 app.use('/api/payment-momo', momoRouter);
-app.use('/api/comments', commentRoutes);
+app.use('/api', vnpayRouter);
 // Error handling middleware
 app.use((err, req, res, _next) => {
   console.error(err.stack);

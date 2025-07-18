@@ -72,6 +72,12 @@ import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
 import LessonEdit from './pages/instructor/lessons/LessonEdit';
 import VideoManager from './pages/instructor/videos/VideoManager';
 import QuizManager from './pages/instructor/quiz/QuizManager';
+<<<<<<< Updated upstream
+=======
+import CoursesModerationPage from './pages/Moderator/Courses/CoursesModerationPage';
+import WalletPage from "./pages/client/WalletPage";
+import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
+>>>>>>> Stashed changes
 
 const queryClient = new QueryClient();
 
@@ -143,6 +149,8 @@ function App() {
         { path: "orders", element: <OrdersPage /> },
         { path: "search/users", element: <UserSearchResultsPage /> },
         { path: "search/courses", element: <CourseSearchResultsPage /> },
+                { path: "wallet", element: <WalletPage /> },
+        { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
       ]
     },
     {
