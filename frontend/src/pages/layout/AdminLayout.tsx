@@ -16,6 +16,7 @@ import {
   GiftOutlined,
   DollarCircleOutlined,
   SafetyCertificateOutlined,
+  WalletOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -162,7 +163,14 @@ const AdminLayout = () => {
       {
         label: "Thu nhập giảng viên",
         type: "group",
-        children: [{ key: "/admin/earnings", icon: <SettingOutlined />, label: "Cài đặt" }],
+        children: [{ key: "/admin/earnings", icon: <WalletOutlined />, label: "Thu nhập giảng viênviên" }],
+      },
+      {
+        label: "Rút tiền học viên",
+        type: "group",
+        children: [
+          { key: "/admin/user-withdraw-requests", icon: <WalletOutlined />, label: "Rút tiền học viên" },
+        ],
       },
     ],
     []

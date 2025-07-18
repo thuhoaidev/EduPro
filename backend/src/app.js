@@ -34,14 +34,10 @@ const progressRoutes = require('./routes/progress.routes');
 const courseReviewRoutes = require('./routes/courseReview.routes');
 const paymentZaloRouter = require('./routes/paymentZaloRouter');
 const momoRouter = require('./routes/paymentMomoRouter');
-<<<<<<< Updated upstream
-const vnpayRouter = require('./routes/paymentRouter')
-=======
-const commentRoutes = require('./routes/comment.routes');
-const notificationRoutes = require('./routes/notification.routes');
+const vnpayRouter = require('./routes/paymentRouter');
 const userWalletRoutes = require('./routes/userWallet.routes');
 
->>>>>>> Stashed changes
+
 // Khởi tạo app
 const app = express();
 
@@ -118,14 +114,8 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/course-reviews', courseReviewRoutes);
 app.use('/api/payment-zalo', paymentZaloRouter);
 app.use('/api/payment-momo', momoRouter);
-<<<<<<< Updated upstream
 app.use('/api', vnpayRouter);
-=======
-app.use('/api/comments', commentRoutes);
-app.use('/api/notifications', notificationRoutes);
 app.use('/api/wallet', userWalletRoutes);
-
->>>>>>> Stashed changes
 // Error handling middleware
 app.use((err, req, res, _next) => {
   console.error(err.stack);

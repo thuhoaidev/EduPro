@@ -61,9 +61,11 @@ import UserReportRoute from "./pages/client/UserReportRoute";
 import UserProfile from "./pages/client/Profile/UserProfile";
 import CheckPayment from "./pages/client/CheckPayment";
 import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
+import UserWithdrawRequestsAdmin from './pages/admin/earnings/UserWithdrawRequestsAdmin';
 
 import BlogPage from "./pages/client/BlogPage";
 import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
+import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
 
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
 import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
@@ -71,12 +73,8 @@ import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
 import LessonEdit from './pages/instructor/lessons/LessonEdit';
 import VideoManager from './pages/instructor/videos/VideoManager';
 import QuizManager from './pages/instructor/quiz/QuizManager';
-<<<<<<< Updated upstream
-=======
-import CoursesModerationPage from './pages/Moderator/Courses/CoursesModerationPage';
 import WalletPage from "./pages/client/WalletPage";
 import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
->>>>>>> Stashed changes
 
 const queryClient = new QueryClient();
 
@@ -148,7 +146,7 @@ function App() {
         { path: "orders", element: <OrdersPage /> },
         { path: "search/users", element: <UserSearchResultsPage /> },
         { path: "search/courses", element: <CourseSearchResultsPage /> },
-                { path: "wallet", element: <WalletPage /> },
+        { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
       ]
     },
@@ -182,6 +180,7 @@ function App() {
         { path: "courses/:id", element: <AdminCourseDetail />},
         { path: "transactions", element: <TransactionHistory /> },
         { path: "earnings", element: <WithdrawRequestsAdmin />},
+        { path: "user-withdraw-requests", element: <UserWithdrawRequestsAdmin /> },
       ],
     },
     {
@@ -190,6 +189,8 @@ function App() {
       children: [
         { path: "reports", element: <ReportsPage /> },
         { path: "blogs", element: <BlogModeration /> },
+        { path: "comments", element: <CommentsModerationPage /> },
+        { path: "courses", element: <CommentsModerationPage /> },
       ],
     },
     {

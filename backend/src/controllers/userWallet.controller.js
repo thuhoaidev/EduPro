@@ -3,6 +3,7 @@ const axios = require('axios');
 const moment = require('moment');
 const CryptoJS = require('crypto-js');
 const UserWalletDeposit = require('../models/UserWalletDeposit');
+const UserWithdrawRequest = require('../models/UserWithdrawRequest');
 
 // Lấy số dư và lịch sử giao dịch
 exports.getWallet = async (req, res) => {
@@ -231,5 +232,153 @@ exports.handlePaymentResult = async (req, res) => {
   } catch (err) {
     console.error('handlePaymentResult error:', err);
     res.status(500).json({ success: false, message: 'Lỗi xử lý kết quả thanh toán', error: err.message });
+  }
+};
+
+// User gửi yêu cầu rút tiền
+exports.requestWithdraw = async (req, res) => {
+  try {
+    const { amount, bank, account, holder } = req.body;
+    const userId = req.user._id;
+    const wallet = await UserWallet.findOne({ userId });
+    if (!wallet || wallet.balance < amount) {
+      return res.status(400).json({ success: false, message: 'Số dư không đủ' });
+    }
+    // Trừ tiền ngay và ghi lịch sử với trạng thái chờ duyệt
+    wallet.balance -= amount;
+    wallet.history.push({
+      type: 'withdraw',
+      amount: -amount,
+      method: bank,
+      status: 'pending',
+      createdAt: new Date(),
+    });
+    await wallet.save();
+    const request = new UserWithdrawRequest({
+      userId, amount, bank, account, holder
+    });
+    await request.save();
+    res.json({ success: true, message: 'Đã gửi yêu cầu rút tiền', request });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi gửi yêu cầu rút tiền', error: err.message });
+  }
+};
+
+// Admin xem danh sách yêu cầu rút tiền của user
+exports.getWithdrawRequests = async (req, res) => {
+  try {
+    const requests = await UserWithdrawRequest.find().populate('userId', 'fullname email avatar phone');
+    res.json({ success: true, requests });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi lấy danh sách yêu cầu rút tiền', error: err.message });
+  }
+};
+
+// User xem lịch sử yêu cầu rút tiền của mình
+exports.getMyWithdrawRequests = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const requests = await UserWithdrawRequest.find({ userId }).sort({ createdAt: -1 });
+    res.json({ success: true, requests });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi lấy danh sách yêu cầu rút tiền', error: err.message });
+  }
+};
+
+// Admin duyệt yêu cầu rút tiền
+exports.approveWithdraw = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await UserWithdrawRequest.findById(id);
+    if (!request || request.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Yêu cầu không hợp lệ' });
+    }
+    request.status = 'approved';
+    request.approvedAt = new Date();
+    await request.save();
+    // Cập nhật lịch sử ví - thay đổi status từ "pending" thành "approved"
+    const wallet = await UserWallet.findOne({ userId: request.userId });
+    if (wallet) {
+      const pendingHistory = wallet.history.find(h =>
+        h.type === 'withdraw' &&
+        h.amount === -request.amount &&
+        h.status === 'pending'
+      );
+      if (pendingHistory) {
+        pendingHistory.status = 'approved';
+      }
+      await wallet.save();
+    }
+    res.json({ success: true, message: 'Đã duyệt rút tiền', request });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi duyệt rút tiền', error: err.message });
+  }
+};
+
+// Admin từ chối yêu cầu rút tiền
+exports.rejectWithdraw = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const request = await UserWithdrawRequest.findById(id);
+    if (!request || request.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Yêu cầu không hợp lệ' });
+    }
+    // Hoàn lại tiền vào ví và cập nhật lịch sử
+    const wallet = await UserWallet.findOne({ userId: request.userId });
+    if (wallet) {
+      wallet.balance += request.amount;
+      const pendingHistory = wallet.history.find(h =>
+        h.type === 'withdraw' &&
+        h.amount === -request.amount &&
+        h.status === 'pending'
+      );
+      if (pendingHistory) {
+        pendingHistory.status = 'rejected';
+      }
+      await wallet.save();
+    }
+    request.status = 'rejected';
+    request.note = reason;
+    await request.save();
+    res.json({ success: true, message: 'Đã từ chối yêu cầu rút tiền', request });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi từ chối yêu cầu rút tiền', error: err.message });
+  }
+};
+
+// User hủy yêu cầu rút tiền của mình
+exports.cancelWithdrawRequest = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { id } = req.params;
+    const request = await UserWithdrawRequest.findOne({ _id: id, userId });
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu rút tiền' });
+    }
+    if (request.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Yêu cầu đã được xử lý, không thể hủy' });
+    }
+    // Hoàn lại tiền vào ví và cập nhật lịch sử
+    const wallet = await UserWallet.findOne({ userId });
+    if (wallet) {
+      wallet.balance += request.amount;
+      const pendingHistory = wallet.history.find(h =>
+        h.type === 'withdraw' &&
+        h.amount === -request.amount &&
+        h.status === 'pending'
+      );
+      if (pendingHistory) {
+        pendingHistory.status = 'cancelled';
+      }
+      await wallet.save();
+    }
+    request.status = 'cancelled';
+    request.cancelledAt = new Date();
+    request.note = 'Bạn đã hủy yêu cầu rút tiền';
+    await request.save();
+    res.json({ success: true, message: 'Đã hủy yêu cầu rút tiền', request });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Lỗi hủy yêu cầu rút tiền', error: err.message });
   }
 }; 

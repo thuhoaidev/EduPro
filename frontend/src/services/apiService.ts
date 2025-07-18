@@ -468,4 +468,38 @@ addComment: async (postId: string, content: string) => {
 
 export { apiClient, apiService };
 
+// API rút tiền user
+export const userWalletService = {
+  // Gửi yêu cầu rút tiền
+  requestWithdraw: async (data: { amount: number; bank: string; account: string; holder: string }) => {
+    const res = await apiClient.post('/wallet/withdraw', data);
+    return res.data;
+  },
+  // Lấy lịch sử yêu cầu rút tiền của user
+  getMyWithdrawRequests: async () => {
+    const res = await apiClient.get('/wallet/my-withdraw-requests');
+    return res.data;
+  },
+  // Admin lấy tất cả yêu cầu rút tiền
+  getAllWithdrawRequests: async () => {
+    const res = await apiClient.get('/wallet/withdraw-requests');
+    return res.data;
+  },
+  // Admin duyệt yêu cầu
+  approveWithdraw: async (id: string) => {
+    const res = await apiClient.post(`/wallet/withdraw/${id}/approve`);
+    return res.data;
+  },
+  // Admin từ chối yêu cầu
+  rejectWithdraw: async (id: string, reason: string) => {
+    const res = await apiClient.post(`/wallet/withdraw/${id}/reject`, { reason });
+    return res.data;
+  },
+  // User hủy yêu cầu
+  cancelWithdraw: async (id: string) => {
+    const res = await apiClient.delete(`/wallet/withdraw/${id}/cancel`);
+    return res.data;
+  },
+};
+
 
