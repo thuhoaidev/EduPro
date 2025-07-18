@@ -44,7 +44,7 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['bank_transfer', 'momo', 'vnpay', 'zalopay'],
+    enum: ['bank_transfer', 'momo', 'vnpay'],
     default: 'bank_transfer'
   },
   paymentStatus: {
