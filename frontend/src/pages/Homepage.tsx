@@ -239,14 +239,19 @@ const Homepage = () => {
         
         const response = await fetch('http://localhost:5000/api/blogs/68547db672358427a53d9ece/comments');
         const commentsData = await response.json();
-        const mappedTestimonials: Testimonial[] = commentsData.map((comment: CommentData) => ({
-          name: comment.user?.fullname || 'Học viên',
-          role: 'Sinh viên',
-          content: comment.content || 'Khóa học rất hay!',
-          rating: comment.rating || 5,
-          avatar: `https://i.pravatar.cc/80?u=${comment.user?.fullname || 'user'}`
-        }));
-        setTestimonials(mappedTestimonials);
+        if (Array.isArray(commentsData)) {
+          const mappedTestimonials: Testimonial[] = commentsData.map((comment: CommentData) => ({
+            name: comment.user?.fullname || 'Học viên',
+            role: 'Sinh viên',
+            content: comment.content || 'Khóa học rất hay!',
+            rating: comment.rating || 5,
+            avatar: `https://i.pravatar.cc/80?u=${comment.user?.fullname || 'user'}`
+          }));
+          setTestimonials(mappedTestimonials);
+        } else {
+          console.error('commentsData is not an array:', commentsData);
+          setTestimonials([]);
+        }
         
         try {
           const vouchersResponse = await fetch('http://localhost:5000/api/vouchers');
@@ -723,7 +728,7 @@ const Homepage = () => {
           {instructors.map((instructor, idx) => (
             <Col xs={24} sm={12} md={8} lg={6} key={instructor._id || idx}>
               <Card className="instructor-card" hoverable>
-                <Avatar src={instructor.avatar || instructor.profilePicture || '/public/images/default-avatar.png'} size={80} />
+                <Avatar src={instructor.avatar || instructor.profilePicture || '/images/default-avatar.png'} size={80} />
                 <Title level={4} style={{ marginTop: 12 }}>{instructor.fullname || instructor.name}</Title>
                 <Text>{instructor.specialty || instructor.bio || 'Chuyên gia đào tạo'}</Text>
                 <div style={{ marginTop: 8 }}>
@@ -752,13 +757,13 @@ const Homepage = () => {
               <Card
                 className="blog-card"
                 hoverable
-                cover={<img alt={blog.title} src={blog.thumbnail || '/public/images/no-image.png'} style={{ height: 160, objectFit: 'cover' }} />}
+                cover={<img alt={blog.title} src={blog.thumbnail || '/images/no-image.png'} style={{ height: 160, objectFit: 'cover' }} />}
                 onClick={() => navigate(`/blogs/${blog._id}`)}
               >
                 <Title level={4}>{blog.title}</Title>
                 <Paragraph ellipsis={{ rows: 2 }}>{blog.summary || blog.content?.slice(0, 80) || ''}</Paragraph>
                 <div style={{ display: 'flex', alignItems: 'center', marginTop: 8 }}>
-                  <Avatar src={blog.author?.avatar || '/public/images/default-avatar.png'} size={24} />
+                  <Avatar src={blog.author?.avatar || '/images/default-avatar.png'} size={24} />
                   <span style={{ marginLeft: 8 }}>{blog.author?.fullname || 'Tác giả'}</span>
                   <span style={{ marginLeft: 'auto', fontSize: 12, color: '#888' }}>{blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : ''}</span>
                 </div>
