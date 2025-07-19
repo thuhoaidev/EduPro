@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, Row, Col, Radio, Avatar } from 'antd';
 import { config } from '../../../api/axios';
-import { LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined } from '@ant-design/icons';
+import { LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined, PauseCircleOutlined } from '@ant-design/icons';
 import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress } from '../../../services/progressService';
 import { getComments, addComment, replyComment } from '../../../services/lessonCommentService';
 import SectionSidebar from './SectionSidebar';
@@ -58,6 +58,7 @@ const LessonVideoPage: React.FC = () => {
   const [commentWarning, setCommentWarning] = useState('');
   const [isEnrolled, setIsEnrolled] = useState<boolean | null>(null);
   const [isFree, setIsFree] = useState<boolean | null>(null);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
   // Debounce function để tránh gọi API liên tục
   const debouncedUpdateProgress = useCallback((courseId: string, lessonId: string, time: number, duration: number) => {
@@ -460,149 +461,167 @@ const LessonVideoPage: React.FC = () => {
     return <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />;
   }
 
-  if (loading) return <div className="flex justify-center items-center min-h-screen"><Spin size="large" /></div>;
-  if (error) return <Alert message="Lỗi" description={error} type="error" showIcon />;
-
   return (
-    <div style={{ display: 'flex' }}>
-      <SectionSidebar
-        sections={courseSections}
-        unlockedLessons={unlockedLessons}
-        currentLessonId={currentLessonId}
-        progress={progress}
-        onSelectLesson={(lessonId) => {
-          navigate(`/lessons/${lessonId}/video`);
-        }}
-      />
+    <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa' }}>
+      <div style={{ width: '30%', minWidth: 280, maxWidth: 400, background: '#fff', boxShadow: '0 2px 16px #e6e6e6', borderRadius: 16, margin: 16, height: 'calc(100vh - 32px)' }}>
+        <SectionSidebar
+          sections={courseSections}
+          unlockedLessons={unlockedLessons}
+          currentLessonId={currentLessonId}
+          progress={progress}
+          currentVideoProgress={Math.round(videoProgress * 100)}
+          isVideoPlaying={isVideoPlaying}
+          onSelectLesson={(lessonId) => {
+            navigate(`/lessons/${lessonId}/video`);
+          }}
+        />
+      </div>
       <motion.div
         initial={{ x: 300, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: -300, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-        style={{ flex: 1, padding: '20px', overflowY: 'auto', height: '100vh' }}
+        style={{ flex: '0 0 70%', padding: '32px 40px', overflowY: 'auto', height: '100vh', background: 'transparent' }}
       >
         {loading ? (
-          <Spin size="large" />
+          <div className="flex justify-center items-center min-h-screen"><Spin size="large" /></div>
         ) : error ? (
-          <Alert message={error} type="error" />
+          <Alert message="Lỗi" description={error} type="error" showIcon style={{ margin: 32 }} />
         ) : (
           <>
-            <Title level={2}>{lessonTitle}</Title>
-            <div className="relative">
-              <Card>
+            <Title level={2} style={{ textAlign: 'center', marginBottom: 8 }}>{lessonTitle}</Title>
+            <Divider style={{ margin: '12px 0 24px 0' }} />
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, padding: 0 }} bodyStyle={{ padding: 0 }}>
                 {videoUrl ? (
-                  <video
-                    ref={videoRef}
-                    key={videoUrl}
-                    src={videoUrl}
-                    controls
-                    style={{ width: '100%' }}
-                    onTimeUpdate={handleVideoTimeUpdate}
-                    onEnded={handleVideoEnded}
-                    onLoadedMetadata={handleVideoLoadedMetadata}
-                  >
-                    Trình duyệt không hỗ trợ video tag.
-                  </video>
+                  <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden' }}>
+                    <video
+                      ref={videoRef}
+                      key={videoUrl}
+                      src={videoUrl}
+                      controls
+                      style={{ width: '100%', borderRadius: 0, background: '#000' }}
+                      onTimeUpdate={handleVideoTimeUpdate}
+                      onEnded={handleVideoEnded}
+                      onLoadedMetadata={handleVideoLoadedMetadata}
+                      onPlay={() => setIsVideoPlaying(true)}
+                      onPause={() => setIsVideoPlaying(false)}
+                    >
+                      Trình duyệt không hỗ trợ video tag.
+                    </video>
+                    {videoWatched && !quiz && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
+                        <span style={{ background: '#52c41a', color: '#fff', padding: '10px 24px', borderRadius: 32, boxShadow: '0 2px 8px #b7eb8f', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 18 }}>
+                          <CheckCircleOutlined style={{ fontSize: 22 }} /> Đã hoàn thành bài học
+                        </span>
+                      </motion.div>
+                    )}
+                  </div>
                 ) : (
-                  <Alert message="Không có video" type="warning" />
+                  <Alert message="Không có video" type="warning" style={{ borderRadius: 12, margin: 24 }} />
                 )}
               </Card>
-
-              {videoWatched && !quiz && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
-                  <span className="bg-green-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-                    <CheckCircleOutlined className="text-xl" /> Đã hoàn thành bài học
-                  </span>
-                </motion.div>
-              )}
-            </div>
-
-            <Divider />
+            </motion.div>
 
             {/* Quiz Section */}
             {showQuiz && quiz && (
-              <div className="mt-8">
-                <Card variant="outlined" className="shadow-lg rounded-xl">
-                  <Title level={3}>Quiz: {quiz.questions.length} câu hỏi</Title>
+              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, maxWidth: 700, marginLeft: 'auto', marginRight: 'auto' }}>
                   {quiz.questions.map((q, idx) => (
-                    <div key={idx} className="mb-6">
-                      <div className="font-semibold mb-2">Câu {idx + 1}: {q.question}</div>
+                    <div key={idx} style={{ marginBottom: 32, background: '#f8fafc', borderRadius: 12, padding: 18, boxShadow: '0 1px 6px #f0f0f0' }}>
+                      <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 17 }}>Câu {idx + 1}: {q.question}</div>
                       <Radio.Group
                         onChange={e => setQuizAnswers(prev => prev.map((a, i) => (i === idx ? e.target.value : a)))}
                         value={quizAnswers[idx]}
-                        disabled={false}
+                        disabled={!!quizResult && quizResult.success}
+                        style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
                       >
                         {q.options.map((opt, oIdx) => (
-                          <Radio key={oIdx} value={oIdx} className="block mb-1">
+                          <Radio key={oIdx} value={oIdx} style={{
+                            background: quizResult && quizResult.success && q.correctIndex === oIdx ? '#e6fffb' : undefined,
+                            color: quizResult && quizResult.success && q.correctIndex === oIdx ? '#389e8a' : undefined,
+                            borderRadius: 8,
+                            padding: '6px 12px',
+                            marginBottom: 4,
+                            fontWeight: 500,
+                            fontSize: 16,
+                            border: quizResult && quizResult.success && q.correctIndex === oIdx ? '1.5px solid #52c41a' : '1px solid #e0e0e0',
+                            boxShadow: quizResult && quizResult.success && q.correctIndex === oIdx ? '0 2px 8px #b7eb8f' : undefined
+                          }}>
                             {opt}
                             {quizResult && quizResult.success && q.correctIndex === oIdx && (
-                              <span style={{ color: '#52c41a', marginLeft: 8 }}>(Đáp án đúng)</span>
+                              <span style={{ color: '#52c41a', marginLeft: 8, fontWeight: 600 }}>(Đáp án đúng)</span>
                             )}
                           </Radio>
                         ))}
                       </Radio.Group>
                       {quizResult && quizResult.wrongQuestions?.includes(idx) && (
-                        <div className="text-red-600 mt-1">Đáp án chưa đúng</div>
+                        <div style={{ color: '#ff4d4f', marginTop: 8, fontWeight: 500 }}>Đáp án chưa đúng</div>
                       )}
                     </div>
                   ))}
-                  <Button type="primary" size="large" onClick={handleQuizSubmit} disabled={!!quizResult && quizResult.success}>Nộp bài</Button>
-                  {quizResult && !quizResult.success && (
-                    <Button className="ml-4" onClick={handleQuizRetry}>Làm lại</Button>
-                  )}
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12 }}>
+                    <Button type="primary" size="large" onClick={handleQuizSubmit} disabled={!!quizResult && quizResult.success} style={{ minWidth: 120, fontWeight: 600, fontSize: 17 }}>Nộp bài</Button>
+                    {quizResult && !quizResult.success && (
+                      <Button onClick={handleQuizRetry} style={{ minWidth: 100 }}>Làm lại</Button>
+                    )}
+                  </div>
                   {quizResult && (
-                    <div style={{ marginTop: 20 }}>
+                    <div style={{ marginTop: 24 }}>
                       <Alert
                         message={quizResult.success ? '🎉 Chúc mừng!' : 'Kết quả'}
                         description={quizResult.message}
                         type={quizResult.success ? 'success' : 'error'}
                         showIcon
+                        style={{ borderRadius: 10, fontWeight: 500, fontSize: 16 }}
                       />
                     </div>
                   )}
                 </Card>
-              </div>
+              </motion.div>
             )}
 
-            <Divider />
-
             {/* Comments Section */}
-            <Card title="Bình luận">
-              <List
-                loading={commentLoading}
-                dataSource={comments}
-                renderItem={(item) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      avatar={<Avatar icon={<UserOutlined />} />}
-                      title={item.user?.name || 'Anonymous'}
-                      description={item.content}
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <Card title={<span style={{ fontWeight: 700, fontSize: 20 }}>Bình luận</span>} style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', maxWidth: 700, marginLeft: 'auto', marginRight: 'auto' }}>
+                <List
+                  loading={commentLoading}
+                  dataSource={comments}
+                  locale={{ emptyText: 'Chưa có bình luận nào.' }}
+                  renderItem={(item) => (
+                    <List.Item style={{ alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid #f0f0f0' }}>
+                      <List.Item.Meta
+                        avatar={<Avatar icon={<UserOutlined />} style={{ background: '#e6f7ff', color: '#1890ff' }} />}
+                        title={<span style={{ fontWeight: 600 }}>{item.user?.name || 'Anonymous'}</span>}
+                        description={<span style={{ fontSize: 16 }}>{item.content}</span>}
+                      />
+                      <div style={{ color: '#888', fontSize: 13, minWidth: 80, textAlign: 'right' }}>{dayjs(item.createdAt).fromNow()}</div>
+                    </List.Item>
+                  )}
+                />
+                <Row style={{ marginTop: 24, alignItems: 'flex-end' }} gutter={12}>
+                  <Col flex="auto">
+                    <TextArea
+                      rows={3}
+                      value={newComment}
+                      onChange={(e) => {
+                        setNewComment(e.target.value);
+                        if (leoProfanity.check(e.target.value)) setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+                        else setCommentWarning('');
+                      }}
+                      placeholder="Viết bình luận của bạn..."
+                      style={{ borderRadius: 10, fontSize: 16, padding: 12, boxShadow: '0 1px 4px #f0f0f0' }}
                     />
-                    <div>{dayjs(item.createdAt).fromNow()}</div>
-                  </List.Item>
-                )}
-              />
-              <Row style={{ marginTop: 20 }}>
-                <Col flex="auto">
-                  <TextArea
-                    rows={3}
-                    value={newComment}
-                    onChange={(e) => {
-                      setNewComment(e.target.value);
-                      if (leoProfanity.check(e.target.value)) setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
-                      else setCommentWarning('');
-                    }}
-                    placeholder="Viết bình luận của bạn..."
-                  />
-                  {commentWarning && <div style={{ color: 'red', marginBottom: 8 }}>{commentWarning}</div>}
-                </Col>
-                <Col>
-                  <Button type="primary" icon={<SendOutlined />} onClick={handleComment} style={{ height: '100%' }} disabled={!newComment.trim() || !!commentWarning}>
-                    Gửi
-                  </Button>
-                </Col>
-              </Row>
-            </Card>
+                    {commentWarning && <div style={{ color: '#ff4d4f', margin: '8px 0', fontWeight: 500 }}>{commentWarning}</div>}
+                  </Col>
+                  <Col>
+                    <Button type="primary" icon={<SendOutlined />} onClick={handleComment} style={{ height: 48, width: 60, borderRadius: 10, fontSize: 20 }} disabled={!newComment.trim() || !!commentWarning}>
+                      Gửi
+                    </Button>
+                  </Col>
+                </Row>
+              </Card>
+            </motion.div>
           </>
         )}
       </motion.div>

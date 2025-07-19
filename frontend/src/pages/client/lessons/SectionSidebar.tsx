@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Typography, Progress, Tooltip } from 'antd';
-import { LockOutlined, CheckCircleTwoTone, PlayCircleTwoTone, ClockCircleOutlined } from '@ant-design/icons';
+import { LockOutlined, CheckCircleTwoTone, PlayCircleTwoTone, ClockCircleOutlined, PauseCircleTwoTone } from '@ant-design/icons';
 
 const { Title } = Typography;
 
@@ -12,10 +12,12 @@ type Props = {
   unlockedLessons: string[];
   currentLessonId: string | null;
   progress: any;
+  currentVideoProgress?: number;
+  isVideoPlaying?: boolean;
   onSelectLesson: (lessonId: string) => void;
 };
 
-const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLessonId, progress, onSelectLesson }) => {
+const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLessonId, progress, currentVideoProgress, isVideoPlaying, onSelectLesson }) => {
   const completedLessons = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
   const lastWatched = progress?.lastWatched;
 
@@ -38,11 +40,12 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
   }
   return (
     <Card variant="outlined" className="shadow-md rounded-xl bg-gradient-to-br from-cyan-50 via-white to-purple-50">
-      <Title level={4} className="mb-4 text-cyan-700">Nội dung khóa học</Title>
+      {/* Bỏ tiêu đề 'Nội dung khóa học' */}
       <div className="overflow-y-auto max-h-[80vh] pr-2">
         {sections.map((section, sIdx) => (
           <div key={section._id} className="mb-6">
-            <div className="font-semibold text-cyan-700 mb-2 text-base">Chương {sIdx + 1}: {section.title}</div>
+            {/* Tiêu đề chương nổi bật */}
+            <div className="font-bold text-cyan-700 text-lg mb-2 tracking-wide uppercase">{section.title}</div>
             <ul className="pl-2">
               {section.lessons.map((lesson, lIdx) => {
                 // Đảm bảo so sánh unlockedLessons và lesson._id đều là string
@@ -53,17 +56,20 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                 const isCurrent = lessonIdStr === currentLessonId;
                 const isCompleted = completedLessons.map(String).includes(lessonIdStr);
                 let progressValue = getLessonVideoPercent(lessonIdStr);
+                // Nếu là bài học hiện tại và có currentVideoProgress thì dùng giá trị này
+                if (isCurrent && typeof currentVideoProgress === 'number') {
+                  progressValue = currentVideoProgress;
+                }
                 let progressColor = '#d9d9d9';
                 let showProgress = false;
-                if (isCompleted) {
+                if (progressValue === 100 || isCompleted) {
                   progressValue = 100;
-                  progressColor = '#52c41a';
+                  progressColor = '#52c41a'; // xanh lá
                   showProgress = true;
                 } else if (isCurrent) {
                   progressColor = '#1890ff';
                   showProgress = true;
                 } else if (lastWatched && lessonIdStr === lastWatched) {
-                  progressColor = '#faad14';
                   showProgress = true;
                 } else if (unlocked && progressValue > 0) {
                   progressColor = '#faad14';
@@ -76,14 +82,27 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                     style={{ pointerEvents: unlocked ? 'auto' : 'none' }}
                     onClick={() => unlocked && onSelectLesson(lesson._id)}
                   >
-                    <span className="mr-1 text-gray-400 text-xs">{lIdx + 1}.</span>
+                    <span className="mr-1">
+                      <Progress
+                        type="circle"
+                        percent={progressValue}
+                        width={32}
+                        strokeColor={progressColor}
+                        format={() => lIdx + 1}
+                        showInfo
+                      />
+                    </span>
                     {isCompleted ? (
                       <Tooltip title="Đã hoàn thành">
                         <CheckCircleTwoTone twoToneColor="#52c41a" className="mr-1" />
                       </Tooltip>
                     ) : isCurrent ? (
-                      <Tooltip title="Đang học">
-                        <PlayCircleTwoTone twoToneColor="#1890ff" className="mr-1" />
+                      <Tooltip title={isVideoPlaying ? "Đang phát" : "Đang dừng"}>
+                        {isVideoPlaying ? (
+                          <PauseCircleTwoTone twoToneColor="#1890ff" className="mr-1" />
+                        ) : (
+                          <PlayCircleTwoTone twoToneColor="#1890ff" className="mr-1" />
+                        )}
                       </Tooltip>
                     ) : !unlocked ? (
                       <Tooltip title="Chưa mở khóa">
@@ -91,11 +110,6 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                       </Tooltip>
                     ) : null}
                     <span className={`flex-1 truncate ${isCurrent ? 'text-cyan-700' : 'text-gray-800'}`}>{lesson.title}</span>
-                    {showProgress && unlocked && !isCompleted && progressValue > 0 && (
-                      <Tooltip title={`Đã xem ${progressValue}%`}>
-                        <Progress percent={progressValue} size="small" showInfo={false} strokeColor={progressColor} style={{ width: 60 }} />
-                      </Tooltip>
-                    )}
                   </li>
                 );
               })}
