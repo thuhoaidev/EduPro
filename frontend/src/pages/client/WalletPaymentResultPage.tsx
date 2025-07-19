@@ -14,14 +14,19 @@ const WalletPaymentResultPage: React.FC = () => {
   const [title, setTitle] = useState("Đang xác minh giao dịch...");
   const [subTitle, setSubTitle] = useState("Vui lòng đợi trong giây lát...");
   const [amount, setAmount] = useState<number | null>(null);
+  const [redirected, setRedirected] = useState(false);
 
   useEffect(() => {
     const checkWalletPayment = async () => {
       setLoading(true);
       try {
-        // Nếu đã xác thực rồi, chuyển hướng về ví luôn
-        if (sessionStorage.getItem('walletPaymentChecked')) {
-          navigate('/wallet');
+        // Lấy mã giao dịch (orderId hoặc transactionId)
+        const transactionId = query.get("orderId") || query.get("transactionId");
+        const checkedKey = transactionId ? `walletPaymentChecked_${transactionId}` : null;
+        // Nếu đã xác thực giao dịch này rồi, chuyển hướng về ví luôn
+        if (checkedKey && sessionStorage.getItem(checkedKey)) {
+          setRedirected(true);
+          navigate('/wallet', { replace: true });
           return;
         }
         const params = query.toString();
@@ -36,10 +41,12 @@ const WalletPaymentResultPage: React.FC = () => {
           setTitle("Nạp tiền thành công!");
           setSubTitle(`Số dư mới: ${json.balance?.toLocaleString() || ""}₫`);
           setAmount(json.amount || null);
-          // Đánh dấu đã xác thực
-          sessionStorage.setItem('walletPaymentChecked', '1');
-          // Tự động chuyển về ví sau 3 giây
-          setTimeout(() => navigate('/wallet'), 3000);
+          // Đánh dấu đã xác thực giao dịch này
+          if (checkedKey) {
+            sessionStorage.setItem(checkedKey, '1');
+          }
+          // Tự động chuyển về ví sau 20 giây
+          setTimeout(() => navigate('/wallet'), 1000);
         } else {
           setStatus("error");
           setTitle("Nạp tiền thất bại hoặc bị hủy");
@@ -58,6 +65,7 @@ const WalletPaymentResultPage: React.FC = () => {
     // eslint-disable-next-line
   }, [query]);
 
+  if (redirected) return null;
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />;
 
   return (
