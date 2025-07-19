@@ -4,19 +4,10 @@ const BlogSave = require('../models/BlogSave');
 const BlogComment = require('../models/BlogComment');
 const BlogLike = require('../models/BlogLike');
 const { uploadBufferToCloudinary } = require('../utils/cloudinary');
-const getUserId = require('../utils/getUserId'); 
-
-const SENSITIVE_WORDS = [
-  'sex', 'địt', 'fuck', 'rape', 'vãi', 'dcm', 'cặc', 'lồn', 'dm', 'dmm',
-  'đụ', 'đéo', 'shit', 'bitch', 'asshole', 'pussy', 'faggot', 'nigger',
-  'nigga', 'motherfucker', 'cunt'
-];
-
-function containsSensitiveWords(text) {
-  if (!text) return false;
-  const lower = text.toLowerCase();
-  return SENSITIVE_WORDS.some(word => lower.includes(word));
-}
+const getUserId = require('../utils/getUserId');
+const leoProfanity = require('leo-profanity');
+leoProfanity.add(['địt', 'cặc', 'lồn', 'đụ', 'đéo', 'dcm', 'dm', 'dmm', 'vãi', 'rape']);
+const Notification = require('../models/Notification');
 
 // === BLOG ===
 const createBlog = async (req, res) => {
@@ -37,10 +28,23 @@ const createBlog = async (req, res) => {
       category,
       status: status || 'pending',
       author,
-      approved_by: author
+      approved_by: author,
     });
 
     await blog.save();
+    // Gửi thông báo global khi có bài viết mới
+    const notification = await Notification.create({
+      title: 'Bài viết mới',
+      content: `Bài viết "${blog.title}" đã được đăng tải và chờ duyệt.`,
+      type: 'info',
+      is_global: true,
+      icon: 'file-text',
+      meta: { link: `/blogs/${blog._id}` }
+    });
+    const io = req.app.get && req.app.get('io');
+    if (io) {
+      io.emit('new-notification', notification); // emit global
+    }
     res.status(201).json({ success: true, message: 'Bài viết đã gửi và chờ duyệt.', data: blog });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi tạo blog', error: error.message });
@@ -52,10 +56,9 @@ const getAllBlogs = async (req, res) => {
     const author = getUserId(req);
     const query = { status: 'approved' };
 
-    const blogs = await Blog.find(query)
-      .sort({ createdAt: -1 })
-      .populate('author', 'fullname');
-
+    const blogs = await Blog.find()
+      .populate('author', 'fullname avatar nickname')
+      .sort({ createdAt: -1 });
     // === Lấy danh sách blogId mà user đã like
     let likedBlogIds = [];
     if (author) {
@@ -63,13 +66,13 @@ const getAllBlogs = async (req, res) => {
       likedBlogIds = liked.map(item => item.blog.toString());
     }
 
-        const blogsWithExtras = blogs.map(blog => {
+    const blogsWithExtras = blogs.map(blog => {
       const blogObj = blog.toObject();
       return {
         ...blogObj,
         isLiked: likedBlogIds.includes(blog._id.toString()),
         isSaved: blog.saves?.some(id => id.toString() === author?.toString()),
-        save_count: blog.saves?.length || 0
+        save_count: blog.saves?.length || 0,
       };
     });
 
@@ -107,7 +110,7 @@ const getMyPosts = async (req, res) => {
         ...blog,
         isLiked: likedBlogIds.includes(blog._id.toString()),
         likes_count: blog.likes_count || 0,
-        comments_count: blog.comments_count || 0
+        comments_count: blog.comments_count || 0,
       };
     });
 
@@ -143,7 +146,7 @@ const toggleLikeBlog = async (req, res) => {
         success: true,
         liked: false,
         message: 'Đã bỏ thả tim.',
-        likes_count: blog.likes_count
+        likes_count: blog.likes_count,
       });
     } else {
       await BlogLike.create({ blog: blogObjectId, user: userObjectId });
@@ -153,7 +156,7 @@ const toggleLikeBlog = async (req, res) => {
         success: true,
         liked: true,
         message: 'Đã thả tim.',
-        likes_count: blog.likes_count
+        likes_count: blog.likes_count,
       });
     }
 
@@ -173,8 +176,8 @@ const commentBlog = async (req, res) => {
       return res.status(400).json({ success: false, message: 'ID bài viết không hợp lệ.' });
     }
 
-    if (containsSensitiveWords(content)) {
-      return res.status(400).json({ success: false, message: 'Bình luận chứa từ ngữ không phù hợp.' });
+    if (leoProfanity.check(content)) {
+      return res.status(400).json({ success: false, message: 'Bình luận chứa ngôn từ không phù hợp!' });
     }
 
     const userId = getUserId(req);
@@ -194,11 +197,11 @@ const replyComment = async (req, res) => {
   try {
     const { commentId } = req.params;
     const { content } = req.body;
-    if (containsSensitiveWords(content)) {
-      return res.status(400).json({ success: false, message: 'Bình luận chứa từ ngữ không phù hợp.' });
+    if (leoProfanity.check(content)) {
+      return res.status(400).json({ success: false, message: 'Bình luận chứa ngôn từ không phù hợp!' });
     }
     if (!mongoose.Types.ObjectId.isValid(commentId)) {
-  return res.status(400).json({ success: false, message: 'ID bình luận không hợp lệ.' });
+      return res.status(400).json({ success: false, message: 'ID bình luận không hợp lệ.' });
     }
     const userId = getUserId(req);
     const parentComment = await BlogComment.findById(commentId);
@@ -303,7 +306,7 @@ const getSavedPosts = async (req, res) => {
       }
     }
 
-    // 🧹 Xoá những bản ghi lỗi
+    // Xoá những bản ghi lỗi
     const invalidIds = savedPosts
       .filter(p => !p.blog || !mongoose.Types.ObjectId.isValid(p.blog._id))
       .map(p => p._id);
@@ -311,17 +314,27 @@ const getSavedPosts = async (req, res) => {
       await BlogSave.deleteMany({ _id: { $in: invalidIds } });
     }
 
-    // Lấy danh sách blog mà user đã like
+    // Lấy danh sách blog đã like
     const likedBlogs = await BlogLike.find({ user: userId, blog: { $in: blogIds } }).select('blog');
     const likedBlogIds = likedBlogs.map(like => like.blog.toString());
 
-    // Định dạng kết quả trả về
+    // Xử lý kết quả
     const result = validPosts.map(post => {
       const blog = post.blog.toObject();
+
+      // 🔥 FIX: nếu không có image => lấy ảnh đầu tiên trong markdown content
+      if (!blog.image) {
+        const match = blog.content?.match(/!\[.*?\]\((.*?)\)/);
+        if (match && match[1]) {
+          blog.image = match[1];
+        }
+      }
+
       blog.isLiked = likedBlogIds.includes(blog._id.toString());
       blog.save_count = blog.saves?.length || 0;
       blog.likes_count = blog.likes_count || 0;
       blog.comments_count = blog.comments_count || 0;
+
       return { ...post.toObject(), blog };
     });
 
@@ -331,6 +344,50 @@ const getSavedPosts = async (req, res) => {
     res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }
 };
+// === COMMENT LIKE ===
+const CommentLike = require('../models/CommentLike');
+
+const toggleLikeComment = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { commentId } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+      return res.status(400).json({ success: false, message: 'ID bình luận không hợp lệ.' });
+    }
+
+    const comment = await BlogComment.findById(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bình luận.' });
+    }
+
+    const existed = await CommentLike.findOne({ user: userId, comment: commentId });
+
+    if (existed) {
+      await existed.deleteOne();
+      return res.json({ success: true, liked: false, message: 'Đã bỏ tym.' });
+    } else {
+      await CommentLike.create({ user: userId, comment: commentId });
+      return res.json({ success: true, liked: true, message: 'Đã thả tym.' });
+    }
+  } catch (error) {
+    console.error('❌ Lỗi toggleLikeComment:', error);
+    res.status(500).json({ success: false, message: 'Lỗi xử lý like bình luận', error: error.message });
+  }
+};
+
+const getLikedComments = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const liked = await CommentLike.find({ user: userId }).select('comment');
+    const likedCommentIds = liked.map((item) => item.comment.toString());
+    res.json({ success: true, likedCommentIds });
+  } catch (error) {
+    console.error('❌ Lỗi getLikedComments:', error);
+    res.status(500).json({ success: false, message: 'Lỗi lấy comment đã like', error: error.message });
+  }
+};
+
 
 // === ADMIN ===
 const approveOrRejectBlog = async (req, res) => {
@@ -347,18 +404,26 @@ const approveOrRejectBlog = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Chỉ duyệt blog pending.' });
     }
     if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ success: false, message: 'ID không hợp lệ.' });
+      return res.status(400).json({ success: false, message: 'ID không hợp lệ.' });
     }
     const approverId = getUserId(req);
+    if (status === 'rejected') {
+      // Xóa blog khỏi DB nếu bị từ chối
+      await Blog.findByIdAndDelete(id);
+      await BlogComment.deleteMany({ blog: id });
+      await BlogLike.deleteMany({ blog: id });
+      await BlogSave.deleteMany({ blog: id });
+      return res.json({ success: true, message: 'Đã từ chối và xóa blog.' });
+    }
     blog.status = status;
     blog.approved_by = approverId || null;
-    blog.rejected_reason = status === 'rejected' ? rejected_reason : '';
+    blog.rejected_reason = '';
     await blog.save();
 
     res.json({
       success: true,
       message: `Đã cập nhật trạng thái: ${status}`,
-      data: blog
+      data: blog,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi duyệt blog', error: error.message });
@@ -521,5 +586,7 @@ module.exports = {
   updateBlog,
   deleteBlog,
   getMyPosts,
+  toggleLikeComment,
+  getLikedComments,
   publishBlog
 };

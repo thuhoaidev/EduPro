@@ -5,11 +5,18 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import orderService from "../../services/orderService";
 import { useAuth } from "../../hooks/Auths/useAuth";
+import { useCart } from "../../contexts/CartContext"; // ✅ Import đúng vị trí
+
+interface PendingOrderItem {
+  courseId: string;
+  quantity?: number;
+}
 
 function CheckPayment() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { clearCart } = useCart(); // ✅ Hook phải gọi ở top-level
 
   const [status, setStatus] = useState<"success" | "error">("error");
   const [title, setTitle] = useState("Đang xác minh thanh toán...");
@@ -23,11 +30,12 @@ function CheckPayment() {
       try {
         let isPaid = false;
 
-        /** ✅ BƯỚC 1: Xác minh thanh toán */
+        // ✅ BƯỚC 1: Xác minh thanh toán
         if (paymentMethod === "zalopay") {
           const status = searchParams.get("status");
           if (Number(status) === 1) {
             isPaid = true;
+            setStatus("success"); // Thêm dòng này để hiển thị thành công ngay
             setTitle("Thanh toán thành công");
           } else {
             setStatus("error");
@@ -36,12 +44,13 @@ function CheckPayment() {
           }
         } else {
           const { data } = await axios.get(
-            `http://localhost:5000/check_payment?${searchParams.toString()}`
+            `http://localhost:5000/api/check_payment?${searchParams.toString()}`
           );
           const code = data?.data?.vnp_ResponseCode;
 
           if (code === "00") {
             isPaid = true;
+            setStatus("success"); // Thêm dòng này để hiển thị thành công ngay
             setTitle("Thanh toán thành công");
           } else if (code === "24") {
             setStatus("error");
@@ -55,7 +64,7 @@ function CheckPayment() {
           }
         }
 
-        /** ✅ BƯỚC 2: Gửi đơn hàng */
+        // ✅ BƯỚC 2: Gửi đơn hàng
         if (isPaid) {
           const rawOrder = localStorage.getItem("pendingOrder");
 
@@ -67,34 +76,17 @@ function CheckPayment() {
           }
 
           const parsed = JSON.parse(rawOrder);
-          
-          console.log("🔍 Raw pendingOrder data:", parsed);
-          console.log("🔍 Parsed items:", parsed.items);
 
-          // Kiểm tra hợp lệ từng item
-          const validItems = parsed.items.filter(
-            (item: any) => item.courseId && typeof item.courseId === "string"
+          const validItems = (parsed.items as PendingOrderItem[]).filter(
+            (item) => item.courseId && typeof item.courseId === "string"
           );
-          
-          console.log("🔍 Valid items after filter:", validItems);
 
           if (validItems.length === 0) {
-            console.error("❌ No valid items found. All items:", parsed.items);
-            console.error("❌ Item details:");
-            parsed.items.forEach((item: any, index: number) => {
-              console.error(`  Item ${index}:`, {
-                courseId: item.courseId,
-                courseIdType: typeof item.courseId,
-                hasCourseId: !!item.courseId,
-                fullItem: item,
-                keys: Object.keys(item)
-              });
-            });
             throw new Error("Khóa học không hợp lệ hoặc thiếu courseId!");
           }
 
           const orderData = {
-            items: validItems.map((item: any) => ({
+            items: validItems.map((item) => ({
               courseId: item.courseId,
               quantity: item.quantity ?? 1,
             })),
@@ -110,25 +102,31 @@ function CheckPayment() {
 
           const res = await orderService.createOrder(orderData, token);
 
+          // ✅ Xóa giỏ hàng và localStorage
+          clearCart();
           localStorage.removeItem("pendingOrder");
           localStorage.removeItem("checkoutData");
 
-          // Refresh enrollment data để user thấy ngay khóa học đã mua
+          // ✅ Load lại dữ liệu khóa học đã mua
           try {
-            await config.get('/users/me/enrollments');
+            await config.get("/users/me/enrollments");
           } catch (error) {
-            console.log('Refresh enrollment data failed:', error);
+            console.log("Refresh enrollment data failed:", error);
           }
 
           setStatus("success");
           setTitle("Đơn hàng đã được ghi nhận!");
           setSubTitle(`Mã đơn hàng: ${res.order.id}`);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("❌ Payment processing error:", error);
         setStatus("error");
         setTitle("Đã có lỗi xảy ra khi xác nhận thanh toán");
-        setSubTitle(error.message || "Vui lòng thử lại hoặc liên hệ hỗ trợ.");
+        if (error instanceof Error) {
+          setSubTitle(error.message || "Vui lòng thử lại hoặc liên hệ hỗ trợ.");
+        } else {
+          setSubTitle("Vui lòng thử lại hoặc liên hệ hỗ trợ.");
+        }
         message.error("Lỗi xử lý thanh toán!");
       } finally {
         setIsProcessing(false);
@@ -136,7 +134,7 @@ function CheckPayment() {
     };
 
     handlePayment();
-  }, [searchParams, paymentMethod, token]);
+  }, [searchParams, paymentMethod, token, clearCart]);
 
   if (isProcessing) {
     return (
@@ -147,20 +145,36 @@ function CheckPayment() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Result
         status={status}
-        title={title}
-        subTitle={subTitle}
+        icon={
+          status === "success" ? (
+            <svg width="72" height="72" fill="none" viewBox="0 0 72 72">
+              <circle cx="36" cy="36" r="36" fill="#52c41a" opacity="0.15" />
+              <path d="M22 37l10 10 18-18" stroke="#52c41a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg width="72" height="72" fill="none" viewBox="0 0 72 72">
+              <circle cx="36" cy="36" r="36" fill="#ff4d4f" opacity="0.15" />
+              <path d="M27 27l18 18M45 27L27 45" stroke="#ff4d4f" strokeWidth="4" strokeLinecap="round" />
+            </svg>
+          )
+        }
+        title={<span style={{ fontSize: 28, fontWeight: 700 }}>{title}</span>}
+        subTitle={<span style={{ fontSize: 18 }}>{subTitle}</span>}
         extra={[
-          <Button type="primary" key="orders" onClick={() => navigate("/profile/orders")}>
-            Xem đơn hàng
-          </Button>,
-          <Button key="home" onClick={() => navigate("/")}>
-            Về trang chủ
-          </Button>,
+          <Button type="primary" key="orders" size="large" onClick={() => navigate("/profile/orders")}>Xem đơn hàng</Button>,
+          <Button key="home" size="large" onClick={() => navigate("/")}>Về trang chủ</Button>,
         ]}
+        style={{ width: 480, background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.08)', padding: 32 }}
       />
+      {/* Hiệu ứng confetti khi thành công */}
+      {status === "success" && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 1000 }}>
+          <canvas id="confetti-canvas" style={{ width: '100vw', height: '100vh' }}></canvas>
+        </div>
+      )}
     </div>
   );
 }

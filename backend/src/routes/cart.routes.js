@@ -81,7 +81,9 @@ router.post('/', auth, async (req, res) => {
     const userId = req.user._id;
 
     // 1. Kiểm tra khóa học
-    const course = await Course.findById(courseId).session(session);
+    const course = await Course.findById(courseId)
+      .populate('instructor', 'user')
+      .session(session);
     
     if (!course) {
       await session.abortTransaction();
@@ -91,10 +93,19 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    // 2. Tính giá cuối cùng với discount
+    // 2. Kiểm tra xem người dùng có phải là giảng viên của khóa học này không
+    if (course.instructor && course.instructor.user && course.instructor.user.toString() === userId.toString()) {
+      await session.abortTransaction();
+      return res.status(403).json({
+        success: false,
+        error: 'Bạn không thể thêm khóa học của chính mình vào giỏ hàng. Giảng viên đã có quyền truy cập đầy đủ vào khóa học của mình.'
+      });
+    }
+
+    // 3. Tính giá cuối cùng với discount
     const finalPrice = calculateFinalPrice(course.price, course.discount || 0);
 
-    // 3. Thêm vào giỏ hàng
+    // 4. Thêm vào giỏ hàng
     let cart = await Cart.findOne({ user: userId }).session(session);
     
     if (!cart) {
@@ -128,6 +139,27 @@ router.post('/', auth, async (req, res) => {
     await cart.save({ session });
     await session.commitTransaction();
     
+    // --- TẠO NOTIFICATION VÀ EMIT REALTIME ---
+    try {
+      const Notification = require('../models/Notification');
+      const io = req.app.get && req.app.get('io');
+      const notification = await Notification.create({
+        title: 'Đã thêm vào giỏ hàng',
+        content: `Bạn vừa thêm khóa học "${course.title}" vào giỏ hàng!`,
+        type: 'info',
+        receiver: userId,
+        icon: 'shopping-cart',
+        meta: { link: `/cart` }
+      });
+      console.log('ĐÃ TẠO notification:', notification);
+      if (io && notification.receiver) {
+        io.to(notification.receiver.toString()).emit('new-notification', notification);
+        console.log('Emit notification realtime tới user:', notification.receiver.toString(), notification);
+      }
+    } catch (notiErr) {
+      console.error('Lỗi tạo hoặc emit notification:', notiErr);
+    }
+
     const populatedCart = await cart.populate({
       path: 'items.course',
       select: 'title price discount thumbnail slug'

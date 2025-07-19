@@ -130,22 +130,25 @@ exports.deleteCategory = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        // Kiểm tra xem danh mục có khóa học nào không
-        const Course = require('../models/Course'); // Import Course để kiểm tra
-        const coursesInCategory = await Course.countDocuments({ category: id });
-        if (coursesInCategory > 0) {
-            throw new ApiError(400, 'Không thể xóa danh mục đang chứa khóa học');
-        }
-
-        const category = await Category.findByIdAndDelete(id);
-
+        // Kiểm tra danh mục có tồn tại không
+        const category = await Category.findById(id);
         if (!category) {
             throw new ApiError(404, 'Không tìm thấy danh mục');
         }
 
+        // Cập nhật tất cả khóa học thuộc danh mục này để không có danh mục
+        const Course = require('../models/Course');
+        await Course.updateMany(
+            { category: id },
+            { $unset: { category: 1 } }
+        );
+
+        // Xóa danh mục
+        await Category.findByIdAndDelete(id);
+
         res.json({
             success: true,
-            message: 'Xóa danh mục thành công'
+            message: 'Xóa danh mục thành công. Các khóa học đã được chuyển sang không có danh mục.'
         });
     } catch (error) {
         next(error);

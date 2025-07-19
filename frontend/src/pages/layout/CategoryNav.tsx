@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Spin, Typography } from 'antd';
-import { motion } from 'framer-motion';
+import { Layout, Spin, Typography, Badge } from 'antd';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CodeOutlined,
   GlobalOutlined,
@@ -12,8 +12,20 @@ import {
   CloudOutlined,
   RocketOutlined,
   LaptopOutlined,
+  FireOutlined,
+  StarOutlined,
+  BookOutlined,
+  VideoCameraOutlined,
+  SettingOutlined,
+  SafetyCertificateOutlined,
+  TeamOutlined,
+  BulbOutlined,
+  HeartOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 import { config } from '../../api/axios';
+import './CategoryNav.css';
+import { useNavigate } from 'react-router-dom';
 
 const { Sider } = Layout;
 const { Text } = Typography;
@@ -24,6 +36,9 @@ interface Category {
   icon: React.ReactNode;
   description?: string;
   courseCount?: number;
+  isPopular?: boolean;
+  isNew?: boolean;
+  color?: string;
 }
 
 interface BackendCategory {
@@ -42,33 +57,117 @@ interface ApiResponse {
   message: string;
 }
 
-// Bộ icon được chỉ định cho các danh mục cụ thể
-const specificIconMap: { [key: string]: React.ReactNode } = {
-  'Marketing': <ThunderboltOutlined />,
-  'Công nghệ thông tin': <CodeOutlined />,
-  'Phát triển web': <GlobalOutlined />,
-  'Phát triển mobile': <MobileOutlined />,
-  'Kinh doanh': <AreaChartOutlined />,
-  'Kỹ năng mềm': <MessageOutlined />,
+// Modern icon mapping with trending categories
+const modernIconMap: { [key: string]: { icon: React.ReactNode; color: string; isPopular?: boolean; isNew?: boolean } } = {
+  'Công nghệ thông tin': { 
+    icon: <CodeOutlined />, 
+    color: '#3b82f6',
+    isPopular: true 
+  },
+  'Phát triển web': { 
+    icon: <GlobalOutlined />, 
+    color: '#10b981',
+    isPopular: true 
+  },
+  'Phát triển mobile': { 
+    icon: <MobileOutlined />, 
+    color: '#f59e0b',
+    isPopular: true 
+  },
+  'Kinh doanh': { 
+    icon: <AreaChartOutlined />, 
+    color: '#8b5cf6' 
+  },
+  'Kỹ năng mềm': { 
+    icon: <MessageOutlined />, 
+    color: '#ec4899' 
+  },
+  'Marketing': { 
+    icon: <ThunderboltOutlined />, 
+    color: '#ef4444',
+    isPopular: true 
+  },
+  'Data Science': { 
+    icon: <DatabaseOutlined />, 
+    color: '#06b6d4',
+    isNew: true 
+  },
+  'Cloud Computing': { 
+    icon: <CloudOutlined />, 
+    color: '#6366f1',
+    isNew: true 
+  },
+  'AI & Machine Learning': { 
+    icon: <RocketOutlined />, 
+    color: '#f97316',
+    isNew: true 
+  },
+  'Design & UI/UX': { 
+    icon: <LaptopOutlined />, 
+    color: '#84cc16' 
+  },
+  'Digital Marketing': { 
+    icon: <FireOutlined />, 
+    color: '#dc2626',
+    isPopular: true 
+  },
+  'Project Management': { 
+    icon: <SettingOutlined />, 
+    color: '#7c3aed' 
+  },
+  'Cybersecurity': { 
+    icon: <SafetyCertificateOutlined />, 
+    color: '#059669',
+    isNew: true 
+  },
+  'Leadership': { 
+    icon: <TrophyOutlined />, 
+    color: '#d97706' 
+  },
+  'Communication': { 
+    icon: <TeamOutlined />, 
+    color: '#0891b2' 
+  },
+  'Innovation': { 
+    icon: <BulbOutlined />, 
+    color: '#be185d' 
+  },
+  'Health & Wellness': { 
+    icon: <HeartOutlined />, 
+    color: '#e11d48' 
+  },
+  'Education': { 
+    icon: <BookOutlined />, 
+    color: '#2563eb' 
+  },
+  'Video Production': { 
+    icon: <VideoCameraOutlined />, 
+    color: '#7c2d12' 
+  },
 };
 
-// Danh sách icon dự phòng cho các danh mục mới
-const fallbackIcons: React.ReactNode[] = [
-  <DatabaseOutlined />,
-  <CloudOutlined />,
-  <RocketOutlined />,
-  <LaptopOutlined />,
+// Fallback icons for new categories
+const fallbackIcons: { icon: React.ReactNode; color: string }[] = [
+  { icon: <DatabaseOutlined />, color: '#06b6d4' },
+  { icon: <CloudOutlined />, color: '#6366f1' },
+  { icon: <RocketOutlined />, color: '#f97316' },
+  { icon: <LaptopOutlined />, color: '#84cc16' },
+  { icon: <FireOutlined />, color: '#dc2626' },
+  { icon: <StarOutlined />, color: '#fbbf24' },
 ];
 
-// Chuyển đổi dữ liệu từ backend và gán icon
+// Format category with modern styling
 const formatCategory = (category: BackendCategory, index: number): Category => {
-  const icon = specificIconMap[category.name] || fallbackIcons[index % fallbackIcons.length];
+  const categoryInfo = modernIconMap[category.name] || fallbackIcons[index % fallbackIcons.length];
   return {
     id: category._id,
     name: category.name,
-    icon: icon,
+    icon: categoryInfo.icon,
     description: category.description,
-    courseCount: Math.floor(Math.random() * 50) + 5, // Mock course count
+    courseCount: Math.floor(Math.random() * 50) + 5,
+    isPopular: categoryInfo.isPopular,
+    isNew: categoryInfo.isNew,
+    color: categoryInfo.color,
   };
 };
 
@@ -76,31 +175,71 @@ const AppSidebar: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        // Lấy danh mục active
         const response = await config.get<ApiResponse>('/categories/status/active');
         const backendCategories = response.data.data;
-        
-        // Chuyển đổi dữ liệu từ backend về định dạng cần thiết
         const formattedCategories = backendCategories.map((cat, index) => formatCategory(cat, index));
 
         setCategories(formattedCategories);
-
         if (formattedCategories.length > 0) {
           setSelectedKey(formattedCategories[0].id);
         }
       } catch (error) {
         console.error('Error fetching categories:', error);
-        // Fallback to default categories if API fails
+        // Modern fallback categories
         const fallbackCategories: Category[] = [
-          { id: 'tech', name: 'Công nghệ thông tin', icon: <CodeOutlined />, courseCount: 25 },
-          { id: 'web', name: 'Phát triển web', icon: <GlobalOutlined />, courseCount: 18 },
-          { id: 'mobile', name: 'Phát triển mobile', icon: <MobileOutlined />, courseCount: 12 },
-          { id: 'business', name: 'Kinh doanh', icon: <AreaChartOutlined />, courseCount: 15 },
-          { id: 'soft-skills', name: 'Kỹ năng mềm', icon: <MessageOutlined />, courseCount: 8 },
+          { 
+            id: 'tech', 
+            name: 'Công nghệ thông tin', 
+            icon: <CodeOutlined />, 
+            courseCount: 25, 
+            isPopular: true,
+            color: '#3b82f6'
+          },
+          { 
+            id: 'web', 
+            name: 'Phát triển web', 
+            icon: <GlobalOutlined />, 
+            courseCount: 18, 
+            isPopular: true,
+            color: '#10b981'
+          },
+          { 
+            id: 'mobile', 
+            name: 'Phát triển mobile', 
+            icon: <MobileOutlined />, 
+            courseCount: 12, 
+            isPopular: true,
+            color: '#f59e0b'
+          },
+          { 
+            id: 'ai-ml', 
+            name: 'AI & Machine Learning', 
+            icon: <RocketOutlined />, 
+            courseCount: 8, 
+            isNew: true,
+            color: '#f97316'
+          },
+          { 
+            id: 'business', 
+            name: 'Kinh doanh', 
+            icon: <AreaChartOutlined />, 
+            courseCount: 15,
+            color: '#8b5cf6'
+          },
+          { 
+            id: 'marketing', 
+            name: 'Digital Marketing', 
+            icon: <FireOutlined />, 
+            courseCount: 20, 
+            isPopular: true,
+            color: '#dc2626'
+          },
         ];
         setCategories(fallbackCategories);
         if (fallbackCategories.length > 0) {
@@ -115,9 +254,7 @@ const AppSidebar: React.FC = () => {
   }, []);
 
   const handleMenuClick = ({ key }: { key: string }) => {
-    setSelectedKey(key);
-    // Add navigation logic here
-    console.log('Selected category:', key);
+    navigate(`/courses?category=${key}`);
   };
 
   return (
@@ -125,96 +262,109 @@ const AppSidebar: React.FC = () => {
       initial={{ x: -280, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: 'easeOut' }}
+      className="category-nav-container"
     >
       <Sider 
         width={280} 
-        style={{ 
-          background: '#f7f9fc', 
-          borderRight: '1px solid #e5e7eb',
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-          overflowY: 'auto',
-          padding: '8px'
-        }}
+        className="category-sidebar"
       >
-        <Spin spinning={loading} size="small">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '16px' }}>
-            {categories.map((category, index) => {
-              const isSelected = selectedKey === category.id;
-              return (
-                <motion.div 
-                  key={category.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ 
-                    duration: 0.4, 
-                    delay: index * 0.1,
-                    ease: 'easeOut'
-                  }}
-                  whileHover={{ 
-                    scale: 1.02,
-                    y: -2,
-                    transition: { duration: 0.2 }
-                  }}
-                  whileTap={{ 
-                    scale: 0.98,
-                    transition: { duration: 0.1 }
-                  }}
-                  onClick={() => handleMenuClick({ key: category.id })}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '12px',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    transition: 'all 0.25s ease-in-out',
-                    backgroundColor: isSelected ? '#ffffff' : 'transparent',
-                    border: isSelected ? '1px solid #e0e0e0' : '1px solid transparent',
-                    transform: isSelected ? 'scale(1.02)' : 'scale(1)',
-                    boxShadow: isSelected ? '0 4px 12px rgba(0, 0, 0, 0.05)' : 'none',
-                  }}
-                >
-                  <motion.span 
-                    style={{ 
-                      fontSize: '20px', 
-                      color: isSelected ? '#1677ff' : '#4a5568',
-                      background: isSelected ? '#e6f4ff' : '#eef2f7',
-                      width: 44,
-                      height: 44,
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.25s ease-in-out',
+        
+
+        <Spin spinning={loading} size="small" className="category-spinner">
+          <div className="categories-list">
+            <AnimatePresence>
+              {categories.map((category, index) => {
+                const isSelected = selectedKey === category.id;
+                const isHovered = hoveredKey === category.id;
+                
+                return (
+                  <motion.div 
+                    key={category.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ 
+                      duration: 0.4, 
+                      delay: index * 0.05,
+                      ease: 'easeOut'
                     }}
                     whileHover={{ 
-                      rotate: 5,
-                      scale: 1.1,
+                      scale: 1.02,
+                      y: -2,
                       transition: { duration: 0.2 }
                     }}
+                    whileTap={{ 
+                      scale: 0.98,
+                      transition: { duration: 0.1 }
+                    }}
+                    onHoverStart={() => setHoveredKey(category.id)}
+                    onHoverEnd={() => setHoveredKey(null)}
+                    onClick={() => handleMenuClick({ key: category.id })}
+                    className={`category-item ${isSelected ? 'selected' : ''} ${isHovered ? 'hovered' : ''}`}
+                    style={{
+                      '--category-color': category.color || '#6b7280'
+                    } as React.CSSProperties}
                   >
-                    {category.icon}
-                  </motion.span>
-                  <div style={{ marginLeft: '14px' }}>
-                    <div style={{ 
-                      fontSize: '14px', 
-                      fontWeight: 600,
-                      color: '#1a202c',
-                    }}>
-                      {category.name}
+                    <div className="category-icon-wrapper">
+                      <motion.div 
+                        className="category-icon"
+                        whileHover={{ 
+                          rotate: 5,
+                          scale: 1.1,
+                          transition: { duration: 0.2 }
+                        }}
+                        style={{ color: category.color }}
+                      >
+                        {category.icon}
+                      </motion.div>
+                      
+                      {/* Badges for popular and new categories */}
+                      <div className="category-badges">
+                        {category.isPopular && (
+                          <Badge 
+                            count="Hot" 
+                            className="popular-badge"
+                            style={{ backgroundColor: '#ef4444' }}
+                          />
+                        )}
+                        {category.isNew && (
+                          <Badge 
+                            count="New" 
+                            className="new-badge"
+                            style={{ backgroundColor: '#10b981' }}
+                          />
+                        )}
+                      </div>
                     </div>
-                    {category.courseCount && category.courseCount > 0 && (
-                      <Text type="secondary" style={{ fontSize: '12px', fontWeight: 400 }}>
-                        {category.courseCount} khóa học
-                      </Text>
+
+                    <div className="category-content">
+                      <div className="category-name">
+                        {category.name}
+                      </div>
+                      {category.courseCount && category.courseCount > 0 && (
+                        <Text className="course-count">
+                          {category.courseCount} khóa học
+                        </Text>
+                      )}
+                    </div>
+
+                    {/* Selection indicator */}
+                    {isSelected && (
+                      <motion.div 
+                        className="selection-indicator"
+                        layoutId="selectionIndicator"
+                        initial={false}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
                     )}
-                  </div>
-                </motion.div>
-              )
-            })}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
         </Spin>
+
+        {/* Footer section */}
       </Sider>
     </motion.div>
   );

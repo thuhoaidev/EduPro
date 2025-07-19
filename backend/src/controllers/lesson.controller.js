@@ -6,63 +6,60 @@ const { createLessonSchema, updateLessonSchema, reorderLessonsSchema, updateLess
 const Course = require('../models/Course');
 
 // Tạo bài học mới
-exports.createLesson = async (req, res, next) => {
-    try {
-        const { section_id, title, is_preview } = req.body;
-
-        console.log('Creating lesson with data:', { section_id, title, is_preview });
-        console.log('User:', req.user);
-
-        // Kiểm tra section tồn tại
-        const section = await Section.findById(section_id);
-        if (!section) {
-            throw new ApiError(404, 'Không tìm thấy chương');
-        }
-
-        // Kiểm tra khóa học tồn tại
-        const course = await Course.findById(section.course_id);
-        if (!course) {
-            throw new ApiError(404, 'Không tìm thấy khóa học');
-        }
-
-        // Kiểm tra quyền
-        const userRole = req.user.role_id;
-        const userRoles = req.user.roles || [];
-        console.log('User role:', userRole);
-        console.log('User roles:', userRoles);
-        console.log('Course instructor:', course.instructor);
-        console.log('User ID:', req.user._id);
-
-        if (!userRoles.includes('admin') && !userRoles.includes('instructor')) {
-            throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
-        }
-
-        // Kiểm tra nếu là instructor thì phải là người tạo khóa học
-        if (userRoles.includes('instructor') && !userRoles.includes('admin')) {
-            if (!course.instructor || course.instructor.toString() !== req.user._id.toString()) {
-                throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
-            }
-        }
-
-        // Validate dữ liệu
-        const validatedData = await validateSchema(createLessonSchema, { section_id, title, is_preview });
-        console.log('Validated data:', validatedData);
-
-        // Tạo lesson mới
-        const lesson = new Lesson(validatedData);
-        await lesson.save();
-
-        // Thêm lesson vào section
-        section.lessons.push(lesson._id);
-        await section.save();
-
-        res.status(201).json({
-            success: true,
-            data: lesson
-        });
-    } catch (error) {
-        next(error);
+exports.createLessons = async (req, res, next) => {
+  try {
+    const { lessons } = req.body;
+    if (!Array.isArray(lessons) || lessons.length === 0) {
+      return res.status(400).json({ success: false, message: 'Danh sách bài học không hợp lệ' });
     }
+
+    const createdLessons = [];
+    for (let i = 0; i < lessons.length; i++) {
+      const { section_id, title, is_preview } = lessons[i];
+      if (!section_id || !title) {
+        return res.status(400).json({ success: false, message: `Bài học thứ ${i + 1} thiếu section_id hoặc title` });
+      }
+      const section = await Section.findById(section_id);
+      if (!section) {
+        return res.status(404).json({ success: false, message: `Không tìm thấy chương cho bài học thứ ${i + 1}` });
+      }
+      // Kiểm tra khóa học tồn tại
+      const course = await Course.findById(section.course_id);
+      if (!course) {
+        return res.status(404).json({ success: false, message: `Không tìm thấy khóa học cho bài học thứ ${i + 1}` });
+      }
+      // Kiểm tra quyền
+      const userRoles = req.user.roles || [];
+      if (!userRoles.includes('admin') && !userRoles.includes('instructor')) {
+        return res.status(403).json({ success: false, message: 'Không có quyền thực hiện chức năng này' });
+      }
+      if (userRoles.includes('instructor') && !userRoles.includes('admin')) {
+        const InstructorProfile = require('../models/InstructorProfile');
+        const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+        if (!instructorProfile) {
+          return res.status(403).json({ success: false, message: 'Bạn chưa có hồ sơ giảng viên. Vui lòng tạo hồ sơ giảng viên trước.' });
+        }
+        if (!course.instructor || course.instructor.toString() !== instructorProfile._id.toString()) {
+          return res.status(403).json({ success: false, message: 'Không có quyền thực hiện chức năng này' });
+        }
+      }
+      // Validate dữ liệu
+      const validatedData = await validateSchema(createLessonSchema, { section_id, title, is_preview });
+      // Tạo lesson mới
+      const lesson = new Lesson(validatedData);
+      await lesson.save();
+      // Thêm lesson vào section
+      section.lessons.push(lesson._id);
+      await section.save();
+      createdLessons.push(lesson);
+    }
+    res.status(201).json({
+      success: true,
+      data: createdLessons
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Cập nhật bài học
@@ -71,23 +68,47 @@ exports.updateLesson = async (req, res, next) => {
         const { id } = req.params;
         const { title, is_preview } = req.body;
 
+        // Tìm lesson để lấy section_id
+        const lesson = await Lesson.findById(id);
+        if (!lesson) {
+            throw new ApiError(404, 'Không tìm thấy bài học');
+        }
+        // Tìm section để lấy course_id
+        const section = await Section.findById(lesson.section_id);
+        if (!section) {
+            throw new ApiError(404, 'Không tìm thấy chương');
+        }
+        // Tìm course để kiểm tra instructor
+        const course = await Course.findById(section.course_id);
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+        // Kiểm tra quyền
+        const userRoles = req.user.roles || [];
+        if (!userRoles.includes('admin') && !userRoles.includes('instructor')) {
+            throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
+        }
+        if (userRoles.includes('instructor') && !userRoles.includes('admin')) {
+            const InstructorProfile = require('../models/InstructorProfile');
+            const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+            if (!instructorProfile) {
+                throw new ApiError(403, 'Bạn chưa có hồ sơ giảng viên. Vui lòng tạo hồ sơ giảng viên trước.');
+            }
+            if (!course.instructor || course.instructor.toString() !== instructorProfile._id.toString()) {
+                throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
+            }
+        }
         // Validate dữ liệu
         const validatedData = await validateSchema(updateLessonSchema, { title, is_preview });
-
         // Cập nhật lesson
-        const lesson = await Lesson.findByIdAndUpdate(
+        const updatedLesson = await Lesson.findByIdAndUpdate(
             id,
             { $set: validatedData },
             { new: true, runValidators: true }
         );
-
-        if (!lesson) {
-            throw new ApiError(404, 'Không tìm thấy bài học');
-        }
-
         res.json({
             success: true,
-            data: lesson
+            data: updatedLesson
         });
     } catch (error) {
         next(error);
@@ -206,7 +227,20 @@ exports.updateLessonsOrder = async (req, res, next) => {
 
         // Kiểm tra nếu là instructor thì phải là người tạo khóa học
         if (userRoles.includes('instructor') && !userRoles.includes('admin')) {
-            if (!course.instructor || course.instructor.toString() !== req.user._id.toString()) {
+            // Cho phép nếu course.instructor trùng với _id của user hoặc _id của InstructorProfile
+            let instructorProfileId = null;
+            try {
+                const InstructorProfile = require('../models/InstructorProfile');
+                const instructorProfile = await InstructorProfile.findOne({ user: req.user._id });
+                if (instructorProfile) instructorProfileId = instructorProfile._id.toString();
+            } catch (e) { /* ignore */ }
+            if (
+                !course.instructor ||
+                (
+                    course.instructor.toString() !== req.user._id.toString() &&
+                    (!instructorProfileId || course.instructor.toString() !== instructorProfileId)
+                )
+            ) {
                 throw new ApiError(403, 'Không có quyền thực hiện chức năng này');
             }
         }
@@ -246,7 +280,26 @@ exports.getLessonById = async (req, res, next) => {
     if (!lesson) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy bài học' });
     }
-    res.json({ success: true, data: lesson });
+    // Lấy thông tin video và quiz cho lesson này
+    const Video = require('../models/Video');
+    const Quiz = require('../models/Quiz');
+    const video = await Video.findOne({ lesson_id: lesson._id });
+    const quiz = video ? await Quiz.findOne({ video_id: video._id }) : null;
+    res.json({
+      success: true,
+      data: {
+        ...lesson.toObject(),
+        video: video ? {
+          _id: video._id,
+          url: video.url,
+          duration: video.duration
+        } : null,
+        quiz: quiz ? {
+          _id: quiz._id,
+          questions: quiz.questions
+        } : null
+      }
+    });
   } catch (error) {
     next(error);
   }

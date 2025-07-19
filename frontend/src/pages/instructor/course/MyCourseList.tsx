@@ -15,8 +15,6 @@ import {
   Typography,
   Avatar,
   Popconfirm,
-  Dropdown,
-  Menu,
 } from "antd";
 import {
   BookOutlined,
@@ -25,6 +23,9 @@ import {
   EditOutlined,
   DeleteOutlined,
   SearchOutlined,
+  ExclamationCircleOutlined,
+  WarningOutlined,
+  SendOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { courseService } from '../../../services/apiService';
@@ -45,6 +46,7 @@ const MyCourseList: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [displayStatusFilter, setDisplayStatusFilter] = useState("all");
   const [loading, setLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -53,20 +55,7 @@ const MyCourseList: React.FC = () => {
     const fetchCourses = async () => {
       setLoading(true);
       try {
-        const storedUser = localStorage.getItem('user');
-        if (!storedUser) {
-          message.error("Vui lòng đăng nhập để xem khóa học.");
-          setCourses([]);
-          return;
-        }
-        const user = JSON.parse(storedUser);
-        const instructorId = user?._id || user?.id;
-        if (!instructorId) {
-          message.error("Không tìm thấy ID giảng viên.");
-          setCourses([]);
-          return;
-        }
-        const data = await courseService.getInstructorCourses(instructorId);
+        const data = await courseService.getInstructorCourses();
         setCourses(data);
       } catch {
         setCourses([]);
@@ -82,9 +71,12 @@ const MyCourseList: React.FC = () => {
     return courses.filter((course) => {
       const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || course.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesDisplayStatus = displayStatusFilter === 'all' || 
+        (displayStatusFilter === 'hidden' && course.displayStatus === 'hidden') ||
+        (displayStatusFilter === 'published' && course.displayStatus === 'published');
+      return matchesSearch && matchesStatus && matchesDisplayStatus;
     });
-  }, [courses, searchTerm, statusFilter]);
+  }, [courses, searchTerm, statusFilter, displayStatusFilter]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -105,18 +97,19 @@ const MyCourseList: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (courseId: string, newStatus: string) => {
+  const handleSubmit = async (courseId: string) => {
     try {
-      await courseService.updateCourseStatus(courseId, newStatus);
+      await courseService.updateCourseStatus(courseId, { status: 'pending' });
+      // Cập nhật trạng thái khóa học trong state
       setCourses((prev) => 
         prev.map((course) => 
-          course.id === courseId ? { ...course, status: newStatus } : course
+          course.id === courseId ? { ...course, status: 'pending' } : course
         )
       );
-      message.success(`Đã cập nhật trạng thái khóa học thành ${newStatus === 'published' ? 'đã xuất bản' : newStatus === 'draft' ? 'chưa xuất bản' : newStatus}`);
+      message.success("Đã gửi khóa học để duyệt thành công.");
     } catch (error: unknown) {
-      console.error('Lỗi khi cập nhật trạng thái:', error);
-      const errorMessage = error instanceof Error ? error.message : "Có lỗi xảy ra khi cập nhật trạng thái.";
+      console.error('Lỗi khi gửi khóa học:', error);
+      const errorMessage = error instanceof Error ? error.message : "Có lỗi xảy ra khi gửi khóa học.";
       message.error(errorMessage);
     }
   };
@@ -143,56 +136,73 @@ const MyCourseList: React.FC = () => {
       title: "Giá",
       dataIndex: "price",
       key: "price",
-      render: (price) => price === 0 ? <Tag color="green">Miễn phí</Tag> : price.toLocaleString('vi-VN') + 'đ',
+      render: (price) => {
+        const numPrice = Number(price);
+        if (isNaN(numPrice) || numPrice === 0) {
+          return <Tag color="green">Miễn phí</Tag>;
+        }
+        return numPrice.toLocaleString('vi-VN') + 'đ';
+      },
     },
     {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
-      render: (status: string, record) => {
+      render: (status: string) => {
         const statusColors: Record<string, string> = {
-          published: 'green',
-          draft: 'orange',
-          pending: 'blue',
-          rejected: 'red',
-          archived: 'default'
+          'draft': 'default',
+          'pending': 'orange',
+          'approved': 'green',
+          'rejected': 'red'
         };
         
         const statusLabels: Record<string, string> = {
-          published: 'Đã xuất bản',
-          draft: 'Chưa xuất bản',
-          pending: 'Chờ duyệt',
-          rejected: 'Từ chối',
-          archived: 'Lưu trữ'
+          'draft': 'Bản nháp',
+          'pending': 'Chờ duyệt',
+          'approved': 'Đã duyệt',
+          'rejected': 'Bị từ chối'
         };
 
         return (
-          <Dropdown
-            overlay={
-              <Menu>
-                {status !== 'published' && (
-                  <Menu.Item key="publish" onClick={() => handleStatusChange(record.id, 'published')}>
-                    Xuất bản
-                  </Menu.Item>
-                )}
-                {status !== 'draft' && (
-                  <Menu.Item key="draft" onClick={() => handleStatusChange(record.id, 'draft')}>
-                    Chuyển thành bản nháp
-                  </Menu.Item>
-                )}
-                {status !== 'archived' && (
-                  <Menu.Item key="archive" onClick={() => handleStatusChange(record.id, 'archived')}>
-                    Lưu trữ
-                  </Menu.Item>
-                )}
-              </Menu>
-            }
-            trigger={['click']}
-          >
-            <Tag color={statusColors[status] || 'default'} style={{ cursor: 'pointer' }}>
-              {statusLabels[status] || status}
-            </Tag>
-          </Dropdown>
+          <Tag color={statusColors[status] || 'default'}>
+            {statusLabels[status] || status}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: "Trạng thái hiển thị",
+      key: "displayStatus",
+      render: (_, record) => {
+        const isApproved = record.status === 'approved' || record.status === 'published';
+        const displayOptions = [
+          { value: 'published', label: 'Hiển thị' },
+          { value: 'hidden', label: 'Ẩn' }
+        ];
+        const handleChangeDisplay = async (value: string) => {
+          try {
+            await courseService.updateCourseStatus(record.id, { displayStatus: value });
+            setCourses((prev) =>
+              prev.map((course) =>
+                course.id === record.id ? { ...course, displayStatus: value } : course
+              )
+            );
+            message.success(value === 'published' ? 'Đã chuyển sang hiển thị' : 'Đã ẩn khóa học');
+          } catch (err) {
+            console.error('Lỗi khi thay đổi trạng thái hiển thị:', err);
+            message.error('Không thể thay đổi trạng thái hiển thị');
+          }
+        };
+        return (
+          <Space>
+            <Select
+              value={record.displayStatus || 'published'}
+              style={{ width: 120 }}
+              onChange={handleChangeDisplay}
+              disabled={!isApproved}
+              options={displayOptions}
+            />
+          </Space>
         );
       },
     },
@@ -200,13 +210,22 @@ const MyCourseList: React.FC = () => {
       title: "Cập nhật lần cuối",
       dataIndex: "updatedAt",
       key: "updatedAt",
-      render: () => dayjs().subtract(Math.floor(Math.random() * 30), 'day').format('DD/MM/YYYY'),
+      render: (updatedAt: string) => dayjs(updatedAt).format('DD/MM/YYYY HH:mm'),
     },
     {
       title: "Hành động",
       key: "action",
       render: (_, record) => (
         <Space size="middle">
+          {record.status === 'draft' && (
+            <Tooltip title="Gửi để duyệt">
+              <Button 
+                type="primary"
+                icon={<SendOutlined />}
+                onClick={() => handleSubmit(record.id)}
+              />
+            </Tooltip>
+          )}
           <Tooltip title="Sửa">
             <Button 
               icon={<EditOutlined />} 
@@ -214,8 +233,89 @@ const MyCourseList: React.FC = () => {
             />
           </Tooltip>
           <Popconfirm
-            title="Xác nhận xóa"
-            description="Bạn có chắc chắn muốn xóa khóa học này? Hành động này không thể hoàn tác."
+            title={
+              <Space>
+                <ExclamationCircleOutlined style={{ color: '#ff4d4f', fontSize: '16px' }} />
+                <span style={{ fontWeight: '600' }}>Xác nhận xóa khóa học</span>
+              </Space>
+            }
+            description={
+              <div style={{ maxWidth: '320px' }}>
+                {/* Cảnh báo chính */}
+                <div style={{ 
+                  marginBottom: '12px', 
+                  padding: '12px', 
+                  backgroundColor: '#fff2f0', 
+                  border: '1px solid #ffccc7',
+                  borderRadius: '6px'
+                }}>
+                  <Space>
+                    <WarningOutlined style={{ color: '#ff4d4f', fontSize: '16px' }} />
+                    <span style={{ fontWeight: '500', color: '#262626' }}>
+                      Bạn có chắc chắn muốn xóa khóa học này?
+                    </span>
+                  </Space>
+                </div>
+                
+                {/* Danh sách nội dung */}
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ 
+                    marginBottom: '8px', 
+                    color: '#595959', 
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}>
+                    Thao tác này sẽ xóa tất cả nội dung bao gồm:
+                  </div>
+                  
+                  <div style={{ 
+                    padding: '8px 12px',
+                    backgroundColor: '#fafafa',
+                    border: '1px solid #f0f0f0',
+                    borderRadius: '6px'
+                  }}>
+                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '14px' }}>📚</span>
+                        <span style={{ fontSize: '13px', color: '#595959' }}>Chương học</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '14px' }}>📖</span>
+                        <span style={{ fontSize: '13px', color: '#595959' }}>Bài học</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '14px' }}>🎥</span>
+                        <span style={{ fontSize: '13px', color: '#595959' }}>Video</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '14px' }}>❓</span>
+                        <span style={{ fontSize: '13px', color: '#595959' }}>Quiz</span>
+                      </div>
+                    </Space>
+                  </div>
+                </div>
+                
+                {/* Cảnh báo cuối */}
+                <div style={{ 
+                  padding: '8px 12px',
+                  backgroundColor: '#fff2f0',
+                  border: '1px solid #ffccc7',
+                  borderRadius: '6px',
+                  textAlign: 'center'
+                }}>
+                  <Space>
+                    <span style={{ fontSize: '14px' }}>⚠️</span>
+                    <span style={{ 
+                      fontWeight: '600', 
+                      fontSize: '13px',
+                      color: '#ff4d4f'
+                    }}>
+                      Hành động này không thể hoàn tác!
+                    </span>
+                  </Space>
+                </div>
+              </div>
+            }
             onConfirm={() => handleDelete(record.id)}
             okText="Xóa"
             cancelText="Hủy"
@@ -278,8 +378,19 @@ const MyCourseList: React.FC = () => {
                 style={{ width: 150 }}
               >
                 <Option value="all">Tất cả trạng thái</Option>
-                <Option value="published">Đã xuất bản</Option>
-                <Option value="draft">Chưa xuất bản</Option>
+                <Option value="draft">Bản nháp</Option>
+                <Option value="pending">Chờ duyệt</Option>
+                <Option value="approved">Đã duyệt</Option>
+                <Option value="rejected">Bị từ chối</Option>
+              </Select>
+              <Select
+                defaultValue="all"
+                onChange={setDisplayStatusFilter}
+                style={{ width: 150 }}
+              >
+                <Option value="all">Tất cả hiển thị</Option>
+                <Option value="published">Đang hiển thị</Option>
+                <Option value="hidden">Đang ẩn</Option>
               </Select>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/instructor/courses/create')}>
                 Tạo khóa học mới

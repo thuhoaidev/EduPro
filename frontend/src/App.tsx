@@ -55,17 +55,27 @@ import LessonVideoPage from './pages/client/lessons/LessonVideoPage';
 import LessonQuizPage from './pages/client/lessons/LessonQuizPage';
 import CourseList from "./pages/instructor/course/CourseList";
 import CourseEdit from "./pages/instructor/course/CourseEdit";
+import AdminCourseDetail from "./pages/admin/courses/AdminCourseDetail";
 import UserReportRoute from "./pages/client/UserReportRoute";
 
 import UserProfile from "./pages/client/Profile/UserProfile";
 import CheckPayment from "./pages/client/CheckPayment";
 import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
+import UserWithdrawRequestsAdmin from './pages/admin/earnings/UserWithdrawRequestsAdmin';
 
 import BlogPage from "./pages/client/BlogPage";
 import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
+import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
 
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
 import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
+
+import LessonEdit from './pages/instructor/lessons/LessonEdit';
+import VideoManager from './pages/instructor/videos/VideoManager';
+import QuizManager from './pages/instructor/quiz/QuizManager';
+import CoursesModerationPage from './pages/Moderator/Courses/CoursesModerationPage';
+import WalletPage from "./pages/client/WalletPage";
+import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
 
 const queryClient = new QueryClient();
 
@@ -125,6 +135,7 @@ function App() {
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
         {path:  "/blog/:id", element: <BlogPage />},
+        { path: "/blog/post/:id", element: <BlogPage /> },
         { path: "cart", element: <CartPage /> },
         { path: "checkout", element: <CheckoutPage /> },
         { path: "orders", element: <OrdersPage /> },
@@ -136,6 +147,8 @@ function App() {
         { path: "orders", element: <OrdersPage /> },
         { path: "search/users", element: <UserSearchResultsPage /> },
         { path: "search/courses", element: <CourseSearchResultsPage /> },
+        { path: "wallet", element: <WalletPage /> },
+        { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
       ]
     },
     {
@@ -165,8 +178,10 @@ function App() {
         { path: "history", element: <TransactionHistory /> },
         { path: "vouchers", element: <VoucherPage />},
         { path: "courses", element: <CourseList />},
+        { path: "courses/:id", element: <AdminCourseDetail />},
         { path: "transactions", element: <TransactionHistory /> },
         { path: "earnings", element: <WithdrawRequestsAdmin />},
+        { path: "user-withdraw-requests", element: <UserWithdrawRequestsAdmin /> },
       ],
     },
     {
@@ -175,6 +190,8 @@ function App() {
       children: [
         { path: "reports", element: <ReportsPage /> },
         { path: "blogs", element: <BlogModeration /> },
+        { path: "comments", element: <CommentsModerationPage /> },
+        { path: "courses", element: <CoursesModerationPage /> },
       ],
     },
     {
@@ -186,8 +203,11 @@ function App() {
         { path: "courses/:id", element: <CourseDetail /> },
         { path: "courses/edit/:id", element: <CourseEdit /> },
         { path: "lessons", element: <MyLessonManager /> },
+        { path: "lessons/edit/:id", element: <LessonEdit /> },
         { path: "students", element: <MyStudentStats /> },
         { path: "income", element: <MyEarnings /> },
+        { path: "videos", element: <VideoManager /> },
+        { path: "quiz", element: <QuizManager /> },
       ],
     },
     { path: '/login', element: <LoginPage /> },

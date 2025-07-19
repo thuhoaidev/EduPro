@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import { Comment } from '@ant-design/compatible';
 import { apiService } from '../../../services/apiService';
+import leoProfanity from 'leo-profanity';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -47,13 +48,15 @@ interface SavedPost {
 
 interface CommentItem {
   _id: string;
-  user: {
+  author: {
     fullname: string;
     avatar?: string;
   };
   content: string;
   createdAt: string;
+  replies?: CommentItem[];
 }
+
 
 const SavedBlogPosts = () => {
   const [savedPosts, setSavedPosts] = useState<SavedPost[]>([]);
@@ -66,10 +69,20 @@ const SavedBlogPosts = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [comments, setComments] = useState<Record<string, CommentItem[]>>({});
   const [commentInput, setCommentInput] = useState<Record<string, string>>({});
+  const [replyInput, setReplyInput] = useState<Record<string, string>>({});
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [activeCommentBlogId, setActiveCommentBlogId] = useState<string | null>(null);
+  const [replyWarning, setReplyWarning] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchSavedPosts();
+  }, []);
+
+  useEffect(() => {
+    leoProfanity.add([
+      'đm', 'dm', 'cc', 'vcl', 'clm', 'cl', 'dcm', 'địt', 'dit', 'lồn', 'lon', 'cặc', 'cu', 'buồi', 'buoi', 'đụ', 'đéo', 'má', 'me', 'mẹ', 'bố', 'bo', 'chim', 'cai', 'cai...', 'thang', 'thang...', 'con', 'con...', 'chó', 'cho', 'cho chet', 'do ngu', 'mặt dày', 'mat day', 'chó chết', 'cho chet', 'ngu', 'fuck', 'shit'
+    ]);
   }, []);
 
 const fetchSavedPosts = async () => {
@@ -77,6 +90,16 @@ const fetchSavedPosts = async () => {
   try {
     const saved = await apiService.fetchSavedPosts();
     const validPosts = saved.filter(p => p.blog && p.blog._id);
+    // ✅ Nếu blog.thumbnail không có, cố gắng lấy ảnh đầu tiên từ content Markdown
+validPosts.forEach(item => {
+  if (!item.blog.thumbnail && item.blog.content) {
+    const match = item.blog.content.match(/!\[.*?\]\((.*?)\)/);
+    if (match && match[1]) {
+      item.blog.thumbnail = match[1];
+    }
+  }
+});
+
     setSavedPosts(validPosts);
 
     const uniqueCategories = [...new Set(validPosts.map(item => item.blog?.category))];
@@ -99,9 +122,81 @@ const fetchSavedPosts = async () => {
   }
 };
 
+const handleReplyComment = async (blogId: string, parentCommentId: string) => {
+  const content = replyInput[parentCommentId]?.trim();
+  if (!content) {
+    setReplyWarning('Vui lòng nhập phản hồi');
+    return;
+  }
+  if (leoProfanity.check(content)) {
+    setReplyWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+    return;
+  }
 
-  const handleLikeToggle = async (blogId: string, isLiked?: boolean) => {
-    if (!blogId) return;
+  try {
+    const reply = await apiService.replyToComment(parentCommentId, content);
+    if (!reply || reply.success === false) {
+      if (reply?.message && reply.message.includes('ngôn từ không phù hợp')) {
+        message.error('Phản hồi của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+      } else {
+        message.error(reply?.message || 'Không thể gửi phản hồi');
+      }
+      return;
+    }
+    setComments(prev => ({
+      ...prev,
+      [blogId]: prev[blogId].map(comment =>
+        comment._id === parentCommentId
+          ? {
+              ...comment,
+              replies: [reply.data, ...(comment.replies || [])]
+            }
+          : comment
+      )
+    }));
+    setReplyInput(prev => ({ ...prev, [parentCommentId]: '' }));
+    setReplyingTo(null);
+    message.success('Đã gửi phản hồi');
+  } catch (err: any) {
+    if (err?.response?.data?.message && err.response.data.message.includes('ngôn từ không phù hợp')) {
+      message.error('Phản hồi của bạn chứa ngôn từ không phù hợp. Vui lòng điều chỉnh lại nội dung!');
+    } else {
+      console.error('❌ Lỗi gửi phản hồi:', err);
+      message.error('Không thể gửi phản hồi');
+    }
+  }
+};
+
+ const handleLikeToggle = async (blogId: string) => {
+  const currentPost = savedPosts.find(item => item.blog._id === blogId);
+  if (!currentPost) return;
+
+  const isCurrentlyLiked = currentPost.blog.isLiked;
+
+  // ✅ Cập nhật giao diện trước (optimistic update)
+  setSavedPosts(prev =>
+    prev.map(item =>
+      item.blog._id === blogId
+        ? {
+            ...item,
+            blog: {
+              ...item.blog,
+              isLiked: !isCurrentlyLiked,
+              likes_count: isCurrentlyLiked
+                ? item.blog.likes_count - 1
+                : item.blog.likes_count + 1
+            }
+          }
+        : item
+    )
+  );
+
+  // 🧠 Sau đó gọi API để xác nhận với server
+  try {
+    await apiService.likePost(blogId); // đã là toggle ở backend
+    console.log(isCurrentlyLiked ? 'Đã unlike' : 'Đã like', blogId);
+  } catch (error) {
+    // ⛔ Nếu lỗi, rollback lại trạng thái trước đó
     setSavedPosts(prev =>
       prev.map(item =>
         item.blog._id === blogId
@@ -109,19 +204,19 @@ const fetchSavedPosts = async () => {
               ...item,
               blog: {
                 ...item.blog,
-                isLiked: !isLiked,
-                likes_count: isLiked ? item.blog.likes_count - 1 : item.blog.likes_count + 1
+                isLiked: isCurrentlyLiked,
+                likes_count: isCurrentlyLiked
+                  ? item.blog.likes_count + 1
+                  : item.blog.likes_count - 1
               }
             }
           : item
       )
     );
-    try {
-      isLiked ? await apiService.unlikePost(blogId) : await apiService.likePost(blogId);
-    } catch (error) {
-      message.error('Không thể cập nhật trạng thái like');
-    }
-  };
+    console.error('❌ Lỗi cập nhật like:', error);
+    message.error('Không thể cập nhật trạng thái like');
+  }
+};
 
 const handleAddComment = async (blogId: string) => {
   const content = commentInput[blogId]?.trim();
@@ -134,19 +229,21 @@ const handleAddComment = async (blogId: string) => {
     cancelText: 'Hủy',
     onOk: async () => {
       try {
-        const newComment = await apiService.addComment(blogId, content);
+        const newComment = await apiService.addComment(blogId, content); // ✅ sửa ở đây
         setComments(prev => ({
           ...prev,
-          [blogId]: [newComment.data, ...(prev[blogId] || [])]
+          [blogId]: [newComment, ...(prev[blogId] || [])]
         }));
         setCommentInput(prev => ({ ...prev, [blogId]: '' }));
         message.success('Đã gửi bình luận');
       } catch (err) {
+        console.error('❌ Bình luận lỗi:', err);
         message.error('Không thể gửi bình luận');
       }
     }
   });
 };
+
 
 
   const formatDate = (dateString: string) => {
@@ -184,30 +281,73 @@ const handleAddComment = async (blogId: string) => {
   const paginatedPosts = processedPosts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const renderComments = (blogId: string) => (
-    <div style={{ marginTop: 16 }}>
-      <List
-        header={`${comments[blogId]?.length || 0} bình luận`}
-        dataSource={comments[blogId] || []}
-        renderItem={(item) => (
-          <Comment
-            author={item.user.fullname}
-            avatar={<Avatar src={item.user.avatar} icon={<UserOutlined />} />}
-            content={item.content}
-            datetime={formatDate(item.createdAt)}
-          />
-        )}
-      />
-      <Form.Item>
-        <Input.TextArea
-          placeholder="Viết bình luận..."
-          rows={2}
-          value={commentInput[blogId] || ''}
-          onChange={(e) => setCommentInput(prev => ({ ...prev, [blogId]: e.target.value }))}
+  <div style={{ marginTop: 16 }}>
+    <List
+      header={`${comments[blogId]?.length || 0} bình luận`}
+      dataSource={comments[blogId] || []}
+      renderItem={(item) => (
+        <Comment
+          author={item.author.fullname}
+          avatar={<Avatar src={item.author.avatar} icon={<UserOutlined />} />}
+          content={
+            <>
+              <div>{item.content}</div>
+              <Button type="link" size="small" onClick={() => setReplyingTo(item._id)}>Phản hồi</Button>
+              {replyingTo === item._id && (
+                <div style={{ marginTop: 8 }}>
+                  <Input.TextArea
+                    placeholder="Nhập phản hồi..."
+                    rows={2}
+                    value={replyInput[item._id] || ''}
+                    onChange={(e) => {
+                      setReplyInput((prev) => ({ ...prev, [item._id]: e.target.value }));
+                      if (leoProfanity.check(e.target.value)) setReplyWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+                      else setReplyWarning('');
+                    }}
+                  />
+                  {replyWarning && <div style={{ color: 'red', marginBottom: 8 }}>{replyWarning}</div>}
+                  <div style={{ marginTop: 8 }}>
+                    <Button type="primary" onClick={() => handleReplyComment(blogId, item._id)} disabled={!replyInput[item._id]?.trim() || !!replyWarning}>
+                      Gửi phản hồi
+                    </Button>
+                    <Button style={{ marginLeft: 8 }} onClick={() => setReplyingTo(null)}>
+                      Hủy
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {(item.replies || []).map((reply) => (
+                <Comment
+                  key={reply._id}
+                  author={reply.author.fullname}
+                  avatar={<Avatar src={reply.author.avatar} icon={<UserOutlined />} />}
+                  content={reply.content}
+                  datetime={formatDate(reply.createdAt)}
+                  style={{ marginTop: 16, marginLeft: 40 }}
+                />
+              ))}
+            </>
+          }
+          datetime={formatDate(item.createdAt)}
         />
-      </Form.Item>
-      <Button type="primary" onClick={() => handleAddComment(blogId)}>Gửi bình luận</Button>
-    </div>
-  );
+      )}
+    />
+    <Form.Item>
+      <Input.TextArea
+        placeholder="Viết bình luận..."
+        rows={2}
+        value={commentInput[blogId] || ''}
+        onChange={(e) =>
+          setCommentInput((prev) => ({ ...prev, [blogId]: e.target.value }))
+        }
+      />
+    </Form.Item>
+    <Button type="primary" onClick={() => handleAddComment(blogId)}>
+      Gửi bình luận
+    </Button>
+  </div>
+);
+
   const renderSavedPostCard = (savedPost: SavedPost) => {
     const { blog } = savedPost;
     return (
@@ -283,16 +423,24 @@ const handleAddComment = async (blogId: string) => {
                     <span><BookOutlined /> {formatDate(savedPost.savedAt)}</span>
                   </Tooltip>
                   <span><EyeOutlined /> {blog.views}</span>
-                  <span><MessageOutlined /> {blog.comments_count}</span>
+                  <span
+  style={{ cursor: 'pointer' }}
+  onClick={() =>
+    setActiveCommentBlogId(activeCommentBlogId === blog._id ? null : blog._id)
+  }
+>
+  <MessageOutlined /> {blog.comments_count}
+</span>
                 </Space>
                 <Space>
                   <Button
                     type="text"
                     icon={blog.isLiked ? <HeartFilled style={{ color: '#ff4757' }} /> : <HeartOutlined />}
-                    onClick={() => handleLikeToggle(blog._id, blog.isLiked)}
+                    onClick={() => handleLikeToggle(blog._id)}
                   >
                     {blog.likes_count}
                   </Button>
+
                   <Dropdown
                     menu={{
                       items: [
@@ -300,34 +448,32 @@ const handleAddComment = async (blogId: string) => {
                           key: 'view',
                           label: 'Xem bài viết',
                           icon: <EyeOutlined />,
-                          onClick: () => navigate(`/blog/post/${blog._id}`)
-                        },
-                        {
-                          key: 'share',
-                          label: 'Chia sẻ',
-                          icon: <ShareAltOutlined />,
                           onClick: () => {
-                            navigator.clipboard.writeText(`${window.location.origin}/blog/post/${blog._id}`);
-                            message.success('Đã copy link bài viết');
-                          }
+                            console.log('Đi tới:', `/blog/post/${blog._id}`);
+                            navigate(`/blog/${blog._id}`);
+                          },
                         },
                         {
                           key: 'unsave',
                           label: 'Bỏ lưu',
                           icon: <DeleteOutlined />,
                           danger: true,
-                          onClick: () => handleUnsavePost(blog._id, blog.title)
-                        }
-                      ]
+                          onClick: () => handleUnsavePost(blog._id, blog.title),
+                        },
+                      ],
                     }}
                   >
                     <Button type="text" icon={<MoreOutlined />} />
                   </Dropdown>
+
                 </Space>
               </div>
             </div>
           </Col>
         </Row>
+        {activeCommentBlogId === blog._id && (
+    <div style={{ marginTop: 24 }}>{renderComments(blog._id)}</div>
+  )}
       </Card>
     );
   };

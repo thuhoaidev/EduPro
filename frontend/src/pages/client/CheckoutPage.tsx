@@ -4,13 +4,14 @@ import {
   Row, Col, Card, Button, Typography, Divider, message, Form, Input, Select, Spin, Result, Steps
 } from 'antd';
 import {
-  ShoppingCartOutlined, CreditCardOutlined, CheckCircleOutlined,
-  UserOutlined, PhoneOutlined, MailOutlined, BankOutlined, WalletOutlined
+  ShoppingCartOutlined, CreditCardOutlined,
+  UserOutlined, PhoneOutlined, MailOutlined, WalletOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../hooks/Auths/useAuth';
 import orderService from '../../services/orderService';
-import axios from 'axios';
+import config from '../../api/axios';
 import type { CreateOrderData } from '../../services/orderService';
+import { useCart } from '../../contexts/CartContext';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -20,7 +21,7 @@ interface FormValues {
   fullName: string;
   phone: string;
   email: string;
-  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay';
+  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
   notes?: string;
 }
 
@@ -51,8 +52,11 @@ const CheckoutPage: React.FC = () => {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState('');
   const { user, token } = useAuth();
+  const { clearCart } = useCart();
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
+
+  // const [zalopayUrl, setZalopayUrl] = useState(''); // Không dùng
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -92,10 +96,9 @@ const handleSubmit = async (values: FormValues) => {
   setIsSubmitting(true);
 
   try {
-    // Dữ liệu đơn hàng sẽ gửi lên backend hoặc lưu localStorage
     const orderPayload = {
       items: checkoutData.items.map(item => ({
-        courseId: item.courseId, // item.courseId đã được lưu đúng từ CartPage
+        courseId: item.courseId,
         quantity: item.quantity
       })),
       voucherCode: checkoutData.voucherCode,
@@ -106,24 +109,41 @@ const handleSubmit = async (values: FormValues) => {
       notes: values.notes
     };
 
-    // Nếu chọn VNPAY
+    // ✅ Nếu chọn VNPAY
     if (values.paymentMethod === 'vnpay') {
       localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
 
-      const { data: res } = await axios.get(
-        `http://localhost:5000/create_payment?amount=${checkoutData.total}`
+      const { data: res } = await config.get(
+        `/create_payment?amount=${checkoutData.total}`
       );
 
       window.location.href = res.paymentUrl;
       return;
     }
 
-    // Nếu chọn MOMO
+    // ✅ Nếu chọn MOMO
     if (values.paymentMethod === 'momo') {
+  localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
+
+  const { data: res } = await config.post(
+    `/payment-momo/create_momo_payment`,
+    {
+      amount: checkoutData.total,
+      name: values.fullName,
+      email: values.email
+    }
+  );
+
+  window.location.href = res.payUrl;
+  return;
+}
+
+    // ✅ Nếu chọn ZaloPay → chuyển thẳng luôn
+    if (values.paymentMethod === 'zalopay') {
       localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
 
-      const { data: res } = await axios.post(
-        `http://localhost:5000/create_momo_payment`,
+      const { data: res } = await config.post(
+        `/payment-zalo/create_zalopay_payment`,
         {
           amount: checkoutData.total,
           name: values.fullName,
@@ -135,7 +155,7 @@ const handleSubmit = async (values: FormValues) => {
       return;
     }
 
-    // Với các phương thức còn lại (nội bộ)
+    // ✅ Với các phương thức còn lại
     const createOrderPayload: CreateOrderData = {
       items: orderPayload.items,
       voucherCode: orderPayload.voucherCode,
@@ -149,34 +169,31 @@ const handleSubmit = async (values: FormValues) => {
     };
 
     const response = await orderService.createOrder(createOrderPayload, token);
-
     setOrderId(response.order.id);
     setOrderSuccess(true);
     localStorage.removeItem('checkoutData');
+    clearCart(); // Xóa giỏ hàng ở context sau khi thanh toán thành công
     // Cập nhật lại user sau khi thanh toán
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        const res = await axios.get('http://localhost:5000/api/auth/me', {
+        const res = await config.get('/api/auth/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        let userData = res.data.user || res.data;
-        // Đảm bảo luôn có user.role.name
-        if (!userData.role && userData.role_id && userData.role_id.name) {
+
+        const userData = res.data.user || res.data;
+        if (!userData.role && userData.role_id?.name) {
           userData.role = { name: userData.role_id.name };
         }
+
         localStorage.setItem('user', JSON.stringify(userData));
-        if (userData.role && userData.role.name) {
-          localStorage.setItem('role', userData.role.name);
-        } else if (typeof userData.role === 'string') {
-          localStorage.setItem('role', userData.role);
-        }
-        // Reload lại trang để context/layout nhận diện quyền mới nhất
+        localStorage.setItem('role', userData.role?.name || userData.role || '');
         window.location.reload();
       }
-    } catch (err) {
+    } catch {
       // Không cần xử lý lỗi ở đây
     }
+
     message.success('Thanh toán thành công!');
   } catch (error) {
     console.error('Create order error:', error);
@@ -185,6 +202,7 @@ const handleSubmit = async (values: FormValues) => {
     setIsSubmitting(false);
   }
 };
+
 
   const handleBackToCart = () => {
     if (checkoutData?.voucherValidation) {
@@ -263,6 +281,7 @@ const handleSubmit = async (values: FormValues) => {
                 <Select>
                   <Option value="momo"><WalletOutlined /> MoMo</Option>
                   <Option value="vnpay"><WalletOutlined /> VNPAY</Option>
+                  <Option value="zalopay"><WalletOutlined /> ZaloPay</Option>
                 </Select>
               </Form.Item>
               <Form.Item name="notes" label="Ghi chú">
@@ -273,6 +292,8 @@ const handleSubmit = async (values: FormValues) => {
                 <Button type="primary" htmlType="submit" loading={isSubmitting}>Thanh toán</Button>
               </div>
             </Form>
+
+            {/* Đã loại bỏ phần xác nhận ZaloPay vì không còn dùng zalopayUrl */}
           </Card>
         </Col>
       </Row>

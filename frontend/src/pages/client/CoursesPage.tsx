@@ -3,15 +3,17 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Layout, Row, Col, Typography, Spin, Alert, Empty } from 'antd';
 import { courseService } from '../../services/apiService';
 import type { Course } from '../../services/apiService';
-import CategoryNav from '../../components/common/CategoryNav';
 import SearchBar from '../../components/common/SearchBar';
 import CourseCard from '../../components/course/CourseCard';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { config } from '../../api/axios';
 
 const { Content } = Layout;
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 
+/**
+ * Trang hiển thị tất cả các khóa học có trạng thái "published" từ tất cả giảng viên
+ */
 const CoursesPage: React.FC = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
@@ -27,7 +29,6 @@ const CoursesPage: React.FC = () => {
             try {
                 setLoading(true);
                 let fetchedCourses: Course[];
-                
                 if (searchTerm) {
                     fetchedCourses = await courseService.searchCourses(searchTerm);
                 } else if (categoryId) {
@@ -35,7 +36,6 @@ const CoursesPage: React.FC = () => {
                 } else {
                     fetchedCourses = await courseService.getAllCourses();
                 }
-                
                 setCourses(fetchedCourses);
             } catch (err) {
                 setError('Không thể tải danh sách khóa học. Vui lòng thử lại sau.');
@@ -44,7 +44,6 @@ const CoursesPage: React.FC = () => {
                 setLoading(false);
             }
         };
-
         fetchCourses();
     }, [categoryId, searchTerm]);
 
@@ -79,48 +78,61 @@ const CoursesPage: React.FC = () => {
     };
 
     return (
-        <Content>
+        <Content className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
             {/* Hero Section */}
-            <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 text-gray-900 shadow-inner">
-                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                        <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">Tất cả khóa học</h1>
-                        <Paragraph className="text-gray-700 text-lg md:text-xl max-w-3xl mx-auto mt-4">
+            <div className="relative overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none select-none opacity-60">
+                    <svg width="100%" height="100%" viewBox="0 0 1440 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="hero-gradient" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stopColor="#06b6d4" />
+                                <stop offset="100%" stopColor="#a78bfa" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="1200" cy="80" r="180" fill="url(#hero-gradient)" fillOpacity="0.25" />
+                        <circle cx="300" cy="200" r="120" fill="url(#hero-gradient)" fillOpacity="0.18" />
+                        <circle cx="900" cy="300" r="100" fill="url(#hero-gradient)" fillOpacity="0.12" />
+                    </svg>
+                </div>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center relative z-10">
+                    <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+                        <h1 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600 drop-shadow-lg tracking-tight">
+                            Tất cả khóa học
+                        </h1>
+                        <Paragraph className="text-gray-700 text-lg md:text-2xl max-w-2xl mx-auto mt-4 font-medium">
                             Khám phá, học hỏi và phát triển kỹ năng của bạn với hàng trăm khóa học chất lượng cao.
                         </Paragraph>
-                        
                         {/* Search Bar */}
-                        <div className="max-w-2xl mx-auto mt-8">
-                            <SearchBar
-                                placeholder="Tìm kiếm khóa học..."
-                                defaultValue={searchTerm}
-                                onSearch={handleSearch}
-                            />
+                        <div className="max-w-2xl mx-auto mt-10">
+                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2, duration: 0.5 }}>
+                                <div className="rounded-2xl shadow-lg bg-white/80 backdrop-blur-md p-4 flex items-center gap-2 border border-slate-200 hover:shadow-2xl transition-all">
+                                    <SearchBar
+                                        placeholder="Tìm kiếm khóa học..."
+                                        defaultValue={searchTerm}
+                                        onSearch={handleSearch}
+                                    />
+                                </div>
+                            </motion.div>
                         </div>
                     </motion.div>
                 </div>
             </div>
-            
+
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
                 {/* Show search results info */}
                 {searchTerm && (
-                    <div className="mb-6 text-center">
-                        <Text className="text-lg">
-                            Kết quả tìm kiếm cho: <span className="font-semibold text-purple-600">"{searchTerm}"</span>
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-8 text-center">
+                        <Text className="text-xl font-semibold">
+                            Kết quả tìm kiếm cho: <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">"{searchTerm}"</span>
                         </Text>
-                        <Text className="block text-slate-500 mt-1">
-                            Tìm thấy {courses.length} khóa học
+                        <Text className="block text-slate-500 mt-1 text-base">
+                            Tìm thấy <span className="font-bold text-indigo-600">{courses.length}</span> khóa học
                         </Text>
-                    </div>
+                    </motion.div>
                 )}
-                
-                <div className="mb-8">
-                    <Title level={3} className="!mb-4 text-center sm:text-left">Tìm kiếm khóa học theo danh mục</Title>
-                    <CategoryNav />
-                </div>
-                
-                {loading && <div className="text-center p-12"><Spin size="large" /></div>}
-                {error && <Alert message="Lỗi" description={error} type="error" showIcon />}
+
+                {loading && <div className="text-center p-20"><Spin size="large" /></div>}
+                {error && <Alert message="Lỗi" description={error} type="error" showIcon className="mb-8" />}
                 {!loading && !error && courses.length === 0 && (
                     <Empty 
                         description={
@@ -128,16 +140,28 @@ const CoursesPage: React.FC = () => {
                                 ? `Không tìm thấy khóa học nào cho "${searchTerm}"` 
                                 : "Không có khóa học nào trong danh mục này."
                         } 
+                        className="my-16"
                     />
                 )}
 
-                <Row gutter={[24, 24]}>
-                    {courses.map(course => (
-                        <Col key={course.id} xs={24} sm={12} md={8} lg={6}>
-                            <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id)} />
-                        </Col>
-                    ))}
-                </Row>
+                <AnimatePresence>
+                    <Row gutter={[32, 32]} className="mt-2 md:mt-8">
+                        {courses.map((course, idx) => (
+                            <Col key={course.id} xs={24} sm={12} md={8} lg={6}>
+                                <motion.div
+                                    initial={{ opacity: 0, y: 30 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 30 }}
+                                    transition={{ duration: 0.4, delay: idx * 0.06 }}
+                                    whileHover={{ scale: 1.035, boxShadow: '0 8px 32px 0 rgba(80,80,180,0.10)' }}
+                                    className="h-full"
+                                >
+                                    <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id)} />
+                                </motion.div>
+                            </Col>
+                        ))}
+                    </Row>
+                </AnimatePresence>
             </div>
         </Content>
     );

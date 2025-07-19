@@ -15,6 +15,7 @@ import {
 } from "antd";
 import { UserOutlined, MessageOutlined, TeamOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import leoProfanity from 'leo-profanity';
 
 interface Comment {
   id: number;
@@ -36,8 +37,15 @@ const CourseDiscussion: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [commentForm] = Form.useForm();
   const [chatForm] = Form.useForm();
+  const [commentContent, setCommentContent] = useState('');
+  const [chatContent, setChatContent] = useState('');
+  const [commentWarning, setCommentWarning] = useState('');
+  const [chatWarning, setChatWarning] = useState('');
 
   useEffect(() => {
+    leoProfanity.add([
+      'đm', 'dm', 'cc', 'vcl', 'clm', 'cl', 'dcm', 'địt', 'dit', 'lồn', 'lon', 'cặc', 'cu', 'buồi', 'buoi', 'đụ', 'đéo', 'má', 'me', 'mẹ', 'bố', 'bo', 'chim', 'cai', 'cai...', 'thang', 'thang...', 'con', 'con...', 'chó', 'cho', 'cho chet', 'do ngu', 'mặt dày', 'mat day', 'chó chết', 'cho chet', 'ngu', 'fuck', 'shit'
+    ]);
     setComments([
       {
         id: 1,
@@ -167,10 +175,17 @@ const CourseDiscussion: React.FC = () => {
                   rows={3} 
                   placeholder="Nhập bình luận..." 
                   className="text-base"
+                  value={commentContent}
+                  onChange={(e) => {
+                    setCommentContent(e.target.value);
+                    if (leoProfanity.check(e.target.value)) setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+                    else setCommentWarning('');
+                  }}
                 />
+                {commentWarning && <div style={{ color: 'red', marginBottom: 8 }}>{commentWarning}</div>}
               </Form.Item>
               <Form.Item>
-                <Button htmlType="submit" type="primary" size="large" block>
+                <Button htmlType="submit" type="primary" size="large" block disabled={!commentContent.trim() || !!commentWarning}>
                   Gửi bình luận
                 </Button>
               </Form.Item>
@@ -238,10 +253,17 @@ const CourseDiscussion: React.FC = () => {
                   rows={3} 
                   placeholder="Nhập tin nhắn..." 
                   className="text-base"
+                  value={chatContent}
+                  onChange={(e) => {
+                    setChatContent(e.target.value);
+                    if (leoProfanity.check(e.target.value)) setChatWarning('⚠️ Tin nhắn của bạn chứa ngôn từ không phù hợp!');
+                    else setChatWarning('');
+                  }}
                 />
+                {chatWarning && <div style={{ color: 'red', marginBottom: 8 }}>{chatWarning}</div>}
               </Form.Item>
               <Form.Item>
-                <Button htmlType="submit" type="primary" size="large" block>
+                <Button htmlType="submit" type="primary" size="large" block disabled={!chatContent.trim() || !!chatWarning}>
                   Gửi tin nhắn
                 </Button>
               </Form.Item>

@@ -36,6 +36,7 @@ interface ApiCourse {
   discount: number;
   finalPrice: number;
   status: string;
+  displayStatus?: string;
   requirements: string[];
   createdAt: string;
   updatedAt: string;
@@ -69,8 +70,10 @@ export interface Course {
   hasDiscount: boolean;
   discountPercent?: number;
   status: string;
+  displayStatus?: string;
   language: string;
   level: string;
+  updatedAt: string;
 }
 
 export interface Section {
@@ -85,6 +88,11 @@ export interface Lesson {
   title: string;
   position: number;
   is_preview: boolean;
+  video?: {
+    _id: string;
+    url: string;
+    duration: number;
+  };
 }
 
 const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
@@ -121,12 +129,15 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
     hasDiscount,
     discountPercent: hasDiscount ? apiCourse.discount : undefined,
     status: apiCourse.status,
+    displayStatus: apiCourse.displayStatus,
     language: apiCourse.language,
-    level: apiCourse.level
+    level: apiCourse.level,
+    updatedAt: apiCourse.updatedAt
   };
 };
 
 export const courseService = {
+  // Lấy tất cả khóa học có trạng thái published từ tất cả giảng viên
   getAllCourses: async (): Promise<Course[]> => {
     try {
       const response = await apiClient.get<ApiResponse<ApiCourse[]>>('/courses');
@@ -139,6 +150,7 @@ export const courseService = {
     }
   },
 
+  // Tìm kiếm khóa học có trạng thái published
   searchCourses: async (searchTerm: string): Promise<Course[]> => {
     try {
       const response = await apiClient.get<ApiResponse<ApiCourse[]>>(`/courses?search=${encodeURIComponent(searchTerm)}`);
@@ -151,6 +163,7 @@ export const courseService = {
     }
   },
 
+  // Lấy khóa học theo danh mục có trạng thái published
   getCoursesByCategory: async (categoryId: string): Promise<Course[]> => {
     try {
       const response = await apiClient.get<ApiResponse<ApiCourse[]>>(`/courses?category=${categoryId}`);
@@ -163,13 +176,9 @@ export const courseService = {
     }
   },
 
-  getInstructorCourses: async (instructorId: string): Promise<Course[]> => {
+  getInstructorCourses: async (): Promise<Course[]> => {
     try {
-      // Truyền thêm status để lấy tất cả trạng thái
-      const allStatuses = 'draft,pending,published,rejected,archived';
-      const response = await apiClient.get<ApiResponse<ApiCourse[]>>(
-        `/courses?instructor=${instructorId}&status=${allStatuses}`
-      );
+      const response = await apiClient.get<ApiResponse<ApiCourse[]>>('/courses/instructor');
       return response.data?.success && Array.isArray(response.data.data)
         ? response.data.data.map(mapApiCourseToAppCourse)
         : [];
@@ -195,13 +204,17 @@ export const courseService = {
 
   getCourseContent: async (courseId: string): Promise<Section[]> => {
     try {
-      const response = await apiClient.get<{ success: boolean; data: Section[] }>(`/courses/${courseId}/sections`);
+      console.log(`🔍 Fetching course content for course ID: ${courseId}`);
+      const response = await apiClient.get<{ success: boolean; data: Section[] }>(`/courses/${courseId}/content`);
+      console.log(`📡 API Response:`, response.data);
       if (response.data?.success && Array.isArray(response.data.data)) {
+        console.log(`✅ Course content loaded successfully. Sections: ${response.data.data.length}`);
         return response.data.data;
       }
+      console.log(`⚠️ No course content found or invalid response`);
       return [];
     } catch (error) {
-      console.error(`Lỗi khi lấy nội dung khóa học ${courseId}:`, error);
+      console.error(`❌ Lỗi khi lấy nội dung khóa học ${courseId}:`, error);
       return [];
     }
   },
@@ -230,11 +243,29 @@ export const courseService = {
     }
   },
 
+  updateCourseStatus: async (courseId: string, data: { status?: string; displayStatus?: string }) => {
+    try {
+      const response = await apiClient.patch(`/courses/${courseId}/status`, data);
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data || error;
+    }
+  },
+
   mapApiCourseToAppCourse,
 
-  updateCourseStatus: async (courseId: string, status: string) => {
+  submitCourseForApproval: async (courseId: string) => {
     try {
-      const response = await apiClient.patch(`/courses/${courseId}/status`, { status });
+      const response = await apiClient.post(`/courses/${courseId}/submit`);
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data || error;
+    }
+  },
+
+  approveCourse: async (courseId: string, action: 'approve' | 'reject', reason?: string) => {
+    try {
+      const response = await apiClient.post(`/courses/${courseId}/approve`, { action, reason });
       return response.data;
     } catch (error: any) {
       throw error.response?.data || error;
@@ -372,28 +403,37 @@ const apiService = {
       return null;
     }
   },
-
-fetchSavedPosts: async () => {
-  try {
-    const res = await apiClient.get('/blogs/saved-posts'); // ❌ bỏ headers thủ công
-    if (res.data?.success === false) {
-      throw new Error(res.data.message || 'Lỗi từ API');
+  unlikePost: async (postId: string) => {
+    try {
+      const res = await apiClient.delete(`/blogs/${postId}/like`);
+      return res.data; // trả về { liked, likes_count }
+    } catch (err: any) {
+      console.error(`❌ Lỗi khi bỏ like post ${postId}:`, err.response?.data || err.message);
+      throw err;
     }
-    return res.data?.data || [];
-  } catch (err: any) {
-    console.error('❌ Lỗi khi lấy bài viết đã lưu:', err.response?.data || err.message);
-    throw err;
-  }
-},
+  },
+
+  fetchSavedPosts: async () => {
+    try {
+      const res = await apiClient.get('/blogs/saved-posts'); // ❌ bỏ headers thủ công
+      if (res.data?.success === false) {
+        throw new Error(res.data.message || 'Lỗi từ API');
+      }
+      return res.data?.data || [];
+    } catch (err: any) {
+      console.error('❌ Lỗi khi lấy bài viết đã lưu:', err.response?.data || err.message);
+      throw err;
+    }
+  },
   likePost: async (postId: string) => {
-  try {
-    const res = await apiClient.post(`/blogs/${postId}/like`);
-    return res.data; // trả về { liked, likes_count }
-  } catch (err: any) {
-    console.error(`❌ Lỗi khi like post ${postId}:`, err.response?.data || err.message);
-    throw err;
-  }
-},
+    try {
+      const res = await apiClient.post(`/blogs/${postId}/like`);
+      return res.data; // trả về { liked, likes_count }
+    } catch (err: any) {
+      console.error(`❌ Lỗi khi like post ${postId}:`, err.response?.data || err.message);
+      throw err;
+    }
+  },
 
 
   unsavePost: async (savedPostId: string) => {
@@ -402,26 +442,63 @@ fetchSavedPosts: async () => {
 
   // src/services/apiService.ts
   toggleSavePost: async (blogId: string) => {
-  return apiClient.post(`/blogs/${blogId}/toggle-save`);
-},
+    return apiClient.post(`/blogs/${blogId}/toggle-save`);
+  },
 
 
   fetchComments: async (postId: string) => {
     const res = await apiClient.get(`/blogs/${postId}/comments`);
     return res.data;
   },
-
   addComment: async (postId: string, content: string) => {
-    const res = await apiClient.post(`/blogs/${postId}/comments`, { content });
-    return res.data;
+    const res = await apiClient.post(`/blogs/${postId}/comment`, { content }); // ✅ sửa lại /comment
+    if (res.data?.success && res.data.data) {
+      return res.data.data;
+    }
+    throw new Error('Không thể thêm bình luận');
   },
 
   replyToComment: async (commentId: string, content: string) => {
-    const res = await apiClient.post(`/blogs/comments/${commentId}/reply`, { content });
-    return res.data;
-  }
+    const res = await apiClient.post(`/blogs/comment/${commentId}/reply`, { content });
+    return res.data; // Trả về toàn bộ response
+  },
+
 };
 
 export { apiClient, apiService };
+
+// API rút tiền user
+export const userWalletService = {
+  // Gửi yêu cầu rút tiền
+  requestWithdraw: async (data: { amount: number; bank: string; account: string; holder: string }) => {
+    const res = await apiClient.post('/wallet/withdraw', data);
+    return res.data;
+  },
+  // Lấy lịch sử yêu cầu rút tiền của user
+  getMyWithdrawRequests: async () => {
+    const res = await apiClient.get('/wallet/my-withdraw-requests');
+    return res.data;
+  },
+  // Admin lấy tất cả yêu cầu rút tiền
+  getAllWithdrawRequests: async () => {
+    const res = await apiClient.get('/wallet/withdraw-requests');
+    return res.data;
+  },
+  // Admin duyệt yêu cầu
+  approveWithdraw: async (id: string) => {
+    const res = await apiClient.post(`/wallet/withdraw/${id}/approve`);
+    return res.data;
+  },
+  // Admin từ chối yêu cầu
+  rejectWithdraw: async (id: string, reason: string) => {
+    const res = await apiClient.post(`/wallet/withdraw/${id}/reject`, { reason });
+    return res.data;
+  },
+  // User hủy yêu cầu
+  cancelWithdraw: async (id: string) => {
+    const res = await apiClient.delete(`/wallet/withdraw/${id}/cancel`);
+    return res.data;
+  },
+};
 
 

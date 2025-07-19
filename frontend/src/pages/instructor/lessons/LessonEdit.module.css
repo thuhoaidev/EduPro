@@ -1,0 +1,133 @@
+.lessonEditContainer {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 32px 8px 40px 8px;
+  background: #f7f9fa;
+  min-height: 100vh;
+}
+
+.lessonCard {
+  box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+  border-radius: 12px;
+  padding: 32px 24px 24px 24px;
+  background: #fff;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.input {
+  font-size: 16px;
+  border-radius: 6px;
+}
+
+.videoInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.videoDuration {
+  color: #888;
+  margin-left: 12px;
+}
+
+.quizList {
+  margin-bottom: 16px;
+}
+
+.quizCard {
+  margin-bottom: 18px;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+  border: 1px solid #e6e6e6 !important;
+}
+
+.optionsList {
+  margin-top: 12px;
+  margin-left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.correctOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #e6ffed;
+  border: 1.5px solid #52c41a;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.correctCheckbox {
+  margin-left: 8px;
+}
+
+.quizActions {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.videoPreviewInline {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  min-width: 220px;
+}
+
+.videoInfoRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.videoInfoLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 180px;
+}
+
+@media (max-width: 600px) {
+  .lessonCard {
+    padding: 12px 2px 12px 2px;
+  }
+  .quizCard {
+    padding: 8px 2px !important;
+  }
+  .lessonEditContainer {
+    padding: 8px 0 16px 0;
+  }
+  .videoInfoRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .videoPreviewInline {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+  .videoInfoLeft {
+    min-width: 0;
+  }
+} 

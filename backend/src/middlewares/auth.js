@@ -18,6 +18,15 @@ exports.auth = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
+    if (!token || token.trim() === '' || token.split('.').length !== 3) {
+      console.error('Token không hợp lệ hoặc thiếu:', token);
+      return res.status(401).json({
+        success: false,
+        message: 'Token không hợp lệ hoặc thiếu',
+      });
+    }
+
+    // KHÔNG cần try ở đây, vì bên ngoài đã có try/catch
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id || decoded._id || decoded.sub).populate('role_id');
 
@@ -60,7 +69,7 @@ exports.auth = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Auth error:', error);
+    console.error('Auth error:', error, '\nToken:', token);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ success: false, message: 'Token không hợp lệ' });
     } else if (error.name === 'TokenExpiredError') {

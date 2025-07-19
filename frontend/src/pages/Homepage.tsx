@@ -1,31 +1,33 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Typography, Button, Rate, Tag, Image, Space, Divider, Statistic, Tabs, Spin, message, Badge, Tooltip, Carousel, Avatar, Input, Select } from "antd";
+import { Row, Col, Card, Typography, Button, Rate, Tag, Space, Tabs, Spin, message, Badge, Tooltip, Carousel, Avatar, Input, Select } from "antd";
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import {
   PlayCircleOutlined,
-  BookOutlined,
-  UserOutlined,
-  ReadOutlined,
-  TrophyOutlined,
-  LikeOutlined,
   GiftOutlined,
   CopyOutlined,
   ClockCircleOutlined as ClockIcon,
   LeftOutlined,
   RightOutlined,
-  ArrowRightOutlined,
-  CodeOutlined,
-  BarChartOutlined,
-  LaptopOutlined,
   FireOutlined,
-  StarOutlined
+  StarOutlined,
+  RocketOutlined,
+  CheckCircleOutlined,
+  SearchOutlined,
+  ThunderboltOutlined,
+  RiseOutlined,
+  CrownOutlined,
+  HeartOutlined,
+  AimOutlined,
+  TeamOutlined,
+  BookOutlined,
+  SafetyOutlined,
+  UserOutlined
 } from "@ant-design/icons";
 import "../styles/courseCard.css";
+import "./Homepage.css";
 import { courseService, type Course as ApiCourse } from '../services/apiService';
-import voucherService from '../services/voucher.service';
-import type { Voucher } from '../services/voucher.service';
 import CourseCard from '../components/course/CourseCard';
 
 const { Title, Text, Paragraph } = Typography;
@@ -40,6 +42,7 @@ interface Testimonial {
   role: string;
   content: string;
   rating: number;
+  avatar?: string;
 }
 
 interface VoucherDisplay {
@@ -64,11 +67,60 @@ interface VoucherDisplay {
   statusMessage?: string;
 }
 
-const CustomArrow = ({ currentSlide, slideCount, children, ...rest }) => (
-  <span {...rest}>{children}</span>
-);
+interface CommentData {
+  user?: {
+    fullname?: string;
+  };
+  content?: string;
+  rating?: number;
+}
 
-const SectionWrapper = ({ children, style = {} }: { children: React.ReactNode, style?: React.CSSProperties }) => {
+interface VoucherData {
+  validFrom: string;
+  validTo: string;
+  usedCount: number;
+  usageLimit: number;
+  [key: string]: unknown;
+}
+
+interface Instructor {
+  _id: string;
+  fullname?: string;
+  name?: string;
+  avatar?: string;
+  profilePicture?: string;
+  specialty?: string;
+  bio?: string;
+  courseCount?: number;
+  courses?: unknown[];
+  studentCount?: number;
+  students?: number;
+}
+
+interface Blog {
+  _id: string;
+  title: string;
+  summary?: string;
+  content?: string;
+  thumbnail?: string;
+  author?: {
+    fullname?: string;
+    avatar?: string;
+  };
+  createdAt?: string;
+}
+
+// Sửa CustomArrow để không truyền currentSlide, slideCount vào DOM
+const CustomArrow = ({ children, ...rest }: {
+  children: React.ReactNode;
+  [key: string]: unknown;
+}) => {
+  // Loại bỏ currentSlide, slideCount khỏi props truyền vào span
+  const { currentSlide, slideCount, ...filteredProps } = rest;
+  return <span {...filteredProps}>{children}</span>;
+};
+
+const SectionWrapper = ({ children, style = {}, className = "" }: { children: React.ReactNode, style?: React.CSSProperties, className?: string }) => {
   const controls = useAnimation();
   const [ref, inView] = useInView({
     triggerOnce: true,
@@ -87,10 +139,11 @@ const SectionWrapper = ({ children, style = {} }: { children: React.ReactNode, s
       animate={controls}
       initial="hidden"
       variants={{
-        visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
-        hidden: { opacity: 0, y: 50 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: 'easeOut' } },
+        hidden: { opacity: 0, y: 60 },
       }}
       style={style}
+      className={className}
     >
       {children}
     </motion.div>
@@ -98,7 +151,7 @@ const SectionWrapper = ({ children, style = {} }: { children: React.ReactNode, s
 };
 
 function HomeSearchBar() {
-  const [searchType, setSearchType] = useState('course'); // 'course' hoặc 'user'
+  const [searchType, setSearchType] = useState('course');
   const [keyword, setKeyword] = useState('');
   const navigate = useNavigate();
 
@@ -112,21 +165,51 @@ function HomeSearchBar() {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', margin: '32px 0' }}>
-      <Select value={searchType} onChange={setSearchType} style={{ width: 140 }} size="large">
-        <Option value="course">Khóa học</Option>
-        <Option value="user">Giảng viên</Option>
+    <motion.div 
+      className="home-search-container"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.8 }}
+    >
+      <div className="search-wrapper">
+        <div className="search-type-container">
+          <Select 
+            value={searchType} 
+            onChange={setSearchType} 
+            className="search-type-select"
+            size="large"
+            suffixIcon={<AimOutlined />}
+          >
+            <Option value="course">
+              <BookOutlined /> Khóa học
+            </Option>
+            <Option value="user">
+              <UserOutlined /> Người dùng
+            </Option>
       </Select>
+        </div>
+        <div className="search-input-container">
       <Input
-        placeholder="Nhập từ khóa..."
+            placeholder="Nhập từ khóa tìm kiếm..."
         value={keyword}
         onChange={e => setKeyword(e.target.value)}
         onPressEnter={handleSearch}
-        style={{ width: 300 }}
+            className="search-input"
         size="large"
+            prefix={<SearchOutlined className="search-prefix-icon" />}
       />
-      <Button type="primary" size="large" onClick={handleSearch}>Tìm kiếm</Button>
+        </div>
+        <Button 
+          type="primary" 
+          size="large" 
+          onClick={handleSearch}
+          className="search-button"
+          icon={<RocketOutlined />}
+        >
+          Tìm kiếm
+        </Button>
     </div>
+    </motion.div>
   );
 }
 
@@ -138,6 +221,9 @@ const Homepage = () => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+  // Thêm state cho instructors và blogs
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [blogs, setBlogs] = useState<Blog[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -147,46 +233,87 @@ const Homepage = () => {
         setFreeCourses(coursesData.filter((course) => course.isFree === true));
         setPaidCourses(coursesData.filter((course) => course.isFree === false));
         
-        // Lấy popular courses dựa trên rating và reviews
         const popular = [...coursesData]
           .sort((a, b) => b.reviews - a.reviews || b.rating - a.rating)
           .slice(0, 4);
         setPopularCourses(popular);
         
         const response = await fetch('http://localhost:5000/api/blogs/68547db672358427a53d9ece/comments');
-        const commentsData = await response.json();
-        const mappedTestimonials: Testimonial[] = commentsData.map((comment: any) => ({
-          name: comment.user?.fullname || 'Học viên',
-          role: 'Sinh viên',
-          content: comment.content || 'Khóa học rất hay!',
-          rating: comment.rating || 5
-        }));
-        setTestimonials(mappedTestimonials);
+        const commentsRes = await response.json();
+        const commentsData = commentsRes.data || [];
+        if (Array.isArray(commentsData)) {
+          const mappedTestimonials: Testimonial[] = commentsData.map((comment: CommentData) => ({
+            name: comment.user?.fullname || 'Học viên',
+            role: 'Sinh viên',
+            content: comment.content || 'Khóa học rất hay!',
+            rating: comment.rating || 5,
+            avatar: `https://i.pravatar.cc/80?u=${comment.user?.fullname || 'user'}`
+          }));
+          setTestimonials(mappedTestimonials);
+        } else {
+          console.error('commentsData is not an array:', commentsData);
+          setTestimonials([]);
+        }
         
-        // Fetch vouchers from API
         try {
           const vouchersResponse = await fetch('http://localhost:5000/api/vouchers');
           if (vouchersResponse.ok) {
-            const vouchersData = await vouchersResponse.json();
-            const processedVouchers = vouchersData.map((voucher: any) => {
+            const vouchersDataRes = await vouchersResponse.json();
+            const vouchersArr = vouchersDataRes.data || vouchersDataRes;
+            if (Array.isArray(vouchersArr)) {
+              const processedVouchers = vouchersArr.map((voucher: VoucherData) => {
               const now = new Date();
-              const validFrom = new Date(voucher.validFrom);
               const validTo = new Date(voucher.validTo);
               const isExpired = now > validTo;
               const daysLeft = Math.ceil((validTo.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-              
               return {
-                ...voucher,
+                  id: String(voucher.id || voucher._id || ''),
+                  code: String(voucher.code || ''),
+                  title: String(voucher.title || ''),
+                  description: String(voucher.description || ''),
+                  discount: Number(voucher.discountValue ?? voucher.discount ?? 0),
+                  discountType: (voucher.discountType === 'percentage' ? 'percentage' : 'fixed') as 'percentage' | 'fixed',
+                  minAmount: Number(voucher.minOrderValue ?? voucher.minAmount ?? 0),
+                  maxDiscount: voucher.maxDiscount ? Number(voucher.maxDiscount) : undefined,
+                  validFrom: String(voucher.startDate || voucher.validFrom || ''),
+                  validTo: String(voucher.endDate || voucher.validTo || ''),
+                  usageLimit: Number(voucher.usageLimit ?? 0),
+                  usedCount: Number(voucher.usedCount ?? 0),
+                  category: String(voucher.category || ''),
+                  isHot: Boolean(voucher.isHot),
+                  isNew: Boolean(voucher.isNew),
                 isExpired,
                 daysLeft: isExpired ? 0 : daysLeft,
-                status: isExpired || voucher.usedCount >= voucher.usageLimit ? 'unavailable' : 'available',
-                statusMessage: isExpired ? 'Đã hết hạn' : voucher.usedCount >= voucher.usageLimit ? 'Hết voucher' : 'Có thể sử dụng'
+                  statusMessage: isExpired ? 'Đã hết hạn' : Number(voucher.usedCount ?? 0) >= Number(voucher.usageLimit ?? 0) ? 'Hết voucher' : 'Có thể sử dụng'
               };
             });
             setVouchers(processedVouchers);
+            } else {
+              setVouchers([]);
+            }
           }
         } catch (voucherError) {
           console.error('Error fetching vouchers:', voucherError);
+        }
+        // Fetch instructors
+        try {
+          const res = await fetch('http://localhost:5000/api/users/approved-instructors?limit=4');
+          if (res.ok) {
+            const data = await res.json();
+            setInstructors((data.data && data.data.instructors) || []);
+          }
+        } catch (err) {
+          console.error('Error fetching instructors:', err);
+        }
+        // Fetch blogs
+        try {
+          const res = await fetch('http://localhost:5000/api/blogs?sort=popular&limit=4');
+          if (res.ok) {
+            const data = await res.json();
+            setBlogs(data.data || []);
+          }
+        } catch (err) {
+          console.error('Error fetching blogs:', err);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -226,24 +353,6 @@ const Homepage = () => {
     message.success(`Đã sao chép mã ${code}!`);
   };
 
-  const getCategoryName = (category: string) => {
-    const categories: { [key: string]: string } = {
-      'new-user': 'Người mới',
-      'it-courses': 'Khóa học IT',
-      'seasonal': 'Theo mùa',
-    };
-    return categories[category] || category;
-  };
-
-  const getCategoryColor = (category: string) => {
-    const colors: { [key: string]: string } = {
-      'new-user': 'blue',
-      'it-courses': 'green',
-      'seasonal': 'orange',
-    };
-    return colors[category] || 'default';
-  };
-
   const formatDiscount = (voucher: VoucherDisplay) => {
     if (voucher.discountType === 'percentage') {
       return `${voucher.discount}%`;
@@ -253,9 +362,10 @@ const Homepage = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div className="loading-container">
         <Spin size="large">
-          <div style={{ padding: '50px 0' }}>
+          <div className="loading-content">
+            <ThunderboltOutlined className="loading-icon" />
             <div>Đang tải dữ liệu...</div>
           </div>
         </Spin>
@@ -264,166 +374,210 @@ const Homepage = () => {
   }
 
   return (
-    <div className="homepage-container" style={{ background: '#f8f9fa' }}>
+    <div className="homepage-container">
       {/* Hero Section */}
-      <div style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)", padding: "80px 0", textAlign: 'center', overflow: 'hidden' }}>
+      <section className="hero-section">
+        <div className="hero-background">
+          <div className="hero-pattern"></div>
+          <div className="hero-overlay"></div>
+        </div>
+        <div className="hero-content">
         <Row justify="center">
           <Col xs={22} md={18} lg={14}>
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }}>
-                <Title level={1} style={{ color: "white", fontSize: "48px", marginBottom: "24px", fontWeight: 'bold' }}>
-                Nền tảng học tập cho tương lai
+              <motion.div 
+                className="hero-text"
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1, delay: 0.2 }}
+              >
+                <div className="hero-badge">
+                  <ThunderboltOutlined className="badge-icon" />
+                  <span>Nền tảng học tập hàng đầu Việt Nam</span>
+                </div>
+                <Title level={1} className="hero-title">
+                  Nâng tầm kỹ năng với <span className="gradient-text">EduPro</span>
                 </Title>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.4 }}>
-                <Paragraph style={{ color: "rgba(255, 255, 255, 0.9)", fontSize: "18px", marginBottom: "32px", maxWidth: '700px', margin: '0 auto 32px' }}>
-                Trang bị cho bạn những kỹ năng cần thiết trong thế giới số. Bắt đầu hành trình chinh phục công nghệ cùng EduPro.
+                <Paragraph className="hero-subtitle">
+                  Trang bị cho bạn những kỹ năng cần thiết trong thế giới số. 
+                  Bắt đầu hành trình chinh phục công nghệ cùng đội ngũ chuyên gia hàng đầu.
                 </Paragraph>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.6 }}>
-                <Space size="large">
-                <Button type="primary" size="large" style={{ height: "52px", fontSize: "16px", padding: "0 32px", background: '#facc15', borderColor: '#facc15', color: '#1e3a8a', fontWeight: 'bold' }}>
+                <Space size="large" className="hero-buttons">
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button 
+                      type="primary" 
+                      size="large" 
+                      className="hero-primary-btn"
+                      onClick={() => navigate('/courses')}
+                      icon={<RocketOutlined />}
+                    >
                     Khám phá khóa học
                 </Button>
-                <Button ghost size="large" style={{ height: "52px", fontSize: "16px", padding: "0 32px", borderColor: 'white', color: 'white' }}>
-                    <PlayCircleOutlined /> Giới thiệu
+                  </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button 
+                      ghost 
+                      size="large" 
+                      className="hero-secondary-btn"
+                      icon={<PlayCircleOutlined />}
+                    >
+                      Xem giới thiệu
                 </Button>
+                  </motion.div>
                 </Space>
             </motion.div>
           </Col>
         </Row>
       </div>
+        
+        {/* Search Bar */}
+        <HomeSearchBar />
+      </section>
 
       {/* Stats Section */}
-      <SectionWrapper style={{ padding: "64px 0", background: 'white' }}>
-        <Row gutter={[32, 32]} style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          {[
-            { icon: <UserOutlined />, title: 'Học viên', value: 1200, suffix: '+' },
-            { icon: <ReadOutlined />, title: 'Khóa học', value: 50, suffix: '+' },
-            { icon: <TrophyOutlined />, title: 'Giảng viên', value: 12, suffix: '+' },
-            { icon: <LikeOutlined />, title: 'Đánh giá', value: '4.9/5', suffix: '' }
-          ].map((stat, index) => (
-            <Col xs={12} md={6} key={stat.title}>
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.15 }}
-                >
-                    <Card variant="borderless" style={{ textAlign: "center" }}>
-                        <Statistic
-                        title={<Text style={{ fontSize: '16px', color: '#6c757d' }}>{stat.title}</Text>}
-                        value={stat.value}
-                        prefix={<span style={{ color: '#3b82f6', fontSize: '24px', marginRight: '8px' }}>{stat.icon}</span>}
-                        suffix={stat.suffix}
-                        valueStyle={{ color: "#1e3a8a", fontWeight: "bold", fontSize: '36px' }}
-                        />
-                    </Card>
-                </motion.div>
-            </Col>
-          ))}
-        </Row>
+      <SectionWrapper className="stats-section">
+        <div className="section-header">
+          <div className="section-badge">
+            <RiseOutlined className="badge-icon" />
+            <span>Thống kê ấn tượng</span>
+          </div>
+          <Title level={2} className="section-title">Những con số nổi bật</Title>
+          <Text className="section-subtitle">Thể hiện sự tin tưởng và thành công của cộng đồng EduPro</Text>
+        </div>
+        <div className="modern-stats-grid">
+          {/* Học viên */}
+          <div className="modern-stat-card">
+            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #4f8cff 0%, #6ee7b7 100%)'}}>
+              <TeamOutlined />
+            </div>
+            <div className="modern-stat-label">Học viên</div>
+            <div className="modern-stat-value gradient-blue">1,200<span className="modern-stat-plus">+</span></div>
+          </div>
+          {/* Khóa học */}
+          <div className="modern-stat-card">
+            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #34d399 0%, #38bdf8 100%)'}}>
+              <BookOutlined />
+            </div>
+            <div className="modern-stat-label">Khóa học</div>
+            <div className="modern-stat-value gradient-green">50<span className="modern-stat-plus">+</span></div>
+          </div>
+          {/* Giảng viên */}
+          <div className="modern-stat-card">
+            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #fbbf24 0%, #f472b6 100%)'}}>
+              <CrownOutlined />
+            </div>
+            <div className="modern-stat-label">Giảng viên</div>
+            <div className="modern-stat-value gradient-orange">12<span className="modern-stat-plus">+</span></div>
+          </div>
+          {/* Đánh giá */}
+          <div className="modern-stat-card">
+            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #f472b6 0%, #f87171 100%)'}}>
+              <HeartOutlined />
+            </div>
+            <div className="modern-stat-label">Đánh giá</div>
+            <div className="modern-stat-value gradient-pink">4.9/5</div>
+          </div>
+        </div>
       </SectionWrapper>
 
       {/* Vouchers Section */}
-      <SectionWrapper style={{ padding: "64px 24px" }}>
-        <div style={{ textAlign: 'center', marginBottom: "48px" }}>
-          <Title level={2} style={{ fontSize: "36px", marginBottom: "12px", color: '#1e3a8a' }}>
-            <GiftOutlined style={{ marginRight: "12px", color: "#ef4444" }} />
-            Ưu đãi hấp dẫn
+      <SectionWrapper className="vouchers-section">
+        <div className="section-header">
+          <div className="section-badge">
+            <GiftOutlined className="badge-icon" />
+            <span>Ưu đãi đặc biệt</span>
+          </div>
+          <Title level={2} className="section-title">
+            Mã giảm giá hấp dẫn
           </Title>
-          <Text type="secondary" style={{ fontSize: '16px' }}>Đừng bỏ lỡ các mã giảm giá đặc biệt từ EduPro!</Text>
+          <Text className="section-subtitle">Đừng bỏ lỡ các ưu đãi đặc biệt từ EduPro!</Text>
         </div>
 
-        <Row gutter={[24, 24]}>
-          {vouchers.map((voucher) => (
-            <Col xs={24} sm={12} lg={8} key={voucher.id} style={{ display: 'flex' }}>
+        <Row gutter={[24, 24]} className="vouchers-grid">
+          {vouchers.map((voucher, index) => (
+            <Col xs={24} sm={12} lg={8} key={voucher.id}>
               <motion.div
-                style={{ width: '100%' }}
-                whileHover={{ y: -8, boxShadow: '0 12px 28px rgba(0,0,0,0.12)' }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                whileHover={{ y: -12, scale: 1.02 }}
+                className="voucher-card-wrapper"
               >
-                <Card
-                  hoverable
-                  variant="borderless"
-                  style={{ 
-                    borderRadius: "16px", 
-                    overflow: "hidden", 
-                    border: 'none', 
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.08)', 
-                    width: '100%', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    height: '100%',
-                    opacity: voucher.status === 'unavailable' ? 0.6 : 1
-                  }}
-                  styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', flex: 1 } }}
-                >
-                  <div style={{ background: "linear-gradient(135deg, #ef4444, #f87171)", padding: '24px', color: 'white', textAlign: 'center' }}>
-                    <Title level={3} style={{ color: 'white', margin: 0, fontWeight: 'bold' }}>{formatDiscount(voucher)}</Title>
-                    <Text style={{ color: 'rgba(255,255,255,0.9)' }}>{voucher.description}</Text>
+                <Card className="voucher-card" hoverable>
+                  <div className="voucher-header">
+                    <div className="voucher-discount-container">
+                      <Title level={3} className="voucher-discount">{formatDiscount(voucher)}</Title>
+                      <Text className="voucher-description">{voucher.description}</Text>
+                    </div>
+                    {voucher.isHot && (
+                      <div className="hot-badge">
+                        <FireOutlined />
+                      </div>
+                    )}
                   </div>
-                  <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                        <Text type='secondary'>Mã giảm giá</Text>
+                  
+                  <div className="voucher-body">
+                    <div className="voucher-code-section">
+                      <Text className="voucher-code-label">Mã giảm giá</Text>
                         <div
-                          style={{ 
-                            border: '2px dashed #d1d5db', 
-                            padding: '8px 16px', 
-                            borderRadius: '8px', 
-                            margin: '8px auto', 
-                            display: 'inline-block', 
-                            cursor: voucher.status === 'available' ? 'pointer' : 'not-allowed',
-                            opacity: voucher.status === 'available' ? 1 : 0.5
-                          }}
+                        className={`voucher-code ${voucher.status === 'available' ? 'clickable' : 'disabled'}`}
                           onClick={() => voucher.status === 'available' && copyToClipboard(voucher.code)}
                         >
-                          <Text strong style={{ fontSize: '20px', letterSpacing: '2px', color: '#1e3a8a' }}>{voucher.code}</Text>
+                        <Text strong className="voucher-code-text">{voucher.code}</Text>
                           {voucher.status === 'available' && (
                             <Tooltip title="Sao chép mã">
-                              <CopyOutlined style={{ marginLeft: '12px', color: '#6b7280' }} />
+                            <CopyOutlined className="copy-icon" />
                             </Tooltip>
                           )}
                         </div>
                       </div>
 
-                      {/* Status Message */}
                       {voucher.status === 'unavailable' && (
-                        <div style={{ 
-                          background: '#fef2f2', 
-                          border: '1px solid #fecaca', 
-                          borderRadius: '8px', 
-                          padding: '8px 12px', 
-                          marginBottom: '16px',
-                          textAlign: 'center'
-                        }}>
-                          <Text style={{ color: '#dc2626', fontSize: '12px' }}>
-                            {voucher.statusMessage}
-                          </Text>
-                        </div>
-                      )}
+                      <div className="voucher-status-message">
+                        <Text className="status-text">{voucher.statusMessage}</Text>
+                      </div>
+                    )}
 
-                      <Space direction="vertical" size="small" style={{ width: "100%"}}>
-                        {voucher.minAmount && <Text type="secondary"><Tag color='blue'>Điều kiện</Tag> Đơn hàng từ {voucher.minAmount.toLocaleString()}đ</Text>}
-                        {voucher.maxDiscount && voucher.discountType === 'percentage' && <Text type="secondary"><Tag color='blue'>Tối đa</Tag> Giảm đến {voucher.maxDiscount.toLocaleString()}đ</Text>}
-                        <Text type="secondary"><ClockIcon style={{ marginRight: "4px" }} />Hạn sử dụng: {new Date(voucher.validTo).toLocaleDateString('vi-VN')}</Text>
-                        <Text type="secondary"><Tag color='orange'>Đã sử dụng</Tag> {voucher.usedCount}/{voucher.usageLimit}</Text>
+                    <Space direction="vertical" size="small" className="voucher-details">
+                                              {voucher.minAmount && (
+                          <Text className="voucher-detail">
+                            <Tag color='blue' icon={<AimOutlined />}>Điều kiện</Tag> 
+                            Đơn hàng từ {voucher.minAmount.toLocaleString()}đ
+                          </Text>
+                        )}
+                        {voucher.maxDiscount && voucher.discountType === 'percentage' && (
+                          <Text className="voucher-detail">
+                            <Tag color='green' icon={<RiseOutlined />}>Tối đa</Tag> 
+                            Giảm đến {voucher.maxDiscount.toLocaleString()}đ
+                          </Text>
+                        )}
+                        <Text className="voucher-detail">
+                          <ClockIcon className="detail-icon" />
+                          Hạn sử dụng: {new Date(voucher.validTo).toLocaleDateString('vi-VN')}
+                        </Text>
+                        <Text className="voucher-detail">
+                          <Tag color='orange' icon={<TeamOutlined />}>Đã sử dụng</Tag> 
+                          {voucher.usedCount}/{voucher.usageLimit}
+                        </Text>
                       </Space>
-                    </div>
 
                     <Button 
                       type="primary" 
                       block 
                       size="large" 
-                      style={{ 
-                        background: voucher.status === 'available' ? '#1e3a8a' : '#9ca3af', 
-                        height: '48px', 
-                        marginTop: '24px' 
-                      }}
+                        className={`voucher-button ${voucher.status === 'unavailable' ? 'disabled' : ''}`}
                       disabled={voucher.status === 'unavailable'}
+                        icon={voucher.status === 'available' ? <GiftOutlined /> : <SafetyOutlined />}
                     >
                       {voucher.status === 'available' ? 'Lưu mã' : 'Hết voucher'}
                     </Button>
                   </div>
+                  
                   {voucher.status === 'unavailable' && (
                     <Badge.Ribbon text="Hết voucher" color="red" />
                   )}
@@ -432,34 +586,46 @@ const Homepage = () => {
             </Col>
           ))}
         </Row>
-        <div style={{ textAlign: 'center', marginTop: '48px' }}>
+        
+        <div className="section-footer">
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
             <Button 
                 type="primary" 
                 size="large" 
                 onClick={() => navigate('/vouchers')}
-                style={{ background: '#1e3a8a', height: '48px', padding: '0 32px' }}
+              className="section-cta-button"
+              icon={<GiftOutlined />}
             >
                 Khám phá nhiều ưu đãi hơn
             </Button>
+          </motion.div>
         </div>
       </SectionWrapper>
 
-      {/* Courses Section with Tabs */}
-      <SectionWrapper style={{ padding: "64px 24px", background: 'white' }}>
-        <div style={{ textAlign: 'center', marginBottom: "48px" }}>
-          <Title level={2} style={{ fontSize: "36px", marginBottom: "12px", color: '#1e3a8a' }}>Khám phá khóa học</Title>
-          <Text type="secondary" style={{ fontSize: '16px' }}>Chọn lựa khóa học phù hợp nhất với mục tiêu của bạn</Text>
+      {/* Courses Section */}
+      <SectionWrapper className="courses-section">
+        <div className="section-header">
+          <div className="section-badge">
+            <BookOutlined className="badge-icon" />
+            <span>Khóa học chất lượng</span>
+          </div>
+          <Title level={2} className="section-title">Khám phá khóa học</Title>
+          <Text className="section-subtitle">Chọn lựa khóa học phù hợp nhất với mục tiêu của bạn</Text>
         </div>
 
         <Tabs
           defaultActiveKey="free"
           size="large"
           centered
+          className="courses-tabs"
           renderTabBar={(props, DefaultTabBar) => (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.6 }}
             >
               <DefaultTabBar {...props} />
             </motion.div>
@@ -467,17 +633,22 @@ const Homepage = () => {
           items={[
             {
               key: 'free',
-              label: 'Miễn phí',
+              label: (
+                <span className="tab-label">
+                  <CheckCircleOutlined /> Miễn phí
+                </span>
+              ),
               children: (
-                <AnimatePresence mode="wait">
-                  <Row gutter={[24, 24]}>
+                <AnimatePresence>
+                  <Row gutter={[24, 24]} className="courses-grid">
                     {freeCourses.map((course, idx) => (
                       <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>
                         <motion.div
                           initial={{ opacity: 0, y: 30 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 30 }}
-                          transition={{ duration: 0.5, delay: idx * 0.08 }}
+                          transition={{ duration: 0.6, delay: idx * 0.1 }}
+                          whileHover={{ y: -8 }}
                         >
                           <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id || course._id)} />
                         </motion.div>
@@ -489,17 +660,22 @@ const Homepage = () => {
             },
             {
               key: 'popular',
-              label: 'Phổ biến',
+              label: (
+                <span className="tab-label">
+                  <FireOutlined /> Phổ biến
+                </span>
+              ),
               children: (
-                <AnimatePresence mode="wait">
-                  <Row gutter={[24, 24]}>
+                <AnimatePresence>
+                  <Row gutter={[24, 24]} className="courses-grid">
                     {popularCourses.map((course, idx) => (
                       <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>
                         <motion.div
                           initial={{ opacity: 0, y: 30 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 30 }}
-                          transition={{ duration: 0.5, delay: idx * 0.08 }}
+                          transition={{ duration: 0.6, delay: idx * 0.1 }}
+                          whileHover={{ y: -8 }}
                         >
                           <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id || course._id)} />
                         </motion.div>
@@ -511,17 +687,22 @@ const Homepage = () => {
             },
             {
               key: 'paid',
-              label: 'Có phí',
+              label: (
+                <span className="tab-label">
+                  <StarOutlined /> Có phí
+                </span>
+              ),
               children: (
-                <AnimatePresence mode="wait">
-                  <Row gutter={[24, 24]}>
+                <AnimatePresence>
+                  <Row gutter={[24, 24]} className="courses-grid">
                     {paidCourses.map((course, idx) => (
                       <Col xs={24} sm={12} md={8} lg={8} key={course.id || course._id || idx}>
                         <motion.div
                           initial={{ opacity: 0, y: 30 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 30 }}
-                          transition={{ duration: 0.5, delay: idx * 0.08 }}
+                          transition={{ duration: 0.6, delay: idx * 0.1 }}
+                          whileHover={{ y: -8 }}
                         >
                           <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id || course._id)} />
                         </motion.div>
@@ -533,23 +714,93 @@ const Homepage = () => {
             }
           ]}
         />
-        <div style={{ textAlign: "center", marginTop: "48px" }}>
+        
+        <div className="section-footer">
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
           <Button 
             type="default" 
             size="large" 
-            style={{ height: '48px', padding: '0 32px' }}
             onClick={() => navigate('/courses')}
+              className="section-cta-button secondary"
+              icon={<BookOutlined />}
           >
             Xem tất cả khóa học
           </Button>
+          </motion.div>
         </div>
       </SectionWrapper>
 
+      {/* Instructors Section */}
+      <SectionWrapper className="instructors-section">
+        <div className="section-header">
+          <div className="section-badge">
+            <CrownOutlined className="badge-icon" />
+            <span>Giảng viên tiêu biểu</span>
+          </div>
+          <Title level={2} className="section-title">Đội ngũ giảng viên xuất sắc</Title>
+          <Text className="section-subtitle">Học hỏi từ các chuyên gia hàng đầu</Text>
+        </div>
+        <Row gutter={[24, 24]} className="instructors-grid">
+          {instructors.map((instructor, idx) => (
+            <Col xs={24} sm={12} md={8} lg={6} key={instructor._id || idx}>
+              <Card className="instructor-card" hoverable>
+                <Avatar src={instructor.avatar || instructor.profilePicture || '/images/default-avatar.png'} size={80} />
+                <Title level={4} style={{ marginTop: 12 }}>{instructor.fullname || instructor.name}</Title>
+                <Text>{instructor.specialty || instructor.bio || 'Chuyên gia đào tạo'}</Text>
+                <div style={{ marginTop: 8 }}>
+                  <Tag color="blue">Khóa học: {instructor.courseCount || instructor.courses?.length || 0}</Tag>
+                  <Tag color="green">Học viên: {instructor.studentCount || instructor.students || 0}</Tag>
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </SectionWrapper>
+
+      {/* Blogs Section */}
+      <SectionWrapper className="blogs-section">
+        <div className="section-header">
+          <div className="section-badge">
+            <BookOutlined className="badge-icon" />
+            <span>Bài viết nổi bật</span>
+          </div>
+          <Title level={2} className="section-title">Tin tức & Chia sẻ</Title>
+          <Text className="section-subtitle">Cập nhật kiến thức, xu hướng mới nhất</Text>
+        </div>
+        <Row gutter={[24, 24]} className="blogs-grid">
+          {blogs.map((blog, idx) => (
+            <Col xs={24} sm={12} md={8} lg={6} key={blog._id || idx}>
+              <Card
+                className="blog-card"
+                hoverable
+                cover={<img alt={blog.title} src={blog.thumbnail || '/images/no-image.png'} style={{ height: 160, objectFit: 'cover' }} />}
+                onClick={() => navigate(`/blogs/${blog._id}`)}
+              >
+                <Title level={4}>{blog.title}</Title>
+                <Paragraph ellipsis={{ rows: 2 }}>{blog.summary || blog.content?.slice(0, 80) || ''}</Paragraph>
+                <div style={{ display: 'flex', alignItems: 'center', marginTop: 8 }}>
+                  <Avatar src={blog.author?.avatar || '/images/default-avatar.png'} size={24} />
+                  <span style={{ marginLeft: 8 }}>{blog.author?.fullname || 'Tác giả'}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color: '#888' }}>{blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : ''}</span>
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </SectionWrapper>
+
       {/* Testimonials Section */}
-      <SectionWrapper style={{ padding: "80px 24px", background: '#f8f9fa' }}>
-        <div style={{ textAlign: "center", marginBottom: "48px" }}>
-          <Title level={2} style={{ fontSize: "36px", marginBottom: "16px", color: '#1e3a8a' }}>Học viên nói về EduPro</Title>
-          <Text type="secondary" style={{ fontSize: "16px" }}>Những chia sẻ thực tế từ cộng đồng học viên của chúng tôi.</Text>
+      <SectionWrapper className="testimonials-section">
+        <div className="section-header">
+          <div className="section-badge">
+            <HeartOutlined className="badge-icon" />
+            <span>Đánh giá từ học viên</span>
+          </div>
+          <Title level={2} className="section-title">Học viên nói về EduPro</Title>
+          <Text className="section-subtitle">Những chia sẻ thực tế từ cộng đồng học viên của chúng tôi</Text>
         </div>
 
         <Carousel 
@@ -558,24 +809,35 @@ const Homepage = () => {
           prevArrow={<CustomArrow><LeftOutlined /></CustomArrow>}
           nextArrow={<CustomArrow><RightOutlined /></CustomArrow>}
           dots={{ className: 'testimonial-dots' }}
-          style={{ maxWidth: '900px', margin: '0 auto' }}
+          className="testimonials-carousel"
         >
           {testimonials.map((testimonial, index) => (
-            <div key={index}>
+            <div key={index} className="testimonial-slide">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5 }}
-                >
-                    <Card variant="borderless" style={{ margin: '0 16px', padding: '32px', background: 'white', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.05)' }}>
-                        <Space direction="vertical" size="large" style={{ width: '100%', textAlign: 'center' }}>
-                        <Image src={`https://i.pravatar.cc/80?u=${testimonial.name}`} alt={testimonial.name} style={{ borderRadius: '50%', width: '80px', height: '80px' }} />
-                        <Paragraph style={{ fontSize: "18px", fontStyle: 'italic', color: '#495057' }}>"{testimonial.content}"</Paragraph>
-                        <Rate value={testimonial.rating} disabled />
-                        <div>
-                            <Text strong style={{ fontSize: '16px', color: '#1e3a8a' }}>{testimonial.name}</Text>
+                transition={{ duration: 0.6 }}
+                className="testimonial-card-wrapper"
+              >
+                <Card className="testimonial-card" variant="borderless">
+                  <Space direction="vertical" size="large" className="testimonial-content">
+                    <div className="testimonial-avatar-container">
+                      <Avatar 
+                        src={testimonial.avatar} 
+                        alt={testimonial.name} 
+                        size={80}
+                        className="testimonial-avatar"
+                      />
+                      <div className="quote-icon">
+                        <HeartOutlined />
+                      </div>
+                    </div>
+                    <Paragraph className="testimonial-text">"{testimonial.content}"</Paragraph>
+                    <Rate value={testimonial.rating} disabled className="testimonial-rating" />
+                    <div className="testimonial-author">
+                      <Text strong className="author-name">{testimonial.name}</Text>
                             <br />
-                            <Text type="secondary">{testimonial.role}</Text>
+                      <Text className="author-role">{testimonial.role}</Text>
                         </div>
                         </Space>
                     </Card>
@@ -586,16 +848,36 @@ const Homepage = () => {
       </SectionWrapper>
 
       {/* CTA Section */}
-      <SectionWrapper style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)", padding: "80px 24px", textAlign: 'center' }}>
-        <Title level={2} style={{ color: "white", fontSize: "36px", marginBottom: "16px", fontWeight: 'bold' }}>
-          Sẵn sàng nâng tầm sự nghiệp?
+      <SectionWrapper className="cta-section">
+        <div className="cta-background">
+          <div className="cta-pattern"></div>
+        </div>
+        <div className="cta-content">
+          <div className="cta-badge">
+            <ThunderboltOutlined className="badge-icon" />
+            <span>Bắt đầu ngay hôm nay</span>
+          </div>
+          <Title level={2} className="cta-title">
+            Sẵn sàng nâng tầm <span className="gradient-text">sự nghiệp</span>?
         </Title>
-        <Paragraph style={{ color: "rgba(255, 255, 255, 0.9)", fontSize: "16px", marginBottom: "32px", maxWidth: "700px", margin: "0 auto 32px" }}>
+          <Paragraph className="cta-subtitle">
           Đăng ký ngay hôm nay để nhận ưu đãi đặc biệt và bắt đầu hành trình chinh phục kiến thức mới!
         </Paragraph>
-        <Button type="primary" size="large" style={{ height: "52px", fontSize: "16px", padding: "0 32px", background: '#facc15', borderColor: '#facc15', color: '#1e3a8a', fontWeight: 'bold' }}>
+          <motion.div
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Button 
+              type="primary" 
+              size="large" 
+              className="cta-button"
+              onClick={() => navigate('/register')}
+              icon={<RocketOutlined />}
+            >
           Đăng ký ngay
         </Button>
+          </motion.div>
+        </div>
       </SectionWrapper>
     </div>
   );

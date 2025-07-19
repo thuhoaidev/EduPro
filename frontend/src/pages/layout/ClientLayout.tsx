@@ -4,6 +4,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import AppHeader from './Header';
 import AppFooter from './Footer';
 import AppSidebar from './CategoryNav';
+import './ClientLayout.css';
 
 const { Content } = Layout;
 
@@ -20,14 +21,19 @@ const ClientLayout = () => {
   const isUserProfilePage = /^\/users\//.test(location.pathname);
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="client-layout">
       <AppHeader />
-      <Layout>
-        {!isProfilePage && !isCoursesPage && !isVouchersPage && !isInstructorsPage && !isBlogPage && !isCartPage && !isCheckoutPage && !isLessonVideoOrQuiz && !isUserProfilePage && <AppSidebar />}
-        <Layout className="site-layout">
-          <Content style={{ margin: '0', overflow: 'initial' }}>
-            {/* Đây là nơi nội dung của các route con sẽ được render */}
-            <Outlet />
+      <Layout className="main-content">
+        {!isProfilePage && !isCoursesPage && !isVouchersPage && !isInstructorsPage && !isBlogPage && !isCartPage && !isCheckoutPage && !isLessonVideoOrQuiz && !isUserProfilePage && (
+          <div className="sidebar-container">
+            <AppSidebar />
+          </div>
+        )}
+        <Layout className="content-layout">
+          <Content className="main-content-area">
+            <div className="content-wrapper">
+              <Outlet />
+            </div>
           </Content>
         </Layout>
       </Layout>

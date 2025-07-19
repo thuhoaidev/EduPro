@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Rate, message } from 'antd';
 import { BookOutlined } from '@ant-design/icons';
@@ -7,15 +7,47 @@ import { motion } from 'framer-motion';
 import styles from './CourseCard.module.css';
 import { config } from '../../api/axios';
 import { useCart } from '../../contexts/CartContext';
+import { courseService } from '../../services/apiService';
 
 const formatCurrency = (value: number) => value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 const isMongoId = (str: string) => /^[a-f\d]{24}$/i.test(str);
 
 const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course, isEnrolled }) => {
     const [isAddingToCart, setIsAddingToCart] = useState(false);
+    const [isInstructor, setIsInstructor] = useState(false);
     const { addToCart, isInCart, updateCartCount } = useCart();
     const courseInCart = isInCart(course._id || course.id);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const checkInstructor = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                setIsInstructor(false);
+                return;
+            }
+            try {
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    const userRole = user.role?.name || user.role_id?.name;
+                    
+                    if (userRole === 'instructor') {
+                        const instructorCourses = await courseService.getInstructorCourses();
+                        const isCourseInstructor = instructorCourses.some((c: Course) => c.id === course.id);
+                        setIsInstructor(isCourseInstructor);
+                    } else {
+                        setIsInstructor(false);
+                    }
+                } else {
+                    setIsInstructor(false);
+                }
+            } catch {
+                setIsInstructor(false);
+            }
+        };
+        checkInstructor();
+    }, [course.id]);
 
     const handleEnroll = async (e: React.MouseEvent, course: Course) => {
         e.preventDefault();
@@ -59,11 +91,15 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
             if (success) {
                 message.success('Đã thêm khóa học vào giỏ hàng!');
                 await updateCartCount();
+            }
+            // Không cần else vì addToCart đã xử lý thông báo lỗi
+        } catch (error: any) {
+            // Hiển thị thông báo lỗi cụ thể nếu có
+            if (error.response?.data?.error) {
+                message.error(error.response.data.error);
             } else {
                 message.error('Có lỗi xảy ra khi thêm vào giỏ hàng!');
             }
-        } catch (error) {
-            message.error('Có lỗi xảy ra khi thêm vào giỏ hàng!');
         } finally {
             setIsAddingToCart(false);
         }
@@ -123,7 +159,18 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
                             )}
                         </div>
                         <div className={styles.buttonContainer}>
-                            {isEnrolled ? (
+                            {isInstructor ? (
+                                <button 
+                                    className={styles.buyBtnFree} 
+                                    type="button" 
+                                    onClick={e => { 
+                                        e.preventDefault(); 
+                                        navigate(`/instructor/courses/${course.id}`); 
+                                    }}
+                                >
+                                    <span className={styles.buttonText}>Quản lý</span>
+                                </button>
+                            ) : isEnrolled ? (
                                 <button 
                                     className={styles.buyBtnFree} 
                                     type="button" 

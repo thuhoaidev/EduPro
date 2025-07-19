@@ -1,6 +1,7 @@
 const Cart = require('../models/Cart');
 const Course = require('../models/Course');
 const { NotFoundError, BadRequestError } = require('../errors');
+const Notification = require('../models/Notification');
 
 class CartController {
   // [GET] /api/cart - Lấy giỏ hàng của user hiện tại
@@ -50,6 +51,22 @@ class CartController {
     });
 
     await cart.save();
+    console.log('BẮT ĐẦU tạo notification cho user:', userId);
+    // Gửi thông báo cho user
+    const notification = await Notification.create({
+      title: 'Đã thêm vào giỏ hàng',
+      content: `Bạn vừa thêm khóa học "${course.title}" vào giỏ hàng!`,
+      type: 'info',
+      receiver: userId,
+      icon: 'shopping-cart',
+      meta: { link: `/cart` }
+    });
+    console.log('ĐÃ TẠO notification:', notification);
+    const io = req.app.get && req.app.get('io');
+    if (io && notification.receiver) {
+      io.to(notification.receiver.toString()).emit('new-notification', notification);
+      console.log('Emit notification realtime tới user:', notification.receiver.toString(), notification);
+    }
     res.status(201).json(this.formatCartResponse(cart));
   }
 

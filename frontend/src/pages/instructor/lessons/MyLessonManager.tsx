@@ -1,25 +1,26 @@
 import React, { useState, useEffect } from "react";
 import {
   Card,
-  Button,
   Form,
-  Input,
-  Checkbox,
-  Space,
   Select,
   Row,
   Col,
   Typography,
   message,
-  Upload,
-  InputNumber,
+  Badge,
+  Tag,
+  Collapse,
   Divider,
+  Button,
+  Modal,
+  Input,
+  Space,
+  Popconfirm
 } from "antd";
-import { PlusOutlined, UploadOutlined } from "@ant-design/icons";
-import { useNavigate } from 'react-router-dom';
-import QuizQuestionForm from './QuizQuestionForm';
+import { CaretRightOutlined, VideoCameraOutlined, PlusOutlined, DragOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 const { Title, Text } = Typography;
 const { Option } = Select;
+const { Panel } = Collapse;
 
 interface Course {
   _id: string;
@@ -57,36 +58,31 @@ interface QuizQuestion {
   correctIndex: number;
 }
 
-interface LessonFormData {
-  title: string;
-  is_preview: boolean;
+interface AddLessonFormValues {
   section_id: string;
-  video: {
-    file?: Array<{
-      originFileObj: File;
-      uid: string;
-      name: string;
-      status: string;
-      url?: string;
-    }>;
-    duration: number;
-  };
-  quiz: {
-    questions: QuizQuestion[];
-  };
+  title: string;
+}
+
+interface EditLessonFormValues {
+  title: string;
 }
 
 const MyLessonManager: React.FC = () => {
-  const [form] = Form.useForm();
-  const navigate = useNavigate();
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
-  const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(false);
   const [coursesLoading, setCoursesLoading] = useState(false);
-  const [sectionsLoading, setSectionsLoading] = useState(false);
+  
+  // Thêm state cho modal thêm bài học
+  const [isAddLessonModalOpen, setIsAddLessonModalOpen] = useState(false);
+  const [addLessonForm] = Form.useForm();
+  const [addingLesson, setAddingLesson] = useState(false);
 
+  // Thêm state cho modal sửa bài học
+  const [isEditLessonModalOpen, setIsEditLessonModalOpen] = useState(false);
+  const [editLessonForm] = Form.useForm();
+  const [editingLesson, setEditingLesson] = useState(false);
+  const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
 
   // Test API connection
   useEffect(() => {
@@ -114,7 +110,7 @@ const MyLessonManager: React.FC = () => {
       try {
         setCoursesLoading(true);
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        const response = await fetch(`${apiUrl}/courses?instructor=true&includeDraft=true`, {
+        const response = await fetch(`${apiUrl}/courses/instructor`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json'
@@ -137,7 +133,7 @@ const MyLessonManager: React.FC = () => {
         const data = await response.json();
         if (data.success) {
           setCourses(data.data);
-    } else {
+        } else {
           throw new Error(data.message || 'Không thể tải danh sách khóa học');
         }
       } catch (error) {
@@ -155,12 +151,11 @@ const MyLessonManager: React.FC = () => {
   useEffect(() => {
     const fetchSections = async () => {
       if (!selectedCourse) {
-      setSections([]);
+        setSections([]);
         return;
       }
 
       try {
-        setSectionsLoading(true);
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
         const response = await fetch(`${apiUrl}/courses/${selectedCourse}/sections`, {
           headers: {
@@ -185,475 +180,441 @@ const MyLessonManager: React.FC = () => {
         const data = await response.json();
         if (data.success) {
           setSections(data.data);
+          console.log('Sections trả về:', data.data);
+          if (!data.data || data.data.length === 0) {
+            message.warning('Khóa học này chưa có chương nào. Hãy tạo chương trước khi thêm bài học!');
+          }
         } else {
           throw new Error(data.message || 'Không thể tải danh sách chương');
         }
       } catch (error) {
         console.error('Lỗi khi tải chương:', error);
         message.error('Không thể tải danh sách chương');
-      } finally {
-        setSectionsLoading(false);
       }
     };
 
     fetchSections();
   }, [selectedCourse]);
 
-  // Cập nhật form khi selectedSection thay đổi
-  useEffect(() => {
-    if (selectedSection) {
-      form.setFieldsValue({ section_id: selectedSection });
-      console.log('Form updated with section_id:', selectedSection);
-    }
-  }, [selectedSection, form]);
-
   const handleCourseChange = (value: string) => {
     setSelectedCourse(value);
-    setSelectedSection(null);
-    form.resetFields(['section_id']);
-  };
-  
-  const handleSectionChange = (value: string) => {
-      setSelectedSection(value);
-    form.setFieldsValue({ section_id: value });
-    console.log('Section changed to:', value);
   };
 
-  const onFinish = async (values: LessonFormData) => {
-    if (!selectedCourse) {
-      message.error("Vui lòng chọn khóa học!");
-      return;
-    }
-    
-    if (!selectedSection) {
-      message.error("Vui lòng chọn chương!");
-      return;
-    }
-    
-    setLoading(true);
+  // Hàm mở modal thêm bài học
+  const handleAddLesson = (sectionId: string) => {
+    addLessonForm.resetFields();
+    addLessonForm.setFieldsValue({ section_id: sectionId });
+    setIsAddLessonModalOpen(true);
+  };
+
+  // Hàm đóng modal thêm bài học
+  const handleCancelAddLesson = () => {
+    setIsAddLessonModalOpen(false);
+    addLessonForm.resetFields();
+  };
+
+  // Hàm thêm bài học
+  const handleSubmitAddLesson = async (values: AddLessonFormValues) => {
     try {
-      // 1. Tạo bài học
-      console.log('Form values:', values);
-      console.log('Selected section:', selectedSection);
-      console.log('Values section_id:', values.section_id);
-      
-      const lessonData = {
-        title: values.title,
-        is_preview: values.is_preview || false,
-        section_id: values.section_id || selectedSection
-      };
-      
-      console.log('Sending lesson data:', lessonData);
-      console.log('Token:', localStorage.getItem("token"));
-      console.log('API URL:', import.meta.env.VITE_API_URL);
-      console.log('Full URL:', `${import.meta.env.VITE_API_URL}/lessons`);
-      
-      // Debug token và user info
-      const token = localStorage.getItem("token");
-      const userInfo = localStorage.getItem("user");
-      const parsedUser = userInfo ? JSON.parse(userInfo) : null;
-      console.log('User info from localStorage:', parsedUser);
-      console.log('User roles:', parsedUser?.roles);
-      console.log('User role:', parsedUser?.role);
-      
-      if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          console.log('Token payload:', payload);
-        } catch {
-          console.log('Cannot decode token');
-        }
-      }
-      
-      // Fallback URL nếu VITE_API_URL không có
+      setAddingLesson(true);
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      console.log('Using API URL:', apiUrl);
-      
-      const lessonResponse = await fetch(`${apiUrl}/lessons`, {
-        method: "POST",
+      const response = await fetch(`${apiUrl}/lessons`, {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(lessonData),
+        body: JSON.stringify({
+          lessons: [{
+            section_id: values.section_id,
+            title: values.title,
+            is_preview: false
+          }]
+        })
       });
-      
-      console.log('Lesson response status:', lessonResponse.status);
-      console.log('Lesson response headers:', Object.fromEntries(lessonResponse.headers.entries()));
-      
-      if (!lessonResponse.ok) {
-        const errorText = await lessonResponse.text();
-        console.error('Lesson creation error:', errorText);
-        let errorMessage = "Có lỗi xảy ra khi tạo bài học";
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorMessage;
-        } catch {
-          errorMessage = `${errorMessage}: ${lessonResponse.status} ${lessonResponse.statusText}`;
-        }
-        throw new Error(errorMessage);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Không thể thêm bài học');
       }
-      
-      const contentType = lessonResponse.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const errorText = await lessonResponse.text();
-        console.error('Non-JSON lesson response:', errorText);
-        throw new Error('Server trả về dữ liệu không hợp lệ');
-      }
-      
-      const lessonResult = await lessonResponse.json();
-      const lessonId = lessonResult.data._id;
-      
-      // 2. Upload video
-      if (values.video?.file?.[0]?.originFileObj) {
-        const videoFormData = new FormData();
-        videoFormData.append('lesson_id', lessonId);
-        videoFormData.append('duration', values.video.duration.toString());
-        videoFormData.append('video', values.video.file[0].originFileObj);
+
+      const data = await response.json();
+      if (data.success) {
+        message.success('Thêm bài học thành công!');
+        setIsAddLessonModalOpen(false);
+        addLessonForm.resetFields();
         
-        const videoResponse = await fetch(`${apiUrl}/videos`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: videoFormData,
-        });
-        
-        if (!videoResponse.ok) {
-          const errorText = await videoResponse.text();
-          console.error('Video upload error:', errorText);
-          let errorMessage = "Có lỗi xảy ra khi tải lên video";
-          try {
-            const errorData = JSON.parse(errorText);
-            errorMessage = errorData.message || errorMessage;
-          } catch {
-            errorMessage = `${errorMessage}: ${videoResponse.status} ${videoResponse.statusText}`;
-          }
-          throw new Error(errorMessage);
-        }
-        
-        const contentType = videoResponse.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const errorText = await videoResponse.text();
-          console.error('Non-JSON video response:', errorText);
-          throw new Error('Server trả về dữ liệu không hợp lệ');
-        }
-        
-        const videoResult = await videoResponse.json();
-        const videoId = videoResult.data._id;
-        
-        // 3. Tạo quiz nếu có câu hỏi
-        if (values.quiz?.questions && values.quiz.questions.length > 0) {
-          // Validate quiz data
-          const validQuizQuestions = values.quiz.questions.filter(q => 
-            q.question && 
-            q.options && 
-            q.options.length >= 2 && 
-            q.options.length <= 4 &&
-            typeof q.correctIndex === 'number' &&
-            q.correctIndex >= 0 &&
-            q.correctIndex < q.options.length
-          );
-          
-          if (validQuizQuestions.length !== values.quiz.questions.length) {
-            throw new Error("Dữ liệu quiz không hợp lệ. Mỗi câu hỏi cần có ít nhất 2 đáp án và tối đa 4 đáp án.");
-          }
-          
-          // Xử lý dữ liệu quiz
-          const quizQuestions = validQuizQuestions.map(q => ({
-            question: q.question,
-            options: q.options,
-            correctIndex: q.correctIndex
-          }));
-          
-          const quizData = {
-            video_id: videoId,
-            questions: quizQuestions
-          };
-          
-          const quizResponse = await fetch(`${apiUrl}/quizzes`, {
-            method: "POST",
+        // Refresh lại danh sách chương để hiển thị bài học mới
+        if (selectedCourse) {
+          const refreshResponse = await fetch(`${apiUrl}/courses/${selectedCourse}/sections`, {
             headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-            body: JSON.stringify(quizData),
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            }
           });
           
-          if (!quizResponse.ok) {
-            const errorText = await quizResponse.text();
-            console.error('Quiz creation error:', errorText);
-            let errorMessage = "Có lỗi xảy ra khi tạo quiz";
-            try {
-              const errorData = JSON.parse(errorText);
-              errorMessage = errorData.message || errorMessage;
-            } catch {
-              errorMessage = `${errorMessage}: ${quizResponse.status} ${quizResponse.statusText}`;
-            }
-            throw new Error(errorMessage);
-          }
-        }
-      }
-      
-      message.success("Tạo bài học thành công!");
-      form.resetFields();
-      // setSelectedSection(""); // XÓA DÒNG NÀY để giữ nguyên selectedSection
-      // Refresh sections để hiển thị bài học mới
-      if (selectedCourse) {
-        const sectionsResponse = await fetch(`${apiUrl}/courses/${selectedCourse}/sections`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        if (sectionsResponse.ok) {
-          const contentType = sectionsResponse.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const sectionsData = await sectionsResponse.json();
-            if (sectionsData.success) {
-              setSections(sectionsData.data);
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            if (refreshData.success) {
+              setSections(refreshData.data);
             }
           }
         }
+      } else {
+        throw new Error(data.message || 'Không thể thêm bài học');
       }
     } catch (error) {
-      console.error("Lỗi tạo bài học:", error);
-      message.error(error instanceof Error ? error.message : "Có lỗi xảy ra khi tạo bài học");
+      console.error('Lỗi khi thêm bài học:', error);
+      message.error(error instanceof Error ? error.message : 'Không thể thêm bài học');
     } finally {
-      setLoading(false);
+      setAddingLesson(false);
     }
   };
 
-  const selectedSectionTitle = sections.find(s => s._id === selectedSection)?.title || "";
+  // Hàm mở modal sửa bài học
+  const handleEditLesson = (lesson: Lesson) => {
+    setCurrentLesson(lesson);
+    editLessonForm.resetFields();
+    editLessonForm.setFieldsValue({ title: lesson.title });
+    setIsEditLessonModalOpen(true);
+  };
+
+  // Hàm đóng modal sửa bài học
+  const handleCancelEditLesson = () => {
+    setIsEditLessonModalOpen(false);
+    editLessonForm.resetFields();
+    setCurrentLesson(null);
+  };
+
+  // Hàm sửa bài học
+  const handleSubmitEditLesson = async (values: EditLessonFormValues) => {
+    if (!currentLesson) return;
+
+    try {
+      setEditingLesson(true);
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${apiUrl}/lessons/${currentLesson._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: values.title,
+          is_preview: currentLesson.is_preview
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Không thể cập nhật bài học');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        message.success('Cập nhật bài học thành công!');
+        setIsEditLessonModalOpen(false);
+        editLessonForm.resetFields();
+        setCurrentLesson(null);
+        
+        // Refresh lại danh sách chương để hiển thị bài học đã cập nhật
+        if (selectedCourse) {
+          const refreshResponse = await fetch(`${apiUrl}/courses/${selectedCourse}/sections`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            if (refreshData.success) {
+              setSections(refreshData.data);
+            }
+          }
+        }
+      } else {
+        throw new Error(data.message || 'Không thể cập nhật bài học');
+      }
+    } catch (error) {
+      console.error('Lỗi khi cập nhật bài học:', error);
+      message.error(error instanceof Error ? error.message : 'Không thể cập nhật bài học');
+    } finally {
+      setEditingLesson(false);
+    }
+  };
+
+  // Hàm xóa bài học
+  const handleDeleteLesson = async (lesson: Lesson) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${apiUrl}/lessons/${lesson._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Không thể xóa bài học');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        message.success('Xóa bài học thành công!');
+        
+        // Refresh lại danh sách chương để hiển thị bài học đã xóa
+        if (selectedCourse) {
+          const refreshResponse = await fetch(`${apiUrl}/courses/${selectedCourse}/sections`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            if (refreshData.success) {
+              setSections(refreshData.data);
+            }
+          }
+        }
+      } else {
+        throw new Error(data.message || 'Không thể xóa bài học');
+      }
+    } catch (error) {
+      console.error('Lỗi khi xóa bài học:', error);
+      message.error(error instanceof Error ? error.message : 'Không thể xóa bài học');
+    }
+  };
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={3}>Quản lý bài học</Title>
-      <Text type="secondary">Thêm bài học cho từng chương trong khóa học của bạn.</Text>
-      
-      <Card style={{ marginTop: 24 }}>
-        <Title level={4}>1. Chọn Khóa học & Chương</Title>
-        <Row gutter={16}>
+    <div style={{ padding: 24, background: '#f5f5f5', minHeight: '100vh' }}>
+      <Card style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+        <Title level={2} style={{ color: '#1890ff', marginBottom: 0 }}>Danh sách chương & bài học</Title>
+        <Text type="secondary">Chọn khóa học để xem danh sách chương và bài học.</Text>
+        <Divider />
+        <Row gutter={24} style={{ marginBottom: 24 }}>
           <Col span={12}>
-            <Form.Item label="Khóa học">
-              <Select 
-                placeholder="Chọn khóa học" 
-                onChange={handleCourseChange} 
-                value={selectedCourse}
-                loading={coursesLoading}
-                disabled={coursesLoading}
-              >
-                {courses.map(course => (
-                  <Option key={course._id} value={course._id}>
-                    {course.title} {course.status === 'draft' && '(Chưa xuất bản)'}
-                  </Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item label="Chương">
-              <Select 
-                placeholder="Chọn chương" 
-                disabled={!selectedCourse || sectionsLoading} 
-                onChange={handleSectionChange} 
-                value={selectedSection}
-                loading={sectionsLoading}
-              >
-                {sections.map(section => (
-                  <Option key={section._id} value={section._id}>
-                    {section.title}
-                  </Option>
-                ))}
-              </Select>
-            </Form.Item>
+            <Card size="small" style={{ background: '#f0f9ff' }}>
+              <Form.Item label={<Text strong>Khóa học</Text>} style={{ marginBottom: 0 }}>
+                <Select
+                  placeholder="Chọn khóa học"
+                  onChange={handleCourseChange}
+                  value={selectedCourse}
+                  loading={coursesLoading}
+                  disabled={coursesLoading}
+                  style={{ width: '100%' }}
+                  showSearch
+                  optionFilterProp="children"
+                >
+                  {courses.map(course => (
+                    <Option key={course._id} value={course._id}>
+                      {course.title} {course.status === 'draft' && <Tag color="orange">Nháp</Tag>}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Card>
           </Col>
         </Row>
+        {selectedCourse && sections.length > 0 && (
+          <Card style={{ marginBottom: 32 }}>
+            <Title level={4} style={{ color: '#52c41a' }}>Danh sách chương & bài học</Title>
+            <Collapse
+              defaultActiveKey={sections.map(s => s._id)}
+              expandIcon={({ isActive }) => <CaretRightOutlined rotate={isActive ? 90 : 0} />}
+              style={{ background: 'transparent' }}
+            >
+              {sections.map(section => (
+                <Panel
+                  key={section._id}
+                  header={
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Text strong style={{ fontSize: 16 }}>{section.title}</Text>
+                      <Badge count={section.lessons.length} style={{ backgroundColor: '#1890ff' }}>
+                        <Tag color="blue">Bài học</Tag>
+                      </Badge>
+                    </span>
+                  }
+                  style={{ marginBottom: 8, border: '1px solid #d9d9d9', borderRadius: 8 }}
+                  extra={
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<PlusOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddLesson(section._id);
+                      }}
+                      title="Thêm bài học"
+                    />
+                  }
+                >
+                  {section.lessons.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <Text type="secondary">Chưa có bài học nào trong chương này.</Text>
+                      <br />
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => handleAddLesson(section._id)}
+                        style={{ marginTop: 8 }}
+                        title="Thêm bài học đầu tiên"
+                      />
+                    </div>
+                  ) : (
+                    section.lessons
+                      .sort((a: Lesson, b: Lesson) => a.position - b.position)
+                      .map((lesson: Lesson, index: number) => (
+                        <div key={lesson._id} style={{
+                          padding: '12px',
+                          border: '1px solid #d9d9d9',
+                          borderRadius: '6px',
+                          marginBottom: '8px',
+                          backgroundColor: '#fafafa',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 16
+                        }}>
+                          <DragOutlined style={{ color: '#999', cursor: 'grab' }} />
+                          <Text strong>Bài {index + 1}: {lesson.title}</Text>
+                          {lesson.video ? (
+                            <Tag color="blue" icon={<VideoCameraOutlined />}>Đã có video</Tag>
+                          ) : (
+                            <Tag color="orange" icon={<VideoCameraOutlined />}>Chưa có video</Tag>
+                          )}
+                          {lesson.quiz ? (
+                            <Tag color="purple">Quiz: {lesson.quiz.questions.length} câu hỏi</Tag>
+                          ) : (
+                            <Tag color="orange" style={{ marginLeft: 8 }}>Chưa có quiz</Tag>
+                          )}
+                          <Space style={{ marginLeft: 'auto' }}>
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<EditOutlined />}
+                              onClick={() => handleEditLesson(lesson)}
+                              title="Sửa bài học"
+                            />
+                            <Popconfirm
+                              title="Xóa bài học"
+                              description="Bạn có chắc chắn muốn xóa bài học này không?"
+                              onConfirm={() => handleDeleteLesson(lesson)}
+                              okText="Có"
+                              cancelText="Không"
+                            >
+                              <Button
+                                type="text"
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                title="Xóa bài học"
+                              />
+                            </Popconfirm>
+                          </Space>
+                        </div>
+                      ))
+                  )}
+                </Panel>
+              ))}
+            </Collapse>
+          </Card>
+        )}
       </Card>
 
-      {selectedSection && (
-        <Card style={{ marginTop: 24 }}>
-          <Title level={4}>
-            2. Thêm bài học cho chương: <Text type="success">{selectedSectionTitle}</Text>
-          </Title>
-          
-          <Form 
-            form={form} 
-            layout="vertical" 
-            onFinish={onFinish}
-            onFinishFailed={(errorInfo) => {
-              console.log('Failed:', errorInfo);
-              message.error('Vui lòng kiểm tra và điền đầy đủ tất cả các trường bắt buộc!');
-            }}
-            initialValues={{
-              is_preview: false,
-              section_id: selectedSection,
-              video: {
-                duration: 0
-              },
-              quiz: {
-                questions: []
-              }
-            }}
+      {/* Modal thêm bài học */}
+      <Modal
+        title="Thêm bài học mới"
+        open={isAddLessonModalOpen}
+        onCancel={handleCancelAddLesson}
+        footer={null}
+        width={600}
+        destroyOnHidden
+      >
+        <Form
+          form={addLessonForm}
+          layout="vertical"
+          onFinish={handleSubmitAddLesson}
+        >
+          <Form.Item
+            name="section_id"
+            hidden
           >
-            <Form.Item 
-              label="Tiêu đề bài học" 
-              name="title" 
-              rules={[
-                { required: true, message: "Vui lòng nhập tiêu đề bài học!" },
-                { min: 3, message: "Tiêu đề phải có ít nhất 3 ký tự!" }
-              ]}
-            > 
-              <Input placeholder="Ví dụ: Giới thiệu về React Components" size="large" /> 
-            </Form.Item>
-            
-            <Form.Item 
-              name="is_preview" 
-              valuePropName="checked"
-            > 
-              <Checkbox>Cho phép xem trước (Preview)</Checkbox> 
-            </Form.Item>
-            
-                <Divider>Video bài học</Divider>
-            <Form.Item 
-              label="File video" 
-              name={["video", "file"]} 
-              valuePropName="fileList" 
-              getValueFromEvent={e => Array.isArray(e) ? e : e && e.fileList}
-              rules={[{ required: true, message: "Vui lòng tải lên video bài học!" }]}
-            >
-              <Upload 
-                listType="text" 
-                maxCount={1} 
-                beforeUpload={() => false}
-                accept="video/*"
-              >
-                <Button icon={<UploadOutlined />}>Tải video lên</Button>
-              </Upload>
-            </Form.Item>
-            
-            <Form.Item 
-              label="Thời lượng video (giây)" 
-              name={["video", "duration"]} 
-              rules={[
-                { required: true, message: "Vui lòng nhập thời lượng video!" },
-                { type: 'number', min: 1, message: 'Thời lượng phải lớn hơn 0!' }
-              ]}
-            > 
-              <InputNumber 
-                style={{ width: "100%" }} 
-                min={1} 
-                size="large" 
-                placeholder="Ví dụ: 300 (5 phút)" 
-              /> 
-            </Form.Item>
-            
-            <Divider>Bài quiz (Tùy chọn)</Divider>
-            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-              Tạo bài quiz để kiểm tra kiến thức học viên sau khi xem video. Mỗi câu hỏi cần có ít nhất 2 đáp án và tối đa 4 đáp án.
-            </Text>
-                <Form.List name={["quiz", "questions"]}>
-                {(fields, { add, remove }) => (
-                    <>
-                    {fields.map(({ key, name }) => (
-                    <QuizQuestionForm 
-                      key={key} 
-                      name={name} 
-                      onRemove={() => remove(name)} 
-                    />
-                  ))}
-                  <Form.Item> 
-                    <Button 
-                      type="dashed" 
-                      onClick={() => add()} 
-                      block 
-                      icon={<PlusOutlined />}
-                    >
-                      Thêm câu hỏi
-                    </Button> 
-                  </Form.Item>
-                            </>
-                            )}
-                        </Form.List>
-            
-            <Form.Item style={{ marginTop: 24 }}> 
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            label="Tiêu đề bài học"
+            name="title"
+            rules={[
+              { required: true, message: 'Vui lòng nhập tiêu đề bài học!' },
+              { min: 3, message: 'Tiêu đề phải có ít nhất 3 ký tự!' }
+            ]}
+          >
+            <Input placeholder="Nhập tiêu đề bài học" />
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+            <Space>
+              <Button onClick={handleCancelAddLesson}>
+                Hủy
+              </Button>
               <Button 
                 type="primary" 
                 htmlType="submit" 
-                block 
-                size="large"
-                loading={loading}
+                loading={addingLesson}
               >
-                Tạo bài học
-              </Button> 
-            </Form.Item>
-            </Form>
-        </Card>
-      )}
+                Thêm bài học
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
 
-      {selectedSection && sections.find(s => s._id === selectedSection)?.lessons && sections.find(s => s._id === selectedSection)!.lessons.length > 0 && (
-        <Card style={{ marginTop: 24 }}>
-          <Title level={4}>Danh sách bài học hiện tại</Title>
-          <div>
-            {sections
-              .find(s => s._id === selectedSection)!
-              .lessons
-              .sort((a, b) => a.position - b.position)
-              .map((lesson, index) => (
-                <div 
-                  key={lesson._id} 
-                  style={{ 
-                    padding: '12px', 
-                    border: '1px solid #d9d9d9', 
-                    borderRadius: '6px', 
-                    marginBottom: '8px',
-                    backgroundColor: '#fafafa'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
-                      <div>
-                        <Text strong>Bài {index + 1}: {lesson.title}</Text>
-                        {lesson.is_preview && (
-                          <Text type="success" style={{ marginLeft: 8 }}>
-                            (Xem trước)
-                          </Text>
-                        )}
-                      </div>
-                      
-                      <div style={{ marginTop: 8 }}>
-                        {lesson.video ? (
-                          <Text type="secondary">
-                            📹 Video: {Math.floor(lesson.video.duration / 60)}:{String(lesson.video.duration % 60).padStart(2, '0')}
-                          </Text>
-                        ) : (
-                          <Text type="warning">⚠️ Chưa có video</Text>
-                        )}
-                        
-                        {lesson.quiz ? (
-                          <Text type="secondary" style={{ marginLeft: 16 }}>
-                            📝 Quiz: {lesson.quiz.questions.length} câu hỏi
-                          </Text>
-                        ) : (
-                          <Text type="warning" style={{ marginLeft: 16 }}>⚠️ Chưa có quiz</Text>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <Space>
-                      <Button 
-                        size="small" 
-                        onClick={() => navigate(`/instructor/lessons/edit/${lesson._id}`)}
-                      >
-                        Chỉnh sửa
-                      </Button>
-                    </Space>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </Card>
-      )}
+      {/* Modal sửa bài học */}
+      <Modal
+        title="Sửa bài học"
+        open={isEditLessonModalOpen}
+        onCancel={handleCancelEditLesson}
+        footer={null}
+        width={600}
+        destroyOnHidden
+      >
+        <Form
+          form={editLessonForm}
+          layout="vertical"
+          onFinish={handleSubmitEditLesson}
+        >
+          <Form.Item
+            label="Tiêu đề bài học"
+            name="title"
+            rules={[
+              { required: true, message: 'Vui lòng nhập tiêu đề bài học!' },
+              { min: 3, message: 'Tiêu đề phải có ít nhất 3 ký tự!' }
+            ]}
+          >
+            <Input placeholder="Nhập tiêu đề bài học" />
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+            <Space>
+              <Button onClick={handleCancelEditLesson}>
+                Hủy
+              </Button>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                loading={editingLesson}
+              >
+                Cập nhật
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

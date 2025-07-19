@@ -22,14 +22,24 @@ import {
   InfoCircleOutlined,
   ClockCircleOutlined,
   BarChartOutlined,
+  RocketOutlined,
+  FireOutlined,
+  StarOutlined,
+  SettingOutlined,
+  DeleteOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import AuthNotification from '../../components/common/AuthNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
 import { useCart } from '../../contexts/CartContext';
 import { courseService } from '../../services/apiService';
+import './Header.css';
+import { io } from 'socket.io-client';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
+const role = localStorage.getItem('role');
+
 
 interface User {
   avatar?: string;
@@ -54,7 +64,7 @@ const AppHeader = () => {
   const getRoleName = (user: User): string => user?.role?.name || 'student';
   const { cartCount } = useCart();
 
-  const [user, setUser] = useState<User | null | false>(null); // null: loading, User: logged in, false: not logged in
+  const [user, setUser] = useState<User | null | false>(null);
   const [loading, setLoading] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [accountTypeModalVisible, setAccountTypeModalVisible] = useState(false);
@@ -70,55 +80,56 @@ const AppHeader = () => {
     title: '',
     message: ''
   });
-  const [keyword, setKeyword] = useState('');
 
-  // Mock notifications data
-  const [notifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'success',
-      title: 'Khóa học mới',
-      message: 'Khóa học ReactJS từ cơ bản đến nâng cao đã được phát hành',
-      time: '5 phút trước',
-      isRead: false,
-      link: '/courses'
-    },
-    {
-      id: '2',
-      type: 'warning',
-      title: 'Cập nhật hệ thống',
-      message: 'Hệ thống sẽ bảo trì từ 2:00 - 4:00 sáng ngày mai',
-      time: '1 giờ trước',
-      isRead: false
-    },
-    {
-      id: '3',
-      type: 'info',
-      title: 'Thông báo từ giảng viên',
-      message: 'Giảng viên Nguyễn Văn An đã trả lời câu hỏi của bạn',
-      time: '2 giờ trước',
-      isRead: true,
-      link: '/profile'
-    },
-    {
-      id: '4',
-      type: 'success',
-      title: 'Thanh toán thành công',
-      message: 'Bạn đã mua thành công khóa học Node.js với giá 450,000đ',
-      time: '1 ngày trước',
-      isRead: true,
-      link: '/courses'
-    },
-    {
-      id: '5',
-      type: 'info',
-      title: 'Nhắc nhở học tập',
-      message: 'Bạn có 3 bài học chưa hoàn thành trong tuần này',
-      time: '2 ngày trước',
-      isRead: true,
-      link: '/profile'
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+
+  useEffect(() => {
+    setLoadingNotifications(true);
+    const token = localStorage.getItem('token');
+    fetch('/api/notifications', {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    })
+      .then(res => res.json())
+      .then(data => setNotifications(
+        (data.data || []).map(notification => ({
+          id: notification._id || notification.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.content,
+          time: notification.created_at ? new Date(notification.created_at).toLocaleString() : '',
+          isRead: notification.status === 'read',
+          link: notification.meta?.link
+        }))
+      ))
+      .finally(() => setLoadingNotifications(false));
+
+    // --- SOCKET.IO REALTIME ---
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user._id) {
+      const socket = io('http://localhost:5000');
+      socket.emit('join', user._id);
+      socket.on('new-notification', (notification: any) => {
+        console.log('Nhận notification realtime:', notification);
+        const mapped = {
+          id: notification._id || notification.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.content,
+          time: notification.created_at ? new Date(notification.created_at).toLocaleString() : '',
+          isRead: notification.status === 'read',
+          link: notification.meta?.link
+        };
+        setNotifications(prev => [mapped, ...prev]);
+      });
+      return () => {
+        socket.off('new-notification');
+        socket.disconnect();
+      };
     }
-  ]);
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -132,8 +143,6 @@ const AppHeader = () => {
       title: 'Đăng xuất thành công!',
       message: 'Bạn đã đăng xuất khỏi hệ thống. Hẹn gặp lại!'
     });
-    
-    // Không chuyển hướng ngay, để thông báo tự động chuyển hướng
   };
 
   const handleRegisterClick = () => {
@@ -149,64 +158,76 @@ const AppHeader = () => {
   };
 
   const handleNotificationClick = (notification: Notification) => {
+    const token = localStorage.getItem('token');
+    // Đánh dấu đã đọc trên backend
+    fetch(`/api/notifications/${notification.id}/read`, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    // Đánh dấu đã đọc trên frontend
+    setNotifications(prev =>
+      prev.map(n =>
+        n.id === notification.id ? { ...n, isRead: true } : n
+      )
+    );
     if (notification.link) {
       navigate(notification.link);
     }
     setNotificationsOpen(false);
   };
 
+  const handleDeleteNotification = (notification: Notification) => {
+    const token = localStorage.getItem('token');
+    fetch(`/api/notifications/${notification.id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).then(() => {
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    });
+  };
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'success':
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+        return <CheckCircleOutlined style={{ color: '#10b981' }} />;
       case 'warning':
-        return <ExclamationCircleOutlined style={{ color: '#faad14' }} />;
+        return <ExclamationCircleOutlined style={{ color: '#f59e0b' }} />;
       case 'error':
-        return <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />;
+        return <ExclamationCircleOutlined style={{ color: '#ef4444' }} />;
       default:
-        return <InfoCircleOutlined style={{ color: '#1890ff' }} />;
+        return <InfoCircleOutlined style={{ color: '#3b82f6' }} />;
     }
   };
 
   const getNotificationColor = (type: string) => {
     switch (type) {
       case 'success':
-        return '#52c41a';
+        return '#10b981';
       case 'warning':
-        return '#faad14';
+        return '#f59e0b';
       case 'error':
-        return '#ff4d4f';
+        return '#ef4444';
       default:
-        return '#1890ff';
-    }
-  };
-
-  const handleHeaderSearch = async () => {
-    if (!keyword.trim()) return;
-    // Gọi API tìm kiếm khóa học trước
-    try {
-      const courses = await courseService.searchCourses(keyword); // chỉ lấy 1 kết quả
-      if (courses && courses.length > 0) {
-        navigate(`/search/courses?search=${encodeURIComponent(keyword)}`);
-      } else {
-        navigate(`/search/users?search=${encodeURIComponent(keyword)}`);
-      }
-    } catch (err) {
-      message.error('Đã xảy ra lỗi khi tìm kiếm.');
+        return '#3b82f6';
     }
   };
 
   useEffect(() => {
     const fetchUser = () => {
       const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        let userData = JSON.parse(storedUser);
-        if (userData && typeof userData.role === 'string') {
-          userData.role = { name: userData.role };
-          localStorage.setItem('user', JSON.stringify(userData));
+      try {
+        if (!storedUser || storedUser === 'undefined' || storedUser === 'null') {
+          setUser(false);
+        } else {
+          let userData = JSON.parse(storedUser);
+          if (userData && typeof userData.role === 'string') {
+            userData.role = { name: userData.role };
+            localStorage.setItem('user', JSON.stringify(userData));
+          }
+          setUser(userData);
         }
-        setUser(userData);
-      } else {
+      } catch (err) {
+        console.error('Lỗi parse user data:', err);
         setUser(false);
       }
       setLoading(false);
@@ -230,93 +251,98 @@ const AppHeader = () => {
 
   const userMenu = user
     ? {
-        items: [
-          {
-            key: '/profile',
-            label: (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Avatar 
-                  src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
-                  size={48} 
-                />
-                <div>
-                  <Text strong>{user.fullname}</Text>
-                  {user.nickname && (
-                    <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-                      @{user.nickname}
-                    </Text>
-                  )}
-                  <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Xem hồ sơ của bạn</Text>
-                </div>
+      items: [
+        {
+          key: '/profile',
+          label: (
+            <div className="user-menu-header">
+              <Avatar
+                src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                size={48}
+                className="user-avatar"
+              />
+              <div className="user-info">
+                <Text strong className="user-name">{user.fullname}</Text>
+                {user.nickname && (
+                  <Text className="user-nickname">@{user.nickname}</Text>
+                )}
+                <Text className="user-role">Xem hồ sơ của bạn</Text>
               </div>
-            ) as React.ReactNode,
-            style: { height: 'auto', padding: '12px', cursor: 'pointer' },
-          },
-          { type: 'divider' as const },
-          ...(getRoleName(user) === 'admin'
-            ? [
-                { key: '/admin', icon: <DashboardOutlined />, label: 'Trang quản trị' },
-                { type: 'divider' as const },
-              ]
-            : []),
-          ...(getRoleName(user) === 'moderator'
-            ? [
-                { key: '/moderator', icon: <DashboardOutlined />, label: 'Khu vực kiểm duyệt' },
-                { type: 'divider' as const },
-              ]
-            : []),
-          ...(getRoleName(user) === 'instructor'
-            ? [
-                { key: '/instructor', icon: <DashboardOutlined />, label: 'Khu vực giảng viên' },
-                { type: 'divider' as const },
-              ]
-            : []),
-          {
-            type: 'group' as const,
-            label: 'Blog cá nhân',
-            children: [
-              { key: '/blog/write', icon: <EditOutlined />, label: 'Viết blog' },
-              { key: '/blog/mine', icon: <ProfileOutlined />, label: 'Bài viết của tôi' },
-              { key: '/blog/saved', icon: <BookOutlined />, label: 'Bài viết đã lưu' },
-            ],
-          },
-          {
-            type: 'group' as const,
-            label: 'Đơn hàng',
-            children: [
-              { key: '/orders', icon: <ShoppingCartOutlined  />, label: 'Đơn hàng!' }
-            ],
-          },
-          {
-            type: 'group' as const,
-            label: 'Báo cáo',
-            children: [
-              { key: '/report', icon: <BarChartOutlined  />, label: 'Báo cáo!' }
-            ],
-          },
-          { type: 'divider' as const },
-          { key: 'logout', icon: <LogoutOutlined />, label: <span style={{ color: '#ff4d4f' }}>Đăng xuất</span> },
-        ].filter((item, idx, arr) => {
-          // Xóa divider trùng nhau
-          if (item.type === 'divider' && idx > 0 && arr[idx - 1].type === 'divider') return false;
-          // Không cho divider ở đầu hoặc cuối
-          if (item.type === 'divider' && (idx === 0 || idx === arr.length - 1)) return false;
-          return true;
-        }),
-        onClick: handleMenuClick,
-      }
+            </div>
+          ) as React.ReactNode,
+          style: { height: 'auto', padding: '16px', cursor: 'pointer' },
+        },
+        { type: 'divider' as const },
+        ...(getRoleName(user) === 'admin'
+          ? [
+            { key: '/admin', icon: <DashboardOutlined />, label: 'Trang quản trị' },
+            { type: 'divider' as const },
+          ]
+          : []),
+        ...(getRoleName(user) === 'moderator'
+          ? [
+            { key: '/moderator', icon: <DashboardOutlined />, label: 'Khu vực kiểm duyệt' },
+            { type: 'divider' as const },
+          ]
+          : []),
+        ...(getRoleName(user) === 'instructor'
+          ? [
+            { key: '/instructor', icon: <DashboardOutlined />, label: 'Khu vực giảng viên' },
+            { type: 'divider' as const },
+          ]
+          : []),
+        {
+          type: 'group' as const,
+          label: 'Blog cá nhân',
+          children: [
+            { key: '/blog/write', icon: <EditOutlined />, label: 'Viết blog' },
+            { key: '/blog/mine', icon: <ProfileOutlined />, label: 'Bài viết của tôi' },
+            { key: '/blog/saved', icon: <BookOutlined />, label: 'Bài viết đã lưu' },
+          ],
+        },
+        {
+          type: 'group' as const,
+          label: 'Đơn hàng',
+          children: [
+            { key: '/orders', icon: <ShoppingCartOutlined />, label: 'Đơn hàng!' }
+          ],
+        },
+        {
+          type: 'group' as const,
+          label: 'Báo cáo',
+          children: [
+            { key: '/report', icon: <BarChartOutlined />, label: 'Báo cáo!' }
+          ],
+        },
+        ...(!['admin', 'instructor', 'moderator'].includes(getRoleName(user) || '') ? [{
+          type: 'group' as const,
+          label: 'Ví',
+          children: [
+            { key: '/wallet', icon: <WalletOutlined />, label: 'Ví của tôi' }
+          ],
+        }] : []),
+        { type: 'divider' as const },
+        { key: 'logout', icon: <LogoutOutlined />, label: <span className="logout-text">Đăng xuất</span> },
+      ].filter((item, idx, arr) => {
+        if (item.type === 'divider' && idx > 0 && arr[idx - 1].type === 'divider') return false;
+        if (item.type === 'divider' && (idx === 0 || idx === arr.length - 1)) return false;
+        return true;
+      }),
+      onClick: handleMenuClick,
+    }
     : undefined;
 
   const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
     fontWeight: isActive ? '600' : '500',
-    color: isActive ? '#1677ff' : '#333',
+    color: isActive ? '#3b82f6' : '#64748b',
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '6px',
-    padding: '8px 12px',
-    borderRadius: '8px',
-    transition: 'all 0.3s ease',
-    backgroundColor: isActive ? '#' : 'transparent'
+    gap: '8px',
+    padding: '12px 16px',
+    borderRadius: '12px',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    backgroundColor: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+    border: isActive ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid transparent',
   });
 
   const notificationDropdown = (
@@ -324,30 +350,39 @@ const AppHeader = () => {
       initial={{ opacity: 0, y: -10, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -10, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
-      style={{ width: 380 }}
+      transition={{ duration: 0.3 }}
+      className="notification-dropdown"
     >
-      <Card 
-        className="shadow-xl border-0"
-        headStyle={{ 
+      <Card
+        className="notification-card"
+        headStyle={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
           border: 'none',
-          borderRadius: '8px 8px 0 0'
+          borderRadius: '16px 16px 0 0',
+          padding: '16px 20px'
         }}
         title={
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BellOutlined />
+          <div className="notification-header">
+            <div className="notification-title">
+              <BellOutlined className="notification-icon" />
               <span>Thông báo</span>
             </div>
-            <Badge count={unreadCount} size="small" />
+            <Badge count={unreadCount} size="small" className="notification-badge" />
           </div>
         }
         styles={{ body: { padding: 0, maxHeight: 400, overflowY: 'auto' } }}
       >
         <AnimatePresence>
-          {notifications.length > 0 ? (
+          {loadingNotifications ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="loading-notifications"
+            >
+              <Spin />
+            </motion.div>
+          ) : notifications.length > 0 ? (
             <List
               itemLayout="horizontal"
               dataSource={notifications}
@@ -361,18 +396,23 @@ const AppHeader = () => {
                 >
                   <List.Item
                     onClick={() => handleNotificationClick(notification)}
-                    style={{
-                      padding: '12px 16px',
-                      cursor: 'pointer',
-                      backgroundColor: notification.isRead ? 'transparent' : 'rgba(24, 144, 255, 0.05)',
-                      borderLeft: `3px solid ${getNotificationColor(notification.type)}`,
-                      transition: 'all 0.2s ease',
-                    }}
-                    className="hover:bg-gray-50"
+                    className={`notification-item ${notification.isRead ? 'read' : 'unread'}`}
+                    actions={[
+                      <Button
+                        type="text"
+                        icon={<DeleteOutlined />}
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleDeleteNotification(notification);
+                        }}
+                        danger
+                      />
+                    ]}
                   >
                     <List.Item.Meta
                       avatar={
                         <motion.div
+                          className="notification-avatar"
                           whileHover={{ scale: 1.1, rotate: 5 }}
                           transition={{ duration: 0.2 }}
                         >
@@ -380,46 +420,40 @@ const AppHeader = () => {
                         </motion.div>
                       }
                       title={
-                        <div className="flex items-center justify-between">
-                          <Text strong style={{ fontSize: 14 }}>
+                        <div className="notification-item-header">
+                          <Text strong className="notification-item-title">
                             {notification.title}
                           </Text>
                           {!notification.isRead && (
                             <motion.div
+                              className="unread-indicator"
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
-          style={{
-                                width: 8,
-                                height: 8,
-            borderRadius: '50%',
-                                backgroundColor: getNotificationColor(notification.type),
-                              }}
+                              style={{ backgroundColor: getNotificationColor(notification.type) }}
                             />
                           )}
-          </div>
+                        </div>
                       }
                       description={
-                        <div>
-                          <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.4 }}>
+                        <div className="notification-item-content">
+                          <Text className="notification-message">
                             {notification.message}
                           </Text>
-                          <div className="flex items-center gap-2 mt-2">
-                            <ClockCircleOutlined style={{ fontSize: 12, color: '#999' }} />
-                            <Text type="secondary" style={{ fontSize: 11 }}>
-                              {notification.time}
-                            </Text>
-                            <Tag 
-                              color={notification.type === 'success' ? 'green' : 
-                                     notification.type === 'warning' ? 'orange' : 
-                                     notification.type === 'error' ? 'red' : 'blue'}
-                              style={{ fontSize: 10 }}
+                          <div className="notification-meta">
+                            <ClockCircleOutlined className="time-icon" />
+                            <Text className="time-text">{notification.time}</Text>
+                            <Tag
+                              color={notification.type === 'success' ? 'green' :
+                                notification.type === 'warning' ? 'orange' :
+                                  notification.type === 'error' ? 'red' : 'blue'}
+                              className="notification-tag"
                             >
                               {notification.type === 'success' ? 'Thành công' :
-                               notification.type === 'warning' ? 'Cảnh báo' :
-                               notification.type === 'error' ? 'Lỗi' : 'Thông tin'}
+                                notification.type === 'warning' ? 'Cảnh báo' :
+                                  notification.type === 'error' ? 'Lỗi' : 'Thông tin'}
                             </Tag>
-          </div>
-        </div>
+                          </div>
+                        </div>
                       }
                     />
                   </List.Item>
@@ -431,28 +465,20 @@ const AppHeader = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              style={{ 
-                padding: '40px 20px', 
-                textAlign: 'center',
-                color: '#999'
-              }}
+              className="empty-notifications"
             >
-              <BellOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-              <div>Không có thông báo mới</div>
+              <BellOutlined className="empty-icon" />
+              <div className="empty-text">Không có thông báo mới</div>
             </motion.div>
           )}
         </AnimatePresence>
-        
+
         {notifications.length > 0 && (
-          <div style={{ 
-            padding: '12px 16px', 
-            borderTop: '1px solid #f0f0f0',
-            textAlign: 'center'
-          }}>
-            <Button type="link" size="small">
+          <div className="notification-footer">
+            <Button type="link" size="small" className="view-all-button">
               Xem tất cả thông báo
             </Button>
-      </div>
+          </div>
         )}
       </Card>
     </motion.div>
@@ -460,379 +486,197 @@ const AppHeader = () => {
 
   return (
     <>
-      <style>
-        {`
-          .logo-text {
-            font-size: 24px;
-            font-weight: 700;
-            color: #1a202c;
-            letter-spacing: -0.5px;
-          }
-          .header-action-button:hover {
-            background-color: #f1f5f9;
-          }
-          .search-input {
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-          }
-          .search-input:hover {
-            border-color: #cbd5e1;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            transform: translateY(-1px);
-          }
-          .search-input:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-            background: white;
-          }
-          .auth-button {
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-            border-radius: 8px;
-            font-weight: 500;
-          }
-          .auth-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-          }
-          .auth-button:hover::before {
-            left: 100%;
-          }
-          .login-button {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            border: 2px solid #e2e8f0;
-            color: #475569;
-          }
-          .login-button:hover {
-            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
-            border-color: #cbd5e1;
-            color: #1e293b;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-          }
-          .register-button {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            border: 2px solid #3b82f6;
-            color: white;
-          }
-          .register-button:hover {
-            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-            border-color: #1d4ed8;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
-          }
-          .nav-link {
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 14px;
-            color: #64748b;
-            text-decoration: none;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            background: transparent;
-            border: none;
-            overflow: visible;
-          }
-          .nav-link::before {
-            display: none;
-          }
-          .nav-link::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            width: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
-            border-radius: 2px;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            transform: translateX(-50%);
-          }
-          .nav-link:hover {
-            color: #1e293b;
-            transform: translateY(-2px);
-          }
-          .nav-link:hover::after {
-            width: 80%;
-          }
-          .nav-link.active {
-            color: #1e293b;
-            background: transparent;
-            border: none;
-            box-shadow: none;
-          }
-          .nav-link.active::after {
-            width: 80%;
-          }
-          .nav-link .nav-icon {
-            font-size: 16px;
-            transition: all 0.3s ease;
-            position: relative;
-            z-index: 1;
-          }
-          .nav-link:hover .nav-icon {
-            transform: scale(1.1);
-            color: #3b82f6;
-          }
-          .nav-link.active .nav-icon {
-            color: #3b82f6;
-            transform: scale(1.05);
-          }
-          .nav-text {
-            position: relative;
-            z-index: 1;
-            transition: all 0.3s ease;
-          }
-          .nav-link:hover .nav-text {
-            transform: translateX(2px);
-          }
-          .nav-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            opacity: 0;
-            transform: scale(0);
-            transition: all 0.3s ease;
-          }
-          .nav-link:hover .nav-badge {
-            opacity: 1;
-            transform: scale(1);
-          }
-          .nav-container {
-            position: relative;
-            display: flex;
-            align-items: center;
-          }
-          .nav-container::before {
-            display: none;
-          }
-        `}
-      </style>
       <motion.div
         initial={{ y: -80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="header-container"
       >
-        <AntHeader style={{
-        background: '#fff',
-          padding: '0 32px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-          borderBottom: '1px solid #e5e7eb',
-          height: 68,
-      }} className="sticky top-0 z-50 w-full">
-
+        <AntHeader className="modern-header">
           {/* Left & Center Section */}
-          <div className="flex items-center gap-x-8">
+          <div className="header-left">
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              className="logo-container"
             >
-              <NavLink to="/" className="flex items-center">
+              <NavLink to="/" className="logo-link">
+                <RocketOutlined className="logo-icon" />
                 <span className="logo-text">EduPro</span>
               </NavLink>
             </motion.div>
-            <div className="hidden lg:flex items-center gap-x-2">
-              <motion.div 
+            
+            <div className="nav-links">
+              <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                className="nav-container"
+                className="nav-item"
               >
                 <NavLink to="/vouchers" style={navLinkStyle} className="nav-link">
-                  <span className="nav-icon">
-                    <GiftOutlined />
-                  </span>
+                  <GiftOutlined className="nav-icon" />
                   <span className="nav-text">Mã giảm giá</span>
                 </NavLink>
               </motion.div>
-              <motion.div 
+              
+              <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                className="nav-container"
+                className="nav-item"
               >
                 <NavLink to="/courses" style={navLinkStyle} className="nav-link">
-                  <span className="nav-icon">
-                    <ReadOutlined />
-                  </span>
+                  <ReadOutlined className="nav-icon" />
                   <span className="nav-text">Khóa học</span>
                 </NavLink>
               </motion.div>
-              <motion.div 
+              
+              <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                className="nav-container"
+                className="nav-item"
               >
                 <NavLink to="/instructors" style={navLinkStyle} className="nav-link">
-                  <span className="nav-icon">
-                    <TeamOutlined />
-                  </span>
+                  <TeamOutlined className="nav-icon" />
                   <span className="nav-text">Giảng viên</span>
                 </NavLink>
               </motion.div>
-              <motion.div 
+              
+              <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                className="nav-container"
+                className="nav-item"
               >
                 <NavLink to="/blog" style={navLinkStyle} className="nav-link">
-                  <span className="nav-icon">
-                    <BookOutlined />
-                  </span>
+                  <BookOutlined className="nav-icon" />
                   <span className="nav-text">Blog</span>
                 </NavLink>
               </motion.div>
             </div>
-        </div>
+          </div>
 
           {/* Right Section */}
-          <div className="flex items-center gap-x-4">
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-            >
-              <Input
-                placeholder="Tìm kiếm khóa học hoặc giảng viên..."
-                prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,.45)' }} />}
-                className="hidden md:flex search-input"
-                style={{ borderRadius: '12px', height: '40px', width: 260 }}
-                allowClear
-                value={keyword}
-                onChange={e => setKeyword(e.target.value)}
-                onPressEnter={handleHeaderSearch}
-                size="large"
-              />
-            </motion.div>
-            
-              {loading ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <Spin />
-                </motion.div>
-              ) : user ? (
-              <Space size="middle">
-            <Popover
-                  content={notificationDropdown} 
-              trigger="click"
-              placement="bottomRight"
-              arrow
+          <div className="header-right">
+            {loading ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="loading-container"
+              >
+                <Spin />
+              </motion.div>
+            ) : user ? (
+              <Space size="middle" className="user-actions">
+                <Popover
+                  content={notificationDropdown}
+                  trigger="click"
+                  placement="bottomRight"
+                  arrow
                   open={notificationsOpen}
                   onOpenChange={setNotificationsOpen}
                 >
-                  <motion.div 
+                  <motion.div
                     whileHover={{ scale: 1.1, rotate: 5 }}
                     whileTap={{ scale: 0.9 }}
                     transition={{ duration: 0.2 }}
+                    className="notification-button"
                   >
-                    <Badge count={unreadCount} size="small">
-                      <Button 
-                        className="header-action-button" 
-                        type="text" 
-                        shape="circle" 
-                        icon={<BellOutlined style={{ fontSize: '18px' }} />} 
+                    <div className="action-button-wrapper">
+                      <Button
+                        className="action-button notification-action"
+                        type="text"
+                        shape="circle"
+                        icon={<BellOutlined className="action-icon" />}
                       />
-                    </Badge>
+                      {unreadCount > 0 && (
+                        <span className="corner-badge notification-corner-badge">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </motion.div>
                 </Popover>
-                <motion.div 
+                
+                <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   whileTap={{ scale: 0.9 }}
                   transition={{ duration: 0.2 }}
+                  className="cart-button"
                 >
-                  <Badge count={cartCount} showZero size="small">
-                    <Button 
-                      onClick={() => navigate('/cart')} 
-                      className="header-action-button" 
-                      type="text" 
-                      shape="circle" 
-                      icon={<ShoppingCartOutlined style={{ fontSize: '18px' }} />} 
+                  <div className="action-button-wrapper">
+                    <Button
+                      onClick={() => navigate('/cart')}
+                      className="action-button cart-action"
+                      type="text"
+                      shape="circle"
+                      icon={<ShoppingCartOutlined className="action-icon" />}
                     />
-                  </Badge>
+                    {cartCount > 0 && (
+                      <span className="corner-badge cart-corner-badge">
+                        {cartCount}
+                      </span>
+                    )}
+                  </div>
                 </motion.div>
+                
                 <Dropdown menu={userMenu} trigger={['click']} placement="bottomRight" arrow>
-                  <motion.div 
+                  <motion.div
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     transition={{ duration: 0.2 }}
+                    className="user-avatar-container"
                   >
-                    <Avatar 
-                    src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
-                      className="cursor-pointer"
+                    <Avatar
+                      src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                      className="user-avatar"
                       size={40}
                     />
                   </motion.div>
-            </Dropdown>
+                </Dropdown>
               </Space>
             ) : (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
-                className="flex items-center gap-3"
+                className="auth-buttons"
               >
-                <motion.div 
+                <motion.div
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Button 
-                    onClick={() => navigate('/login')} 
-                    size="middle" 
+                  <Button
+                    onClick={() => navigate('/login')}
+                    size="middle"
                     className="auth-button login-button"
-                    style={{ height: '40px', padding: '0 20px' }}
                   >
                     Đăng nhập
                   </Button>
                 </motion.div>
-                <motion.div 
+                
+                <motion.div
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Button 
-                    onClick={handleRegisterClick} 
-                    type="primary" 
-                    size="middle" 
+                  <Button
+                    onClick={handleRegisterClick}
+                    type="primary"
+                    size="middle"
                     className="auth-button register-button"
-                    style={{ height: '40px', padding: '0 20px' }}
                   >
+                    <RocketOutlined className="register-icon" />
                     Đăng ký
                   </Button>
                 </motion.div>
               </motion.div>
             )}
-                  </div>
+          </div>
         </AntHeader>
       </motion.div>
 
       {/* Shared Auth Notification */}
-      <AuthNotification 
+      <AuthNotification
         isVisible={notification.isVisible}
         onComplete={() => setNotification(prev => ({ ...prev, isVisible: false }))}
         type={notification.type}

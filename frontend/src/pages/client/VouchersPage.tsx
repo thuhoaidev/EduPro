@@ -20,7 +20,8 @@ import {
   Progress,
   Empty,
   Spin,
-  Alert
+  Alert,
+  Modal
 } from 'antd';
 import { 
   SearchOutlined, 
@@ -44,6 +45,7 @@ import type { Category } from '../../interfaces/Category.interface';
 import SearchBar from '../../components/common/SearchBar';
 import VoucherCard from '../../components/voucher/VoucherCard';
 import styles from '../../components/common/CategoryNav.module.css';
+import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -68,6 +70,7 @@ interface VoucherDisplay {
     daysLeft: number;
     status: 'available' | 'unavailable';
     statusMessage: string;
+    type?: string; // Thêm trường type để phân biệt loại voucher
 }
 
 const VoucherCategoryNav = ({ categories, activeCategory, onChange }: { categories: Category[], activeCategory: string, onChange: (cat: string) => void }) => {
@@ -124,6 +127,8 @@ const VouchersPage = () => {
     const searchTerm = searchParams.get('search') || '';
     const categoryFilter = searchParams.get('category') || 'Tất cả';
     const discountTypeFilter = searchParams.get('discountType') || 'all';
+    const [selectedVoucher, setSelectedVoucher] = useState<VoucherDisplay | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchVouchers = async () => {
@@ -133,9 +138,25 @@ const VouchersPage = () => {
                 
                 const transformedVouchers: VoucherDisplay[] = response.data.map((voucher: Voucher) => {
                     const now = new Date();
-                    const endDate = new Date(voucher.endDate || '');
-                    const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                    
+                    let daysLeft = 0;
+                    // Xác định loại voucher
+                    if (voucher.type === 'new-user') {
+                        const createdAt = new Date(voucher.createdAt);
+                        daysLeft = 7 - Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+                    } else if (voucher.type === 'birthday') {
+                        const createdAt = new Date(voucher.createdAt);
+                        const anniversaryThisYear = new Date(now.getFullYear(), createdAt.getMonth(), createdAt.getDate());
+                        let diffDays = Math.floor((now.getTime() - anniversaryThisYear.getTime()) / (1000 * 60 * 60 * 24));
+                        if (diffDays < 0) diffDays = 0; // Nếu chưa đến ngày kỷ niệm năm nay
+                        daysLeft = 30 - diffDays;
+                    } else if (["first-order", "order-count", "order-value"].includes(voucher.type)) {
+                        // Tạm thời dùng createdAt, nếu backend trả về ngày đủ điều kiện thì thay thế
+                        const createdAt = new Date(voucher.createdAt);
+                        daysLeft = 30 - Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+                    } else {
+                        const endDate = new Date(voucher.endDate || '');
+                        daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    }
                     return {
                         id: voucher.id,
                         code: voucher.code,
@@ -154,12 +175,29 @@ const VouchersPage = () => {
                         isExpired: daysLeft < 0,
                         daysLeft: Math.max(0, daysLeft),
                         status: voucher.status || 'available',
-                        statusMessage: voucher.statusMessage || ''
+                        statusMessage: voucher.statusMessage || '',
+                        type: voucher.type
                     };
                 });
                 
-                setVouchers(transformedVouchers);
-                setFilteredVouchers(transformedVouchers);
+                const conditionalTypes = ["new-user", "birthday", "first-order", "order-count", "order-value", "flash-sale"];
+                const filteredVouchers = transformedVouchers.filter(voucher => {
+                  if (conditionalTypes.includes(voucher.type)) {
+                    // Ẩn voucher có điều kiện nếu hết lượt
+                    return voucher.usedCount < voucher.usageLimit;
+                  }
+                  // Voucher không điều kiện luôn hiển thị, kể cả khi hết lượt
+                  return true;
+                });
+                // Sắp xếp: voucher còn lượt lên trên, hết lượt xuống dưới
+                const sortedVouchers = filteredVouchers.sort((a, b) => {
+                  const aOut = a.usedCount >= a.usageLimit;
+                  const bOut = b.usedCount >= b.usageLimit;
+                  if (aOut === bOut) return 0;
+                  return aOut ? 1 : -1;
+                });
+                setVouchers(sortedVouchers);
+                setFilteredVouchers(sortedVouchers);
             } catch (error) {
                 console.error('Error fetching vouchers:', error);
                 setError('Không thể tải danh sách voucher. Vui lòng thử lại sau.');
@@ -250,21 +288,23 @@ const VouchersPage = () => {
     return (
         <Content>
             {/* Hero Section */}
-            <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 text-gray-900 shadow-inner">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+            <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-inner py-16">
+                <div className="max-w-7xl mx-auto px-4 text-center">
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                        <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">Mã giảm giá</h1>
-                        <Paragraph className="text-gray-700 text-lg md:text-xl max-w-3xl mx-auto mt-4">
-                            Khám phá các ưu đãi hấp dẫn và tiết kiệm chi phí cho khóa học của bạn.
-                        </Paragraph>
-                        
-                        {/* Search Bar */}
-                        <div className="max-w-2xl mx-auto mt-8">
-                            <SearchBar
-                                placeholder="Tìm kiếm mã giảm giá..."
-                                defaultValue={searchTerm}
-                                onSearch={handleSearch}
-                            />
+                        <div className="flex flex-col items-center gap-4">
+                            <GiftOutlined className="text-6xl text-yellow-400 drop-shadow-lg animate-bounce" />
+                            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">Mã giảm giá</h1>
+                            <Paragraph className="text-gray-700 text-lg md:text-xl max-w-3xl mx-auto mt-2">
+                                Khám phá ưu đãi hấp dẫn, tiết kiệm chi phí cho khóa học của bạn!
+                            </Paragraph>
+                            <div className="max-w-2xl w-full mx-auto mt-6">
+                                <SearchBar
+                                    placeholder="Tìm kiếm mã giảm giá..."
+                                    defaultValue={searchTerm}
+                                    onSearch={handleSearch}
+                                    className="rounded-full shadow-lg"
+                                />
+                            </div>
                         </div>
                     </motion.div>
                 </div>
@@ -284,49 +324,23 @@ const VouchersPage = () => {
                 )}
 
                 {/* Filters */}
-                <div className="mb-8 bg-white p-6 rounded-lg shadow-sm">
-                    <Title level={3} className="!mb-4 text-center sm:text-left">Bộ lọc mã giảm giá</Title>
-                    <VoucherCategoryNav 
-                      categories={categories} 
-                      activeCategory={categoryFilter} 
-                      onChange={handleCategoryChange} 
-                    />
-                    <Row gutter={[16, 16]} className="items-end">
-                        <Col xs={24} sm={12} md={8} style={{ display: 'none' }}>
-                            {/* Đã thay filter danh mục bằng nav, ẩn Select cũ */}
-                        </Col>
-                        <Col xs={24} sm={12} md={8}>
-                            <div>
-                                <Text strong className="text-gray-700 mb-2 block">Loại giảm giá</Text>
-                                <DiscountTypeNav activeType={discountTypeFilter} onChange={handleDiscountTypeChange} />
-                            </div>
-                        </Col>
-                        <Col xs={24} sm={24} md={8}>
-                            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <InfoCircleOutlined className="text-blue-500" />
-                                    <Text strong className="text-gray-700">Mẹo sử dụng</Text>
-                                </div>
-                                <Text className="text-sm text-gray-600">
-                                    • Sao chép mã và sử dụng khi thanh toán<br/>
-                                    • Mỗi voucher chỉ sử dụng được 1 lần<br/>
-                                    • Kiểm tra điều kiện sử dụng trước khi áp dụng
-                                </Text>
-                            </div>
-                        </Col>
-                    </Row>
-                </div>
+              
 
                 {error && <Alert message="Lỗi" description={error} type="error" showIcon className="mb-6" />}
                 
                 {!loading && !error && filteredVouchers.length === 0 && (
-                    <Empty 
+                    <Empty
                         description={
-                            searchTerm 
-                                ? `Không tìm thấy mã giảm giá nào cho "${searchTerm}"` 
-                                : "Không có mã giảm giá nào trong danh mục này."
+                            <div className="flex flex-col items-center">
+                                <GiftOutlined className="text-5xl text-gray-300 mb-2" />
+                                <span className="text-gray-400 text-lg font-medium">
+                                    {searchTerm
+                                        ? `Không tìm thấy mã giảm giá nào cho "${searchTerm}"`
+                                        : "Không có mã giảm giá nào trong danh mục này."}
+                                </span>
+                            </div>
                         }
-                        className="my-16"
+                        className="my-20"
                     />
                 )}
 
@@ -336,18 +350,128 @@ const VouchersPage = () => {
                         {filteredVouchers.map((voucher, idx) => (
                             <Col xs={24} sm={12} md={8} lg={8} key={voucher.id}>
                                 <motion.div
+                                    className={`bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-4 border-2 ${voucher.type === 'vip' ? 'border-yellow-400 animate-pulse' : 'border-transparent'} group`}
                                     initial={{ opacity: 0, y: 30 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: 30 }}
                                     transition={{ duration: 0.5, delay: idx * 0.08 }}
+                                    whileHover={{ scale: 1.04, boxShadow: "0 8px 32px rgba(59,130,246,0.12)" }}
+                                    onClick={() => { setSelectedVoucher(voucher); setIsModalOpen(true); }}
+                                    style={{ cursor: 'pointer' }}
                                 >
-                                    <VoucherCard voucher={voucher} categories={categories} />
+                                    <div className="flex items-center gap-3">
+                                        <GiftOutlined className="text-3xl text-pink-500 drop-shadow" />
+                                        <span className="font-bold text-xl text-gray-900">{voucher.title}</span>
+                                        {voucher.type === 'vip' && <span className="vip-glow ml-2">VIP</span>}
+                                        {voucher.type === 'flash-sale' && <ThunderboltOutlined className="text-yellow-400 animate-bounce ml-2" />}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-2xl font-extrabold text-gradient bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
+                                            {voucher.discountType === 'percentage' ? `${voucher.discount}%` : `${voucher.discount.toLocaleString()}₫`}
+                                        </span>
+                                        <span className="text-gray-500 text-sm">{voucher.discountType === 'percentage' ? 'Giảm' : 'Tiền mặt'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="bg-gray-100 px-3 py-1 rounded-full font-mono text-blue-600">{voucher.code}</span>
+                                        <Tooltip title="Sao chép mã">
+                                            <Button shape="circle" icon={<CopyOutlined />} onClick={() => navigator.clipboard.writeText(voucher.code)} />
+                                        </Tooltip>
+                                    </div>
+                                    {/* ... các thông tin khác ... */}
                                 </motion.div>
                             </Col>
                         ))}
                     </AnimatePresence>
                 </Row>
             </div>
+
+            {/* Modal chi tiết voucher */}
+            <Modal
+              open={isModalOpen}
+              onCancel={() => setIsModalOpen(false)}
+              footer={null}
+              title={
+                <div className="flex items-center gap-3">
+                  <GiftOutlined className="text-2xl text-pink-500" />
+                  <span className="text-xl font-bold text-gradient bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
+                    {selectedVoucher?.title || 'Chi tiết mã giảm giá'}
+                  </span>
+                </div>
+              }
+              centered
+            >
+              {selectedVoucher && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">Mã:</span>
+                    <Tooltip title="Sao chép mã">
+                      <span
+                        className="ml-2 font-mono bg-blue-50 px-3 py-1 rounded-lg text-lg text-blue-700 tracking-widest cursor-pointer select-all hover:bg-blue-100 transition"
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedVoucher.code);
+                          message.success('Đã sao chép mã!');
+                        }}
+                      >
+                        {selectedVoucher.code}
+                      </span>
+                    </Tooltip>
+                    <Button
+                      shape="circle"
+                      icon={<CopyOutlined />}
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedVoucher.code);
+                        message.success('Đã sao chép mã!');
+                      }}
+                    />
+                  </div>
+                  <Divider />
+                  <div>
+                    <span className="ml-2 text-base font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 block py-2">
+                      {selectedVoucher.description || 'Không có mô tả.'}
+                    </span>
+                  </div>
+                  <div className="flex gap-4">
+                    <div>
+                      <span className="font-semibold">Giảm giá:</span>
+                      <span className="ml-2 text-blue-600 font-bold text-lg">
+                        {selectedVoucher.discountType === 'percentage'
+                          ? `${selectedVoucher.discount}%`
+                          : `${selectedVoucher.discount.toLocaleString()}₫`}
+                      </span>
+                    </div>
+                    {selectedVoucher.maxDiscount && (
+                      <div>
+                        <span className="font-semibold">Tối đa:</span>
+                        <span className="ml-2">{selectedVoucher.maxDiscount.toLocaleString()}₫</span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Áp dụng cho đơn từ:</span>
+                    <span className="ml-2">{selectedVoucher.minAmount.toLocaleString()}₫</span>
+                  </div>
+                  <Divider />
+                  <div className="flex gap-4 flex-wrap">
+                    <div>
+                      <span className="font-semibold">Hiệu lực:</span>
+                      <span className="ml-2">
+                        {dayjs(selectedVoucher.validFrom).format('DD/MM/YYYY')} - {dayjs(selectedVoucher.validTo).format('DD/MM/YYYY')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-semibold">Trạng thái:</span>
+                      <span className={`ml-2 px-2 py-1 rounded-full text-white text-xs ${selectedVoucher.isExpired ? 'bg-gray-400' : 'bg-green-500'}`}>
+                        {selectedVoucher.isExpired ? 'Hết hạn' : 'Còn hiệu lực'}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Số lượt sử dụng:</span>
+                    <span className="ml-2">{selectedVoucher.usedCount}/{selectedVoucher.usageLimit}</span>
+                  </div>
+                </div>
+              )}
+            </Modal>
         </Content>
     );
 };

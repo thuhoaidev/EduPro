@@ -103,7 +103,7 @@ const MOCK_SECTIONS = [
 ];
 
 // Toggle between mock and real API
-const USE_MOCK_DATA = true; // Set to false when backend is ready
+const USE_MOCK_DATA = false; // Đã sẵn sàng dùng backend
 
 // Type definitions
 interface SectionData {

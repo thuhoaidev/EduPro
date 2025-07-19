@@ -7,6 +7,7 @@ const Enrollment = require('../models/Enrollment');
 const TeacherWallet = require('../models/TeacherWallet');
 const Course = require('../models/Course'); // Nên thêm rõ ràng
 const InstructorProfile = require('../models/InstructorProfile');
+const Notification = require('../models/Notification');
 
 class OrderController {
   // Tạo đơn hàng
@@ -145,9 +146,13 @@ class OrderController {
           orderId: order._id
         }).save({ session });
 
-        await Voucher.findByIdAndUpdate(voucherId, {
-          $inc: { usedCount: 1 }
-        }, { session });
+        // Chỉ tăng usedCount nếu là voucher phổ thông hoặc flash-sale
+        const voucher = await Voucher.findById(voucherId).session(session);
+        if (voucher && (voucher.type === 'default' || voucher.type === 'flash-sale')) {
+          await Voucher.findByIdAndUpdate(voucherId, {
+            $inc: { usedCount: 1 }
+          }, { session });
+        }
       }
 
       // Xoá item đã mua khỏi giỏ hàng
@@ -191,7 +196,19 @@ class OrderController {
           select: 'code title discountType discountValue'
         }
       ]);
-
+      // Gửi thông báo cho user khi thanh toán thành công
+      const notification = await Notification.create({
+        title: 'Thanh toán thành công',
+        content: `Đơn hàng của bạn đã được thanh toán thành công. Cảm ơn bạn đã mua hàng!`,
+        type: 'success',
+        receiver: userId,
+        icon: 'credit-card',
+        meta: { link: `/orders/${order._id}` }
+      });
+      const io = req.app.get && req.app.get('io');
+      if (io && notification.receiver) {
+        io.to(notification.receiver.toString()).emit('new-notification', notification);
+      }
       return res.status(201).json({
         success: true,
         message: 'Tạo đơn hàng thành công',

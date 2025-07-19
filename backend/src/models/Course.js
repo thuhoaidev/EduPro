@@ -79,8 +79,14 @@ const courseSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['draft', 'pending', 'published', 'rejected', 'archived'],
+        enum: ['draft', 'pending', 'approved', 'rejected'],
         default: 'draft',
+        index: true
+    },
+    displayStatus: {
+        type: String,
+        enum: ['hidden', 'published'],
+        default: 'hidden',
         index: true
     },
     requirements: [{
@@ -118,18 +124,39 @@ const courseSchema = new mongoose.Schema({
 });
 
 // Tạo slug từ title trước khi lưu
-courseSchema.pre('save', function (next) {
+courseSchema.pre('save', async function (next) {
     if (this.isModified('title')) {
         // Chuyển đổi tiếng Việt sang ASCII trước khi tạo slug
         const asciiTitle = this.title.normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '') // Loại bỏ dấu
             .replace(/[đĐ]/g, 'd'); // Chuyển đổi đ/Đ thành d
 
-        this.slug = slugify(asciiTitle, {
+        let baseSlug = slugify(asciiTitle, {
             lower: true,
             strict: true,
             locale: 'en'
         });
+
+        // Kiểm tra xem slug đã tồn tại chưa và tạo slug duy nhất
+        let slug = baseSlug;
+        let counter = 1;
+        
+        while (true) {
+            const existingCourse = await this.constructor.findOne({ 
+                slug: slug,
+                _id: { $ne: this._id } // Loại trừ khóa học hiện tại khi update
+            });
+            
+            if (!existingCourse) {
+                break; // Slug không tồn tại, có thể sử dụng
+            }
+            
+            // Slug đã tồn tại, thêm số vào cuối
+            slug = `${baseSlug}-${counter}`;
+            counter++;
+        }
+        
+        this.slug = slug;
     }
     next();
 });

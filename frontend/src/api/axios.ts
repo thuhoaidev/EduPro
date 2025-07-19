@@ -3,7 +3,8 @@ import { refreshAccessToken } from '../services/authService';
 import { clearAuthData, redirectToLogin } from '../utils/tokenUtils';
 
 // Cấu hình API
-const API_URL = '/api';
+const API_URL = 'http://localhost:5000/api';
+// const API_URL = '';
 
 export const config = axios.create({
     baseURL: API_URL,
@@ -26,20 +27,20 @@ const processQueue = (error: any, token: string | null = null) => {
             resolve(token);
         }
     });
-    
+
     failedQueue = [];
 };
 
 // Thêm interceptor để tự động gắn token vào header
 config.interceptors.request.use(
-  (request) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      request.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return request;
-  },
-  (error) => Promise.reject(error)
+    (request) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            request.headers['Authorization'] = `Bearer ${token}`;
+        }
+        return request;
+    },
+    (error) => Promise.reject(error)
 );
 
 // Xử lý response

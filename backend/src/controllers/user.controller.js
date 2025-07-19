@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const InstructorProfile = require('../models/InstructorProfile');
 const Enrollment = require('../models/Enrollment');
 const Follow = require('../models/Follow');
+const Notification = require('../models/Notification');
 
 // Lấy thông tin người dùng hiện tại
 exports.getCurrentUser = async (req, res) => {
@@ -95,6 +96,9 @@ exports.updateCurrentUser = async (req, res) => {
       console.log('DEBUG - No avatar provided, using default');
       avatarUrl = 'default-avatar.jpg'; // Giá trị mặc định
     }
+
+    // Luôn cập nhật avatar vào updateFields
+    updateFields.avatar = avatarUrl;
 
     // Xử lý social_links
     if (req.body.social_links) {
@@ -374,6 +378,15 @@ exports.createUser = async (req, res) => {
         year: parseInt(user.instructorInfo.graduation_year) || new Date().getFullYear(),
       }],
       profileImage: avatarUrl || 'default-avatar.jpg',
+    });
+    // Gửi thông báo cho user mới
+    await Notification.create({
+      title: 'Chào mừng bạn đến với hệ thống!',
+      content: 'Tài khoản của bạn đã được tạo thành công.',
+      type: 'success',
+      receiver: user._id,
+      icon: 'user-plus',
+      meta: { link: '/profile' }
     });
 
     res.status(201).json({
@@ -1321,8 +1334,11 @@ exports.getApprovedInstructors = async (req, res) => {
     // Xây dựng query - chỉ lấy giảng viên đã được duyệt
     const instructorsQuery = {
       role_id: instructorRole._id,
-      'instructorInfo.approval_status': 'approved',
-      'instructorInfo.is_approved': true
+      'instructorInfo.is_approved': true,
+      $or: [
+        { 'instructorInfo.approval_status': 'approved' },
+        { approval_status: 'approved' }
+      ]
     };
 
     // Tìm kiếm

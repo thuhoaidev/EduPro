@@ -4,6 +4,8 @@ const quizController = require('../controllers/quiz.controller');
 
 // Routes cho quiz
 router.post('/', quizController.createQuiz);
+router.put('/:id', quizController.updateQuiz);
+router.delete('/:id', quizController.deleteQuiz);
 router.get('/video/:video_id', quizController.getQuizByVideo);
 router.post('/:quiz_id/submit', quizController.submitQuiz);
 // Thêm, sửa, xóa câu hỏi - public

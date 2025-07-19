@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb, message } from 'antd';
-import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, HeartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined } from '@ant-design/icons';
+import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { courseService } from '../../services/apiService';
-import type { Course, Section } from '../../services/apiService';
+import type { Course, Section, Lesson } from '../../services/apiService';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { config } from '../../api/axios';
 import { getCourseReviews, getMyReview, addOrUpdateReview } from '../../services/courseReviewService';
 import TextArea from 'antd/lib/input/TextArea';
+import { useCart } from '../../contexts/CartContext';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -32,14 +33,81 @@ const CourseDetailPage: React.FC = () => {
     const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [reviews, setReviews] = useState<{
-        user: any; rating: number; comment: string 
+        user: { fullname?: string; avatar?: string }; rating: number; comment: string 
 }[]>([]);
     const [myReview, setMyReview] = useState<{ rating: number; comment: string } | null>(null);
     const [reviewLoading, setReviewLoading] = useState(false);
     const [reviewError, setReviewError] = useState<string | null>(null);
     const [reviewValue, setReviewValue] = useState<number>(0);
     const [reviewComment, setReviewComment] = useState('');
+    const [isAddingToCart, setIsAddingToCart] = useState(false);
+    const [isInstructor, setIsInstructor] = useState(false);
     const navigate = useNavigate();
+    const { addToCart, isInCart, updateCartCount } = useCart();
+
+    // Function to calculate total duration from course content
+    const calculateTotalDuration = (sections: Section[]): string => {
+        let totalSeconds = 0;
+        let hasVideoDuration = false;
+        
+        sections.forEach(section => {
+            section.lessons.forEach(lesson => {
+                // Check if lesson has video with duration
+                if (lesson.video && lesson.video.duration && lesson.video.duration > 0) {
+                    totalSeconds += lesson.video.duration;
+                    hasVideoDuration = true;
+                }
+            });
+        });
+        
+        // If no video duration available, fall back to course.duration or estimate
+        if (!hasVideoDuration) {
+            return course?.duration || '0 giờ';
+        }
+        
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        
+        if (hours > 0) {
+            return `${hours} giờ ${minutes} phút`;
+        } else {
+            return `${minutes} phút`;
+        }
+    };
+
+    // Function to format individual lesson duration
+    const formatLessonDuration = (lesson: Lesson): string => {
+        if (lesson.video && lesson.video.duration && lesson.video.duration > 0) {
+            const minutes = Math.floor(lesson.video.duration / 60);
+            const seconds = lesson.video.duration % 60;
+            if (minutes > 0) {
+                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            } else {
+                return `${seconds}s`;
+            }
+        }
+        return '~15 phút'; // Fallback for lessons without video duration
+    };
+
+    // Function to calculate section duration
+    const calculateSectionDuration = (section: Section): string => {
+        let totalSeconds = 0;
+        let hasVideoDuration = false;
+        
+        section.lessons.forEach(lesson => {
+            if (lesson.video && lesson.video.duration && lesson.video.duration > 0) {
+                totalSeconds += lesson.video.duration;
+                hasVideoDuration = true;
+            }
+        });
+        
+        if (!hasVideoDuration) {
+            return `~${Math.ceil(section.lessons.length * 15)} phút`;
+        }
+        
+        const minutes = Math.floor(totalSeconds / 60);
+        return `${minutes} phút`;
+    };
 
     useEffect(() => {
         const fetchCourseData = async () => {
@@ -73,6 +141,9 @@ const CourseDetailPage: React.FC = () => {
                 if (courseObj) {
                     setCourse(courseObj);
                     setCourseContent(contentData);
+                    console.log('📚 Course content loaded:', contentData);
+                    console.log('📚 Number of sections:', contentData.length);
+                    console.log('📚 Total lessons:', contentData.reduce((acc, section) => acc + section.lessons.length, 0));
                     // Lưu nội dung khóa học vào localStorage để trang video có thể lấy lại
                     try {
                         localStorage.setItem('lastCourseSections', JSON.stringify(contentData));
@@ -85,7 +156,7 @@ const CourseDetailPage: React.FC = () => {
                 setContentLoading(false);
             } catch (err) {
                 setError('Đã có lỗi xảy ra khi tải dữ liệu khóa học.');
-                console.error(err);
+                console.error('❌ Error fetching course data:', err);
             } finally {
                 setLoading(false);
             }
@@ -96,27 +167,56 @@ const CourseDetailPage: React.FC = () => {
     useEffect(() => {
         const checkEnrolled = async () => {
             if (!course) return;
-            const token = localStorage.getItem('token');
-            if (!token) {
-                setIsEnrolled(false);
-                return;
-            }
             try {
-                const res = await config.get('/users/me/enrollments');
-                const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
-                console.log('🔍 Course ID:', course.id);
-                console.log('🔍 Enrolled IDs:', enrolledIds);
-                console.log('🔍 Is enrolled:', enrolledIds.includes(course.id));
-                if (enrolledIds.includes(course.id)) {
-                    setIsEnrolled(true);
-                } else {
-                    setIsEnrolled(false);
+                const token = localStorage.getItem('token');
+                let enrolled = false;
+                if (token) {
+                    const res = await config.get('/users/me/enrollments');
+                    const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => String(enroll.course?._id || enroll.course?.id));
+                    console.log('🔍 Course ID:', course.id);
+                    console.log('🔍 Enrolled IDs:', enrolledIds);
+                    console.log('🔍 Is enrolled:', enrolledIds.includes(String(course.id)));
+                    enrolled = enrolledIds.includes(String(course.id));
                 }
+                setIsEnrolled(enrolled);
             } catch {
                 setIsEnrolled(false);
             }
         };
         checkEnrolled();
+    }, [course]);
+
+    useEffect(() => {
+        const checkInstructor = async () => {
+            if (!course) return;
+            const token = localStorage.getItem('token');
+            if (!token) {
+                setIsInstructor(false);
+                return;
+            }
+            try {
+                // Kiểm tra xem user có phải là instructor không
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    const userRole = user.role?.name || user.role_id?.name;
+                    
+                    if (userRole === 'instructor') {
+                        // Kiểm tra xem có phải là instructor của khóa học này không
+                        const instructorCourses = await courseService.getInstructorCourses();
+                        const isCourseInstructor = instructorCourses.some((c: Course) => c.id === course.id);
+                        setIsInstructor(isCourseInstructor);
+                    } else {
+                        setIsInstructor(false);
+                    }
+                } else {
+                    setIsInstructor(false);
+                }
+            } catch {
+                setIsInstructor(false);
+            }
+        };
+        checkInstructor();
     }, [course]);
 
     useEffect(() => {
@@ -143,6 +243,17 @@ const CourseDetailPage: React.FC = () => {
             setReviewLoading(false);
         })();
     }, [course, isEnrolled]);
+
+    // Force re-render when cart changes
+    useEffect(() => {
+        // This will trigger re-render when cart state changes
+        const interval = setInterval(() => {
+            // Force re-render by updating a state
+            setReviewValue(prev => prev);
+        }, 1000);
+        
+        return () => clearInterval(interval);
+    }, []);
 
     if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Spin size="large" /></div>;
     if (error) return <div className="p-8"><Alert message="Lỗi" description={error} type="error" showIcon /></div>;
@@ -176,6 +287,22 @@ const CourseDetailPage: React.FC = () => {
         }
         setReviewLoading(false);
     };
+
+    // Helper function để đồng bộ logic với CourseCard
+    const getButtonText = () => {
+        if (isInstructor) return 'Quản lý khóa học';
+        if (isEnrolled) return 'Học ngay';
+        if (course.isFree) return 'Đăng ký học';
+        if (isInCart(course.id)) return 'Thanh toán ngay';
+        return 'Thêm vào giỏ hàng';
+    };
+
+    const getButtonIcon = () => {
+        if (isInstructor || isEnrolled || course.isFree) return <PlayCircleOutlined />;
+        return <ShoppingCartOutlined />;
+    };
+
+
 
     return (
         <Content className="bg-white">
@@ -234,14 +361,18 @@ const CourseDetailPage: React.FC = () => {
                             <Card variant="outlined" className="border border-gray-200 shadow-sm rounded-xl mt-20 bg-white/80 backdrop-blur-md">
                                 <Title level={3} className="!m-0 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">Nội dung khóa học</Title>
                                 <div className="flex justify-between items-center mt-6 mb-8 text-gray-600 border-t border-b border-gray-200 py-4">
-                                    <Text><span className="font-bold text-cyan-600">{courseContent.length}</span> chương</Text>
+                                    <Text><span className="font-bold text-cyan-600">{courseContent.length || course.lessons}</span> chương</Text>
                                     <Text className='font-bold'>•</Text>
-                                    <Text><span className="font-bold text-cyan-600">{totalLessons}</span> bài học</Text>
+                                    <Text><span className="font-bold text-cyan-600">{totalLessons || course.lessons}</span> bài học</Text>
                                     <Text className='font-bold'>•</Text>
-                                    <Text>Thời lượng <span className="font-bold text-cyan-600">{course.duration}</span></Text>
+                                    <Text>Thời lượng <span className="font-bold text-cyan-600">{courseContent.length > 0 ? calculateTotalDuration(courseContent) : course.duration}</span></Text>
                                 </div>
                                 <AnimatePresence>
-                                    {contentLoading ? <div className="text-center p-8"><Spin tip="Đang tải nội dung..."/></div> : courseContent.length > 0 ? (
+                                    {contentLoading ? (
+                                        <div className="text-center p-8">
+                                            <Spin tip="Đang tải nội dung..."/>
+                                        </div>
+                                    ) : courseContent.length > 0 ? (
                                         <div className="divide-y divide-gray-100">
                                             {courseContent.map((section, idx) => {
                                                 const isOpen = expandedSections.has(idx);
@@ -266,7 +397,7 @@ const CourseDetailPage: React.FC = () => {
                                                                 <div className="flex items-center gap-4 mt-2">
                                                                     <span className="text-gray-400 text-sm">({section.lessons.length} bài học)</span>
                                                                     <span className="text-gray-400 text-sm">•</span>
-                                                                    <span className="text-gray-400 text-sm">~{Math.ceil(section.lessons.length * 15)} phút</span>
+                                                                    <span className="text-gray-400 text-sm">{calculateSectionDuration(section)}</span>
                                                                 </div>
                                                             </div>
                                                             <motion.div
@@ -309,7 +440,7 @@ const CourseDetailPage: React.FC = () => {
                                                                                     ) : (
                                                                                         <>
                                                                                             <LockOutlined className="text-gray-400" />
-                                                                                            <span className="text-gray-400 text-sm">~15 phút</span>
+                                                                                            <span className="text-gray-400 text-sm">{formatLessonDuration(lesson)}</span>
                                                                                         </>
                                                                                     )}
                                                                                 </div>
@@ -323,7 +454,18 @@ const CourseDetailPage: React.FC = () => {
                                                 );
                                             })}
                                         </div>
-                                    ) : <Empty description="Nội dung khóa học đang được cập nhật." />}
+                                    ) : (
+                                        <div className="text-center p-8">
+                                            <Empty 
+                                                description={
+                                                    <div>
+                                                        <div className="text-gray-600 mb-2">Nội dung khóa học đang được cập nhật</div>
+                                                        <div className="text-gray-400 text-sm">Giảng viên đang chuẩn bị bài giảng cho khóa học này</div>
+                                                    </div>
+                                                } 
+                                            />
+                                        </div>
+                                    )}
                                 </AnimatePresence>
                             </Card>
                         </motion.div>
@@ -466,13 +608,26 @@ const CourseDetailPage: React.FC = () => {
 
                                 {/* Action Buttons */}
                                 <div className="space-y-4 mb-8">
-                                    {isEnrolled ? (
+                                    {isInstructor ? (
+                                        <Button 
+                                            type="primary" 
+                                            size="large" 
+                                            block 
+                                            className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-green-500 !to-emerald-500 hover:!from-green-600 hover:!to-emerald-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
+                                            icon={<PlayCircleOutlined />} 
+                                            onClick={() => {
+                                                navigate(`/instructor/courses/${course.id}`);
+                                            }}
+                                        >
+                                            Quản lý khóa học
+                                        </Button>
+                                    ) : isEnrolled || course.isFree ? (
                                         <Button 
                                             type="primary" 
                                             size="large" 
                                             block 
                                             className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
-                                            icon={<PlayCircleOutlined />} 
+                                            icon={getButtonIcon()} 
                                             onClick={() => {
                                                 const firstLesson = courseContent[0]?.lessons[0];
                                                 if (firstLesson?._id) {
@@ -482,39 +637,7 @@ const CourseDetailPage: React.FC = () => {
                                                 }
                                             }}
                                         >
-                                            Học ngay
-                                        </Button>
-                                    ) : course.isFree ? (
-                                        <Button 
-                                            type="primary" 
-                                            size="large" 
-                                            block 
-                                            className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
-                                            icon={<PlayCircleOutlined />} 
-                                            onClick={async () => {
-                                                const token = localStorage.getItem('token');
-                                                if (!token) {
-                                                    localStorage.removeItem('token');
-                                                    localStorage.removeItem('user');
-                                                    localStorage.removeItem('refresh_token');
-                                                    message.warning('Vui lòng đăng nhập!');
-                                                    setTimeout(() => navigate('/login'), 800);
-                                                    return;
-                                                }
-                                                try {
-                                                    await config.post(`/courses/${course.id}/enroll`);
-                                                    setIsEnrolled(true);
-                                                } catch (err: unknown) {
-                                                    if (err && typeof err === 'object' && 'response' in err) {
-                                                        // @ts-expect-error err.response is available
-                                                        alert(err.response?.data?.message || 'Có lỗi khi đăng ký học!');
-                                                    } else {
-                                                        alert('Có lỗi khi đăng ký học!');
-                                                    }
-                                                }
-                                            }}
-                                        >
-                                            Đăng ký học
+                                            {getButtonText()}
                                         </Button>
                                     ) : (
                                         <Button 
@@ -522,8 +645,12 @@ const CourseDetailPage: React.FC = () => {
                                             size="large" 
                                             block 
                                             className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
-                                            icon={<ShoppingCartOutlined />} 
+                                            icon={getButtonIcon()} 
                                             onClick={async () => {
+                                                if (isInstructor) {
+                                                    navigate(`/instructor/courses/${course.id}`);
+                                                    return;
+                                                }
                                                 const token = localStorage.getItem('token');
                                                 if (!token) {
                                                     localStorage.removeItem('token');
@@ -533,22 +660,39 @@ const CourseDetailPage: React.FC = () => {
                                                     setTimeout(() => navigate('/login'), 800);
                                                     return;
                                                 }
-                                                // TODO: Thêm logic thêm vào giỏ hàng ở đây
+                                                const courseInCart = isInCart(course.id);
+                                                if (courseInCart) {
+                                                    navigate('/cart');
+                                                    return;
+                                                }
+                                                setIsAddingToCart(true);
+                                                try {
+                                                    const success = await addToCart(course.id);
+                                                    if (success) {
+                                                        message.success('Đã thêm khóa học vào giỏ hàng!');
+                                                        await updateCartCount();
+                                                    }
+                                                } catch (error: unknown) {
+                                                    console.error('Error adding to cart:', error);
+                                                    if (error && typeof error === 'object' && 'response' in error) {
+                                                        const err = error as { response?: { data?: { error?: string } } };
+                                                        if (err.response?.data?.error) {
+                                                            message.error(err.response.data.error);
+                                                        } else {
+                                                            message.error('Có lỗi xảy ra khi thêm vào giỏ hàng!');
+                                                        }
+                                                    } else {
+                                                        message.error('Có lỗi xảy ra khi thêm vào giỏ hàng!');
+                                                    }
+                                                } finally {
+                                                    setIsAddingToCart(false);
+                                                }
                                             }}
+                                            loading={isAddingToCart}
                                         >
-                                            Thêm vào giỏ hàng
+                                            {isAddingToCart ? 'Đang thêm...' : getButtonText()}
                                         </Button>
                                     )}
-                                    <div className="pt-2">
-                                        <Button 
-                                            size="large" 
-                                            block 
-                                            className="!h-12 !border-2 !border-cyan-200 !text-cyan-700 hover:!border-cyan-400 hover:!text-cyan-800 hover:!bg-cyan-50 transition-all duration-300 !font-medium" 
-                                            icon={<HeartOutlined />}
-                                        >
-                                            Lưu vào yêu thích
-                                        </Button>
-                                    </div>
                                 </div>
 
                                 {/* Course Features */}
@@ -579,6 +723,14 @@ const CourseDetailPage: React.FC = () => {
                                             </div>
                                             <div>
                                                 <Text className="text-gray-500 text-xs">{totalLessons} bài giảng</Text>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 flex items-center justify-center">
+                                                <ClockCircleOutlined className="text-white text-sm" />
+                                            </div>
+                                            <div>
+                                                <Text className="text-gray-500 text-xs">{calculateTotalDuration(courseContent)}</Text>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">

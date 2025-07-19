@@ -80,6 +80,7 @@ const EditCourse: React.FC = () => {
         // Set category_id là _id nếu category là object
         const formData = {
           ...data,
+          price: typeof data.price === 'number' ? data.price : Number(data.price) || 0,
           category_id: data.category?._id || data.category_id,
           discount: data.discount_percentage || data.discount_amount || 0,
           requirements: data.requirements || [],
@@ -88,7 +89,11 @@ const EditCourse: React.FC = () => {
             : [{ title: '' }],
         };
         
+        console.log('formData setFieldsValue:', formData);
         form.setFieldsValue(formData);
+        setTimeout(() => {
+          console.log('form.getFieldValue(\"price\"):', form.getFieldValue('price'));
+        }, 500);
       } catch (err: any) {
         setError(err.message || "Lỗi khi tải thông tin khóa học");
         message.error(err.message || "Lỗi khi tải thông tin khóa học");
@@ -268,11 +273,14 @@ const EditCourse: React.FC = () => {
           <InputNumber
             style={{ width: "100%" }}
             min={0}
-            placeholder="Nhập giá khóa học"
-            formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-            parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+            placeholder="Nhập giá khóa học (0 = miễn phí)"
+            formatter={(value) => value !== undefined && value !== null ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+            parser={(value) => value ? value.replace(/\$\s?|(,*)/g, '') : ''}
           />
         </Form.Item>
+        <div style={{ color: '#888', fontSize: 12, marginTop: -12, marginBottom: 12 }}>
+          Nhập <b>0</b> nếu muốn tạo khóa học miễn phí.
+        </div>
 
         <Form.Item label="Loại giảm giá">
           <Select
