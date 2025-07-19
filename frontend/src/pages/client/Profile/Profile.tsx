@@ -404,10 +404,15 @@ const Profile = () => {
             {enrolledCourses.length === 0 ? (
               <p>Bạn chưa đăng ký khóa học nào.</p>
             ) : (
+<<<<<<< Updated upstream
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+=======
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-10">
+>>>>>>> Stashed changes
                 {enrolledCourses.map((enroll) => {
                   const course = enroll.course;
                   const progress = enroll.progress || {};
+<<<<<<< Updated upstream
                   const completed = progress.completedLessons || 0;
                   const total = course.totalLessons || 1;
                   const percent = Math.round((completed / total) * 100);
@@ -416,23 +421,68 @@ const Profile = () => {
                       key={course._id || course.id}
                       className="relative bg-white rounded-2xl shadow-lg overflow-hidden group transition-all duration-300 hover:shadow-2xl"
                     >
+=======
+                  const instructor = course.instructor || course.teacher || null;
+                  const total = typeof course.totalLessons === 'number' && course.totalLessons > 0 ? course.totalLessons : 0;
+                  const completed = typeof progress.completedLessons === 'number' ? progress.completedLessons : 0;
+                  const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+                  return (
+                    <motion.div
+                      key={course._id || course.id}
+                      className="relative bg-white rounded-3xl shadow-xl overflow-hidden group border border-blue-100 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2"
+                      whileHover={{ scale: 1.03 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      {/* Course Image */}
+>>>>>>> Stashed changes
                       <div className="relative">
                         <img
                           src={course.thumbnail || '/default-course.jpg'}
                           alt={course.title}
+<<<<<<< Updated upstream
                           className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <Link
                           to={`/courses/${course._id || course.id}`}
                           className="absolute bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow-lg hover:bg-blue-700 flex items-center gap-2 transition"
+=======
+                          className="w-full h-48 object-cover rounded-t-3xl group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-t-3xl pointer-events-none" />
+                        <Link
+                          to={`/courses/slug/${course.slug}`}
+                          className="absolute bottom-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white !text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg z-10"
+>>>>>>> Stashed changes
                         >
                           Tiếp tục học <ArrowRightOutlined />
                         </Link>
+                        {percent === 100 && (
+                          <span className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full font-semibold text-sm shadow-lg z-10">Hoàn thành</span>
+                        )}
                       </div>
+<<<<<<< Updated upstream
                       <div className="p-5">
                         <h3 className="font-bold text-lg mb-1 text-gray-900 truncate">{course.title}</h3>
                         <div className="text-gray-500 text-sm mb-2">
+=======
+                      {/* Course Info */}
+                      <div className="p-6 flex flex-col gap-2">
+                        <h3 className="font-bold text-xl mb-1 text-gray-900 truncate" title={course.title}>{course.title}</h3>
+                        {/* {instructor && (
+                          <div className="text-gray-500 text-sm mb-1 flex items-center gap-2">
+                            <User size={16} className="inline-block text-blue-400" />
+                            <span>{
+                              instructor.user?.fullname ||
+                              instructor.fullname ||
+                              instructor.name ||
+                              'Giảng viên'
+                            }</span>
+                          </div>
+                        )} */}
+                        <div className="text-gray-500 text-base mb-2">
+>>>>>>> Stashed changes
                           {total} bài học
                         </div>
                         <div className="flex items-center gap-2 mb-2">
@@ -446,14 +496,17 @@ const Profile = () => {
                             showInfo={false}
                             className="flex-1"
                           />
+<<<<<<< Updated upstream
                           <span className="font-semibold text-blue-600">{percent}%</span>
+=======
+                          <span className={`font-bold text-lg ${percent === 100 ? 'text-green-600' : 'text-blue-600'}`}>{percent}%</span>
+>>>>>>> Stashed changes
                         </div>
                         <div className="text-gray-500 text-xs">
                           {completed}/{total} bài học
-                          {percent === 100 && <span className="ml-2 text-green-600 font-bold">🏆 Hoàn thành!</span>}
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
