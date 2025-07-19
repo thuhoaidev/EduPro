@@ -4,7 +4,7 @@ import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, R
 import { config } from '../../../api/axios';
 import { LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined, PauseCircleOutlined } from '@ant-design/icons';
 import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress } from '../../../services/progressService';
-import { getComments, addComment, replyComment } from '../../../services/lessonCommentService';
+import { getComments, addComment, replyComment, toggleLikeComment, getCommentLikeCount, checkCommentLiked } from '../../../services/lessonCommentService';
 import SectionSidebar from './SectionSidebar';
 import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
@@ -18,7 +18,13 @@ const { TextArea } = Input;
 
 type Lesson = { _id: string; title: string };
 type Section = { _id: string; title: string; lessons: Lesson[] };
-type Comment = { user?: { name?: string }; content: string; createdAt?: string };
+type Comment = {
+  _id: string;
+  content: string;
+  createdAt?: string;
+  user?: { name?: string; fullname?: string; avatar?: string };
+  replies?: Comment[];
+};
 
 const LessonVideoPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
@@ -59,6 +65,12 @@ const LessonVideoPage: React.FC = () => {
   const [isEnrolled, setIsEnrolled] = useState<boolean | null>(null);
   const [isFree, setIsFree] = useState<boolean | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+
+  // Thêm các state cho like/reply comment
+  const [likeStates, setLikeStates] = useState<{ [commentId: string]: { liked: boolean; count: number } }>({});
+  const [replyInput, setReplyInput] = useState<{ [commentId: string]: string }>({});
+  const [showReplyBox, setShowReplyBox] = useState<{ [commentId: string]: boolean }>({});
+  const [replyLoading, setReplyLoading] = useState<{ [commentId: string]: boolean }>({});
 
   // Debounce function để tránh gọi API liên tục
   const debouncedUpdateProgress = useCallback((courseId: string, lessonId: string, time: number, duration: number) => {
@@ -461,6 +473,109 @@ const LessonVideoPage: React.FC = () => {
     return <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />;
   }
 
+  // Hàm load like state cho tất cả comment và reply
+  const loadLikeStates = async (comments: any[]) => {
+    const allComments: any[] = [];
+    const collect = (arr: any[]) => {
+      arr.forEach(c => {
+        allComments.push(c);
+        if (c.replies && c.replies.length) collect(c.replies);
+      });
+    };
+    collect(comments);
+    const states: { [id: string]: { liked: boolean; count: number } } = {};
+    await Promise.all(
+      allComments.map(async c => {
+        try {
+          const [liked, count] = await Promise.all([
+            checkCommentLiked(c._id),
+            getCommentLikeCount(c._id)
+          ]);
+          states[c._id] = { liked, count };
+        } catch {
+          states[c._id] = { liked: false, count: 0 };
+        }
+      })
+    );
+    setLikeStates(states);
+  };
+
+  // Khi load comments, load luôn like state
+  useEffect(() => {
+    if (comments && comments.length) loadLikeStates(comments);
+  }, [comments]);
+
+  // Hàm xử lý like comment
+  const handleLikeComment = async (commentId: string) => {
+    await toggleLikeComment(commentId);
+    // reload trạng thái like
+    const [liked, count] = await Promise.all([
+      checkCommentLiked(commentId),
+      getCommentLikeCount(commentId)
+    ]);
+    setLikeStates(prev => ({ ...prev, [commentId]: { liked, count } }));
+  };
+
+  // Hàm xử lý reply
+  const handleReply = async (parentId: string) => {
+    if (!replyInput[parentId]?.trim()) return;
+    setReplyLoading(prev => ({ ...prev, [parentId]: true }));
+    try {
+      await replyComment(parentId, replyInput[parentId]);
+      setReplyInput(prev => ({ ...prev, [parentId]: '' }));
+      setShowReplyBox(prev => ({ ...prev, [parentId]: false }));
+      // reload comments
+      const commentsData = await getComments(lessonId!);
+      setComments(commentsData || []);
+    } finally {
+      setReplyLoading(prev => ({ ...prev, [parentId]: false }));
+    }
+  };
+
+  // Hàm render replies lồng nhau
+  const renderReplies = (replies: any[] = [], parentId?: string) => (
+    <div style={{ marginLeft: 40, marginTop: 8 }}>
+      {replies.map(reply => (
+        <div key={reply._id} style={{ borderBottom: '1px solid #f0f0f0', padding: '10px 0', display: 'flex', alignItems: 'flex-start' }}>
+          <Avatar src={reply.user?.avatar} icon={<UserOutlined />} style={{ background: '#e6f7ff', color: '#1890ff', marginRight: 12 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600 }}>{reply.user?.fullname || reply.user?.name || 'Anonymous'}</div>
+            <div style={{ fontSize: 16 }}>{reply.content}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 4 }}>
+              <span style={{ color: '#888', fontSize: 13 }}>{dayjs(reply.createdAt).fromNow()}</span>
+              <Button
+                type={likeStates[reply._id]?.liked ? 'primary' : 'default'}
+                size="small"
+                icon={<span style={{ color: likeStates[reply._id]?.liked ? '#f5222d' : '#888' }}>♥</span>}
+                style={{ border: 'none', background: 'none', boxShadow: 'none', padding: 0 }}
+                onClick={() => handleLikeComment(reply._id)}
+              >{likeStates[reply._id]?.count || 0}</Button>
+              <Button type="link" size="small" onClick={() => setShowReplyBox(prev => ({ ...prev, [reply._id]: !prev[reply._id] }))}>Trả lời</Button>
+            </div>
+            {showReplyBox[reply._id] && (
+              <div style={{ marginTop: 8 }}>
+                <Input.TextArea
+                  rows={2}
+                  value={replyInput[reply._id] || ''}
+                  onChange={e => setReplyInput(prev => ({ ...prev, [reply._id]: e.target.value }))}
+                  placeholder="Nhập phản hồi..."
+                  style={{ borderRadius: 8, fontSize: 15, marginBottom: 4 }}
+                />
+                <Button
+                  type="primary"
+                  size="small"
+                  loading={replyLoading[reply._id]}
+                  onClick={() => handleReply(reply._id)}
+                  disabled={!replyInput[reply._id]?.trim()}
+                >Gửi</Button>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa' }}>
       <div style={{ width: '30%', minWidth: 280, maxWidth: 400, background: '#fff', boxShadow: '0 2px 16px #e6e6e6', borderRadius: 16, margin: 16, height: 'calc(100vh - 32px)' }}>
@@ -492,7 +607,7 @@ const LessonVideoPage: React.FC = () => {
             <Title level={2} style={{ textAlign: 'center', marginBottom: 8 }}>{lessonTitle}</Title>
             <Divider style={{ margin: '12px 0 24px 0' }} />
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, padding: 0 }} bodyStyle={{ padding: 0 }}>
+              <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, padding: 0 }} styles={{ body: { padding: 0 } }}>
                 {videoUrl ? (
                   <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden' }}>
                     <video
@@ -591,11 +706,43 @@ const LessonVideoPage: React.FC = () => {
                   renderItem={(item) => (
                     <List.Item style={{ alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid #f0f0f0' }}>
                       <List.Item.Meta
-                        avatar={<Avatar icon={<UserOutlined />} style={{ background: '#e6f7ff', color: '#1890ff' }} />}
-                        title={<span style={{ fontWeight: 600 }}>{item.user?.name || 'Anonymous'}</span>}
+                        avatar={<Avatar src={item.user?.avatar} icon={<UserOutlined />} style={{ background: '#e6f7ff', color: '#1890ff' }} />}
+                        title={<span style={{ fontWeight: 600 }}>{item.user?.fullname || item.user?.name || 'Anonymous'}</span>}
                         description={<span style={{ fontSize: 16 }}>{item.content}</span>}
                       />
-                      <div style={{ color: '#888', fontSize: 13, minWidth: 80, textAlign: 'right' }}>{dayjs(item.createdAt).fromNow()}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 120 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                          <span style={{ color: '#888', fontSize: 13 }}>{dayjs(item.createdAt).fromNow()}</span>
+                          <Button
+                            type={likeStates[item._id]?.liked ? 'primary' : 'default'}
+                            size="small"
+                            icon={<span style={{ color: likeStates[item._id]?.liked ? '#f5222d' : '#888' }}>♥</span>}
+                            style={{ border: 'none', background: 'none', boxShadow: 'none', padding: 0 }}
+                            onClick={() => handleLikeComment(item._id)}
+                          >{likeStates[item._id]?.count || 0}</Button>
+                          <Button type="link" size="small" onClick={() => setShowReplyBox(prev => ({ ...prev, [item._id]: !prev[item._id] }))}>Trả lời</Button>
+                        </div>
+                        {showReplyBox[item._id] && (
+                          <div style={{ marginTop: 8 }}>
+                            <Input.TextArea
+                              rows={2}
+                              value={replyInput[item._id] || ''}
+                              onChange={e => setReplyInput(prev => ({ ...prev, [item._id]: e.target.value }))}
+                              placeholder="Nhập phản hồi..."
+                              style={{ borderRadius: 8, fontSize: 15, marginBottom: 4 }}
+                            />
+                            <Button
+                              type="primary"
+                              size="small"
+                              loading={replyLoading[item._id]}
+                              onClick={() => handleReply(item._id)}
+                              disabled={!replyInput[item._id]?.trim()}
+                            >Gửi</Button>
+                          </div>
+                        )}
+                        {/* Render replies */}
+                        {item.replies && item.replies.length > 0 && renderReplies(item.replies, item._id)}
+                      </div>
                     </List.Item>
                   )}
                 />
@@ -615,7 +762,36 @@ const LessonVideoPage: React.FC = () => {
                     {commentWarning && <div style={{ color: '#ff4d4f', margin: '8px 0', fontWeight: 500 }}>{commentWarning}</div>}
                   </Col>
                   <Col>
-                    <Button type="primary" icon={<SendOutlined />} onClick={handleComment} style={{ height: 48, width: 60, borderRadius: 10, fontSize: 20 }} disabled={!newComment.trim() || !!commentWarning}>
+                    <Button
+                      type="primary"
+                      onClick={handleComment}
+                      disabled={!newComment.trim() || !!commentWarning}
+                      style={{
+                        height: 48,
+                        minWidth: 100,
+                        borderRadius: 12,
+                        fontSize: 18,
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'linear-gradient(90deg, #1890ff 0%, #40a9ff 100%)',
+                        boxShadow: '0 2px 8px #e6f7ff',
+                        border: 'none',
+                        marginLeft: 8,
+                        transition: 'background 0.2s, box-shadow 0.2s',
+                        gap: 8,
+                      }}
+                      onMouseOver={e => {
+                        (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #40a9ff 0%, #1890ff 100%)';
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px #bae7ff';
+                      }}
+                      onMouseOut={e => {
+                        (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #1890ff 0%, #40a9ff 100%)';
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 8px #e6f7ff';
+                      }}
+                    >
+                      <SendOutlined style={{ fontSize: 20 }} />
                       Gửi
                     </Button>
                   </Col>

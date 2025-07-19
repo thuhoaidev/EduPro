@@ -86,7 +86,7 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                       <Progress
                         type="circle"
                         percent={progressValue}
-                        width={32}
+                        size={32}
                         strokeColor={progressColor}
                         format={() => lIdx + 1}
                         showInfo
