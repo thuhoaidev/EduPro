@@ -10,15 +10,15 @@ const { enrollCourse } = require('../controllers/course.controller');
 // Lấy danh sách khóa học
 router.get('/', courseController.getCourses);
 
+// Lấy danh sách khóa học của instructor hiện tại (phải đặt trước /:id để tránh conflict)
+router.get('/instructor', auth, requireAuth(['instructor', 'admin']), courseController.getInstructorCourses);
+
 // Lấy chi tiết khóa học
 router.get('/:id', courseController.getCourseById);
 router.get('/slug/:slug', courseController.getCourseBySlug);
 
 // Public GET route for course sections
 router.get('/:course_id/sections', sectionController.getSectionsByCourse);
-
-// Lấy danh sách khóa học của instructor hiện tại
-router.get('/instructor', auth, requireAuth(['instructor', 'admin']), courseController.getInstructorCourses);
 
 // Lấy nội dung khóa học công khai (cho tất cả mọi người)
 router.get('/:course_id/content', courseController.getCourseSectionsAndLessons);
