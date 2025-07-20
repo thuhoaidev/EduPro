@@ -82,10 +82,7 @@ exports.updateCurrentUser = async (req, res) => {
     };
 
     // Xử lý avatar: ưu tiên file upload, nếu không có thì lấy từ body
-    let avatarUrl = null;
-    console.log('DEBUG - req.uploadedAvatar:', req.uploadedAvatar);
-    console.log('DEBUG - req.body.avatar:', req.body.avatar);
-
+    let avatarUrl;
     if (req.uploadedAvatar && req.uploadedAvatar.url) {
       avatarUrl = req.uploadedAvatar.url;
       console.log('DEBUG - Using uploaded avatar URL:', avatarUrl);
@@ -93,8 +90,10 @@ exports.updateCurrentUser = async (req, res) => {
       avatarUrl = req.body.avatar;
       console.log('DEBUG - Using body avatar URL:', avatarUrl);
     } else {
-      console.log('DEBUG - No avatar provided, using default');
-      avatarUrl = 'default-avatar.jpg'; // Giá trị mặc định
+      // Nếu không có file mới và không có avatar mới, giữ nguyên avatar cũ
+      const user = await User.findById(req.user._id);
+      avatarUrl = user && user.avatar ? user.avatar : 'default-avatar.jpg';
+      console.log('DEBUG - Keeping existing avatar:', avatarUrl);
     }
 
     // Luôn cập nhật avatar vào updateFields
@@ -138,10 +137,12 @@ exports.updateCurrentUser = async (req, res) => {
       } : null,
     });
   } catch (error) {
-    console.error('Lỗi cập nhật người dùng:', error);
+    console.error('Lỗi cập nhật người dùng:', error, error?.errors);
     res.status(500).json({
       success: false,
       message: 'Lỗi cập nhật thông tin người dùng',
+      error: error.message,
+      errors: error.errors || null
     });
   }
 };

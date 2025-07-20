@@ -76,7 +76,7 @@ const avatarUpload = multer({
   storage: storage,
   fileFilter: avatarFileFilter,
   limits: {
-    fileSize: 2 * 1024 * 1024, // 2MB
+    fileSize: 10 * 1024 * 1024, // 10MB
   },
 });
 
@@ -119,10 +119,10 @@ exports.processAvatarUpload = async (req, res, next) => {
     });
 
     // Kiểm tra kích thước file
-    if (req.file.size > 2 * 1024 * 1024) {
+    if (req.file.size > 10 * 1024 * 1024) {
       return res.status(400).json({
         success: false,
-        message: 'File quá lớn. Kích thước tối đa là 2MB',
+        message: 'File quá lớn. Kích thước tối đa là 10MB',
       });
     }
 
