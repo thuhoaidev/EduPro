@@ -618,7 +618,7 @@ const VouchersPage: React.FC = () => {
             <InputNumber style={{ width: '100%' }} min={1} placeholder="Nhập số lượng" />
           </Form.Item>
 
-          <Form.Item label="Loại voucher" name="type" rules={[{ required: true }]}> 
+          <Form.Item label="Loại voucher" name="type" rules={[{ required: true, message: 'Vui lòng chọn loại voucher!' }]}> 
             <Select placeholder="Chọn loại voucher">
               <Select.Option value="default">default</Select.Option>
               <Select.Option value="new-user">new-user</Select.Option>
@@ -627,7 +627,6 @@ const VouchersPage: React.FC = () => {
               <Select.Option value="order-count">order-count</Select.Option>
               <Select.Option value="order-value">order-value</Select.Option>
               <Select.Option value="flash-sale">flash-sale</Select.Option>
-              <Select.Option value="one">one</Select.Option>
             </Select>
           </Form.Item>
 

@@ -101,14 +101,6 @@ const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
     console.log('DEBUG flash-sale: trong khung giờ 0h-1h VN', { hour });
     // Đã kiểm tra startDate, endDate, usedCount ở trên, không cần điều kiện user đặc biệt
   }
-  if (voucher.type === 'one') {
-    // Mỗi user chỉ được sử dụng 1 lần, không trừ số lượng
-    const VoucherUsage = require('../models/VoucherUsage');
-    const used = await VoucherUsage.findOne({ userId: user._id, voucherId: voucher._id });
-    if (used) {
-      return { valid: false, reason: 'Bạn chỉ được sử dụng voucher này 1 lần.' };
-    }
-  }
   return { valid: true };
 };
 
@@ -178,7 +170,7 @@ router.get("/available", async (req, res) => {
       $expr: { $lt: ["$usedCount", "$usageLimit"] }
     }).sort({ createdAt: -1 });
 
-    const conditionalTypes = ['new-user', 'birthday', 'first-order', 'order-count', 'order-value', 'flash-sale', 'one'];
+    const conditionalTypes = ['new-user', 'birthday', 'first-order', 'order-count', 'order-value', 'flash-sale'];
     const result = [];
     for (const v of vouchers) {
       if (conditionalTypes.includes(v.type)) {
@@ -277,17 +269,9 @@ router.post("/validate", auth, async (req, res) => {
       return res.status(400).json({ success: false, message: `Đơn hàng tối thiểu ${voucher.minOrderValue.toLocaleString()}đ để sử dụng voucher này` });
     }
     // Kiểm tra user đã dùng voucher này chưa (tạm thời bỏ qua orderId)
-    let existingUsage;
-    if (voucher.type === 'one') {
-      existingUsage = await VoucherUsage.findOne({ userId: userId, voucherId: voucher._id });
-      if (existingUsage) {
-        return res.status(400).json({ success: false, message: 'Bạn chỉ được sử dụng voucher này 1 lần.' });
-      }
-    } else {
-      existingUsage = await VoucherUsage.findOne({ userId: userId, voucherId: voucher._id });
-      if (existingUsage) {
-        return res.status(400).json({ success: false, message: 'Bạn đã sử dụng voucher này rồi' });
-      }
+    const existingUsage = await VoucherUsage.findOne({ userId: userId, voucherId: voucher._id });
+    if (existingUsage) {
+      return res.status(400).json({ success: false, message: "Bạn đã sử dụng voucher này rồi" });
     }
     // Tính toán discount
     let discountAmount = 0;
@@ -337,27 +321,17 @@ router.post("/apply", auth, async (req, res) => {
     }
 
     // Kiểm tra user đã dùng voucher này trong order này chưa
-    let orderUsage;
-    if (voucher.type === 'one') {
-      orderUsage = await VoucherUsage.findOne({ userId: userId, voucherId: voucherId });
-      if (orderUsage) {
-        return res.status(400).json({
-          success: false,
-          message: 'Bạn chỉ được sử dụng voucher này 1 lần.'
-        });
-      }
-    } else {
-      orderUsage = await VoucherUsage.findOne({
-        userId: userId,
-        voucherId: voucherId,
-        orderId: orderId
+    const existingUsage = await VoucherUsage.findOne({
+      userId: userId,
+      voucherId: voucherId,
+      orderId: orderId
+    });
+
+    if (existingUsage) {
+      return res.status(400).json({
+        success: false,
+        message: "Bạn đã sử dụng voucher này trong đơn hàng này rồi"
       });
-      if (orderUsage) {
-        return res.status(400).json({
-          success: false,
-          message: 'Bạn đã sử dụng voucher này trong đơn hàng này rồi'
-        });
-      }
     }
 
     // Tạo voucher usage record
@@ -369,12 +343,10 @@ router.post("/apply", auth, async (req, res) => {
 
     await voucherUsage.save();
 
-    // Cập nhật số lượt sử dụng của voucher (trừ loại 'one')
-    if (voucher.type !== 'one') {
-      await Voucher.findByIdAndUpdate(voucherId, {
-        $inc: { usedCount: 1 }
-      });
-    }
+    // Cập nhật số lượt sử dụng của voucher
+    await Voucher.findByIdAndUpdate(voucherId, {
+      $inc: { usedCount: 1 }
+    });
 
     res.json({
       success: true,
