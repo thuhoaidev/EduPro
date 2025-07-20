@@ -20,7 +20,7 @@ const voucherSchema = new mongoose.Schema({
   endDate: { type: Date }, // Ngày kết thúc
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-  type: { type: String, enum: ['default', 'new-user', 'birthday', 'first-order', 'order-value', 'order-count', 'flash-sale'], default: 'default' }, // Loại voucher
+  type: { type: String, enum: ['default', 'new-user', 'birthday', 'first-order', 'order-value', 'order-count', 'flash-sale', 'one'], default: 'default' }, // Loại voucher
   minAccountAge: { type: Number, default: 0 }, // Số ngày tối thiểu kể từ khi tạo tài khoản (dành cho order-count, order-value)
   maxAccountAge: { type: Number, default: 0 }, // Số ngày tối đa kể từ khi tạo tài khoản (dành cho new-user)
   minOrderCount: { type: Number, default: 0 }, // Số đơn hàng tối thiểu
