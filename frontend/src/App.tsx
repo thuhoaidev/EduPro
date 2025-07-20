@@ -124,7 +124,7 @@ function App() {
         { path: 'verify-email/:token', element: <VerifyEmail /> },
         { path: 'users/verify-instructor-email/:token', element: <VerifyEmail /> },
         { path: 'instructor/earnings', element: <Earnings /> },
-        { path: "blog/write", element: <BlogWritePage /> },//viết blog
+        { path: "blog/write", element: <BlogWritePage /> },
         { path: "blog/mine", element: <MyBlogPosts  /> },
         { path: "blog/saved", element: <SavedBlogPosts  /> },
         { path: "/featured-posts", element: <FeaturedPostsPage   /> },

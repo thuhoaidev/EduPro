@@ -15,6 +15,7 @@ import {
   Space,
   Table,
   Image,
+  Form,
 } from "antd";
 import {
   BookOutlined,
@@ -44,6 +45,9 @@ const CourseList: React.FC = () => {
   const [filterType, setFilterType] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [rejectForm] = Form.useForm();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -100,6 +104,11 @@ const CourseList: React.FC = () => {
   const filteredCourses = useMemo(() => {
     let result = [...courses];
 
+    // Chỉ hiển thị khóa học có trạng thái: pending, approved, rejected
+    result = result.filter((course) => 
+      ['pending', 'approved', 'rejected'].includes(course.status)
+    );
+
     if (searchTerm) {
       result = result.filter((course) =>
         course.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -142,25 +151,27 @@ const CourseList: React.FC = () => {
   };
 
   const handleReject = async (courseId: string) => {
-    Modal.confirm({
-      title: 'Từ chối khóa học',
-      content: 'Bạn có chắc chắn muốn từ chối khóa học này?',
-      okText: 'Từ chối',
-      okType: 'danger',
-      cancelText: 'Hủy',
-      onOk: async () => {
-        try {
-          await courseService.approveCourse(courseId, 'reject');
-          message.success('Đã từ chối khóa học!');
-          // Refresh danh sách khóa học
-          const data = await courseService.getInstructorCourses();
-          setCourses(data);
-        } catch (error) {
-          console.error('Lỗi khi từ chối khóa học:', error);
-          message.error('Từ chối khóa học thất bại!');
-        }
-      },
-    });
+    setSelectedCourseId(courseId);
+    setRejectModalVisible(true);
+    rejectForm.resetFields();
+  };
+
+  const handleRejectSubmit = async (values: { reason: string }) => {
+    if (!selectedCourseId) return;
+    
+    try {
+      await courseService.approveCourse(selectedCourseId, 'reject', values.reason);
+      message.success('Đã từ chối khóa học!');
+      setRejectModalVisible(false);
+      setSelectedCourseId(null);
+      rejectForm.resetFields();
+      // Refresh danh sách khóa học
+      const data = await courseService.getInstructorCourses();
+      setCourses(data);
+    } catch (error) {
+      console.error('Lỗi khi từ chối khóa học:', error);
+      message.error('Từ chối khóa học thất bại!');
+    }
   };
 
   const handleToggleDisplay = async (courseId: string, currentDisplayStatus: string) => {
@@ -227,6 +238,11 @@ const CourseList: React.FC = () => {
     });
   };
 
+  // Lấy thông tin user để kiểm tra role
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const userRole = user?.role?.name || user?.role_id?.name;
+
   // Định nghĩa columns cho table
   const columns: ColumnsType<Course> = [
     {
@@ -282,9 +298,18 @@ const CourseList: React.FC = () => {
           'rejected': 'Bị từ chối'
         };
         return (
-          <Tag color={statusColorMap[record.status] || 'default'} className="text-xs">
-            {statusText[record.status] || record.status}
-          </Tag>
+          <div>
+            <Tag color={statusColorMap[record.status] || 'default'} className="text-xs">
+              {statusText[record.status] || record.status}
+            </Tag>
+            {record.status === 'rejected' && record.rejection_reason && (
+              <Tooltip title={record.rejection_reason}>
+                <div className="text-xs text-red-500 mt-1 cursor-help">
+                  Xem lý do từ chối
+                </div>
+              </Tooltip>
+            )}
+          </div>
         );
       },
     },
@@ -345,7 +370,8 @@ const CourseList: React.FC = () => {
               </Tooltip>
             </>
           )}
-          {record.status === 'draft' && (
+          {/* Chỉ hiển thị nút "Gửi duyệt" cho instructor, không hiển thị cho admin */}
+          {record.status === 'draft' && userRole === 'instructor' && (
             <Tooltip title="Gửi xét duyệt">
               <Button
                 type="primary"
@@ -474,6 +500,63 @@ const CourseList: React.FC = () => {
           />
         </div>
       </Card>
+
+      {/* Modal từ chối khóa học */}
+      <Modal
+        title="Từ chối khóa học"
+        open={rejectModalVisible}
+        onCancel={() => {
+          setRejectModalVisible(false);
+          setSelectedCourseId(null);
+          rejectForm.resetFields();
+        }}
+        footer={null}
+        width={500}
+      >
+        <Form
+          form={rejectForm}
+          layout="vertical"
+          onFinish={handleRejectSubmit}
+        >
+          <Form.Item
+            label="Lý do từ chối"
+            name="reason"
+            rules={[
+              { required: true, message: 'Vui lòng nhập lý do từ chối!' },
+              { min: 10, message: 'Lý do từ chối phải có ít nhất 10 ký tự!' }
+            ]}
+          >
+            <Input.TextArea
+              rows={4}
+              placeholder="Nhập lý do từ chối khóa học..."
+              maxLength={500}
+              showCount
+            />
+          </Form.Item>
+          
+          <Form.Item className="mb-0">
+            <Space className="w-full justify-end">
+              <Button
+                onClick={() => {
+                  setRejectModalVisible(false);
+                  setSelectedCourseId(null);
+                  rejectForm.resetFields();
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="primary"
+                danger
+                htmlType="submit"
+                loading={loading}
+              >
+                Từ chối khóa học
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Custom styles */}
       <style>

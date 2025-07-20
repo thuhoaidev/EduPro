@@ -397,34 +397,50 @@ const Profile = () => {
             {enrolledCourses.length === 0 ? (
               <p>Bạn chưa đăng ký khóa học nào.</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-10">
                 {enrolledCourses.map((enroll) => {
                   const course = enroll.course || {};
                   const progress = enroll.progress || {};
-
-                  const total = typeof course.totalLessons === 'number' && course.totalLessons > 0 ? course.totalLessons : 0;
+                  // Lấy tổng số bài học: ưu tiên totalLessons, nếu không có thì thử lấy từ lessons.length hoặc sections.reduce
+                  let total = 0;
+                  if (typeof course.totalLessons === 'number' && course.totalLessons > 0) {
+                    total = course.totalLessons;
+                  } else if (Array.isArray(course.lessons)) {
+                    total = course.lessons.length;
+                  } else if (Array.isArray(course.sections)) {
+                    total = course.sections.reduce((sum, sec) => sum + (sec.lessons?.length || 0), 0);
+                  }
                   const completed = typeof progress.completedLessons === 'number' ? progress.completedLessons : 0;
-
                   const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
 
                   return (
-                    <div key={course._id || course.id} className="relative bg-white rounded-3xl shadow-xl overflow-hidden group transition-all duration-300 hover:shadow-2xl border border-blue-100">
+                    <motion.div
+                      key={course._id || course.id}
+                      className="relative bg-white rounded-3xl shadow-xl overflow-hidden group border border-blue-100 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2"
+                      whileHover={{ scale: 1.03 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      {/* Course Image */}
                       <div className="relative">
                         <img
                           src={course.thumbnail || '/default-course.jpg'}
                           alt={course.title}
-                          className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300 rounded-t-3xl"
+                          className="w-full h-48 object-cover rounded-t-3xl group-hover:scale-105 transition-transform duration-300"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-t-3xl"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-t-3xl pointer-events-none" />
                         <Link
                           to={`/courses/slug/${course.slug}`}
-                          className="absolute bottom-5 right-5 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg"
+                          className="absolute bottom-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white !text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg z-10"
                         >
                           Tiếp tục học <ArrowRightOutlined />
                         </Link>
+                        {percent === 100 && (
+                          <span className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full font-semibold text-sm shadow-lg z-10">Hoàn thành</span>
+                        )}
                       </div>
-                      <div className="p-6">
-                        <h3 className="font-bold text-xl mb-1 text-gray-900 truncate">{course.title}</h3>
+                      {/* Course Info */}
+                      <div className="p-6 flex flex-col gap-2">
+                        <h3 className="font-bold text-xl mb-1 text-gray-900 truncate" title={course.title}>{course.title}</h3>
                         <div className="text-gray-500 text-base mb-2">
                           {total} bài học
                         </div>
@@ -439,17 +455,15 @@ const Profile = () => {
                             showInfo={false}
                             className="flex-1"
                           />
-                          <span className="font-bold text-blue-600 text-lg">{percent}%</span>
+                          <span className={`font-bold text-lg ${percent === 100 ? 'text-green-600' : 'text-blue-600'}`}>{percent}%</span>
                         </div>
                         <div className="text-gray-500 text-sm">
                           {completed}/{total} bài học
-                          {percent === 100 && <span className="ml-2 text-green-600 font-bold">🏆 Hoàn thành!</span>}
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
-
               </div>
             )}
           </motion.div>

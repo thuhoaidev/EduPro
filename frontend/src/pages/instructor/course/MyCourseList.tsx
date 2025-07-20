@@ -148,7 +148,7 @@ const MyCourseList: React.FC = () => {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
-      render: (status: string) => {
+      render: (status: string, record: Course) => {
         const statusColors: Record<string, string> = {
           'draft': 'default',
           'pending': 'orange',
@@ -164,9 +164,18 @@ const MyCourseList: React.FC = () => {
         };
 
         return (
-          <Tag color={statusColors[status] || 'default'}>
-            {statusLabels[status] || status}
-          </Tag>
+          <div>
+            <Tag color={statusColors[status] || 'default'}>
+              {statusLabels[status] || status}
+            </Tag>
+            {status === 'rejected' && record.rejection_reason && (
+              <Tooltip title={record.rejection_reason}>
+                <div className="text-xs text-red-500 mt-1 cursor-help">
+                  Xem lý do từ chối
+                </div>
+              </Tooltip>
+            )}
+          </div>
         );
       },
     },

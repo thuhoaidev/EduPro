@@ -37,6 +37,7 @@ interface ApiCourse {
   finalPrice: number;
   status: string;
   displayStatus?: string;
+  rejection_reason?: string;
   requirements: string[];
   createdAt: string;
   updatedAt: string;
@@ -74,6 +75,7 @@ export interface Course {
   language: string;
   level: string;
   updatedAt: string;
+  rejection_reason?: string;
 }
 
 export interface Section {
@@ -132,7 +134,8 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
     displayStatus: apiCourse.displayStatus,
     language: apiCourse.language,
     level: apiCourse.level,
-    updatedAt: apiCourse.updatedAt
+    updatedAt: apiCourse.updatedAt,
+    rejection_reason: apiCourse.rejection_reason
   };
 };
 
