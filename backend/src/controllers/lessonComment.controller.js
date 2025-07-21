@@ -42,10 +42,25 @@ exports.addComment = async (req, res, next) => {
 exports.getComments = async (req, res, next) => {
   try {
     const { lessonId } = req.params;
-    const comments = await LessonComment.find({ lesson: lessonId, parent: null })
+    // Lấy comment cha và populate replies nhiều cấp
+    let comments = await LessonComment.find({ lesson: lessonId, parent: null })
       .populate('user', 'fullname avatar')
       .populate({ path: 'replies', populate: { path: 'user', select: 'fullname avatar' } })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+    // Populate replies lồng nhau (nếu có)
+    const populateReplies = async (commentArr) => {
+      for (let c of commentArr) {
+        if (c.replies && c.replies.length) {
+          c.replies = await LessonComment.populate(c.replies, [
+            { path: 'user', select: 'fullname avatar' },
+            { path: 'replies', populate: { path: 'user', select: 'fullname avatar' } }
+          ]);
+          await populateReplies(c.replies);
+        }
+      }
+    };
+    await populateReplies(comments);
     res.json({ success: true, data: comments });
   } catch (err) { next(err); }
 };
@@ -77,5 +92,23 @@ exports.replyComment = async (req, res, next) => {
       }
     }
     res.status(201).json({ success: true, data: reply });
+  } catch (err) { next(err); }
+};
+
+// Toggle like cho bình luận bài học
+exports.toggleLikeComment = async (req, res, next) => {
+  try {
+    const { commentId } = req.params;
+    const userId = req.user._id;
+    const comment = await LessonComment.findById(commentId);
+    if (!comment) throw new ApiError(404, 'Không tìm thấy bình luận');
+    const liked = comment.likes && comment.likes.some(id => id.toString() === userId.toString());
+    if (liked) {
+      comment.likes = comment.likes.filter(id => id.toString() !== userId.toString());
+    } else {
+      comment.likes = [...(comment.likes || []), userId];
+    }
+    await comment.save();
+    res.json({ success: true, liked: !liked, count: comment.likes.length });
   } catch (err) { next(err); }
 }; 

@@ -7,13 +7,4 @@ export const addComment = (lessonId: string, content: string) =>
   axios.post(`/lesson-comments/${lessonId}/comment`, { content }).then(res => res.data);
 
 export const replyComment = (commentId: string, content: string) =>
-  axios.post(`/lesson-comments/comment/${commentId}/reply`, { content }).then(res => res.data.data);
-
-export const toggleLikeComment = (commentId: string) =>
-  axios.post(`/comment-likes/toggle/${commentId}`).then(res => res.data);
-
-export const getCommentLikeCount = (commentId: string) =>
-  axios.get(`/comment-likes/${commentId}/count`).then(res => res.data.count);
-
-export const checkCommentLiked = (commentId: string) =>
-  axios.get(`/comment-likes/${commentId}/check`).then(res => res.data.liked); 
+  axios.post(`/lesson-comments/comment/${commentId}/reply`, { content }).then(res => res.data.data); 

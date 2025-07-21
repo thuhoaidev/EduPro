@@ -5,7 +5,7 @@ import { config } from '../../../api/axios';
 import { LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined, PauseCircleOutlined, 
   EditOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
 import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress, markCourseCompleted } from '../../../services/progressService';
-import { getComments, addComment, replyComment, toggleLikeComment, getCommentLikeCount, checkCommentLiked } from '../../../services/lessonCommentService';
+import { getComments, addComment, replyComment } from '../../../services/lessonCommentService';
 import { getNotesByLesson, createNote, deleteNote, updateNote, type Note } from '../../../services/noteService';
 import SectionSidebar from './SectionSidebar';
 import { motion } from 'framer-motion';
@@ -29,6 +29,7 @@ type Comment = {
   createdAt?: string;
   user?: { name?: string; fullname?: string; avatar?: string };
   replies?: Comment[];
+  likes?: string[];
 };
 
 const LessonVideoPage: React.FC = () => {
@@ -77,6 +78,8 @@ const LessonVideoPage: React.FC = () => {
   const [replyInput, setReplyInput] = useState<{ [commentId: string]: string }>({});
   const [showReplyBox, setShowReplyBox] = useState<{ [commentId: string]: boolean }>({});
   const [replyLoading, setReplyLoading] = useState<{ [commentId: string]: boolean }>({});
+  // Thêm loading cho like comment
+  const [likeLoading, setLikeLoading] = useState<{ [commentId: string]: boolean }>({});
 
   // Debounce function để tránh gọi API liên tục
   const debouncedUpdateProgress = useCallback((courseId: string, lessonId: string, time: number, duration: number) => {
@@ -538,19 +541,13 @@ const LessonVideoPage: React.FC = () => {
     };
     collect(comments);
     const states: { [id: string]: { liked: boolean; count: number } } = {};
-    await Promise.all(
-      allComments.map(async c => {
-        try {
-          const [liked, count] = await Promise.all([
-            checkCommentLiked(c._id),
-            getCommentLikeCount(c._id)
-          ]);
-          states[c._id] = { liked, count };
-        } catch {
-          states[c._id] = { liked: false, count: 0 };
-        }
-      })
-    );
+    allComments.forEach(c => {
+      const likesArr = Array.isArray(c.likes) ? c.likes : [];
+      states[c._id] = {
+        liked: user && likesArr.some((id: any) => id === user._id || id?._id === user._id),
+        count: likesArr.length
+      };
+    });
     setLikeStates(states);
   };
 
@@ -561,13 +558,21 @@ const LessonVideoPage: React.FC = () => {
 
   // Hàm xử lý like comment
   const handleLikeComment = async (commentId: string) => {
-    await toggleLikeComment(commentId);
-    // reload trạng thái like
-    const [liked, count] = await Promise.all([
-      checkCommentLiked(commentId),
-      getCommentLikeCount(commentId)
-    ]);
-    setLikeStates(prev => ({ ...prev, [commentId]: { liked, count } }));
+    setLikeLoading(prev => ({ ...prev, [commentId]: true }));
+    try {
+      await fetch(`/api/lesson-comments/comment/${commentId}/toggle-like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      // reload comments để cập nhật số like và trạng thái like
+      const commentsData = await getComments(lessonId!);
+      setComments(commentsData || []);
+    } finally {
+      setLikeLoading(prev => ({ ...prev, [commentId]: false }));
+    }
   };
 
   // Hàm xử lý reply
@@ -575,59 +580,122 @@ const LessonVideoPage: React.FC = () => {
     if (!replyInput[parentId]?.trim()) return;
     setReplyLoading(prev => ({ ...prev, [parentId]: true }));
     try {
-      await replyComment(parentId, replyInput[parentId]);
+      const res = await replyComment(parentId, replyInput[parentId]);
+      if (!res || res.success === false) {
+        message.error(res?.message || 'Không thể gửi phản hồi');
+        return;
+      }
       setReplyInput(prev => ({ ...prev, [parentId]: '' }));
       setShowReplyBox(prev => ({ ...prev, [parentId]: false }));
       // reload comments
       const commentsData = await getComments(lessonId!);
       setComments(commentsData || []);
+      message.success('Đã gửi phản hồi!');
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Không gửi được phản hồi.');
     } finally {
       setReplyLoading(prev => ({ ...prev, [parentId]: false }));
     }
   };
 
-  // Hàm render replies lồng nhau
-  const renderReplies = (replies: any[] = [], parentId?: string) => (
-    <div style={{ marginLeft: 40, marginTop: 8 }}>
-      {replies.map(reply => (
-        <div key={reply._id} style={{ borderBottom: '1px solid #f0f0f0', padding: '10px 0', display: 'flex', alignItems: 'flex-start' }}>
-          <Avatar src={reply.user?.avatar} icon={<UserOutlined />} style={{ background: '#e6f7ff', color: '#1890ff', marginRight: 12 }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600 }}>{reply.user?.fullname || reply.user?.name || 'Anonymous'}</div>
-            <div style={{ fontSize: 16 }}>{reply.content}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 4 }}>
-              <span style={{ color: '#888', fontSize: 13 }}>{dayjs(reply.createdAt).fromNow()}</span>
-              <Button
-                type={likeStates[reply._id]?.liked ? 'primary' : 'default'}
-                size="small"
-                icon={<span style={{ color: likeStates[reply._id]?.liked ? '#f5222d' : '#888' }}>♥</span>}
-                style={{ border: 'none', background: 'none', boxShadow: 'none', padding: 0 }}
-                onClick={() => handleLikeComment(reply._id)}
-              >{likeStates[reply._id]?.count || 0}</Button>
-              <Button type="link" size="small" onClick={() => setShowReplyBox(prev => ({ ...prev, [reply._id]: !prev[reply._id] }))}>Trả lời</Button>
-            </div>
-            {showReplyBox[reply._id] && (
-              <div style={{ marginTop: 8 }}>
-                <Input.TextArea
-                  rows={2}
-                  value={replyInput[reply._id] || ''}
-                  onChange={e => setReplyInput(prev => ({ ...prev, [reply._id]: e.target.value }))}
-                  placeholder="Nhập phản hồi..."
-                  style={{ borderRadius: 8, fontSize: 15, marginBottom: 4 }}
-                />
-                <Button
-                  type="primary"
-                  size="small"
-                  loading={replyLoading[reply._id]}
-                  onClick={() => handleReply(reply._id)}
-                  disabled={!replyInput[reply._id]?.trim()}
-                >Gửi</Button>
+  // State để quản lý số lượng reply hiển thị cho từng comment/reply
+  const [visibleReplies, setVisibleReplies] = useState<{ [commentId: string]: number }>({});
+
+  // Hàm xử lý xem thêm reply
+  const handleShowMoreReplies = (parentId: string, total: number) => {
+    setVisibleReplies(prev => ({
+      ...prev,
+      [parentId]: Math.min((prev[parentId] || 1) + 2, total)
+    }));
+  };
+
+  // Hàm xử lý ẩn bớt reply
+  const handleHideReplies = (parentId: string) => {
+    setVisibleReplies(prev => ({
+      ...prev,
+      [parentId]: 1
+    }));
+  };
+
+  // Hàm render replies lồng nhau (thụt lề tối giản cho reply, chỉ hiện 1 reply đầu, có nút xem thêm)
+  const renderReplies = (replies: any[] = [], parentId?: string, level = 1) => (
+    (() => {
+      if (!replies || replies.length === 0) return null;
+      const visibleCount = visibleReplies[parentId || 'root'] || 1;
+      const showReplies = replies.slice(0, visibleCount);
+      return (
+        <div style={{
+          marginLeft: 8,
+          marginTop: 8,
+          borderLeft: level === 1 ? '2px solid #a5b4fc' : undefined,
+          paddingLeft: 12,
+          background: level === 1 ? '#f8faff' : 'transparent',
+          borderRadius: level === 1 ? 8 : undefined
+        }}>
+          {showReplies.map(reply => (
+            <div key={reply._id} style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              marginBottom: 10,
+              padding: '8px 0',
+              borderBottom: '1px solid #f0f0f0',
+              background: 'transparent'
+            }}>
+              <Avatar src={reply.user?.avatar} size={24} style={{ marginRight: 8, marginTop: 2, background: '#e6f7ff', color: '#1890ff' }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{reply.user?.fullname || reply.user?.name || 'Anonymous'}</div>
+                <div style={{ fontSize: 14, color: '#444', margin: '2px 0 4px 0' }}>{reply.content}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 }}>
+                  <Button
+                    type={likeStates[reply._id]?.liked ? 'primary' : 'default'}
+                    size="small"
+                    icon={<span style={{ color: likeStates[reply._id]?.liked ? '#f5222d' : '#888', fontSize: 13 }}>♥</span>}
+                    style={{ border: 'none', background: 'none', boxShadow: 'none', padding: 0, fontSize: 13, display: 'flex', alignItems: 'center' }}
+                    onClick={() => handleLikeComment(reply._id)}
+                    loading={likeLoading[reply._id]}
+                  >
+                    <span style={{ color: '#888', fontSize: 13, fontWeight: 600, minWidth: 14, textAlign: 'left', marginLeft: 4 }}>
+                      {typeof likeStates[reply._id]?.count === 'number' ? likeStates[reply._id]?.count : (Array.isArray(reply.likes) ? reply.likes.length : 0)}
+                    </span>
+                  </Button>
+                  <Button type="link" size="small" style={{ fontSize: 13, color: '#6366f1', padding: 0 }} onClick={() => setShowReplyBox(prev => ({ ...prev, [reply._id]: !prev[reply._id] }))}>Trả lời</Button>
+                </div>
+                {showReplyBox[reply._id] && (
+                  <div style={{ marginTop: 6 }}>
+                    <Input.TextArea
+                      rows={2}
+                      value={replyInput[reply._id] || ''}
+                      onChange={e => setReplyInput(prev => ({ ...prev, [reply._id]: e.target.value }))}
+                      placeholder="Nhập phản hồi..."
+                      style={{ borderRadius: 8, fontSize: 14, marginBottom: 4 }}
+                    />
+                    <Button
+                      type="primary"
+                      size="small"
+                      loading={replyLoading[reply._id]}
+                      onClick={() => handleReply(reply._id)}
+                      disabled={!replyInput[reply._id]?.trim()}
+                    >Gửi</Button>
+                  </div>
+                )}
+                {/* Reply lồng nhau */}
+                {reply.replies && reply.replies.length > 0 && renderReplies(reply.replies, reply._id, level + 1)}
               </div>
-            )}
-          </div>
+            </div>
+          ))}
+          {replies.length > visibleCount && (
+            <Button type="link" size="small" style={{ color: '#6366f1', fontWeight: 500, marginLeft: 8 }} onClick={() => handleShowMoreReplies(parentId || 'root', replies.length)}>
+              Xem thêm {Math.min(2, replies.length - visibleCount)} phản hồi...
+            </Button>
+          )}
+          {visibleCount > 1 && replies.length > 1 && (
+            <Button type="link" size="small" style={{ color: '#888', fontWeight: 500, marginLeft: 8 }} onClick={() => handleHideReplies(parentId || 'root')}>
+              Ẩn bớt phản hồi
+            </Button>
+          )}
         </div>
-      ))}
-    </div>
+      );
+    })()
   );
 
   const [activeTab, setActiveTab] = useState<'overview' | 'quiz' | 'comment' | 'note' | 'review'>('overview');
@@ -897,6 +965,70 @@ const LessonVideoPage: React.FC = () => {
     }
   }, [isCompleted, courseId]);
 
+  // Render danh sách bình luận chuyên nghiệp hơn
+  const renderCommentItem = (item: any) => (
+    <div style={{
+      display: 'flex',
+      alignItems: 'flex-start',
+      padding: '20px 0',
+      borderBottom: '1px solid #f0f0f0',
+      marginBottom: 4,
+      background: '#fff',
+      borderRadius: 12
+    }}>
+      <Avatar src={item.user?.avatar} icon={<UserOutlined />} size={44} style={{ background: '#e6f7ff', color: '#1890ff', marginRight: 18, marginTop: 2 }} />
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
+          <span style={{ fontWeight: 700, fontSize: 17, color: '#222' }}>{item.user?.fullname || item.user?.name || 'Anonymous'}</span>
+          <span style={{ color: '#888', fontSize: 13, fontWeight: 400 }}>{dayjs(item.createdAt).fromNow()}</span>
+        </div>
+        <div style={{ fontSize: 16, color: '#444', marginBottom: 8 }}>{item.content}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 2 }}>
+          <Button
+            type={likeStates[item._id]?.liked ? 'primary' : 'default'}
+            size="small"
+            icon={<span style={{ color: likeStates[item._id]?.liked ? '#f5222d' : '#888', fontSize: 16 }}>♥</span>}
+            style={{ border: 'none', background: 'none', boxShadow: 'none', padding: 0, fontSize: 16, fontWeight: 600, display: 'flex', alignItems: 'center' }}
+            onClick={() => handleLikeComment(item._id)}
+            loading={likeLoading[item._id]}
+            onMouseOver={e => (e.currentTarget.style.color = '#f5222d')}
+            onMouseOut={e => (e.currentTarget.style.color = '')}
+          >
+            <span style={{ color: '#888', fontSize: 15, fontWeight: 600, minWidth: 18, textAlign: 'left', marginLeft: 4 }}>
+              {typeof likeStates[item._id]?.count === 'number' ? likeStates[item._id]?.count : (Array.isArray(item.likes) ? item.likes.length : 0)}
+            </span>
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            style={{ fontSize: 15, color: '#6366f1', padding: 0, fontWeight: 600 }}
+            onClick={() => setShowReplyBox(prev => ({ ...prev, [item._id]: !prev[item._id] }))}
+          >Trả lời</Button>
+        </div>
+        {showReplyBox[item._id] && (
+          <div style={{ marginTop: 8 }}>
+            <Input.TextArea
+              rows={2}
+              value={replyInput[item._id] || ''}
+              onChange={e => setReplyInput(prev => ({ ...prev, [item._id]: e.target.value }))}
+              placeholder="Nhập phản hồi..."
+              style={{ borderRadius: 8, fontSize: 15, marginBottom: 4 }}
+            />
+            <Button
+              type="primary"
+              size="small"
+              loading={replyLoading[item._id]}
+              onClick={() => handleReply(item._id)}
+              disabled={!replyInput[item._id]?.trim()}
+            >Gửi</Button>
+          </div>
+        )}
+        {/* Render replies */}
+        {renderReplies(item.replies || [], item._id, 1)}
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa' }}>
       <div style={{ width: '30%', minWidth: 280, maxWidth: 400, background: '#fff', boxShadow: '0 2px 16px #e6e6e6', borderRadius: 16, margin: 16, height: 'calc(100vh - 32px)' }}>
@@ -1060,48 +1192,7 @@ const LessonVideoPage: React.FC = () => {
                           loading={commentLoading}
                           dataSource={comments}
                           locale={{ emptyText: 'Chưa có bình luận nào.' }}
-                          renderItem={(item) => (
-                            <List.Item style={{ alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid #f0f0f0' }}>
-                              <List.Item.Meta
-                                avatar={<Avatar src={item.user?.avatar} icon={<UserOutlined />} style={{ background: '#e6f7ff', color: '#1890ff' }} />}
-                                title={<span style={{ fontWeight: 600 }}>{item.user?.fullname || item.user?.name || 'Anonymous'}</span>}
-                                description={<span style={{ fontSize: 16 }}>{item.content}</span>}
-                              />
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 120 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                                  <span style={{ color: '#888', fontSize: 13 }}>{dayjs(item.createdAt).fromNow()}</span>
-                                  <Button
-                                    type={likeStates[item._id]?.liked ? 'primary' : 'default'}
-                                    size="small"
-                                    icon={<span style={{ color: likeStates[item._id]?.liked ? '#f5222d' : '#888' }}>♥</span>}
-                                    style={{ border: 'none', background: 'none', boxShadow: 'none', padding: 0 }}
-                                    onClick={() => handleLikeComment(item._id)}
-                                  >{likeStates[item._id]?.count || 0}</Button>
-                                  <Button type="link" size="small" onClick={() => setShowReplyBox(prev => ({ ...prev, [item._id]: !prev[item._id] }))}>Trả lời</Button>
-                                </div>
-                                {showReplyBox[item._id] && (
-                                  <div style={{ marginTop: 8 }}>
-                                    <Input.TextArea
-                                      rows={2}
-                                      value={replyInput[item._id] || ''}
-                                      onChange={e => setReplyInput(prev => ({ ...prev, [item._id]: e.target.value }))}
-                                      placeholder="Nhập phản hồi..."
-                                      style={{ borderRadius: 8, fontSize: 15, marginBottom: 4 }}
-                                    />
-                                    <Button
-                                      type="primary"
-                                      size="small"
-                                      loading={replyLoading[item._id]}
-                                      onClick={() => handleReply(item._id)}
-                                      disabled={!replyInput[item._id]?.trim()}
-                                    >Gửi</Button>
-                                  </div>
-                                )}
-                                {/* Render replies */}
-                                {item.replies && item.replies.length > 0 && renderReplies(item.replies, item._id)}
-                              </div>
-                            </List.Item>
-                          )}
+                          renderItem={renderCommentItem}
                         />
                         <Row style={{ marginTop: 24, alignItems: 'flex-end' }} gutter={12}>
                           <Col flex="auto">

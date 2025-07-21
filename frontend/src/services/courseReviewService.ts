@@ -6,15 +6,15 @@ export const addOrUpdateReview = (courseId: string, rating: number, comment: str
 export const getCourseReviews = (courseId: string) =>
   axios.get(`/course-reviews/${courseId}/reviews`).then(res => res.data.data);
 
-export const getMyReview = async (courseId: string): Promise<{ rating: number; comment: string } | null> => {
+export const getMyReview = async (courseId: string) => {
   try {
     const res = await axios.get(`/course-reviews/${courseId}/my-review`);
     return res.data.data;
-  } catch (error: any) {
-    if (error.response && error.response.status === 404) {
-      return null; // Trả về null nếu không tìm thấy review
-    }
-    throw error; // Ném lại các lỗi khác
+  } catch (e: any) {
+    if (e?.response?.status === 404) return null;
+    // Chỉ log các lỗi khác 404
+    console.error(e);
+    throw e;
   }
 };
 
