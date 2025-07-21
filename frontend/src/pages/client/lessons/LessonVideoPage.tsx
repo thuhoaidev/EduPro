@@ -1,16 +1,21 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, Row, Col, Radio, Avatar } from 'antd';
+import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, Row, Col, Radio, Avatar, Tabs, Rate, Select } from 'antd';
 import { config } from '../../../api/axios';
-import { LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined, PauseCircleOutlined } from '@ant-design/icons';
+import { LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined, PauseCircleOutlined, 
+  EditOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
 import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress } from '../../../services/progressService';
 import { getComments, addComment, replyComment, toggleLikeComment, getCommentLikeCount, checkCommentLiked } from '../../../services/lessonCommentService';
+import { getNotesByLesson, createNote, deleteNote, updateNote, type Note } from '../../../services/noteService';
 import SectionSidebar from './SectionSidebar';
 import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import useAuth from '../../../hooks/Auths/useAuth';
 import leoProfanity from 'leo-profanity';
+import { courseService } from '../../../services/apiService';
+import { getCourseReviews, getMyReview, addOrUpdateReview } from '../../../services/courseReviewService';
+import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
 dayjs.extend(relativeTime);
 
 const { Title, Paragraph, Text } = Typography;
@@ -65,6 +70,7 @@ const LessonVideoPage: React.FC = () => {
   const [isEnrolled, setIsEnrolled] = useState<boolean | null>(null);
   const [isFree, setIsFree] = useState<boolean | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [courseOverview, setCourseOverview] = useState<{ title: string; subtitle: string; requirements: string[] }>({ title: '', subtitle: '', requirements: [] });
 
   // Thêm các state cho like/reply comment
   const [likeStates, setLikeStates] = useState<{ [commentId: string]: { liked: boolean; count: number } }>({});
@@ -310,17 +316,12 @@ const LessonVideoPage: React.FC = () => {
     setVideoProgress(0);
   }, [currentLessonId]);
 
-  // Unlock quiz duy nhất 1 lần khi đạt 90%
-  useEffect(() => {
-    if (!quizUnlocked && videoProgress >= 0.9 && quiz) {
-      setQuizUnlocked(true);
-    }
-  }, [videoProgress, quiz, quizUnlocked]);
+  // Bỏ logic unlock quiz theo videoProgress
 
-  // Quiz chỉ hiển thị nếu đã unlock
+  // Quiz hiển thị ngay từ đầu nếu có quiz
   useEffect(() => {
-    setShowQuiz(quizUnlocked && !!quiz);
-  }, [quizUnlocked, quiz]);
+    setShowQuiz(!!quiz);
+  }, [quiz]);
 
   // Khi load quiz mới, reset quizAnswers đúng số lượng câu hỏi
   useEffect(() => {
@@ -468,6 +469,59 @@ const LessonVideoPage: React.FC = () => {
     checkEnrolled();
   }, [courseId, lessonId]);
 
+  // Kiểm tra hoàn thành 100% khóa học
+  useEffect(() => {
+    const checkCompleted = async () => {
+      if (!courseId) {
+        setIsCompleted(false);
+        return;
+      }
+
+      try {
+        const progress = await getProgress(courseId);
+        console.log('Progress data:', progress);
+
+        // Tính tổng số bài học từ courseContent
+        const totalLessons = courseSections.reduce((total, section) => total + section.lessons.length, 0);
+        console.log('Total lessons:', totalLessons);
+
+        // Đếm số bài học đã hoàn thành
+        const completedLessons = Object.values(progress || {}).filter((p: any) => 
+          p.completed === true && p.videoCompleted === true && p.quizPassed === true
+        ).length;
+        console.log('Completed lessons:', completedLessons);
+
+        // Kiểm tra hoàn thành
+        const allCompleted = totalLessons > 0 && completedLessons === totalLessons;
+        console.log('All completed:', allCompleted);
+
+        setIsCompleted(allCompleted);
+
+        // Tìm bài học tiếp theo chưa hoàn thành (nếu có)
+        if (!allCompleted) {
+          let nextLessonId = null;
+          outer: for (const section of courseSections) {
+            for (const lesson of section.lessons) {
+              const lessonProgress = progress[lesson._id];
+              if (!lessonProgress?.completed) {
+                nextLessonId = lesson._id;
+                break outer;
+              }
+            }
+          }
+          // setContinueLessonId(nextLessonId); // This state is not defined in the original file
+        }
+
+      } catch (error) {
+        console.error('Error checking completion:', error);
+        setIsCompleted(false);
+        // setContinueLessonId(null); // This state is not defined in the original file
+      }
+    };
+
+    checkCompleted();
+  }, [courseSections, courseId]);
+
   // Nếu chưa enroll và không phải khóa học free
   if (isEnrolled === false && !isFree) {
     return <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />;
@@ -576,6 +630,228 @@ const LessonVideoPage: React.FC = () => {
     </div>
   );
 
+  const [activeTab, setActiveTab] = useState<'overview' | 'quiz' | 'comment' | 'note' | 'review'>('overview');
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [noteLoading, setNoteLoading] = useState(false);
+  const [note, setNote] = useState('');
+  const [noteSaved, setNoteSaved] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
+
+  // Load note từ localStorage khi lessonId thay đổi
+  useEffect(() => {
+    if (lessonId) {
+      const saved = localStorage.getItem(`note-${lessonId}`) || '';
+      setNote(saved);
+      setNoteSaved(false);
+    }
+  }, [lessonId]);
+
+  // Lấy ghi chú của user cho bài học
+  useEffect(() => {
+    const fetchNotes = async () => {
+      if (!lessonId) return;
+      setNoteLoading(true);
+      try {
+        const userNotes = await getNotesByLesson(lessonId);
+        setNotes(userNotes);
+      } catch (error) {
+        console.error('Lỗi lấy ghi chú:', error);
+      }
+      setNoteLoading(false);
+    };
+    fetchNotes();
+  }, [lessonId]);
+
+  // Hàm tạo ghi chú mới
+  const handleAddNote = async () => {
+    if (!newNoteContent.trim() || !lessonId || !courseId || !videoRef.current) return;
+
+    const timestamp = Math.floor(videoRef.current.currentTime);
+    const newNote = await createNote({
+      content: newNoteContent,
+      timestamp,
+      lessonId,
+      courseId,
+    });
+
+    if (newNote) {
+      setNotes(prev => [...prev, newNote].sort((a, b) => a.timestamp - b.timestamp));
+      setNewNoteContent('');
+      message.success('Đã thêm ghi chú!');
+    } else {
+      message.error('Không thể thêm ghi chú.');
+    }
+  };
+
+  // Hàm xóa ghi chú
+  const handleDeleteNote = async (noteId: string) => {
+    const success = await deleteNote(noteId);
+    if (success) {
+      setNotes(prev => prev.filter(n => n._id !== noteId));
+      message.success('Đã xóa ghi chú!');
+    } else {
+      message.error('Không thể xóa ghi chú.');
+    }
+  };
+
+  // Hàm bắt đầu sửa ghi chú
+  const startEditNote = (note: Note) => {
+    setEditingNoteId(note._id);
+    setEditingContent(note.content);
+  };
+
+  // Hàm hủy sửa ghi chú
+  const cancelEditNote = () => {
+    setEditingNoteId(null);
+    setEditingContent('');
+  };
+
+  // Hàm lưu ghi chú đã sửa
+  const handleUpdateNote = async (noteId: string) => {
+    if (!editingContent.trim()) {
+      message.warning('Nội dung không được để trống!');
+      return;
+    }
+    const updated = await updateNote(noteId, editingContent);
+    if (updated) {
+      setNotes(prev => prev.map(n => n._id === noteId ? { ...n, content: updated.content } : n));
+      setEditingNoteId(null);
+      setEditingContent('');
+      message.success('Đã cập nhật ghi chú!');
+    } else {
+      message.error('Không thể cập nhật ghi chú.');
+    }
+  };
+
+  // Hàm tua video đến mốc thời gian
+  const seekToTimestamp = (time: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+      videoRef.current.play();
+    }
+  };
+
+  const formatTimestamp = (seconds: number) => {
+    const min = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const sec = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${min}:${sec}`;
+  };
+
+  // Hàm lưu ghi chú
+  const handleSaveNote = () => {
+    if (lessonId) {
+      localStorage.setItem(`note-${lessonId}`, note);
+      setNoteSaved(true);
+      setTimeout(() => setNoteSaved(false), 1500);
+    }
+  };
+
+  // Đặt tab mặc định là Tổng quan
+  useEffect(() => {
+    setActiveTab('overview');
+  }, [lessonId]);
+
+  // Lấy thông tin mô tả và yêu cầu khóa học
+  useEffect(() => {
+    const fetchCourseOverview = async () => {
+      if (!courseId) return;
+      try {
+        const apiRes = await courseService.getCourseById(courseId);
+        if (apiRes) {
+          const mapped = courseService.mapApiCourseToAppCourse(apiRes);
+          setCourseOverview({ title: mapped.title, subtitle: mapped.subtitle, requirements: mapped.requirements || [] });
+        }
+      } catch {
+        setCourseOverview({ title: '', subtitle: '', requirements: [] });
+      }
+    };
+    fetchCourseOverview();
+  }, [courseId]);
+
+  const [reviews, setReviews] = useState<{
+    user: { fullname?: string; avatar?: string }; 
+    rating: number; 
+    comment: string;
+    createdAt?: string;
+  }[]>([]);
+  const [myReview, setMyReview] = useState<{ rating: number; comment: string } | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewValue, setReviewValue] = useState<number>(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState<number | 'all'>('all');
+  const [reviewSearch, setReviewSearch] = useState('');
+
+  // Tính toán dữ liệu tổng quan đánh giá
+  const ratingStats = React.useMemo(() => {
+    const stats = [0, 0, 0, 0, 0]; // 5 -> 1 sao
+    reviews.forEach(r => {
+      if (r.rating >= 1 && r.rating <= 5) stats[5 - r.rating]++;
+    });
+    const total = reviews.length;
+    return {
+      stats,
+      total,
+      avg: total ? (reviews.reduce((sum, r) => sum + r.rating, 0) / total) : 0,
+      percent: stats.map(count => total ? Math.round((count / total) * 100) : 0)
+    };
+  }, [reviews]);
+
+  // Lọc và tìm kiếm review
+  const filteredReviews = React.useMemo(() => {
+    let list = reviews;
+    if (reviewFilter !== 'all') list = list.filter(r => r.rating === reviewFilter);
+    if (reviewSearch.trim()) list = list.filter(r => r.comment.toLowerCase().includes(reviewSearch.trim().toLowerCase()));
+    return list;
+  }, [reviews, reviewFilter, reviewSearch]);
+
+  // Lấy đánh giá của khóa học
+  useEffect(() => {
+    if (!courseId) return;
+    (async () => {
+      setReviewLoading(true);
+      setReviewError(null);
+      try {
+        const reviewsData = await getCourseReviews(courseId);
+        setReviews(reviewsData || []);
+        if (isEnrolled) {
+          try {
+            const my = await getMyReview(courseId);
+            setMyReview(my);
+            setReviewValue(my.rating);
+            setReviewComment(my.comment || '');
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        setReviewError('Không thể tải đánh giá.');
+      }
+      setReviewLoading(false);
+    })();
+  }, [courseId, isEnrolled]);
+
+  // Hàm gửi đánh giá
+  const handleSubmitReview = async () => {
+    if (!courseId) return;
+    setReviewLoading(true);
+    setReviewError(null);
+    try {
+      await addOrUpdateReview(courseId, reviewValue, reviewComment);
+      message.success('Đã gửi đánh giá!');
+      // Reload reviews
+      const reviewsData = await getCourseReviews(courseId);
+      setReviews(reviewsData || []);
+      setMyReview({ rating: reviewValue, comment: reviewComment });
+    } catch {
+      setReviewError('Không thể gửi đánh giá.');
+    }
+    setReviewLoading(false);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa' }}>
       <div style={{ width: '30%', minWidth: 280, maxWidth: 400, background: '#fff', boxShadow: '0 2px 16px #e6e6e6', borderRadius: 16, margin: 16, height: 'calc(100vh - 32px)' }}>
@@ -604,11 +880,10 @@ const LessonVideoPage: React.FC = () => {
           <Alert message="Lỗi" description={error} type="error" showIcon style={{ margin: 32 }} />
         ) : (
           <>
-            <Title level={2} style={{ textAlign: 'center', marginBottom: 8 }}>{lessonTitle}</Title>
             <Divider style={{ margin: '12px 0 24px 0' }} />
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, padding: 0 }} styles={{ body: { padding: 0 } }}>
-                {videoUrl ? (
+              <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, width: '100%', maxWidth: 'none', background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)', border: 'none', padding: 0 }} styles={{ body: { padding: 0 } }}>
+                {videoUrl ? ( 
                   <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden' }}>
                     <video
                       ref={videoRef}
@@ -637,166 +912,598 @@ const LessonVideoPage: React.FC = () => {
                 )}
               </Card>
             </motion.div>
-
-            {/* Quiz Section */}
-            {showQuiz && quiz && (
-              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, maxWidth: 700, marginLeft: 'auto', marginRight: 'auto' }}>
-                  {quiz.questions.map((q, idx) => (
-                    <div key={idx} style={{ marginBottom: 32, background: '#f8fafc', borderRadius: 12, padding: 18, boxShadow: '0 1px 6px #f0f0f0' }}>
-                      <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 17 }}>Câu {idx + 1}: {q.question}</div>
-                      <Radio.Group
-                        onChange={e => setQuizAnswers(prev => prev.map((a, i) => (i === idx ? e.target.value : a)))}
-                        value={quizAnswers[idx]}
-                        disabled={!!quizResult && quizResult.success}
-                        style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-                      >
-                        {q.options.map((opt, oIdx) => (
-                          <Radio key={oIdx} value={oIdx} style={{
-                            background: quizResult && quizResult.success && q.correctIndex === oIdx ? '#e6fffb' : undefined,
-                            color: quizResult && quizResult.success && q.correctIndex === oIdx ? '#389e8a' : undefined,
-                            borderRadius: 8,
-                            padding: '6px 12px',
-                            marginBottom: 4,
-                            fontWeight: 500,
-                            fontSize: 16,
-                            border: quizResult && quizResult.success && q.correctIndex === oIdx ? '1.5px solid #52c41a' : '1px solid #e0e0e0',
-                            boxShadow: quizResult && quizResult.success && q.correctIndex === oIdx ? '0 2px 8px #b7eb8f' : undefined
-                          }}>
-                            {opt}
-                            {quizResult && quizResult.success && q.correctIndex === oIdx && (
-                              <span style={{ color: '#52c41a', marginLeft: 8, fontWeight: 600 }}>(Đáp án đúng)</span>
-                            )}
-                          </Radio>
-                        ))}
-                      </Radio.Group>
-                      {quizResult && quizResult.wrongQuestions?.includes(idx) && (
-                        <div style={{ color: '#ff4d4f', marginTop: 8, fontWeight: 500 }}>Đáp án chưa đúng</div>
-                      )}
-                    </div>
-                  ))}
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12 }}>
-                    <Button type="primary" size="large" onClick={handleQuizSubmit} disabled={!!quizResult && quizResult.success} style={{ minWidth: 120, fontWeight: 600, fontSize: 17 }}>Nộp bài</Button>
-                    {quizResult && !quizResult.success && (
-                      <Button onClick={handleQuizRetry} style={{ minWidth: 100 }}>Làm lại</Button>
-                    )}
-                  </div>
-                  {quizResult && (
-                    <div style={{ marginTop: 24 }}>
-                      <Alert
-                        message={quizResult.success ? '🎉 Chúc mừng!' : 'Kết quả'}
-                        description={quizResult.message}
-                        type={quizResult.success ? 'success' : 'error'}
-                        showIcon
-                        style={{ borderRadius: 10, fontWeight: 500, fontSize: 16 }}
-                      />
-                    </div>
-                  )}
-                </Card>
-              </motion.div>
-            )}
-
+   
             {/* Comments Section */}
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-              <Card title={<span style={{ fontWeight: 700, fontSize: 20 }}>Bình luận</span>} style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', maxWidth: 700, marginLeft: 'auto', marginRight: 'auto' }}>
-                <List
-                  loading={commentLoading}
-                  dataSource={comments}
-                  locale={{ emptyText: 'Chưa có bình luận nào.' }}
-                  renderItem={(item) => (
-                    <List.Item style={{ alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid #f0f0f0' }}>
-                      <List.Item.Meta
-                        avatar={<Avatar src={item.user?.avatar} icon={<UserOutlined />} style={{ background: '#e6f7ff', color: '#1890ff' }} />}
-                        title={<span style={{ fontWeight: 600 }}>{item.user?.fullname || item.user?.name || 'Anonymous'}</span>}
-                        description={<span style={{ fontSize: 16 }}>{item.content}</span>}
-                      />
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 120 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                          <span style={{ color: '#888', fontSize: 13 }}>{dayjs(item.createdAt).fromNow()}</span>
-                          <Button
-                            type={likeStates[item._id]?.liked ? 'primary' : 'default'}
-                            size="small"
-                            icon={<span style={{ color: likeStates[item._id]?.liked ? '#f5222d' : '#888' }}>♥</span>}
-                            style={{ border: 'none', background: 'none', boxShadow: 'none', padding: 0 }}
-                            onClick={() => handleLikeComment(item._id)}
-                          >{likeStates[item._id]?.count || 0}</Button>
-                          <Button type="link" size="small" onClick={() => setShowReplyBox(prev => ({ ...prev, [item._id]: !prev[item._id] }))}>Trả lời</Button>
+              <Tabs
+                activeKey={activeTab}
+                onChange={key => setActiveTab(key as 'overview' | 'quiz' | 'comment' | 'note' | 'review')}
+                items={[
+                  {
+                    key: 'overview',
+                    label: 'Tổng quan',
+                    children: (
+                      <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, width: '100%', maxWidth: 'none', background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)', border: 'none', padding: 0 }}>
+                        <div style={{ padding: '32px 28px 24px 28px' }}>
+                          <Title level={2} style={{ marginBottom: 8, color: '#3b82f6', fontWeight: 800, letterSpacing: 0.5, background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{courseOverview.title || 'Khóa học'}</Title>
+                          <Paragraph style={{ color: '#444', fontSize: 18, marginBottom: 24, lineHeight: 1.7, fontWeight: 500, background: '#fff', borderRadius: 12, padding: '18px 20px', boxShadow: '0 2px 12px #e0e7ef' }}>{courseOverview.subtitle || 'Chưa có mô tả cho khóa học này.'}</Paragraph>
+                          <Title level={4} style={{ marginTop: 24, marginBottom: 12, color: '#6366f1', fontWeight: 700, letterSpacing: 0.2 }}>Yêu cầu khóa học</Title>
+                          {courseOverview.requirements && courseOverview.requirements.length > 0 ? (
+                            <ul style={{ paddingLeft: 0, listStyle: 'none', marginBottom: 0 }}>
+                              {courseOverview.requirements.map((req, idx) => (
+                                <li key={idx} style={{ fontSize: 16, color: '#374151', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg, #a5b4fc 0%, #67e8f9 100%)', color: '#fff', fontWeight: 700, fontSize: 16, marginRight: 8 }}>
+                                    ✓
+                                  </span>
+                                  {req}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <Paragraph style={{ color: '#888', fontSize: 16, marginTop: 8 }}>Không có yêu cầu đặc biệt.</Paragraph>
+                          )}
                         </div>
-                        {showReplyBox[item._id] && (
-                          <div style={{ marginTop: 8 }}>
-                            <Input.TextArea
-                              rows={2}
-                              value={replyInput[item._id] || ''}
-                              onChange={e => setReplyInput(prev => ({ ...prev, [item._id]: e.target.value }))}
-                              placeholder="Nhập phản hồi..."
-                              style={{ borderRadius: 8, fontSize: 15, marginBottom: 4 }}
+                      </Card>
+                    )
+                  },
+                  ...((quiz && showQuiz) ? [
+                    {
+                      key: 'quiz',
+                      label: 'Quiz',
+                      children: (
+                        <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, width: '100%', maxWidth: 'none' }}>
+                          {quiz.questions.map((q, idx) => (
+                            <div key={idx} style={{ marginBottom: 32, background: '#f8fafc', borderRadius: 12, padding: 18, boxShadow: '0 1px 6px #f0f0f0' }}>
+                              <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 17 }}>Câu {idx + 1}: {q.question}</div>
+                              <Radio.Group
+                                onChange={e => setQuizAnswers(prev => prev.map((a, i) => (i === idx ? e.target.value : a)))}
+                                value={quizAnswers[idx]}
+                                disabled={!!quizResult && quizResult.success}
+                                style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                              >
+                                {q.options.map((opt, oIdx) => (
+                                  <Radio key={oIdx} value={oIdx} style={{
+                                    background: quizResult && quizResult.success && q.correctIndex === oIdx ? '#e6fffb' : undefined,
+                                    color: quizResult && quizResult.success && q.correctIndex === oIdx ? '#389e8a' : undefined,
+                                    borderRadius: 8,
+                                    padding: '6px 12px',
+                                    marginBottom: 4,
+                                    fontWeight: 500,
+                                    fontSize: 16,
+                                    border: quizResult && quizResult.success && q.correctIndex === oIdx ? '1.5px solid #52c41a' : '1px solid #e0e0e0',
+                                    boxShadow: quizResult && quizResult.success && q.correctIndex === oIdx ? '0 2px 8px #b7eb8f' : undefined
+                                  }}>
+                                    {opt}
+                                    {quizResult && quizResult.success && q.correctIndex === oIdx && (
+                                      <span style={{ color: '#52c41a', marginLeft: 8, fontWeight: 600 }}>(Đáp án đúng)</span>
+                                    )}
+                                  </Radio>
+                                ))}
+                              </Radio.Group>
+                              {quizResult && quizResult.wrongQuestions?.includes(idx) && (
+                                <div style={{ color: '#ff4d4f', marginTop: 8, fontWeight: 500 }}>Đáp án chưa đúng</div>
+                              )}
+                            </div>
+                          ))}
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12 }}>
+                            <Button type="primary" size="large" onClick={handleQuizSubmit} disabled={!!quizResult && quizResult.success} style={{ minWidth: 120, fontWeight: 600, fontSize: 17 }}>Nộp bài</Button>
+                            {quizResult && !quizResult.success && (
+                              <Button onClick={handleQuizRetry} style={{ minWidth: 100 }}>Làm lại</Button>
+                            )}
+                          </div>
+                          {quizResult && (
+                            <div style={{ marginTop: 24 }}>
+                              <Alert
+                                message={quizResult.success ? '🎉 Chúc mừng!' : 'Kết quả'}
+                                description={quizResult.message}
+                                type={quizResult.success ? 'success' : 'error'}
+                                showIcon
+                                style={{ borderRadius: 10, fontWeight: 500, fontSize: 16 }}
+                              />
+                            </div>
+                          )}
+                        </Card>
+                      )
+                    }
+                  ] : []),
+                  {
+                    key: 'comment',
+                    label: 'Bình luận',
+                    children: (
+                      <Card title={<span style={{ fontWeight: 700, fontSize: 20 }}>Bình luận</span>} style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', width: '100%', maxWidth: 'none', marginBottom: 32 }}>
+                        <List
+                          loading={commentLoading}
+                          dataSource={comments}
+                          locale={{ emptyText: 'Chưa có bình luận nào.' }}
+                          renderItem={(item) => (
+                            <List.Item style={{ alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid #f0f0f0' }}>
+                              <List.Item.Meta
+                                avatar={<Avatar src={item.user?.avatar} icon={<UserOutlined />} style={{ background: '#e6f7ff', color: '#1890ff' }} />}
+                                title={<span style={{ fontWeight: 600 }}>{item.user?.fullname || item.user?.name || 'Anonymous'}</span>}
+                                description={<span style={{ fontSize: 16 }}>{item.content}</span>}
+                              />
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 120 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                  <span style={{ color: '#888', fontSize: 13 }}>{dayjs(item.createdAt).fromNow()}</span>
+                                  <Button
+                                    type={likeStates[item._id]?.liked ? 'primary' : 'default'}
+                                    size="small"
+                                    icon={<span style={{ color: likeStates[item._id]?.liked ? '#f5222d' : '#888' }}>♥</span>}
+                                    style={{ border: 'none', background: 'none', boxShadow: 'none', padding: 0 }}
+                                    onClick={() => handleLikeComment(item._id)}
+                                  >{likeStates[item._id]?.count || 0}</Button>
+                                  <Button type="link" size="small" onClick={() => setShowReplyBox(prev => ({ ...prev, [item._id]: !prev[item._id] }))}>Trả lời</Button>
+                                </div>
+                                {showReplyBox[item._id] && (
+                                  <div style={{ marginTop: 8 }}>
+                                    <Input.TextArea
+                                      rows={2}
+                                      value={replyInput[item._id] || ''}
+                                      onChange={e => setReplyInput(prev => ({ ...prev, [item._id]: e.target.value }))}
+                                      placeholder="Nhập phản hồi..."
+                                      style={{ borderRadius: 8, fontSize: 15, marginBottom: 4 }}
+                                    />
+                                    <Button
+                                      type="primary"
+                                      size="small"
+                                      loading={replyLoading[item._id]}
+                                      onClick={() => handleReply(item._id)}
+                                      disabled={!replyInput[item._id]?.trim()}
+                                    >Gửi</Button>
+                                  </div>
+                                )}
+                                {/* Render replies */}
+                                {item.replies && item.replies.length > 0 && renderReplies(item.replies, item._id)}
+                              </div>
+                            </List.Item>
+                          )}
+                        />
+                        <Row style={{ marginTop: 24, alignItems: 'flex-end' }} gutter={12}>
+                          <Col flex="auto">
+                            <TextArea
+                              rows={3}
+                              value={newComment}
+                              onChange={(e) => {
+                                setNewComment(e.target.value);
+                                if (leoProfanity.check(e.target.value)) setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+                                else setCommentWarning('');
+                              }}
+                              placeholder="Viết bình luận của bạn..."
+                              style={{ borderRadius: 10, fontSize: 16, padding: 12, boxShadow: '0 1px 4px #f0f0f0' }}
                             />
+                            {commentWarning && <div style={{ color: '#ff4d4f', margin: '8px 0', fontWeight: 500 }}>{commentWarning}</div>}
+                          </Col>
+                          <Col>
                             <Button
                               type="primary"
-                              size="small"
-                              loading={replyLoading[item._id]}
-                              onClick={() => handleReply(item._id)}
-                              disabled={!replyInput[item._id]?.trim()}
-                            >Gửi</Button>
+                              onClick={handleComment}
+                              disabled={!newComment.trim() || !!commentWarning}
+                              style={{
+                                height: 48,
+                                minWidth: 100,
+                                borderRadius: 12,
+                                fontSize: 18,
+                                fontWeight: 600,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'linear-gradient(90deg, #1890ff 0%, #40a9ff 100%)',
+                                boxShadow: '0 2px 8px #e6f7ff',
+                                border: 'none',
+                                marginLeft: 8,
+                                transition: 'background 0.2s, box-shadow 0.2s',
+                                gap: 8,
+                              }}
+                              onMouseOver={e => {
+                                (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #40a9ff 0%, #1890ff 100%)';
+                                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px #bae7ff';
+                              }}
+                              onMouseOut={e => {
+                                (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #1890ff 0%, #40a9ff 100%)';
+                                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 8px #e6f7ff';
+                              }}
+                            >
+                              <SendOutlined style={{ fontSize: 20 }} />
+                              Gửi
+                            </Button>
+                          </Col>
+                        </Row>
+                      </Card>
+                    )
+                  },
+                  {
+                    key: 'note',
+                    label: 'Ghi chú',
+                    children: (
+                      <Card title={<span style={{ fontWeight: 700, fontSize: 20 }}>Ghi chú theo video</span>} style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', width: '100%', maxWidth: 'none', marginBottom: 32 }}>
+                        <div style={{ marginBottom: 24 }}>
+                          <Input.TextArea
+                            rows={3}
+                            value={newNoteContent}
+                            onChange={e => setNewNoteContent(e.target.value)}
+                            placeholder="Nhập ghi chú của bạn..."
+                            style={{ borderRadius: 8, fontSize: 15, marginBottom: 8 }}
+                          />
+                          <Button type="primary" onClick={handleAddNote} disabled={!newNoteContent.trim()}>
+                            Thêm ghi chú tại {videoRef.current ? formatTimestamp(videoRef.current.currentTime) : '00:00'}
+                          </Button>
+                        </div>
+
+                        <List
+                          loading={noteLoading}
+                          dataSource={notes}
+                          locale={{ emptyText: 'Chưa có ghi chú nào.' }}
+                          style={{ 
+                            background: '#fff',
+                            borderRadius: 12,
+                            padding: '8px 0'
+                          }}
+                          renderItem={(note) => (
+                            <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <List.Item
+                                style={{
+                                  padding: '16px 24px',
+                                  borderBottom: '1px solid #f0f0f0',
+                                  transition: 'all 0.3s ease',
+                                  background: editingNoteId === note._id ? '#f8faff' : 'transparent',
+                                  cursor: 'default'
+                                }}
+                                className="note-item-hover"
+                                actions={[
+                                  <Button
+                                    type="link"
+                                    icon={<PlayCircleOutlined />}
+                                    onClick={() => seekToTimestamp(note.timestamp)}
+                                    style={{ 
+                                      color: '#1890ff',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 4
+                                    }}
+                                  >
+                                    Tua đến
+                                  </Button>,
+                                  editingNoteId === note._id ? null : (
+                                    <Button
+                                      type="link"
+                                      icon={<EditOutlined />}
+                                      onClick={() => startEditNote(note)}
+                                      style={{ 
+                                        color: '#52c41a',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 4
+                                      }}
+                                    >
+                                      Sửa
+                                    </Button>
+                                  ),
+                                  <Button
+                                    type="link"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => handleDeleteNote(note._id)}
+                                    style={{ 
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 4
+                                    }}
+                                  >
+                                    Xóa
+                                  </Button>
+                                ].filter(Boolean)}
+                              >
+                                <List.Item.Meta
+                                  avatar={
+                                    <div
+                                      style={{
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: '50%',
+                                        background: 'linear-gradient(135deg, #e6f7ff 0%, #e6fffb 100%)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 16,
+                                        fontWeight: 600,
+                                        color: '#1890ff',
+                                        border: '2px solid #91d5ff'
+                                      }}
+                                    >
+                                      {formatTimestamp(note.timestamp)}
+                                    </div>
+                                  }
+                                  title={
+                                    <span style={{ 
+                                      color: '#1890ff',
+                                      fontWeight: 600,
+                                      fontSize: 14,
+                                      background: 'linear-gradient(90deg, #1890ff 0%, #69c0ff 100%)',
+                                      WebkitBackgroundClip: 'text',
+                                      WebkitTextFillColor: 'transparent'
+                                    }}>
+                                      Ghi chú tại {formatTimestamp(note.timestamp)}
+                                    </span>
+                                  }
+                                  description={
+                                    editingNoteId === note._id ? (
+                                      <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        style={{ marginTop: 12 }}
+                                      >
+                                        <Card
+                                          style={{
+                                            background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)',
+                                            border: '1px solid #d6e4ff',
+                                            borderRadius: 12,
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                            marginBottom: 8
+                                          }}
+                                          bodyStyle={{ padding: '16px' }}
+                                        >
+                                          <div style={{ marginBottom: 12 }}>
+                                            <Text style={{ 
+                                              fontSize: 14, 
+                                              fontWeight: 600, 
+                                              color: '#1890ff',
+                                              marginBottom: 8,
+                                              display: 'block'
+                                            }}>
+                                              Chỉnh sửa ghi chú tại {formatTimestamp(note.timestamp)}
+                                            </Text>
+                                            <Input.TextArea
+                                              rows={3}
+                                              value={editingContent}
+                                              onChange={e => setEditingContent(e.target.value)}
+                                              placeholder="Nhập nội dung ghi chú..."
+                                              style={{ 
+                                                borderRadius: 8,
+                                                fontSize: 15,
+                                                border: '1px solid #d9d9d9',
+                                                transition: 'all 0.3s ease',
+                                                resize: 'vertical',
+                                                minHeight: 80
+                                              }}
+                                              autoFocus
+                                            />
+                                          </div>
+                                          <div style={{ 
+                                            display: 'flex', 
+                                            gap: 8, 
+                                            justifyContent: 'flex-end',
+                                            borderTop: '1px solid #e6f4ff',
+                                            paddingTop: 12
+                                          }}>
+                                            <Button
+                                              onClick={cancelEditNote}
+                                              style={{
+                                                borderRadius: 6,
+                                                border: '1px solid #d9d9d9',
+                                                color: '#666'
+                                              }}
+                                            >
+                                              <CloseOutlined style={{ marginRight: 4 }} />
+                                              Hủy
+                                            </Button>
+                                            <Button
+                                              type="primary"
+                                              onClick={() => handleUpdateNote(note._id)}
+                                              disabled={!editingContent.trim()}
+                                              style={{
+                                                borderRadius: 6,
+                                                background: 'linear-gradient(90deg, #1890ff 0%, #40a9ff 100%)',
+                                                border: 'none',
+                                                boxShadow: '0 2px 4px rgba(24,144,255,0.3)'
+                                              }}
+                                            >
+                                              <SaveOutlined style={{ marginRight: 4 }} />
+                                              Lưu thay đổi
+                                            </Button>
+                                          </div>
+                                        </Card>
+                                      </motion.div>
+                                    ) : (
+                                      <p style={{ 
+                                        fontSize: 15,
+                                        margin: '8px 0 0 0',
+                                        color: '#262626',
+                                        lineHeight: 1.6,
+                                        padding: '12px 16px',
+                                        background: '#fafafa',
+                                        borderRadius: 8,
+                                        border: '1px solid #f0f0f0'
+                                      }}>
+                                        {note.content}
+                                      </p>
+                                    )
+                                  }
+                                />
+                              </List.Item>
+                            </motion.div>
+                          )}
+                        />
+                      </Card>
+                    )
+                  },
+                  {
+                    key: 'review',
+                    label: 'Đánh giá',
+                    children: (
+                      <Card title={<span style={{ fontWeight: 700, fontSize: 20 }}>Đánh giá khóa học</span>} style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', width: '100%', maxWidth: 'none', marginBottom: 32 }}>
+                        {/* Tổng quan đánh giá */}
+                        <div style={{ display: 'flex', gap: 40, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 32 }}>
+                          <div style={{ minWidth: 180, textAlign: 'center' }}>
+                            <div style={{ fontSize: 54, fontWeight: 800, color: '#06b6d4', lineHeight: 1 }}>{ratingStats.avg.toFixed(1)}</div>
+                            <Rate disabled allowHalf value={ratingStats.avg} style={{ fontSize: 28, color: '#06b6d4', margin: '8px 0' }} />
+                            <div style={{ color: '#06b6d4', fontWeight: 600, fontSize: 18, marginTop: 4 }}>Điểm trung bình</div>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 220, marginTop: 8 }}>
+                            {ratingStats.stats.map((count, idx) => (
+                              <div key={5-idx} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                                <span style={{ fontWeight: 600, color: '#06b6d4', minWidth: 24 }}>{5-idx}</span>
+                                <Rate disabled value={5-idx} style={{ fontSize: 16, color: '#06b6d4' }} />
+                                <div style={{ flex: 1, background: '#e0f2fe', borderRadius: 6, height: 10, margin: '0 8px', overflow: 'hidden' }}>
+                                  <div style={{ width: ratingStats.percent[idx] + '%', background: '#8b5cf6', height: '100%', borderRadius: 6, transition: 'width 0.3s' }} />
+                                </div>
+                                <span style={{ color: '#8b5cf6', fontWeight: 600, minWidth: 36 }}>{ratingStats.percent[idx]}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {/* Search & Filter */}
+                        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', padding: '16px 20px', background: '#f8fafc', borderRadius: 12, border: '1px solid #f0f0f0' }}>
+                          <Input
+                            placeholder="Tìm kiếm theo nội dung..."
+                            prefix={<SearchOutlined style={{ color: '#aaa' }} />}
+                            value={reviewSearch}
+                            onChange={e => setReviewSearch(e.target.value)}
+                            style={{ width: 280, borderRadius: 8, height: 40 }}
+                          />
+                          <div style={{ flex: 1 }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontWeight: 600, color: '#444' }}>Lọc theo số sao:</span>
+                            <Select
+                              value={reviewFilter}
+                              onChange={value => setReviewFilter(value)}
+                              style={{ width: 140, borderRadius: 8 }}
+                            >
+                              <Select.Option value="all">Tất cả</Select.Option>
+                              <Select.Option value={5}>5 sao</Select.Option>
+                              <Select.Option value={4}>4 sao</Select.Option>
+                              <Select.Option value={3}>3 sao</Select.Option>
+                              <Select.Option value={2}>2 sao</Select.Option>
+                              <Select.Option value={1}>1 sao</Select.Option>
+                            </Select>
+                          </div>
+                        </div>
+                        {/* Danh sách review */}
+                        <List
+                          loading={reviewLoading}
+                          dataSource={filteredReviews}
+                          locale={{ emptyText: 'Chưa có đánh giá nào.' }}
+                          renderItem={item => (
+                            <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <List.Item style={{ padding: '20px 0', borderBottom: '1px solid #f0f0f0', alignItems: 'flex-start' }}>
+                                <List.Item.Meta
+                                  avatar={
+                                    <Avatar 
+                                      src={item.user?.avatar} 
+                                      icon={<UserOutlined />} 
+                                      size={48}
+                                      style={{ 
+                                        background: '#e0f2fe',
+                                        color: '#8b5cf6',
+                                        fontWeight: 700,
+                                        fontSize: 20
+                                      }}
+                                    >
+                                      {!item.user?.avatar && (item.user?.fullname ? item.user.fullname[0] : 'U')}
+                                    </Avatar>
+                                  }
+                                  title={
+                                    <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <Text strong style={{ fontSize: 16, marginRight: 8 }}>
+                                        {item.user?.fullname || 'Người dùng'}
+                                      </Text>
+                                      <Rate disabled value={item.rating} style={{ fontSize: 14, color: '#f59e42' }} />
+                                      <span style={{ color: '#888', fontSize: 13, marginLeft: 8 }}>{item.createdAt ? dayjs(item.createdAt).fromNow() : ''}</span>
+                                    </div>
+                                  }
+                                  description={
+                                    <div style={{ marginBottom: 8 }}>
+                                      <Text style={{ fontSize: 15, color: '#262626', display: 'block', marginBottom: 4 }}>
+                                        {item.comment}
+                                      </Text>
+                                      <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 4 }}>
+                                        <Button type="text" icon={<LikeOutlined />} style={{ color: '#06b6d4' }}>Hữu ích</Button>
+                                        <Button type="text" icon={<DislikeOutlined />} style={{ color: '#aaa' }} />
+                                        <Button type="link" icon={<FlagOutlined />} style={{ color: '#f87171', fontWeight: 600 }}>Báo xấu</Button>
+                                      </div>
+                                    </div>
+                                  }
+                                />
+                              </List.Item>
+                            </motion.div>
+                          )}
+                        />
+                        {/* Form đánh giá của bạn (đưa xuống dưới cùng) */}
+                        {isEnrolled && isCompleted && (
+                          <div style={{ marginTop: 32 }}>
+                            <Card 
+                              title={<Title level={4} style={{ color: '#06b6d4' }}>{myReview ? 'Cập nhật đánh giá của bạn' : 'Đánh giá của bạn'}</Title>}
+                              style={{
+                                background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)',
+                                borderRadius: 12,
+                                border: '1px solid #d6e4ff'
+                              }}
+                              headStyle={{ borderBottom: '1px solid #e6f4ff' }}
+                            >
+                              <Rate 
+                                value={reviewValue} 
+                                onChange={setReviewValue}
+                                style={{ fontSize: 24, marginBottom: 16, color: '#f59e42' }}
+                              />
+                              <Input.TextArea
+                                rows={4}
+                                value={reviewComment}
+                                onChange={(e) => setReviewComment(e.target.value)}
+                                placeholder="Chia sẻ trải nghiệm học tập của bạn..."
+                                style={{ 
+                                  borderRadius: 8, 
+                                  fontSize: 15,
+                                  marginBottom: 16,
+                                  resize: 'vertical'
+                                }}
+                              />
+                              <div style={{ textAlign: 'right' }}>
+                                <Button 
+                                  type="primary" 
+                                  onClick={handleSubmitReview} 
+                                  loading={reviewLoading}
+                                  style={{
+                                    borderRadius: 6,
+                                    background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                                    border: 'none',
+                                    height: 40,
+                                    paddingInline: 24,
+                                    fontSize: 16,
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  <SaveOutlined style={{ marginRight: 4 }} />
+                                  {myReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
+                                </Button>
+                              </div>
+                              {reviewError && (
+                                <Alert message={reviewError} type="error" showIcon style={{ marginTop: 16 }} />
+                              )}
+                            </Card>
                           </div>
                         )}
-                        {/* Render replies */}
-                        {item.replies && item.replies.length > 0 && renderReplies(item.replies, item._id)}
-                      </div>
-                    </List.Item>
-                  )}
-                />
-                <Row style={{ marginTop: 24, alignItems: 'flex-end' }} gutter={12}>
-                  <Col flex="auto">
-                    <TextArea
-                      rows={3}
-                      value={newComment}
-                      onChange={(e) => {
-                        setNewComment(e.target.value);
-                        if (leoProfanity.check(e.target.value)) setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
-                        else setCommentWarning('');
-                      }}
-                      placeholder="Viết bình luận của bạn..."
-                      style={{ borderRadius: 10, fontSize: 16, padding: 12, boxShadow: '0 1px 4px #f0f0f0' }}
-                    />
-                    {commentWarning && <div style={{ color: '#ff4d4f', margin: '8px 0', fontWeight: 500 }}>{commentWarning}</div>}
-                  </Col>
-                  <Col>
-                    <Button
-                      type="primary"
-                      onClick={handleComment}
-                      disabled={!newComment.trim() || !!commentWarning}
-                      style={{
-                        height: 48,
-                        minWidth: 100,
-                        borderRadius: 12,
-                        fontSize: 18,
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: 'linear-gradient(90deg, #1890ff 0%, #40a9ff 100%)',
-                        boxShadow: '0 2px 8px #e6f7ff',
-                        border: 'none',
-                        marginLeft: 8,
-                        transition: 'background 0.2s, box-shadow 0.2s',
-                        gap: 8,
-                      }}
-                      onMouseOver={e => {
-                        (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #40a9ff 0%, #1890ff 100%)';
-                        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px #bae7ff';
-                      }}
-                      onMouseOut={e => {
-                        (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #1890ff 0%, #40a9ff 100%)';
-                        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 8px #e6f7ff';
-                      }}
-                    >
-                      <SendOutlined style={{ fontSize: 20 }} />
-                      Gửi
-                    </Button>
-                  </Col>
-                </Row>
-              </Card>
+                        {isEnrolled && !isCompleted && (
+                          <Alert
+                            message="Hoàn thành khóa học để đánh giá"
+                            description="Bạn cần hoàn thành 100% khóa học để có thể đánh giá. Hãy cố gắng hoàn thành các bài học!"
+                            type="info"
+                            showIcon
+                            style={{ marginBottom: 24 }}
+                          />
+                        )}
+                      </Card>
+                    )
+                  }
+                ]}
+                style={{ marginTop: 32 }}
+              />
             </motion.div>
           </>
         )}
