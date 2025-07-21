@@ -13,4 +13,7 @@ export const getVideoProgress = (courseId: string, lessonId: string): Promise<{ 
   axios.get(`/progress/${courseId}/lessons/${lessonId}/progress`).then(res => res.data.data);
 
 export const updateVideoProgress = (courseId: string, lessonId: string, currentTime: number, videoDuration?: number) =>
-  axios.post(`/progress/${courseId}/lessons/${lessonId}/progress`, videoDuration !== undefined ? { currentTime, videoDuration } : { currentTime }); 
+  axios.post(`/progress/${courseId}/lessons/${lessonId}/progress`, videoDuration !== undefined ? { currentTime, videoDuration } : { currentTime });
+
+export const markCourseCompleted = (courseId: string) =>
+  axios.post(`/progress/${courseId}/complete`).then(res => res.data); 

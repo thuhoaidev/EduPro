@@ -4,7 +4,7 @@ import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, R
 import { config } from '../../../api/axios';
 import { LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined, PauseCircleOutlined, 
   EditOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
-import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress } from '../../../services/progressService';
+import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress, markCourseCompleted } from '../../../services/progressService';
 import { getComments, addComment, replyComment, toggleLikeComment, getCommentLikeCount, checkCommentLiked } from '../../../services/lessonCommentService';
 import { getNotesByLesson, createNote, deleteNote, updateNote, type Note } from '../../../services/noteService';
 import SectionSidebar from './SectionSidebar';
@@ -639,15 +639,6 @@ const LessonVideoPage: React.FC = () => {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
 
-  // Load note từ localStorage khi lessonId thay đổi
-  useEffect(() => {
-    if (lessonId) {
-      const saved = localStorage.getItem(`note-${lessonId}`) || '';
-      setNote(saved);
-      setNoteSaved(false);
-    }
-  }, [lessonId]);
-
   // Lấy ghi chú của user cho bài học
   useEffect(() => {
     const fetchNotes = async () => {
@@ -739,15 +730,6 @@ const LessonVideoPage: React.FC = () => {
     return `${min}:${sec}`;
   };
 
-  // Hàm lưu ghi chú
-  const handleSaveNote = () => {
-    if (lessonId) {
-      localStorage.setItem(`note-${lessonId}`, note);
-      setNoteSaved(true);
-      setTimeout(() => setNoteSaved(false), 1500);
-    }
-  };
-
   // Đặt tab mặc định là Tổng quan
   useEffect(() => {
     setActiveTab('overview');
@@ -770,12 +752,15 @@ const LessonVideoPage: React.FC = () => {
     fetchCourseOverview();
   }, [courseId]);
 
-  const [reviews, setReviews] = useState<{
-    user: { fullname?: string; avatar?: string }; 
-    rating: number; 
+  const [reviews, setReviews] = useState<Array<{
+    _id: string;
+    user: { fullname?: string; avatar?: string };
+    rating: number;
     comment: string;
     createdAt?: string;
-  }[]>([]);
+    likes?: string[];
+    dislikes?: string[];
+  }>>([]);
   const [myReview, setMyReview] = useState<{ rating: number; comment: string } | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
@@ -896,6 +881,21 @@ const LessonVideoPage: React.FC = () => {
       message.error('Có lỗi xảy ra');
     }
   };
+
+  // Khi hoàn thành 100% khóa học, đánh dấu completed vào backend
+  useEffect(() => {
+    if (isCompleted && courseId) {
+      markCourseCompleted(courseId)
+        .then(res => {
+          if (res.success) {
+            message.success('Khóa học đã được đánh dấu hoàn thành!');
+          }
+        })
+        .catch(() => {
+          message.error('Không thể đánh dấu hoàn thành khóa học!');
+        });
+    }
+  }, [isCompleted, courseId]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa' }}>

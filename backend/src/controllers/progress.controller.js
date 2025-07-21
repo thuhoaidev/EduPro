@@ -30,6 +30,8 @@ exports.updateProgress = async (req, res, next) => {
     enrollment.progress[lessonId].videoDuration = videoDuration;
     enrollment.progress[lessonId].quizPassed = quizPassed;
     enrollment.progress[lessonId].lastWatchedAt = new Date();
+    // Cập nhật bài học đang học dở mới nhất
+    enrollment.progress.lastWatchedLessonId = lessonId;
     // Lưu đáp án quiz
     console.log('quizAnswers nhận được:', quizAnswers);
     if (Array.isArray(quizAnswers)) {
@@ -181,5 +183,21 @@ exports.updateVideoProgress = async (req, res, next) => {
     };
     await enrollment.updateOne(update);
     res.json({ success: true, data: enrollment.progress[lessonId] });
+  } catch (err) { next(err); }
+};
+
+// Đánh dấu hoàn thành toàn bộ khóa học
+exports.markCourseCompleted = async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user._id;
+    const enrollment = await Enrollment.findOne({ course: courseId, student: userId });
+    if (!enrollment) throw new ApiError(404, 'Bạn chưa đăng ký khóa học này');
+    if (enrollment.completed) {
+      return res.json({ success: true, completed: true, message: 'Khóa học đã được đánh dấu hoàn thành trước đó.' });
+    }
+    enrollment.completed = true;
+    await enrollment.save();
+    res.json({ success: true, completed: true });
   } catch (err) { next(err); }
 };

@@ -17,8 +17,9 @@ interface CourseCardProps {
     isEnrolled?: boolean;
     isInProgress?: boolean;
     continueLessonId?: string;
+    isCompleted?: boolean;
 }
-const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgress, continueLessonId }) => {
+const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgress, continueLessonId, isCompleted }) => {
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isInstructor, setIsInstructor] = useState(false);
     const { addToCart, isInCart, updateCartCount } = useCart();
@@ -177,20 +178,34 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgres
                                     <span className={styles.buttonText}>Quản lý</span>
                                 </button>
                             ) : isEnrolled ? (
-                                <button 
-                                    className={styles.buyBtnFree} 
-                                    type="button" 
-                                    onClick={e => { 
-                                        e.preventDefault(); 
-                                        if (continueLessonId) {
-                                            navigate(`/lessons/${continueLessonId}/video`);
-                                        } else {
-                                            window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`; 
-                                        }
-                                    }}
-                                >
-                                    <span className={styles.buttonText}>{isInProgress ? 'Tiếp tục học' : 'Học ngay'}</span>
-                                </button>
+                                isCompleted ? (
+                                    <button 
+                                        className={styles.buyBtnFree} 
+                                        type="button" 
+                                        onClick={e => {
+                                            e.preventDefault();
+                                            window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`;
+                                        }}
+                                        style={{ background: '#22c55e', color: '#fff' }}
+                                    >
+                                        <span className={styles.buttonText}>Hoàn thành</span>
+                                    </button>
+                                ) : (
+                                    <button 
+                                        className={styles.buyBtnFree} 
+                                        type="button" 
+                                        onClick={e => { 
+                                            e.preventDefault(); 
+                                            if (continueLessonId) {
+                                                navigate(`/lessons/${continueLessonId}/video`);
+                                            } else {
+                                                window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`; 
+                                            }
+                                        }}
+                                    >
+                                        <span className={styles.buttonText}>{isInProgress ? 'Tiếp tục học' : 'Học ngay'}</span>
+                                    </button>
+                                )
                             ) : course.isFree ? (
                                 <button 
                                     className={styles.buyBtnFree} 

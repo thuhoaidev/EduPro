@@ -269,8 +269,9 @@ const CourseDetailPage: React.FC = () => {
     // Kiểm tra hoàn thành 100% khóa học
     useEffect(() => {
         const checkCompleted = async () => {
-            if (!course || !isEnrolled) {
+            if (!course || !isEnrolled || !courseContent.length) {
                 setIsCompleted(false);
+                setContinueLessonId(null);
                 return;
             }
             try {
@@ -280,8 +281,33 @@ const CourseDetailPage: React.FC = () => {
                     p.completed === true && p.videoCompleted === true && p.quizPassed === true
                 ).length;
                 setIsCompleted(totalLessons > 0 && completedLessons === totalLessons);
-            } catch {
+
+                // Lấy bài học đang học dở gần nhất, đảm bảo tồn tại trong courseContent
+                let lessonId = progress && progress.lastWatchedLessonId;
+                let found = false;
+                if (lessonId) {
+                    console.log('lastWatchedLessonId:', lessonId);
+                    for (const section of courseContent) {
+                        for (const lesson of section.lessons) {
+                            console.log('lesson._id:', lesson._id);
+                            if (String(lesson._id) === String(lessonId)) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found) break;
+                    }
+                }
+                if (found) {
+                    setContinueLessonId(lessonId);
+                } else {
+                    // fallback: bài đầu tiên
+                    const firstLesson = courseContent[0]?.lessons[0];
+                    setContinueLessonId(firstLesson?._id || null);
+                }
+            } catch (e) {
                 setIsCompleted(false);
+                setContinueLessonId(null);
             }
         };
         checkCompleted();
@@ -865,7 +891,7 @@ const CourseDetailPage: React.FC = () => {
                                             type="primary" 
                                             size="large" 
                                             block 
-                                            className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
+                                            className={`!h-14 !text-lg !font-semibold !border-0 shadow-lg hover:shadow-xl transition-all duration-300 ${isEnrolled && isCompleted ? '!bg-gradient-to-r !from-green-500 !to-emerald-500 hover:!from-green-600 hover:!to-emerald-600' : '!bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600'}`}
                                             icon={getButtonIcon()} 
                                             onClick={() => {
                                                 if (continueLessonId) {
@@ -880,7 +906,7 @@ const CourseDetailPage: React.FC = () => {
                                                 }
                                             }}
                                         >
-                                            {getButtonText()}
+                                            {isEnrolled && isCompleted ? 'Hoàn thành' : getButtonText()}
                                         </Button>
                                     ) : (
                                         <Button 

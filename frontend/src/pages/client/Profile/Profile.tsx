@@ -543,20 +543,22 @@ const Profile = () => {
                           className="w-full h-48 object-cover rounded-t-3xl group-hover:scale-105 transition-transform duration-300"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-t-3xl pointer-events-none" />
-                        <Link
-                          to="#"
-                          onClick={e => {
-                            e.preventDefault();
-                            if (continueLessonId) {
-                              navigate(`/lessons/${continueLessonId}/video`);
-                            } else if (course.slug) {
-                              navigate(`/courses/slug/${course.slug}`);
-                            }
-                          }}
-                          className="absolute bottom-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white !text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg z-10"
-                        >
-                          Tiếp tục học <ArrowRightOutlined />
-                        </Link>
+                        {percent < 100 && (
+                          <Link
+                            to="#"
+                            onClick={e => {
+                              e.preventDefault();
+                              if (continueLessonId) {
+                                navigate(`/lessons/${continueLessonId}/video`);
+                              } else if (course.slug) {
+                                navigate(`/courses/slug/${course.slug}`);
+                              }
+                            }}
+                            className="absolute bottom-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white !text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg z-10"
+                          >
+                            Tiếp tục học <ArrowRightOutlined />
+                          </Link>
+                        )}
                         {percent === 100 && (
                           <span className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full font-semibold text-sm shadow-lg z-10">Hoàn thành</span>
                         )}

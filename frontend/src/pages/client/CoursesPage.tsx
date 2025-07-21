@@ -26,6 +26,7 @@ const CoursesPage: React.FC = () => {
     const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
     const [courseProgress, setCourseProgress] = useState<{ [courseId: string]: boolean }>({});
     const [courseContinueLesson, setCourseContinueLesson] = useState<{ [courseId: string]: string | null }>({});
+    const [courseCompletedStatus, setCourseCompletedStatus] = useState<{ [courseId: string]: boolean }>({});
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -58,6 +59,7 @@ const CoursesPage: React.FC = () => {
                 setEnrolledCourseIds([]);
                 setCourseProgress({});
                 setCourseContinueLesson({});
+                setCourseCompletedStatus({});
                 return;
             }
             try {
@@ -67,24 +69,23 @@ const CoursesPage: React.FC = () => {
                 // Lấy progress từng khóa học và lesson tiếp tục học
                 const progressObj: { [courseId: string]: boolean } = {};
                 const continueLessonObj: { [courseId: string]: string | null } = {};
-                await Promise.all(ids.map(async (courseId: string) => {
+                const completedObj: { [courseId: string]: boolean } = {};
+                await Promise.all((response.data.data || []).map(async (enroll: any) => {
+                    const courseId = enroll.course?._id || enroll.course?.id;
+                    completedObj[courseId] = !!enroll.completed;
                     try {
                         const progress = await getProgress(courseId);
-                        // Nếu không có bài học nào thì chưa hoàn thành
                         if (!progress || Object.keys(progress).length === 0) {
                             progressObj[courseId] = false;
                             continueLessonObj[courseId] = null;
                             return;
                         }
-                        // Tất cả bài học đều completed = true
                         const allCompleted = Object.values(progress).every((p: any) => p.completed === true);
                         progressObj[courseId] = allCompleted;
-                        // Xác định lesson tiếp tục học
                         let continueLessonId = null;
                         if (progress.lastWatchedLessonId) {
                             continueLessonId = progress.lastWatchedLessonId;
                         } else {
-                            // Lấy content để xác định bài học tiếp theo
                             const sections = await courseService.getCourseContent(courseId);
                             outer: for (const section of sections) {
                                 for (const lesson of section.lessons) {
@@ -94,7 +95,6 @@ const CoursesPage: React.FC = () => {
                                     }
                                 }
                             }
-                            // Nếu đã hoàn thành hết thì lấy bài đầu tiên
                             if (!continueLessonId && sections[0]?.lessons?.[0]?._id) {
                                 continueLessonId = sections[0].lessons[0]._id;
                             }
@@ -107,9 +107,11 @@ const CoursesPage: React.FC = () => {
                 }));
                 setCourseProgress(progressObj);
                 setCourseContinueLesson(continueLessonObj);
+                setCourseCompletedStatus(completedObj);
             } catch {
                 setCourseProgress({});
                 setCourseContinueLesson({});
+                setCourseCompletedStatus({});
             }
         };
         fetchEnrollments();
@@ -210,6 +212,7 @@ const CoursesPage: React.FC = () => {
                                         isEnrolled={enrolledCourseIds.includes(course.id)}
                                         isInProgress={enrolledCourseIds.includes(course.id) && !courseProgress[course.id]}
                                         continueLessonId={courseContinueLesson[course.id] || undefined}
+                                        isCompleted={courseCompletedStatus[course.id]}
                                     />
                                 </motion.div>
                             </Col>
