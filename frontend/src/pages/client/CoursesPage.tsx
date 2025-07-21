@@ -40,7 +40,17 @@ const CoursesPage: React.FC = () => {
                 } else {
                     fetchedCourses = await courseService.getAllCourses();
                 }
-                setCourses(fetchedCourses);
+                // Bổ sung trường lessonsCount cho từng course
+                const coursesWithLessons = await Promise.all(fetchedCourses.map(async (course) => {
+                    try {
+                        const sections = await courseService.getCourseContent(course.id);
+                        const lessonsCount = sections.reduce((sum: number, section: any) => sum + (section.lessons?.length || 0), 0);
+                        return { ...course, lessonsCount };
+                    } catch {
+                        return { ...course, lessonsCount: 0 };
+                    }
+                }));
+                setCourses(coursesWithLessons);
             } catch (err) {
                 setError('Không thể tải danh sách khóa học. Vui lòng thử lại sau.');
                 console.error(err);
@@ -213,6 +223,9 @@ const CoursesPage: React.FC = () => {
                                         isInProgress={enrolledCourseIds.includes(course.id) && !courseProgress[course.id]}
                                         continueLessonId={courseContinueLesson[course.id] || undefined}
                                         isCompleted={courseCompletedStatus[course.id]}
+                                        lessons={course.lessonsCount}
+                                        rating={course.rating}
+                                        reviews={course.reviews}
                                     />
                                 </motion.div>
                             </Col>

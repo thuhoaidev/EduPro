@@ -178,6 +178,10 @@ const LessonVideoPage: React.FC = () => {
       updateVideoProgress(courseId, currentLessonId, videoRef.current.duration, videoRef.current.duration)
         .catch(e => console.error("Failed to update final progress", e));
     }
+    // Nếu có quiz thì tự động chuyển sang tab quiz
+    if (quiz) {
+      setActiveTab('quiz');
+    }
   };
 
   useEffect(() => {
@@ -1030,8 +1034,24 @@ const LessonVideoPage: React.FC = () => {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa' }}>
-      <div style={{ width: '30%', minWidth: 280, maxWidth: 400, background: '#fff', boxShadow: '0 2px 16px #e6e6e6', borderRadius: 16, margin: 16, height: 'calc(100vh - 32px)' }}>
+    <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
+      <div style={{
+        width: '30%',
+        minWidth: 280,
+        maxWidth: 400,
+        background: '#fff',
+        boxShadow: '0 2px 16px #e6e6e6',
+        borderRadius: 16,
+        margin: 16,
+        height: 'calc(100vh - 32px)',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        position: 'relative',
+        scrollbarWidth: 'none', // Firefox
+        msOverflowStyle: 'none', // IE/Edge
+      }}
+        className="hide-scrollbar"
+      >
         <SectionSidebar
           sections={courseSections}
           unlockedLessons={unlockedLessons}
@@ -1049,7 +1069,14 @@ const LessonVideoPage: React.FC = () => {
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: -300, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-        style={{ flex: '0 0 70%', padding: '32px 40px', overflowY: 'auto', height: '100vh', background: 'transparent' }}
+        style={{
+          flex: '0 0 70%',
+          padding: '32px 40px',
+          overflowY: 'auto', // Chỉ cuộn nội dung chính nếu cần
+          height: '100vh',
+          background: 'transparent',
+          overflowX: 'hidden'
+        }}
       >
         {loading ? (
           <div className="flex justify-center items-center min-h-screen"><Spin size="large" /></div>
@@ -1067,7 +1094,7 @@ const LessonVideoPage: React.FC = () => {
                       key={videoUrl}
                       src={videoUrl}
                       controls
-                      style={{ width: '100%', borderRadius: 0, background: '#000' }}
+                      style={{ width: '100%', borderRadius: 0, background: '#000', display: 'block', maxHeight: 480 }}
                       onTimeUpdate={handleVideoTimeUpdate}
                       onEnded={handleVideoEnded}
                       onLoadedMetadata={handleVideoLoadedMetadata}
@@ -1129,6 +1156,24 @@ const LessonVideoPage: React.FC = () => {
                       label: 'Quiz',
                       children: (
                         <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, width: '100%', maxWidth: 'none' }}>
+                          <div
+                            style={{
+                              fontWeight: 800,
+                              fontSize: 26,
+                              background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                              WebkitBackgroundClip: 'text',
+                              WebkitTextFillColor: 'transparent',
+                              borderRadius: 12,
+                              boxShadow: '0 2px 12px #e0e7ef',
+                              padding: '18px 0 10px 0',
+                              marginBottom: 18,
+                              textAlign: 'center',
+                              letterSpacing: 0.5,
+                              lineHeight: 1.2
+                            }}
+                          >
+                            {lessonTitle}
+                          </div>
                           {quiz.questions.map((q, idx) => (
                             <div key={idx} style={{ marginBottom: 32, background: '#f8fafc', borderRadius: 12, padding: 18, boxShadow: '0 1px 6px #f0f0f0' }}>
                               <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 17 }}>Câu {idx + 1}: {q.question}</div>
@@ -1163,7 +1208,34 @@ const LessonVideoPage: React.FC = () => {
                             </div>
                           ))}
                           <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12 }}>
-                            <Button type="primary" size="large" onClick={handleQuizSubmit} disabled={!!quizResult && quizResult.success} style={{ minWidth: 120, fontWeight: 600, fontSize: 17 }}>Nộp bài</Button>
+                            <Button
+                              type="primary"
+                              size="large"
+                              onClick={handleQuizSubmit}
+                              disabled={!!quizResult && quizResult.success}
+                              style={{
+                                minWidth: 160,
+                                fontWeight: 700,
+                                fontSize: 18,
+                                borderRadius: 24,
+                                padding: '12px 32px',
+                                background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                                color: '#fff',
+                                boxShadow: '0 4px 16px #bae6fd',
+                                border: 'none',
+                                transition: 'background 0.2s, box-shadow 0.2s',
+                              }}
+                              onMouseOver={e => {
+                                e.currentTarget.style.background = 'linear-gradient(90deg, #8b5cf6 0%, #06b6d4 100%)';
+                                e.currentTarget.style.boxShadow = '0 8px 32px #a5b4fc';
+                              }}
+                              onMouseOut={e => {
+                                e.currentTarget.style.background = 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)';
+                                e.currentTarget.style.boxShadow = '0 4px 16px #bae6fd';
+                              }}
+                            >
+                              Nộp bài
+                            </Button>
                             {quizResult && !quizResult.success && (
                               <Button onClick={handleQuizRetry} style={{ minWidth: 100 }}>Làm lại</Button>
                             )}
@@ -1216,27 +1288,28 @@ const LessonVideoPage: React.FC = () => {
                               disabled={!newComment.trim() || !!commentWarning}
                               style={{
                                 height: 48,
-                                minWidth: 100,
-                                borderRadius: 12,
+                                minWidth: 140,
+                                borderRadius: 24,
                                 fontSize: 18,
-                                fontWeight: 600,
+                                fontWeight: 700,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                background: 'linear-gradient(90deg, #1890ff 0%, #40a9ff 100%)',
-                                boxShadow: '0 2px 8px #e6f7ff',
+                                background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                                color: '#fff',
+                                boxShadow: '0 4px 16px #bae6fd',
                                 border: 'none',
                                 marginLeft: 8,
                                 transition: 'background 0.2s, box-shadow 0.2s',
                                 gap: 8,
                               }}
                               onMouseOver={e => {
-                                (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #40a9ff 0%, #1890ff 100%)';
-                                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px #bae7ff';
+                                (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #8b5cf6 0%, #06b6d4 100%)';
+                                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px #a5b4fc';
                               }}
                               onMouseOut={e => {
-                                (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #1890ff 0%, #40a9ff 100%)';
-                                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 8px #e6f7ff';
+                                (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)';
+                                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px #bae6fd';
                               }}
                             >
                               <SendOutlined style={{ fontSize: 20 }} />
@@ -1260,7 +1333,29 @@ const LessonVideoPage: React.FC = () => {
                             placeholder="Nhập ghi chú của bạn..."
                             style={{ borderRadius: 8, fontSize: 15, marginBottom: 8 }}
                           />
-                          <Button type="primary" onClick={handleAddNote} disabled={!newNoteContent.trim()}>
+                          <Button type="primary" onClick={handleAddNote} disabled={!newNoteContent.trim()}
+                            style={{
+                              minWidth: 160,
+                              fontWeight: 700,
+                              fontSize: 17,
+                              borderRadius: 24,
+                              padding: '10px 28px',
+                              background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                              color: '#fff',
+                              boxShadow: '0 4px 16px #bae6fd',
+                              border: 'none',
+                              transition: 'background 0.2s, box-shadow 0.2s',
+                              marginTop: 6
+                            }}
+                            onMouseOver={e => {
+                              (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #8b5cf6 0%, #06b6d4 100%)';
+                              (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px #a5b4fc';
+                            }}
+                            onMouseOut={e => {
+                              (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)';
+                              (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px #bae6fd';
+                            }}
+                          >
                             Thêm ghi chú tại {videoRef.current ? formatTimestamp(videoRef.current.currentTime) : '00:00'}
                           </Button>
                         </div>
@@ -1668,3 +1763,13 @@ const LessonVideoPage: React.FC = () => {
 };
 
 export default LessonVideoPage; 
+
+<style>{`
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none !important;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+`}</style>

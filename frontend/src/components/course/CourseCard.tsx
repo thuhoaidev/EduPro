@@ -18,8 +18,11 @@ interface CourseCardProps {
     isInProgress?: boolean;
     continueLessonId?: string;
     isCompleted?: boolean;
+    lessons?: number;
+    rating?: number;
+    reviews?: number;
 }
-const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgress, continueLessonId, isCompleted }) => {
+const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgress, continueLessonId, isCompleted, lessons, rating, reviews }) => {
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isInstructor, setIsInstructor] = useState(false);
     const { addToCart, isInCart, updateCartCount } = useCart();
@@ -127,12 +130,12 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgres
                     
                     <h3 className={styles.courseTitle} style={{ fontSize: 20, fontWeight: 700, minHeight: 48, marginBottom: 8 }}>{course.title}</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#64748b', marginBottom: 8 }}>
-                        <BookOutlined style={{ marginRight: 4 }} /> {course.lessons || 30} bài
+                        <BookOutlined style={{ marginRight: 4 }} /> {typeof lessons === 'number' ? lessons : 0} bài
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                        <Rate value={course.rating} disabled allowHalf style={{ fontSize: 15, color: '#f59e0b' }} />
-                        <span style={{ fontWeight: 600, color: '#f59e0b', fontSize: 14 }}>{course.rating.toFixed(1)}</span>
-                        <span style={{ color: '#64748b', fontSize: 13 }}>({course.reviews})</span>
+                        <Rate value={typeof rating === 'number' ? rating : 0} disabled allowHalf style={{ fontSize: 15, color: '#f59e0b' }} />
+                        <span style={{ fontWeight: 600, color: '#f59e0b', fontSize: 14 }}>{typeof rating === 'number' ? rating.toFixed(1) : '0.0'}</span>
+                        <span style={{ color: '#64748b', fontSize: 13 }}>({typeof reviews === 'number' ? reviews : 0})</span>
                     </div>
                     <div className={styles.separator}></div>
                     <div className={styles.footerContainer}>

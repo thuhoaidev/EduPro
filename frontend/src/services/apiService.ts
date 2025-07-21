@@ -46,6 +46,7 @@ interface ApiCourse {
   __v: number;
   rating?: number;
   reviews?: number;
+  totalReviews?: number;
 }
 
 export interface Course {
@@ -118,8 +119,8 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
       avatar: apiCourse.instructor?.user?.avatar || '',
       bio: apiCourse.instructor?.bio || 'Thông tin giảng viên đang được cập nhật.'
     },
-    rating: apiCourse.rating || 4.5,
-    reviews: apiCourse.reviews || Math.floor(Math.random() * 100) + 10,
+    rating: typeof apiCourse.rating === 'number' ? apiCourse.rating : 0,
+    reviews: typeof (apiCourse.totalReviews) === 'number' ? apiCourse.totalReviews : 0,
     price: finalPrice,
     oldPrice: hasDiscount ? apiCourse.price : undefined,
     Image: apiCourse.thumbnail || 'https://via.placeholder.com/600x400/4A90E2/FFFFFF?text=Khóa+học',
