@@ -78,6 +78,7 @@ const ProfileEdit = () => {
   }, [navigate, form]);
 
   const onFinish = async (values: FormValues) => {
+    console.log('values.avatar:', values.avatar);
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -88,13 +89,14 @@ const ProfileEdit = () => {
 
       const formData = new FormData();
 
-      // Handle avatar upload
+      // Nếu có file mới, chỉ gửi file
       if (values.avatar && Array.isArray(values.avatar) && values.avatar.length > 0) {
-        const fileObj = (values.avatar[0] as any).originFileObj || values.avatar[0];
+        const fileObj = values.avatar[0] && typeof values.avatar[0] === 'object' && 'originFileObj' in values.avatar[0] ? values.avatar[0].originFileObj : null;
         if (fileObj instanceof File) {
           formData.append('avatar', fileObj);
         }
       }
+      // Nếu không có file mới, KHÔNG gửi trường avatar (để backend giữ nguyên avatar cũ)
 
       // Add other fields to formData
       Object.keys(values).forEach(key => {
@@ -146,6 +148,7 @@ const ProfileEdit = () => {
 
   const handleAvatarChange = (info: { file: UploadFile; fileList: UploadFile[] }) => {
     setAvatarFileList(info.fileList);
+    form.setFieldsValue({ avatar: info.fileList }); // Đảm bảo form nhận file
     // Lấy file cuối cùng trong fileList (nếu có)
     const latestFile = info.fileList.length > 0 ? info.fileList[info.fileList.length - 1] : null;
     if (latestFile && latestFile.originFileObj) {
@@ -197,55 +200,81 @@ const ProfileEdit = () => {
               variants={itemVariants}
               className="md:w-1/3 w-full flex flex-col items-center"
             >
-              <Card
-                className="shadow-2xl border-0 glass-card p-6 flex flex-col items-center bg-white/60 backdrop-blur-lg"
-                style={{ borderRadius: 24 }}
-                bodyStyle={{ padding: 0 }}
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={onFinish}
               >
-                <div className="relative flex flex-col items-center">
-                  <Form.Item
-                    name="avatar"
-                    valuePropName="fileList"
-                    getValueFromEvent={normFile}
-                    className="!mb-4"
-                  >
+                <Form.Item
+                  name="avatar"
+                  valuePropName="fileList"
+                  getValueFromEvent={normFile}
+                  label={<Text strong className="text-gray-700 text-base">Ảnh đại diện</Text>}
+                  className="!mb-4"
+                >
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    minHeight: 200,
+                    position: 'relative'
+                  }}>
                     <Upload
                       name="avatar"
                       listType="picture-circle"
-                      className="avatar-uploader"
                       showUploadList={false}
                       beforeUpload={() => false}
                       onChange={handleAvatarChange}
                       fileList={avatarFileList}
+                      accept="image/*"
+                      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                     >
-                      {avatarUrl ? (
-                        <div className="relative group">
-                          <span className="absolute -inset-1 rounded-full bg-gradient-to-tr from-indigo-400 via-purple-400 to-pink-400 blur opacity-80 group-hover:opacity-100 transition-all duration-300"></span>
-                          <Avatar
-                            src={avatarUrl}
-                            size={140}
-                            className="!border-4 !border-white !shadow-xl relative z-10"
-                          />
-                          <motion.div
-                            className="absolute -bottom-3 -right-3 bg-gradient-to-tr from-indigo-500 to-pink-500 text-white p-3 rounded-full cursor-pointer shadow-lg z-20 border-4 border-white"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                          >
-                            <CameraOutlined />
-                          </motion.div>
+                      <div style={{
+                        position: 'relative',
+                        width: 160,
+                        height: 160,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        cursor: 'pointer'
+                      }}>
+                        <div style={{
+                          position: 'absolute',
+                          inset: 0,
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #6366f1 0%, #a21caf 100%)',
+                          zIndex: 1,
+                          filter: 'blur(8px)',
+                          opacity: 0.7
+                        }} />
+                        <Avatar
+                          src={avatarUrl}
+                          size={140}
+                          style={{
+                            border: '4px solid #fff',
+                            boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.18)',
+                            background: '#f0f0f0',
+                            zIndex: 2
+                          }}
+                        />
+                        <div style={{
+                          position: 'absolute',
+                          bottom: 8,
+                          right: 8,
+                          background: 'linear-gradient(135deg, #6366f1 0%, #a21caf 100%)',
+                          borderRadius: '50%',
+                          padding: 10,
+                          zIndex: 3,
+                          border: '2px solid #fff',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                        }}>
+                          <UploadOutlined style={{ color: '#fff', fontSize: 20 }} />
                         </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-full">
-                          <UploadOutlined style={{ fontSize: 40, color: '#6366f1' }} />
-                          <div className="mt-2 text-base text-gray-600 font-medium">
-                            Tải ảnh lên
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </Upload>
-                  </Form.Item>
-                </div>
-              </Card>
+                  </div>
+                </Form.Item>
+              </Form>
             </motion.div>
 
             {/* Info Card */}
@@ -417,15 +446,15 @@ const ProfileEdit = () => {
             </motion.div>
           </div>
         </motion.div>
+        <style>{`
+          .glass-card {
+            background: rgba(255,255,255,0.7);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
+            backdrop-filter: blur(8px);
+            border-radius: 24px;
+          }
+        `}</style>
       </motion.div>
-      <style>{`
-        .glass-card {
-          background: rgba(255,255,255,0.7);
-          box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
-          backdrop-filter: blur(8px);
-          border-radius: 24px;
-        }
-      `}</style>
     </div>
   );
 };
