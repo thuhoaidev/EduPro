@@ -1,15 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb, message } from 'antd';
-import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb, message, Modal, Input } from 'antd';
+import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined, ClockCircleOutlined, LikeOutlined, DislikeOutlined, SaveOutlined } from '@ant-design/icons';
 import { courseService } from '../../services/apiService';
 import type { Course, Section, Lesson } from '../../services/apiService';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { config } from '../../api/axios';
-import { getCourseReviews, getMyReview, addOrUpdateReview } from '../../services/courseReviewService';
+import { getCourseReviews, getMyReview, addOrUpdateReview, 
+  toggleLikeReview, toggleDislikeReview, reportReview } from '../../services/courseReviewService';
 import TextArea from 'antd/lib/input/TextArea';
 import { useCart } from '../../contexts/CartContext';
 import { getProgress } from '../../services/progressService';
+import { useAuth } from '../../hooks/Auths/useAuth';
+import { Select } from 'antd';
+import { SearchOutlined, FlagOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+dayjs.extend(relativeTime);
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -34,8 +41,16 @@ const CourseDetailPage: React.FC = () => {
     const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [reviews, setReviews] = useState<{
-        user: { fullname?: string; avatar?: string }; rating: number; comment: string 
-}[]>([]);
+        _id: string;
+        user: { fullname?: string; avatar?: string };
+        rating: number;
+        comment: string;
+        createdAt?: string;
+        likes?: any[];
+        dislikes?: any[];
+    }[]>([]);
+    const [reviewFilter, setReviewFilter] = useState<number | 'all'>('all');
+    const [reviewSearch, setReviewSearch] = useState('');
     const [myReview, setMyReview] = useState<{ rating: number; comment: string } | null>(null);
     const [reviewLoading, setReviewLoading] = useState(false);
     const [reviewError, setReviewError] = useState<string | null>(null);
@@ -47,6 +62,10 @@ const CourseDetailPage: React.FC = () => {
     const [continueLessonId, setContinueLessonId] = useState<string | null>(null);
     const navigate = useNavigate();
     const { addToCart, isInCart, updateCartCount } = useCart();
+    const { user } = useAuth();
+    const [reportModalVisible, setReportModalVisible] = useState(false);
+    const [reportReason, setReportReason] = useState('');
+    const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
 
     // Function to calculate total duration from course content
     const calculateTotalDuration = (sections: Section[]): string => {
@@ -234,8 +253,8 @@ const CourseDetailPage: React.FC = () => {
                     try {
                         const my = await getMyReview(course.id);
                         setMyReview(my);
-                        setReviewValue(my.rating);
-                        setReviewComment(my.comment || '');
+                        setReviewValue(my?.rating || 0);
+                        setReviewComment(my?.comment || '');
                     } catch {
                         // ignore
                     }
@@ -252,41 +271,17 @@ const CourseDetailPage: React.FC = () => {
         const checkCompleted = async () => {
             if (!course || !isEnrolled) {
                 setIsCompleted(false);
-                setContinueLessonId(null);
                 return;
             }
             try {
                 const progress = await getProgress(course.id);
-                // Nếu không có bài học nào thì không cho đánh giá
-                if (!progress || Object.keys(progress).length === 0) {
-                    setIsCompleted(false);
-                    setContinueLessonId(null);
-                    return;
-                }
-                // Tất cả bài học đều completed = true
-                const allCompleted = Object.values(progress).every((p: any) => p.completed === true);
-                setIsCompleted(allCompleted);
-                // Xác định lesson tiếp tục học
-                let lessonId = null;
-                if (progress.lastWatchedLessonId) {
-                    lessonId = progress.lastWatchedLessonId;
-                } else {
-                    outer: for (const section of courseContent) {
-                        for (const lesson of section.lessons) {
-                            if (!progress[lesson._id]?.completed && !progress[lesson._id]?.videoCompleted) {
-                                lessonId = lesson._id;
-                                break outer;
-                            }
-                        }
-                    }
-                    if (!lessonId && courseContent[0]?.lessons?.[0]?._id) {
-                        lessonId = courseContent[0].lessons[0]._id;
-                    }
-                }
-                setContinueLessonId(lessonId);
+                const totalLessons = courseContent.reduce((acc, section) => acc + section.lessons.length, 0);
+                const completedLessons = Object.values(progress || {}).filter((p: any) =>
+                    p.completed === true && p.videoCompleted === true && p.quizPassed === true
+                ).length;
+                setIsCompleted(totalLessons > 0 && completedLessons === totalLessons);
             } catch {
                 setIsCompleted(false);
-                setContinueLessonId(null);
             }
         };
         checkCompleted();
@@ -302,6 +297,29 @@ const CourseDetailPage: React.FC = () => {
         
         return () => clearInterval(interval);
     }, []);
+
+    // Tính toán dữ liệu tổng quan đánh giá
+    const ratingStats = React.useMemo(() => {
+        const stats = [0, 0, 0, 0, 0]; // 5 -> 1 sao
+        reviews.forEach(r => {
+        if (r.rating >= 1 && r.rating <= 5) stats[5 - r.rating]++;
+        });
+        const total = reviews.length;
+        return {
+        stats,
+        total,
+        avg: total ? (reviews.reduce((sum, r) => sum + r.rating, 0) / total) : 0,
+        percent: stats.map(count => total ? Math.round((count / total) * 100) : 0)
+        };
+    }, [reviews]);
+
+    // Lọc và tìm kiếm review
+    const filteredReviews = React.useMemo(() => {
+        let list = reviews;
+        if (reviewFilter !== 'all') list = list.filter(r => r.rating === reviewFilter);
+        if (reviewSearch.trim()) list = list.filter(r => r.comment.toLowerCase().includes(reviewSearch.trim().toLowerCase()));
+        return list;
+    }, [reviews, reviewFilter, reviewSearch]);
 
     if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Spin size="large" /></div>;
     if (error) return <div className="p-8"><Alert message="Lỗi" description={error} type="error" showIcon /></div>;
@@ -351,6 +369,65 @@ const CourseDetailPage: React.FC = () => {
         return <ShoppingCartOutlined />;
     };
 
+    const handleLike = async (reviewId: string) => {
+      setReviews(prev =>
+        prev.map(r => {
+          if (r._id !== reviewId || !user) return r;
+          const liked = Array.isArray(r.likes) && r.likes.some((id: any) => id === user._id || id?._id === user._id);
+          let newLikes = [...(r.likes || [])];
+          let newDislikes = (r.dislikes || []).filter((id: any) => id !== user._id && id?._id !== user._id);
+          if (liked) {
+            newLikes = newLikes.filter((id: any) => id !== user._id && id?._id !== user._id);
+          } else {
+            newLikes.push(user._id);
+          }
+          return { ...r, likes: newLikes, dislikes: newDislikes };
+        })
+      );
+      try {
+        await toggleLikeReview(reviewId);
+      } catch {
+        message.error('Có lỗi xảy ra');
+      }
+    };
+
+    const handleDislike = async (reviewId: string) => {
+      setReviews(prev =>
+        prev.map(r => {
+          if (r._id !== reviewId || !user) return r;
+          const disliked = Array.isArray(r.dislikes) && r.dislikes.some((id: any) => id === user._id || id?._id === user._id);
+          let newDislikes = [...(r.dislikes || [])];
+          let newLikes = (r.likes || []).filter((id: any) => id !== user._id && id?._id !== user._id);
+          if (disliked) {
+            newDislikes = newDislikes.filter((id: any) => id !== user._id && id?._id !== user._id);
+          } else {
+            newDislikes.push(user._id);
+          }
+          return { ...r, dislikes: newDislikes, likes: newLikes };
+        })
+      );
+      try {
+        await toggleDislikeReview(reviewId);
+      } catch {
+        message.error('Có lỗi xảy ra');
+      }
+    };
+
+    const handleReport = async () => {
+      if (!selectedReviewId || !reportReason.trim()) {
+        message.warning('Vui lòng nhập lý do');
+        return;
+      }
+      try {
+        await reportReview(selectedReviewId, reportReason);
+        message.success('Đã gửi báo cáo');
+        setReportModalVisible(false);
+        setReportReason('');
+        setSelectedReviewId(null);
+      } catch (error) {
+        message.error('Có lỗi xảy ra');
+      }
+    };
 
 
     return (
@@ -543,53 +620,161 @@ const CourseDetailPage: React.FC = () => {
                         <motion.div custom={4} variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.5 }}>
                             <Card variant="outlined" className="border border-gray-200 shadow-sm rounded-xl mt-20 bg-white/80 backdrop-blur-md">
                                 <Title level={3} className="mb-8 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">Đánh giá từ học viên</Title>
+                                
+                                {/* Tổng quan đánh giá */}
+                                <div style={{ display: 'flex', gap: 40, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 32, paddingBottom: 24, borderBottom: '1px solid #e8e8e8' }}>
+                                  <div style={{ minWidth: 180, textAlign: 'center' }}>
+                                    <div style={{ fontSize: 54, fontWeight: 800, color: '#06b6d4', lineHeight: 1 }}>{ratingStats.avg.toFixed(1)}</div>
+                                    <Rate disabled allowHalf value={ratingStats.avg} style={{ fontSize: 28, color: '#06b6d4', margin: '8px 0' }} />
+                                    <div style={{ color: '#06b6d4', fontWeight: 600, fontSize: 18, marginTop: 4 }}>Điểm trung bình</div>
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 220, marginTop: 8 }}>
+                                    {ratingStats.stats.map((count, idx) => (
+                                      <div key={5-idx} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                                        <span style={{ fontWeight: 600, color: '#06b6d4', minWidth: 24 }}>{5-idx}</span>
+                                        <Rate disabled value={5-idx} style={{ fontSize: 16, color: '#06b6d4' }} />
+                                        <div style={{ flex: 1, background: '#e0f2fe', borderRadius: 6, height: 10, margin: '0 8px', overflow: 'hidden' }}>
+                                          <div style={{ width: ratingStats.percent[idx] + '%', background: '#8b5cf6', height: '100%', borderRadius: 6, transition: 'width 0.3s' }} />
+                                        </div>
+                                        <span style={{ color: '#8b5cf6', fontWeight: 600, minWidth: 36 }}>{ratingStats.percent[idx]}%</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Search & Filter */}
+                                <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', padding: '16px 20px', background: '#f8fafc', borderRadius: 12, border: '1px solid #f0f0f0' }}>
+                                  <Input
+                                    placeholder="Tìm kiếm theo nội dung..."
+                                    prefix={<SearchOutlined style={{ color: '#aaa' }} />}
+                                    value={reviewSearch}
+                                    onChange={e => setReviewSearch(e.target.value)}
+                                    style={{ width: 280, borderRadius: 8, height: 40 }}
+                                  />
+                                  <div style={{ flex: 1 }} />
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ fontWeight: 600, color: '#444' }}>Lọc theo số sao:</span>
+                                    <Select
+                                      value={reviewFilter}
+                                      onChange={value => setReviewFilter(value)}
+                                      style={{ width: 140, borderRadius: 8 }}
+                                    >
+                                      <Select.Option value="all">Tất cả</Select.Option>
+                                      <Select.Option value={5}>5 sao</Select.Option>
+                                      <Select.Option value={4}>4 sao</Select.Option>
+                                      <Select.Option value={3}>3 sao</Select.Option>
+                                      <Select.Option value={2}>2 sao</Select.Option>
+                                      <Select.Option value={1}>1 sao</Select.Option>
+                                    </Select>
+                                  </div>
+                                </div>
+                                
                                 {reviewLoading ? <Spin /> : (
                                     <List
                                         itemLayout="horizontal"
-                                        dataSource={reviews}
+                                        dataSource={filteredReviews}
                                         locale={{ emptyText: 'Chưa có đánh giá nào.' }}
-                                        renderItem={item => (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: 40 }}
-                                                whileInView={{ opacity: 1, x: 0 }}
-                                                viewport={{ once: true }}
-                                                transition={{ duration: 0.5 }}
-                                            >
-                                                <List.Item className="!items-start !border-0 !bg-transparent !py-6">
-                                                    <div className="flex items-start gap-5 w-full">
-                                                        <Avatar src={item.user?.avatar} icon={<UserOutlined />} size={56} className="shadow-lg" />
-                                                        <div className="flex-1">
-                                                            <div className="bg-gradient-to-br from-cyan-50 to-purple-50 rounded-xl px-6 py-5 shadow-inner relative">
-                                                                <span className="absolute -left-4 top-4 text-4xl text-cyan-300 opacity-30 select-none">"</span>
-                                                                <Text className="block text-lg font-medium text-gray-800 mb-3">{item.comment}</Text>
-                                                                <div className="flex items-center gap-2">
-                                                                    <Text strong>{item.user?.fullname || 'Người dùng'}</Text>
-                                                                    <Rate disabled value={item.rating} className="!text-base ml-2" />
+                                        renderItem={item => {
+                                            const liked = Array.isArray(item.likes) && user && item.likes.some((id: any) => id === user._id || id?._id === user._id);
+                                            const disliked = Array.isArray(item.dislikes) && user && item.dislikes.some((id: any) => id === user._id || id?._id === user._id);
+                                            return (
+                                                <motion.div
+                                                    initial={{ opacity: 0, x: 40 }}
+                                                    whileInView={{ opacity: 1, x: 0 }}
+                                                    viewport={{ once: true }}
+                                                    transition={{ duration: 0.5 }}
+                                                >
+                                                    <List.Item className="!items-start !border-0 !bg-transparent !py-6">
+                                                        <div className="flex items-start gap-5 w-full">
+                                                            <Avatar 
+                                                                src={item.user?.avatar} 
+                                                                icon={<UserOutlined />} 
+                                                                size={48}
+                                                                style={{ 
+                                                                    background: '#e0f2fe',
+                                                                    color: '#8b5cf6',
+                                                                    fontWeight: 700,
+                                                                    fontSize: 20
+                                                                }}
+                                                            >
+                                                                {!item.user?.avatar && (item.user?.fullname ? item.user.fullname[0] : 'U')}
+                                                            </Avatar>
+                                                            <div className="flex-1">
+                                                                <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                    <Text strong style={{ fontSize: 16, marginRight: 8 }}>
+                                                                        {item.user?.fullname || 'Người dùng'}
+                                                                    </Text>
+                                                                    <Rate disabled value={item.rating} style={{ fontSize: 14, color: '#f59e42' }} />
+                                                                    <span style={{ color: '#888', fontSize: 13, marginLeft: 8 }}>{item.createdAt ? dayjs(item.createdAt).fromNow() : ''}</span>
+                                                                </div>
+                                                                <Text style={{ fontSize: 15, color: '#262626', display: 'block', marginBottom: 4 }}>
+                                                                    {item.comment}
+                                                                </Text>
+                                                                <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 4 }}>
+                                                                    <Button type="text" icon={<LikeOutlined />} style={{ color: liked ? '#06b6d4' : '#bdbdbd', fontWeight: liked ? 700 : 400 }} onClick={() => handleLike(item._id)}>Hữu ích</Button>
+                                                                    <Button type="text" icon={<DislikeOutlined />} style={{ color: disliked ? '#6366f1' : '#aaa', fontWeight: disliked ? 700 : 400 }} onClick={() => handleDislike(item._id)} />
+                                                                    <Button type="link" icon={<FlagOutlined />} style={{ color: '#f87171', fontWeight: 600 }} onClick={() => { setSelectedReviewId(item._id); setReportModalVisible(true); }}>Báo xấu</Button>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </List.Item>
-                                            </motion.div>
-                                        )}
+                                                    </List.Item>
+                                                </motion.div>
+                                            )
+                                        }}
                                     />
                                 )}
+
                                 {isEnrolled && isCompleted && (
-                                    <div className="mt-8">
-                                        <Title level={4} className="mb-2">Đánh giá của bạn</Title>
-                                        <Rate value={reviewValue} onChange={setReviewValue} />
-                                        <TextArea
-                                            rows={3}
+                                    <div style={{ marginTop: 32 }}>
+                                        <Card 
+                                            title={<Title level={4} style={{ color: '#06b6d4' }}>{myReview ? 'Cập nhật đánh giá của bạn' : 'Đánh giá của bạn'}</Title>}
+                                            style={{
+                                            background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)',
+                                            borderRadius: 12,
+                                            border: '1px solid #d6e4ff'
+                                            }}
+                                            headStyle={{ borderBottom: '1px solid #e6f4ff' }}
+                                        >
+                                            <Rate 
+                                            value={reviewValue} 
+                                            onChange={setReviewValue}
+                                            style={{ fontSize: 24, marginBottom: 16, color: '#f59e42' }}
+                                            />
+                                            <Input.TextArea
+                                            rows={4}
                                             value={reviewComment}
-                                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReviewComment(e.target.value)}
-                                            placeholder="Nhận xét về khóa học..."
-                                            maxLength={500}
-                                            className="mb-2 mt-2"
-                                        />
-                                        <Button type="primary" onClick={handleSubmitReview} loading={reviewLoading}>
-                                            {myReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
-                                        </Button>
-                                        {reviewError && <Alert message={reviewError} type="error" showIcon className="mt-2" />}
+                                            onChange={(e) => setReviewComment(e.target.value)}
+                                            placeholder="Chia sẻ trải nghiệm học tập của bạn..."
+                                            style={{ 
+                                                borderRadius: 8, 
+                                                fontSize: 15,
+                                                marginBottom: 16,
+                                                resize: 'vertical'
+                                            }}
+                                            />
+                                            <div style={{ textAlign: 'right' }}>
+                                            <Button 
+                                                type="primary" 
+                                                onClick={handleSubmitReview} 
+                                                loading={reviewLoading}
+                                                style={{
+                                                borderRadius: 6,
+                                                background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                                                border: 'none',
+                                                height: 40,
+                                                paddingInline: 24,
+                                                fontSize: 16,
+                                                fontWeight: 600
+                                                }}
+                                            >
+                                                <SaveOutlined style={{ marginRight: 4 }} />
+                                                {myReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
+                                            </Button>
+                                            </div>
+                                            {reviewError && (
+                                            <Alert message={reviewError} type="error" showIcon style={{ marginTop: 16 }} />
+                                            )}
+                                        </Card>
                                     </div>
                                 )}
                                 {isEnrolled && !isCompleted && (
@@ -853,6 +1038,21 @@ const CourseDetailPage: React.FC = () => {
                     </Col>
                 </Row>
             </div>
+            <Modal
+              title="Báo cáo đánh giá"
+              open={reportModalVisible}
+              onOk={handleReport}
+              onCancel={() => setReportModalVisible(false)}
+              okText="Gửi"
+              cancelText="Hủy"
+            >
+              <Input.TextArea 
+                rows={4} 
+                value={reportReason} 
+                onChange={e => setReportReason(e.target.value)} 
+                placeholder="Nhập lý do báo cáo..." 
+              />
+            </Modal>
         </Content>
     );
 };

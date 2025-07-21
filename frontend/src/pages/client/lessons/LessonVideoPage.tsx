@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, Row, Col, Radio, Avatar, Tabs, Rate, Select } from 'antd';
+import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, Row, Col, Radio, Avatar, Tabs, Rate, Select, Modal } from 'antd';
 import { config } from '../../../api/axios';
 import { LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined, PauseCircleOutlined, 
   EditOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
@@ -14,7 +14,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import useAuth from '../../../hooks/Auths/useAuth';
 import leoProfanity from 'leo-profanity';
 import { courseService } from '../../../services/apiService';
-import { getCourseReviews, getMyReview, addOrUpdateReview } from '../../../services/courseReviewService';
+import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, toggleDislikeReview, reportReview } from '../../../services/courseReviewService';
 import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
 dayjs.extend(relativeTime);
 
@@ -784,6 +784,9 @@ const LessonVideoPage: React.FC = () => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [reviewFilter, setReviewFilter] = useState<number | 'all'>('all');
   const [reviewSearch, setReviewSearch] = useState('');
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
 
   // Tính toán dữ liệu tổng quan đánh giá
   const ratingStats = React.useMemo(() => {
@@ -821,8 +824,8 @@ const LessonVideoPage: React.FC = () => {
           try {
             const my = await getMyReview(courseId);
             setMyReview(my);
-            setReviewValue(my.rating);
-            setReviewComment(my.comment || '');
+            setReviewValue(my?.rating || 0);
+            setReviewComment(my?.comment || '');
           } catch {
             // ignore
           }
@@ -850,6 +853,48 @@ const LessonVideoPage: React.FC = () => {
       setReviewError('Không thể gửi đánh giá.');
     }
     setReviewLoading(false);
+  };
+
+  // Handler cho like/dislike/report
+  const handleLike = async (reviewId: string) => {
+    try {
+      await toggleLikeReview(reviewId);
+      // Reload reviews
+      if (courseId) {
+        const reviewsData = await getCourseReviews(courseId);
+        setReviews(reviewsData || []);
+      }
+    } catch (error) {
+      message.error('Có lỗi xảy ra');
+    }
+  };
+
+  const handleDislike = async (reviewId: string) => {
+    try {
+      await toggleDislikeReview(reviewId);
+      if (courseId) {
+        const reviewsData = await getCourseReviews(courseId);
+        setReviews(reviewsData || []);
+      }
+    } catch (error) {
+      message.error('Có lỗi xảy ra');
+    }
+  };
+
+  const handleReport = async () => {
+    if (!selectedReviewId || !reportReason.trim()) {
+      message.warning('Vui lòng nhập lý do');
+      return;
+    }
+    try {
+      await reportReview(selectedReviewId, reportReason);
+      message.success('Đã gửi báo cáo');
+      setReportModalVisible(false);
+      setReportReason('');
+      setSelectedReviewId(null);
+    } catch (error) {
+      message.error('Có lỗi xảy ra');
+    }
   };
 
   return (
@@ -1386,54 +1431,58 @@ const LessonVideoPage: React.FC = () => {
                           loading={reviewLoading}
                           dataSource={filteredReviews}
                           locale={{ emptyText: 'Chưa có đánh giá nào.' }}
-                          renderItem={item => (
-                            <motion.div
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.3 }}
-                            >
-                              <List.Item style={{ padding: '20px 0', borderBottom: '1px solid #f0f0f0', alignItems: 'flex-start' }}>
-                                <List.Item.Meta
-                                  avatar={
-                                    <Avatar 
-                                      src={item.user?.avatar} 
-                                      icon={<UserOutlined />} 
-                                      size={48}
-                                      style={{ 
-                                        background: '#e0f2fe',
-                                        color: '#8b5cf6',
-                                        fontWeight: 700,
-                                        fontSize: 20
-                                      }}
-                                    >
-                                      {!item.user?.avatar && (item.user?.fullname ? item.user.fullname[0] : 'U')}
-                                    </Avatar>
-                                  }
-                                  title={
-                                    <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                      <Text strong style={{ fontSize: 16, marginRight: 8 }}>
-                                        {item.user?.fullname || 'Người dùng'}
-                                      </Text>
-                                      <Rate disabled value={item.rating} style={{ fontSize: 14, color: '#f59e42' }} />
-                                      <span style={{ color: '#888', fontSize: 13, marginLeft: 8 }}>{item.createdAt ? dayjs(item.createdAt).fromNow() : ''}</span>
-                                    </div>
-                                  }
-                                  description={
-                                    <div style={{ marginBottom: 8 }}>
-                                      <Text style={{ fontSize: 15, color: '#262626', display: 'block', marginBottom: 4 }}>
-                                        {item.comment}
-                                      </Text>
-                                      <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 4 }}>
-                                        <Button type="text" icon={<LikeOutlined />} style={{ color: '#06b6d4' }}>Hữu ích</Button>
-                                        <Button type="text" icon={<DislikeOutlined />} style={{ color: '#aaa' }} />
-                                        <Button type="link" icon={<FlagOutlined />} style={{ color: '#f87171', fontWeight: 600 }}>Báo xấu</Button>
+                          renderItem={item => {
+                            const liked = Array.isArray(item.likes) && user && item.likes.some((id: any) => id === user._id || id?._id === user._id);
+                            const disliked = Array.isArray(item.dislikes) && user && item.dislikes.some((id: any) => id === user._id || id?._id === user._id);
+                            return (
+                              <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                <List.Item style={{ padding: '20px 0', borderBottom: '1px solid #f0f0f0', alignItems: 'flex-start' }}>
+                                  <List.Item.Meta
+                                    avatar={
+                                      <Avatar 
+                                        src={item.user?.avatar} 
+                                        icon={<UserOutlined />} 
+                                        size={48}
+                                        style={{ 
+                                          background: '#e0f2fe',
+                                          color: '#8b5cf6',
+                                          fontWeight: 700,
+                                          fontSize: 20
+                                        }}
+                                      >
+                                        {!item.user?.avatar && (item.user?.fullname ? item.user.fullname[0] : 'U')}
+                                      </Avatar>
+                                    }
+                                    title={
+                                      <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <Text strong style={{ fontSize: 16, marginRight: 8 }}>
+                                          {item.user?.fullname || 'Người dùng'}
+                                        </Text>
+                                        <Rate disabled value={item.rating} style={{ fontSize: 14, color: '#f59e42' }} />
+                                        <span style={{ color: '#888', fontSize: 13, marginLeft: 8 }}>{item.createdAt ? dayjs(item.createdAt).fromNow() : ''}</span>
                                       </div>
-                                    </div>
-                                  }
-                                />
-                              </List.Item>
-                            </motion.div>
-                          )}
+                                    }
+                                    description={
+                                      <div style={{ marginBottom: 8 }}>
+                                        <Text style={{ fontSize: 15, color: '#262626', display: 'block', marginBottom: 4 }}>
+                                          {item.comment}
+                                        </Text>
+                                        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 4 }}>
+                                          <Button type="text" icon={<LikeOutlined />} style={{ color: liked ? '#06b6d4' : '#bdbdbd', fontWeight: liked ? 700 : 400 }} onClick={() => handleLike(item._id)}>Hữu ích</Button>
+                                          <Button type="text" icon={<DislikeOutlined />} style={{ color: disliked ? '#6366f1' : '#aaa', fontWeight: disliked ? 700 : 400 }} onClick={() => handleDislike(item._id)} />
+                                          <Button type="link" icon={<FlagOutlined />} style={{ color: '#f87171', fontWeight: 600 }} onClick={() => { setSelectedReviewId(item._id); setReportModalVisible(true); }}>Báo xấu</Button>
+                                        </div>
+                                      </div>
+                                    }
+                                  />
+                                </List.Item>
+                              </motion.div>
+                            );
+                          }}
                         />
                         {/* Form đánh giá của bạn (đưa xuống dưới cùng) */}
                         {isEnrolled && isCompleted && (
@@ -1508,6 +1557,21 @@ const LessonVideoPage: React.FC = () => {
           </>
         )}
       </motion.div>
+      <Modal
+        title="Báo cáo đánh giá"
+        open={reportModalVisible}
+        onOk={handleReport}
+        onCancel={() => setReportModalVisible(false)}
+        okText="Gửi"
+        cancelText="Hủy"
+      >
+        <Input.TextArea 
+          rows={4} 
+          value={reportReason} 
+          onChange={e => setReportReason(e.target.value)} 
+          placeholder="Nhập lý do báo cáo..." 
+        />
+      </Modal>
     </div>
   );
 };
