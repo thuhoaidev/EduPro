@@ -12,7 +12,13 @@ import { courseService } from '../../services/apiService';
 const formatCurrency = (value: number) => value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 const isMongoId = (str: string) => /^[a-f\d]{24}$/i.test(str);
 
-const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course, isEnrolled }) => {
+interface CourseCardProps {
+    course: Course;
+    isEnrolled?: boolean;
+    isInProgress?: boolean;
+    continueLessonId?: string;
+}
+const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgress, continueLessonId }) => {
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isInstructor, setIsInstructor] = useState(false);
     const { addToCart, isInCart, updateCartCount } = useCart();
@@ -176,10 +182,14 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
                                     type="button" 
                                     onClick={e => { 
                                         e.preventDefault(); 
-                                        window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`; 
+                                        if (continueLessonId) {
+                                            navigate(`/lessons/${continueLessonId}/video`);
+                                        } else {
+                                            window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`; 
+                                        }
                                     }}
                                 >
-                                    <span className={styles.buttonText}>Học ngay</span>
+                                    <span className={styles.buttonText}>{isInProgress ? 'Tiếp tục học' : 'Học ngay'}</span>
                                 </button>
                             ) : course.isFree ? (
                                 <button 

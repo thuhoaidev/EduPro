@@ -7,6 +7,7 @@ import SearchBar from '../../components/common/SearchBar';
 import CourseCard from '../../components/course/CourseCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { config } from '../../api/axios';
+import { getProgress } from '../../services/progressService';
 
 const { Content } = Layout;
 const { Text, Paragraph } = Typography;
@@ -23,6 +24,8 @@ const CoursesPage: React.FC = () => {
     const categoryId = searchParams.get('category');
     const searchTerm = searchParams.get('search') || '';
     const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+    const [courseProgress, setCourseProgress] = useState<{ [courseId: string]: boolean }>({});
+    const [courseContinueLesson, setCourseContinueLesson] = useState<{ [courseId: string]: string | null }>({});
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -53,14 +56,60 @@ const CoursesPage: React.FC = () => {
             const token = localStorage.getItem('token');
             if (!token) {
                 setEnrolledCourseIds([]);
+                setCourseProgress({});
+                setCourseContinueLesson({});
                 return;
             }
             try {
                 const response = await config.get('/users/me/enrollments');
                 const ids = (response.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
                 setEnrolledCourseIds(ids);
+                // Lấy progress từng khóa học và lesson tiếp tục học
+                const progressObj: { [courseId: string]: boolean } = {};
+                const continueLessonObj: { [courseId: string]: string | null } = {};
+                await Promise.all(ids.map(async (courseId: string) => {
+                    try {
+                        const progress = await getProgress(courseId);
+                        // Nếu không có bài học nào thì chưa hoàn thành
+                        if (!progress || Object.keys(progress).length === 0) {
+                            progressObj[courseId] = false;
+                            continueLessonObj[courseId] = null;
+                            return;
+                        }
+                        // Tất cả bài học đều completed = true
+                        const allCompleted = Object.values(progress).every((p: any) => p.completed === true);
+                        progressObj[courseId] = allCompleted;
+                        // Xác định lesson tiếp tục học
+                        let continueLessonId = null;
+                        if (progress.lastWatchedLessonId) {
+                            continueLessonId = progress.lastWatchedLessonId;
+                        } else {
+                            // Lấy content để xác định bài học tiếp theo
+                            const sections = await courseService.getCourseContent(courseId);
+                            outer: for (const section of sections) {
+                                for (const lesson of section.lessons) {
+                                    if (!progress[lesson._id]?.completed && !progress[lesson._id]?.videoCompleted) {
+                                        continueLessonId = lesson._id;
+                                        break outer;
+                                    }
+                                }
+                            }
+                            // Nếu đã hoàn thành hết thì lấy bài đầu tiên
+                            if (!continueLessonId && sections[0]?.lessons?.[0]?._id) {
+                                continueLessonId = sections[0].lessons[0]._id;
+                            }
+                        }
+                        continueLessonObj[courseId] = continueLessonId;
+                    } catch {
+                        progressObj[courseId] = false;
+                        continueLessonObj[courseId] = null;
+                    }
+                }));
+                setCourseProgress(progressObj);
+                setCourseContinueLesson(continueLessonObj);
             } catch {
-                // Không cần xử lý lỗi ở đây
+                setCourseProgress({});
+                setCourseContinueLesson({});
             }
         };
         fetchEnrollments();
@@ -156,7 +205,12 @@ const CoursesPage: React.FC = () => {
                                     whileHover={{ scale: 1.035, boxShadow: '0 8px 32px 0 rgba(80,80,180,0.10)' }}
                                     className="h-full"
                                 >
-                                    <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id)} />
+                                    <CourseCard 
+                                        course={course} 
+                                        isEnrolled={enrolledCourseIds.includes(course.id)}
+                                        isInProgress={enrolledCourseIds.includes(course.id) && !courseProgress[course.id]}
+                                        continueLessonId={courseContinueLesson[course.id] || undefined}
+                                    />
                                 </motion.div>
                             </Col>
                         ))}

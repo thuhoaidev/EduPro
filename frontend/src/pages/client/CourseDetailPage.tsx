@@ -9,6 +9,7 @@ import { config } from '../../api/axios';
 import { getCourseReviews, getMyReview, addOrUpdateReview } from '../../services/courseReviewService';
 import TextArea from 'antd/lib/input/TextArea';
 import { useCart } from '../../contexts/CartContext';
+import { getProgress } from '../../services/progressService';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -42,6 +43,8 @@ const CourseDetailPage: React.FC = () => {
     const [reviewComment, setReviewComment] = useState('');
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isInstructor, setIsInstructor] = useState(false);
+    const [isCompleted, setIsCompleted] = useState(false);
+    const [continueLessonId, setContinueLessonId] = useState<string | null>(null);
     const navigate = useNavigate();
     const { addToCart, isInCart, updateCartCount } = useCart();
 
@@ -244,6 +247,51 @@ const CourseDetailPage: React.FC = () => {
         })();
     }, [course, isEnrolled]);
 
+    // Kiểm tra hoàn thành 100% khóa học
+    useEffect(() => {
+        const checkCompleted = async () => {
+            if (!course || !isEnrolled) {
+                setIsCompleted(false);
+                setContinueLessonId(null);
+                return;
+            }
+            try {
+                const progress = await getProgress(course.id);
+                // Nếu không có bài học nào thì không cho đánh giá
+                if (!progress || Object.keys(progress).length === 0) {
+                    setIsCompleted(false);
+                    setContinueLessonId(null);
+                    return;
+                }
+                // Tất cả bài học đều completed = true
+                const allCompleted = Object.values(progress).every((p: any) => p.completed === true);
+                setIsCompleted(allCompleted);
+                // Xác định lesson tiếp tục học
+                let lessonId = null;
+                if (progress.lastWatchedLessonId) {
+                    lessonId = progress.lastWatchedLessonId;
+                } else {
+                    outer: for (const section of courseContent) {
+                        for (const lesson of section.lessons) {
+                            if (!progress[lesson._id]?.completed && !progress[lesson._id]?.videoCompleted) {
+                                lessonId = lesson._id;
+                                break outer;
+                            }
+                        }
+                    }
+                    if (!lessonId && courseContent[0]?.lessons?.[0]?._id) {
+                        lessonId = courseContent[0].lessons[0]._id;
+                    }
+                }
+                setContinueLessonId(lessonId);
+            } catch {
+                setIsCompleted(false);
+                setContinueLessonId(null);
+            }
+        };
+        checkCompleted();
+    }, [course, isEnrolled, courseContent]);
+
     // Force re-render when cart changes
     useEffect(() => {
         // This will trigger re-render when cart state changes
@@ -291,7 +339,8 @@ const CourseDetailPage: React.FC = () => {
     // Helper function để đồng bộ logic với CourseCard
     const getButtonText = () => {
         if (isInstructor) return 'Quản lý khóa học';
-        if (isEnrolled) return 'Học ngay';
+        if (isEnrolled && !isCompleted) return 'Tiếp tục học';
+        if (isEnrolled && isCompleted) return 'Học ngay';
         if (course.isFree) return 'Đăng ký học';
         if (isInCart(course.id)) return 'Thanh toán ngay';
         return 'Thêm vào giỏ hàng';
@@ -525,7 +574,7 @@ const CourseDetailPage: React.FC = () => {
                                         )}
                                     />
                                 )}
-                                {isEnrolled && (
+                                {isEnrolled && isCompleted && (
                                     <div className="mt-8">
                                         <Title level={4} className="mb-2">Đánh giá của bạn</Title>
                                         <Rate value={reviewValue} onChange={setReviewValue} />
@@ -541,6 +590,11 @@ const CourseDetailPage: React.FC = () => {
                                             {myReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
                                         </Button>
                                         {reviewError && <Alert message={reviewError} type="error" showIcon className="mt-2" />}
+                                    </div>
+                                )}
+                                {isEnrolled && !isCompleted && (
+                                    <div className="mt-8">
+                                        <Alert message="Bạn cần hoàn thành khóa học để có thể đánh giá." type="info" showIcon />
                                     </div>
                                 )}
                             </Card>
@@ -629,11 +683,15 @@ const CourseDetailPage: React.FC = () => {
                                             className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
                                             icon={getButtonIcon()} 
                                             onClick={() => {
-                                                const firstLesson = courseContent[0]?.lessons[0];
-                                                if (firstLesson?._id) {
-                                                    navigate(`/lessons/${firstLesson._id}/video`);
+                                                if (continueLessonId) {
+                                                    navigate(`/lessons/${continueLessonId}/video`);
                                                 } else {
-                                                    message.info('Khóa học này chưa có bài giảng. Vui lòng quay lại sau!');
+                                                    const firstLesson = courseContent[0]?.lessons[0];
+                                                    if (firstLesson?._id) {
+                                                        navigate(`/lessons/${firstLesson._id}/video`);
+                                                    } else {
+                                                        message.info('Khóa học này chưa có bài giảng. Vui lòng quay lại sau!');
+                                                    }
                                                 }
                                             }}
                                         >
