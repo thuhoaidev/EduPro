@@ -4,9 +4,11 @@ import { motion } from "framer-motion";
 import { config } from "../../../api/axios";
 import { formatDistanceToNow, format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Progress } from 'antd';
 import { ArrowRightOutlined } from '@ant-design/icons';
+import { courseService, getCourseById } from '../../../services/courseService';
+import { getProgress } from '../../../services/progressService';
 
 interface User {
   id: number;
@@ -59,6 +61,10 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
+  const [courseLessonsMap, setCourseLessonsMap] = useState<Record<string, number>>({});
+  const [courseSectionsMap, setCourseSectionsMap] = useState<Record<string, any[]>>({});
+  const [courseProgressMap, setCourseProgressMap] = useState<Record<string, any>>({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -95,6 +101,72 @@ const Profile = () => {
     fetchUserProfile();
     fetchEnrolledCourses();
   }, []);
+
+  // Fetch chi tiết từng khóa học để lấy số lượng bài học
+  useEffect(() => {
+    const fetchLessonsCount = async () => {
+      const lessonsMap: Record<string, number> = {};
+      const sectionsMap: Record<string, any[]> = {};
+      await Promise.all(
+        enrolledCourses.map(async (enroll) => {
+          const course = enroll.course || {};
+          const courseId = course._id || course.id;
+          if (!courseId) return;
+          try {
+            const detail = await getCourseById(courseId);
+            let total = 0;
+            if (Array.isArray(detail.sections)) {
+              total = detail.sections.reduce(
+                (sum: number, sec: any) => sum + (Array.isArray(sec.lessons) ? sec.lessons.length : 0),
+                0
+              );
+              sectionsMap[courseId] = detail.sections;
+            } else if (Array.isArray(detail.lessons)) {
+              total = detail.lessons.length;
+              sectionsMap[courseId] = [{ lessons: detail.lessons }];
+            } else if (typeof detail.totalLessons === 'number') {
+              total = detail.totalLessons;
+              sectionsMap[courseId] = [];
+            } else {
+              sectionsMap[courseId] = [];
+            }
+            lessonsMap[courseId] = total;
+          } catch (e) {
+            lessonsMap[courseId] = 0;
+            sectionsMap[courseId] = [];
+          }
+        })
+      );
+      setCourseLessonsMap(lessonsMap);
+      setCourseSectionsMap(sectionsMap);
+    };
+    if (enrolledCourses.length > 0) {
+      fetchLessonsCount();
+    }
+  }, [enrolledCourses]);
+
+  // Fetch progress cho từng course
+  useEffect(() => {
+    const fetchAllProgress = async () => {
+      const progressMap: Record<string, any> = {};
+      await Promise.all(
+        enrolledCourses.map(async (enroll) => {
+          const course = enroll.course || {};
+          const courseId = course._id || course.id;
+          if (!courseId) return;
+          try {
+            const progress = await getProgress(courseId);
+            console.log('Fetched progress for', courseId, JSON.stringify(progress));
+            progressMap[courseId] = progress;
+          } catch {
+            progressMap[courseId] = {};
+          }
+        })
+      );
+      setCourseProgressMap(progressMap);
+    };
+    if (enrolledCourses.length > 0) fetchAllProgress();
+  }, [enrolledCourses]);
 
   if (loading) {
     return (
@@ -176,6 +248,22 @@ const Profile = () => {
 
   const joinInfo = user?.created_at ? formatJoinDate(user.created_at) : null;
 
+  const getTotalLessons = (course: any) => {
+    if (typeof course.totalLessons === 'number' && course.totalLessons > 0) {
+      return course.totalLessons;
+    }
+    if (Array.isArray(course.sections)) {
+      return course.sections.reduce(
+        (sum: number, sec: any) => sum + (Array.isArray(sec.lessons) ? sec.lessons.length : 0),
+        0
+      );
+    }
+    if (Array.isArray(course.lessons)) {
+      return course.lessons.length;
+    }
+    return 0;
+  };
+
   return (
     <motion.div
       className="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen py-12"
@@ -226,7 +314,7 @@ const Profile = () => {
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
-                {user?.fullname || 'Chưa có tên'}
+                {user?.fullname ?? 'Chưa có tên'}
               </motion.h1>
 
               {user?.nickname && (
@@ -236,7 +324,7 @@ const Profile = () => {
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.5 }}
                 >
-                  @{user.nickname}
+                  @{user?.nickname}
                 </motion.p>
               )}
 
@@ -247,7 +335,7 @@ const Profile = () => {
                 transition={{ duration: 0.5, delay: 0.6 }}
               >
                 <Mail size={18} />
-                <span className="text-base">{user?.email}</span>
+                <span className="text-base">{user?.email ?? ''}</span>
               </motion.div>
 
               {/* Bio Section */}
@@ -259,30 +347,30 @@ const Profile = () => {
                   transition={{ duration: 0.5, delay: 0.65 }}
                 >
                   <p className="text-gray-600 text-base leading-relaxed max-w-xs mx-auto">
-                    {user.bio}
+                    {user?.bio ?? ''}
                   </p>
                 </motion.div>
               )}
 
               {/* Social links */}
-              {user?.social_links && (user.social_links.facebook || user.social_links.github || user.social_links.website) && (
+              {user?.social_links && (user?.social_links?.facebook || user?.social_links?.github || user?.social_links?.website) && (
                 <motion.div
                   className="flex items-center justify-center gap-4 mb-4"
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.65 }}
                 >
-                  {user.social_links.facebook && (
+                  {user?.social_links?.facebook && (
                     <a href={user.social_links.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:scale-110 transition-transform text-2xl">
                       <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M22.675 0h-21.35c-.733 0-1.325.592-1.325 1.326v21.348c0 .733.592 1.326 1.325 1.326h11.495v-9.294h-3.128v-3.622h3.128v-2.672c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.326v-21.349c0-.734-.593-1.326-1.324-1.326z" /></svg>
                     </a>
                   )}
-                  {user.social_links.github && (
+                  {user?.social_links?.github && (
                     <a href={user.social_links.github} target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:scale-110 transition-transform text-2xl">
                       <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.415-4.042-1.415-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.084-.729.084-.729 1.205.084 1.84 1.236 1.84 1.236 1.07 1.834 2.809 1.304 3.495.997.108-.775.418-1.305.762-1.605-2.665-.305-5.466-1.334-5.466-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.553 3.297-1.23 3.297-1.23.653 1.653.242 2.873.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.803 5.624-5.475 5.921.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.218.694.825.576 4.765-1.588 8.199-6.084 8.199-11.386 0-6.627-5.373-12-12-12z" /></svg>
                     </a>
                   )}
-                  {user.social_links.website && (
+                  {user?.social_links?.website && (
                     <a href={user.social_links.website} target="_blank" rel="noopener noreferrer" className="text-purple-700 hover:scale-110 transition-transform text-2xl">
                       <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm0 22c-5.514 0-10-4.486-10-10s4.486-10 10-10 10 4.486 10 10-4.486 10-10 10zm0-18c-4.411 0-8 3.589-8 8s3.589 8 8 8 8-3.589 8-8-3.589-8-8-8zm0 14c-3.309 0-6-2.691-6-6s2.691-6 6-6 6 2.691 6 6-2.691 6-6 6zm0-10c-2.206 0-4 1.794-4 4s1.794 4 4 4 4-1.794 4-4-1.794-4-4-4z" /></svg>
                     </a>
@@ -392,6 +480,9 @@ const Profile = () => {
               <h2 className="text-2xl font-bold text-gray-900">
                 Khóa học đang học
               </h2>
+              <span className="ml-2 text-base text-gray-500 font-medium">
+                ({enrolledCourses.length} khóa học)
+              </span>
             </motion.div>
 
             {enrolledCourses.length === 0 ? (
@@ -400,18 +491,42 @@ const Profile = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-10">
                 {enrolledCourses.map((enroll) => {
                   const course = enroll.course || {};
-                  const progress = enroll.progress || {};
-                  // Lấy tổng số bài học: ưu tiên totalLessons, nếu không có thì thử lấy từ lessons.length hoặc sections.reduce
-                  let total = 0;
-                  if (typeof course.totalLessons === 'number' && course.totalLessons > 0) {
-                    total = course.totalLessons;
-                  } else if (Array.isArray(course.lessons)) {
-                    total = course.lessons.length;
-                  } else if (Array.isArray(course.sections)) {
-                    total = course.sections.reduce((sum, sec) => sum + (sec.lessons?.length || 0), 0);
+                  const courseId = course._id || course.id;
+                  const progress = courseProgressMap[courseId] || {};
+                  console.log('Render progress:', courseId, JSON.stringify(progress));
+                  const total = courseLessonsMap[courseId] ?? 0;
+                  const sections = courseSectionsMap[courseId] || [];
+                  let lessonIds: string[] = [];
+                  sections.forEach(section => {
+                    if (Array.isArray(section.lessons)) {
+                      lessonIds = lessonIds.concat(section.lessons.map((lesson: any) => lesson._id));
+                    }
+                  });
+                  const completedCount = lessonIds.filter(
+                    id => progress[id]?.completed === true || progress[id]?.videoCompleted === true
+                  ).length;
+                  const percent = total === 0 ? 0 : Math.round((completedCount / total) * 100);
+
+                  // Lấy sections từ courseSectionsMap để xác định bài học tiếp tục
+                  let continueLessonId = null;
+                  if (progress.lastWatchedLessonId) {
+                    continueLessonId = progress.lastWatchedLessonId;
+                  } else if (Array.isArray(sections)) {
+                    outer: for (const section of sections) {
+                      if (Array.isArray(section.lessons)) {
+                        for (const lesson of section.lessons) {
+                          if (!progress[lesson._id]?.completed && !progress[lesson._id]?.videoCompleted) {
+                            continueLessonId = lesson._id;
+                            break outer;
+                          }
+                        }
+                      }
+                    }
                   }
-                  const completed = typeof progress.completedLessons === 'number' ? progress.completedLessons : 0;
-                  const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+                  // Nếu đã hoàn thành hết thì lấy bài đầu tiên
+                  if (!continueLessonId && Array.isArray(sections) && sections[0]?.lessons?.[0]?._id) {
+                    continueLessonId = sections[0].lessons[0]._id;
+                  }
 
                   return (
                     <motion.div
@@ -429,7 +544,15 @@ const Profile = () => {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-t-3xl pointer-events-none" />
                         <Link
-                          to={`/courses/slug/${course.slug}`}
+                          to="#"
+                          onClick={e => {
+                            e.preventDefault();
+                            if (continueLessonId) {
+                              navigate(`/lessons/${continueLessonId}/video`);
+                            } else if (course.slug) {
+                              navigate(`/courses/slug/${course.slug}`);
+                            }
+                          }}
                           className="absolute bottom-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white !text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg z-10"
                         >
                           Tiếp tục học <ArrowRightOutlined />
@@ -442,7 +565,7 @@ const Profile = () => {
                       <div className="p-6 flex flex-col gap-2">
                         <h3 className="font-bold text-xl mb-1 text-gray-900 truncate" title={course.title}>{course.title}</h3>
                         <div className="text-gray-500 text-base mb-2">
-                          {total} bài học
+                          {total > 0 ? `${total} bài học` : 'Đang cập nhật'}
                         </div>
                         <div className="flex items-center gap-3 mb-2">
                           <Progress
@@ -458,7 +581,7 @@ const Profile = () => {
                           <span className={`font-bold text-lg ${percent === 100 ? 'text-green-600' : 'text-blue-600'}`}>{percent}%</span>
                         </div>
                         <div className="text-gray-500 text-sm">
-                          {completed}/{total} bài học
+                          {completedCount}/{total} bài học
                         </div>
                       </div>
                     </motion.div>
