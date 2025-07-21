@@ -227,6 +227,20 @@ exports.handlePaymentResult = async (req, res) => {
       });
       await wallet.save();
       console.log('Đã cộng tiền và ghi lịch sử:', { userId, amount, txId });
+      // Gửi notification cho user khi nạp tiền thành công
+      try {
+        const Notification = require('../models/Notification');
+        await Notification.create({
+          title: 'Nạp tiền thành công',
+          content: `Bạn đã nạp thành công ${Number(amount).toLocaleString()} VNĐ vào ví.`,
+          type: 'success',
+          receiver: userId,
+          icon: 'plus-circle',
+          meta: { amount: Number(amount) }
+        });
+      } catch (notiErr) {
+        console.error('Lỗi tạo notification nạp tiền:', notiErr);
+      }
     }
     return res.json({ success: true, message: 'Nạp tiền thành công', balance: wallet.balance, amount: alreadyAmount || Number(amount) });
   } catch (err) {
@@ -308,6 +322,20 @@ exports.approveWithdraw = async (req, res) => {
         pendingHistory.status = 'approved';
       }
       await wallet.save();
+      // Gửi notification cho user khi rút tiền thành công
+      try {
+        const Notification = require('../models/Notification');
+        await Notification.create({
+          title: 'Rút tiền thành công',
+          content: `Bạn đã rút thành công ${Number(request.amount).toLocaleString()} VNĐ khỏi ví.`,
+          type: 'success',
+          receiver: request.userId,
+          icon: 'minus-circle',
+          meta: { amount: Number(request.amount) }
+        });
+      } catch (notiErr) {
+        console.error('Lỗi tạo notification rút tiền:', notiErr);
+      }
     }
     res.json({ success: true, message: 'Đã duyệt rút tiền', request });
   } catch (err) {

@@ -83,6 +83,21 @@ exports.approveCourse = async (req, res, next) => {
             course.displayStatus = 'published'; // Tự động chuyển sang hiển thị
             await course.save();
 
+            // Gửi notification khi admin duyệt khóa học
+            try {
+                const Notification = require('../models/Notification');
+                await Notification.create({
+                    title: 'Khóa học mới được duyệt',
+                    content: `Khóa học "${course.title}" đã được admin duyệt và phát hành!`,
+                    type: 'success',
+                    is_global: true,
+                    icon: 'check-circle',
+                    meta: { link: `/courses/${course._id}` }
+                });
+            } catch (notiErr) {
+                console.error('Lỗi tạo notification duyệt khóa học:', notiErr);
+            }
+
             res.json({
                 success: true,
                 message: 'Đã duyệt khóa học thành công',
@@ -290,6 +305,7 @@ exports.createCourse = async (req, res, next) => {
                     }
                 }
                 // Gửi thông báo global khi có khóa học mới
+                /*
                 const notification = await Notification.create({
                   title: 'Khóa học mới',
                   content: `Khóa học ${course.title} đã được phát hành!`,
@@ -302,7 +318,7 @@ exports.createCourse = async (req, res, next) => {
                 if (io) {
                   io.emit('new-notification', notification); // emit global
                 }
-
+*/
                 // Trả về kết quả
                 res.status(201).json({
                     success: true,

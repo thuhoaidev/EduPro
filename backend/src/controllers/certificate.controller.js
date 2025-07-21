@@ -24,6 +24,7 @@ exports.issueCertificate = async (req, res, next) => {
     const code = crypto.randomBytes(8).toString('hex').toUpperCase();
     cert = await Certificate.create({ user: userId, course: courseId, code });
     // Gửi thông báo cho user
+/*
     const notification = await Notification.create({
       title: 'Chúc mừng bạn nhận được chứng chỉ!',
       content: 'Bạn đã hoàn thành khóa học và nhận được chứng chỉ. Hãy kiểm tra hồ sơ của bạn.',
@@ -36,6 +37,7 @@ exports.issueCertificate = async (req, res, next) => {
     if (io && notification.receiver) {
       io.to(notification.receiver.toString()).emit('new-notification', notification);
     }
+*/
     res.status(201).json({ success: true, data: cert });
   } catch (err) { next(err); }
 };

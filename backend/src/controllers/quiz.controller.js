@@ -148,6 +148,7 @@ exports.submitQuiz = async (req, res, next) => {
       if (answers[idx] !== q.correctIndex) wrongQuestions.push(idx);
     });
     // Gửi thông báo cho user
+/*
     const userId = req.user?._id || req.user?.id;
     if (userId) {
       const notification = await Notification.create({
@@ -163,6 +164,7 @@ exports.submitQuiz = async (req, res, next) => {
         io.to(notification.receiver.toString()).emit('new-notification', notification);
       }
     }
+*/
     if (wrongQuestions.length === 0) {
       return res.json({ success: true, message: 'Tất cả đáp án đều đúng!' });
     } else {

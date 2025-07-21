@@ -381,6 +381,7 @@ exports.createUser = async (req, res) => {
       profileImage: avatarUrl || 'default-avatar.jpg',
     });
     // Gửi thông báo cho user mới
+/*
     await Notification.create({
       title: 'Chào mừng bạn đến với hệ thống!',
       content: 'Tài khoản của bạn đã được tạo thành công.',
@@ -389,6 +390,7 @@ exports.createUser = async (req, res) => {
       icon: 'user-plus',
       meta: { link: '/profile' }
     });
+*/
 
     res.status(201).json({
       success: true,
