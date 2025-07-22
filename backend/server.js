@@ -91,10 +91,12 @@ httpServer.listen(PORT, () => {
 
 // Xử lý lỗi chưa được bắt
 process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
   process.exit(1);
 });
 
 // Xử lý lỗi chưa được bắt trong async
 process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
   process.exit(1);
 }); 
