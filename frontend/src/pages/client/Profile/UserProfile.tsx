@@ -291,7 +291,7 @@ const UserProfile: React.FC = () => {
                   >
                     <li
                       className="flex items-center gap-4 px-5 py-4 rounded-xl font-semibold text-base cursor-pointer transition-all hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 group"
-                      onClick={() => message.info('Tính năng đang phát triển')}
+                      onClick={() => navigate(`/messages/${user._id}`)}
                     >
                       <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-blue-100 to-purple-100 group-hover:from-blue-200 group-hover:to-purple-200 transition-all">
                         <MessageOutlined className="text-2xl bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text" />

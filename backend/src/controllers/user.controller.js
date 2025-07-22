@@ -222,25 +222,62 @@ exports.getAllUsers = async (req, res) => {
 // Lấy thông tin chi tiết một người dùng theo ID
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).populate('role_id');
-
-    if (!user) {
-      return res.status(404).json({
+    console.log('=== GET USER BY ID DEBUG ===');
+    console.log('Requested ID:', req.params.id);
+    console.log('ID type:', typeof req.params.id);
+    console.log('ID length:', req.params.id?.length);
+    
+    // Kiểm tra định dạng ObjectId
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      console.log('ERROR: Invalid ObjectId format');
+      return res.status(400).json({
         success: false,
-        message: 'Không tìm thấy người dùng',
+        message: 'ID không hợp lệ',
+        debug: { providedId: req.params.id }
+      });
+    }
+    
+    console.log('Searching for user with ID:', req.params.id);
+    const user = await User.findById(req.params.id).populate('role_id');
+    
+    console.log('User found:', user ? 'YES' : 'NO');
+    if (user) {
+      console.log('User details:', {
+        _id: user._id,
+        fullname: user.fullname,
+        email: user.email,
+        nickname: user.nickname
       });
     }
 
+    if (!user) {
+      console.log('ERROR: User not found in database');
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+        debug: { searchedId: req.params.id }
+      });
+    }
+
+    console.log('SUCCESS: Returning user data');
     res.status(200).json({
       success: true,
       data: user.toJSON(),
     });
   } catch (error) {
-    console.error('Lỗi lấy thông tin người dùng:', error);
+    console.error('ERROR in getUserById:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      requestedId: req.params.id
+    });
+    
     res.status(500).json({
       success: false,
       message: 'Lỗi lấy thông tin người dùng',
       error: error.message,
+      debug: { requestedId: req.params.id }
     });
   }
 };

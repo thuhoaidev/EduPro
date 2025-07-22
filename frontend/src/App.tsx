@@ -76,6 +76,7 @@ import QuizManager from './pages/instructor/quiz/QuizManager';
 import CoursesModerationPage from './pages/Moderator/Courses/CoursesModerationPage';
 import WalletPage from "./pages/client/WalletPage";
 import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
+import MessagesPage from './pages/client/MessagesPage';
 
 const queryClient = new QueryClient();
 
@@ -149,6 +150,7 @@ function App() {
         { path: "search/courses", element: <CourseSearchResultsPage /> },
         { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
+        { path: "messages/:userId", element: <MessagesPage /> },
       ]
     },
     {
