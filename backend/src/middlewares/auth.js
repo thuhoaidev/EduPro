@@ -3,6 +3,7 @@ const User = require('../models/User');
 
 // Middleware xác thực người dùng
 exports.auth = async (req, res, next) => {
+  let token; // Đảm bảo token luôn được khai báo
   try {
     if (req.path === '/logout') {
       next();
@@ -17,7 +18,7 @@ exports.auth = async (req, res, next) => {
       });
     }
 
-    const token = authHeader.split(' ')[1];
+    token = authHeader.split(' ')[1];
     if (!token || token.trim() === '' || token.split('.').length !== 3) {
       console.error('Token không hợp lệ hoặc thiếu:', token);
       return res.status(401).json({
