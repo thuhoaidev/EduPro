@@ -1444,13 +1444,46 @@ exports.updateInstructorProfile = async (req, res) => {
   }
 };
 
-exports.getMyEnrollments = async (req, res) => {
+exports.getMyEnrollments = async (req, res, next) => {
   try {
-    const userId = req.user._id;
-    const enrollments = await Enrollment.find({ student: userId }).populate('course');
-    res.json({ success: true, data: enrollments });
+    const Enrollment = require('../models/Enrollment');
+    const Course = require('../models/Course');
+    const Section = require('../models/Section');
+
+    const enrollments = await Enrollment.find({ user: req.user._id })
+      .populate({
+        path: 'course',
+        populate: {
+          path: 'instructor category',
+        },
+      });
+
+    const data = await Promise.all(
+      enrollments.map(async (enroll) => {
+        const course = enroll.course;
+
+        // 👇 Tính totalLessons cho từng course
+        let totalLessons = 0;
+        if (course?._id) {
+          const sections = await Section.find({ course_id: course._id }).select('lessons');
+          totalLessons = sections.reduce((sum, section) => {
+            return sum + (section.lessons?.length || 0);
+          }, 0);
+        }
+
+        return {
+          ...enroll.toObject(),
+          course: {
+            ...course.toObject(),
+            totalLessons, // 👈 Gắn vào đây
+          },
+        };
+      })
+    );
+
+    res.json({ success: true, data });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách khóa học đã đăng ký', error: error.message });
+    next(error);
   }
 };
 

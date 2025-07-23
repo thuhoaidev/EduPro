@@ -579,15 +579,13 @@ const Profile = () => {
                           <Progress
                             percent={percent}
                             size="small"
-                            strokeColor={{
-                              '0%': '#4f8cff',
-                              '100%': '#16a34a',
-                            }}
+                            strokeColor={{ '0%': '#4f8cff', '100%': '#16a34a' }}
                             showInfo={false}
                             className="flex-1"
                           />
                           <span className={`font-bold text-lg ${percent === 100 ? 'text-green-600' : 'text-blue-600'}`}>{percent}%</span>
                         </div>
+
                         <div className="text-gray-500 text-sm">
                           {completedCount}/{total} bài học
                         </div>
@@ -597,6 +595,7 @@ const Profile = () => {
                 })}
               </div>
             )}
+
           </motion.div>
         </motion.div>
       </div>
