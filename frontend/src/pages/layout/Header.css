@@ -825,4 +825,47 @@
     bottom: 4px;
     height: 2.5px;
   }
-} 
+}
+
+/* Message Badge Styles */
+.corner-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff4d4f;
+  color: white;
+  border-radius: 50%;
+  min-width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.3);
+  z-index: 10;
+}
+
+.message-corner-badge {
+  background: #ff4d4f !important;
+  color: white !important;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 77, 79, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0);
+  }
+}
+
+.cart-corner-badge {
+  background: #52c41a !important;
+  color: white !important;
+}

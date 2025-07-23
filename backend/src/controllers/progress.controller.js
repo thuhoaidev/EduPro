@@ -103,7 +103,7 @@ exports.updateProgress = async (req, res, next) => {
         type: 'success',
         receiver: userId,
         icon: 'book-open',
-        meta: { link: `/courses/${courseId}/lessons/${lessonId}` }
+        meta: { link: `/lessons/${lessonId}/video` }
       });
       const io = req.app.get && req.app.get('io');
       if (io && notification.receiver) {

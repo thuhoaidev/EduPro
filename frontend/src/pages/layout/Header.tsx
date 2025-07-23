@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   SearchOutlined,
   BellOutlined,
+  MessageOutlined,
   ShoppingCartOutlined,
   LogoutOutlined,
   DashboardOutlined,
@@ -83,6 +84,37 @@ const AppHeader = () => {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
+  // Fetch unread messages count
+  useEffect(() => {
+    const fetchUnreadMessagesCount = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const response = await fetch('/api/messages/unread-count', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setUnreadMessagesCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching unread messages count:', error);
+      }
+    };
+
+    if (user) {
+      fetchUnreadMessagesCount();
+      // Refresh count every 30 seconds
+      const interval = setInterval(fetchUnreadMessagesCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   useEffect(() => {
     setLoadingNotifications(true);
@@ -94,7 +126,7 @@ const AppHeader = () => {
     })
       .then(res => res.json())
       .then(data => setNotifications(
-        (data.data || []).map(notification => ({
+        (data.data || []).map((notification: any) => ({
           id: notification._id || notification.id,
           type: notification.type,
           title: notification.title,
@@ -595,6 +627,28 @@ const AppHeader = () => {
                     </div>
                   </motion.div>
                 </Popover>
+                
+                <motion.div
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                  className="message-button"
+                >
+                  <div className="action-button-wrapper">
+                    <Button
+                      onClick={() => navigate('/messages')}
+                      className="action-button message-action"
+                      type="text"
+                      shape="circle"
+                      icon={<MessageOutlined className="action-icon" />}
+                    />
+                    {unreadMessagesCount > 0 && (
+                      <span className="corner-badge message-corner-badge">
+                        {unreadMessagesCount}
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
                 
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
