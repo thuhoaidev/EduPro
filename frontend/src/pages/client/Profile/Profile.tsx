@@ -400,22 +400,25 @@ const Profile = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                 {enrolledCourses.map((enroll) => {
                   const course = enroll.course || {};
+                  console.log("Coures", course)
                   const progress = enroll.progress || {};
 
-                  const total = typeof course.totalLessons === 'number' && course.totalLessons > 0 ? course.totalLessons : 0;
-                  const completed = typeof progress.completedLessons === 'number' ? progress.completedLessons : 0;
-
-                  const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+                  const totalLessons = Number(course.totalLessons) || 0;
+                  const completedLessons = Number(progress.completedLessons) || 0;
+                  const percent = totalLessons === 0 ? 0 : Math.round((completedLessons / totalLessons) * 100);
 
                   return (
-                    <div key={course._id || course.id} className="relative bg-white rounded-3xl shadow-xl overflow-hidden group transition-all duration-300 hover:shadow-2xl border border-blue-100">
+                    <div
+                      key={course._id || course.id}
+                      className="relative bg-white rounded-3xl shadow-xl overflow-hidden group transition-all duration-300 hover:shadow-2xl border border-blue-100"
+                    >
                       <div className="relative">
                         <img
                           src={course.thumbnail || '/default-course.jpg'}
-                          alt={course.title}
+                          alt={course.title || 'Khóa học'}
                           className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300 rounded-t-3xl"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-t-3xl"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-t-3xl" />
                         <Link
                           to={`/courses/slug/${course.slug}`}
                           className="absolute bottom-5 right-5 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg"
@@ -423,35 +426,35 @@ const Profile = () => {
                           Tiếp tục học <ArrowRightOutlined />
                         </Link>
                       </div>
+
                       <div className="p-6">
                         <h3 className="font-bold text-xl mb-1 text-gray-900 truncate">{course.title}</h3>
-                        <div className="text-gray-500 text-base mb-2">
-                          {total} bài học
-                        </div>
+                        <div className="text-gray-500 text-base mb-2">{totalLessons} bài học</div>
+
                         <div className="flex items-center gap-3 mb-2">
                           <Progress
                             percent={percent}
                             size="small"
-                            strokeColor={{
-                              '0%': '#4f8cff',
-                              '100%': '#16a34a',
-                            }}
+                            strokeColor={{ '0%': '#4f8cff', '100%': '#16a34a' }}
                             showInfo={false}
                             className="flex-1"
                           />
                           <span className="font-bold text-blue-600 text-lg">{percent}%</span>
                         </div>
+
                         <div className="text-gray-500 text-sm">
-                          {completed}/{total} bài học
-                          {percent === 100 && <span className="ml-2 text-green-600 font-bold">🏆 Hoàn thành!</span>}
+                          {completedLessons}/{totalLessons} bài học
+                          {percent === 100 && (
+                            <span className="ml-2 text-green-600 font-bold">🏆 Hoàn thành!</span>
+                          )}
                         </div>
                       </div>
                     </div>
                   );
                 })}
-
               </div>
             )}
+
           </motion.div>
         </motion.div>
       </div>

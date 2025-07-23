@@ -9,6 +9,7 @@ const User = require('../models/User');
 const Enrollment = require('../models/Enrollment');
 const { sendCourseApprovalResultEmail } = require('../utils/sendEmail');
 const Notification = require('../models/Notification');
+const Lesson = require('../models/Lesson');
 
 console.log('course.controller.js loaded at', new Date().toISOString());
 
@@ -674,6 +675,8 @@ exports.updateCourseStatus = async (req, res, next) => {
 };
 
 // Lấy danh sách khóa học
+
+
 exports.getCourses = async (req, res, next) => {
     try {
         // Bỏ kiểm tra đăng nhập và quyền, cho phép public truy cập
@@ -743,19 +746,29 @@ exports.getCourses = async (req, res, next) => {
         // Đếm tổng số khóa học
         const total = await Course.countDocuments(query);
 
-        const formatCourse = (course) => {
-            const obj = course.toObject();
-            obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
-            obj.discount = obj.discount || 0;
-            obj.instructor = course.instructor ? {
-                bio: course.instructor.bio,
-                expertise: course.instructor.expertise,
-                user: course.instructor.user
-            } : null;
-            return obj;
-        };
+const formattedCourses = await Promise.all(
+    courses.map(async (course) => {
+        // Lấy tất cả section thuộc khóa học
+        const sections = await Section.find({ course_id: course._id }).select('lessons');
+console.log(`Course: ${course.title} - Sections found: ${sections.length}`);
+        // Tính tổng số bài học từ tất cả section
+        const totalLessons = sections.reduce((sum, section) => {
+            return sum + (section.lessons?.length || 0);
+        }, 0);
 
-        const formattedCourses = courses.map(formatCourse);
+        const obj = course.toObject();
+        obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
+        obj.discount = obj.discount || 0;
+        obj.instructor = course.instructor ? {
+            bio: course.instructor.bio,
+            expertise: course.instructor.expertise,
+            user: course.instructor.user
+        } : null;
+        obj.totalLessons = totalLessons; // 👈 Thêm tổng số bài học
+        return obj;
+    })
+);
+
 
         res.json({
             success: true,
