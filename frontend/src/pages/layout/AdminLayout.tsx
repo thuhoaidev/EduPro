@@ -17,6 +17,7 @@ import {
   DollarCircleOutlined,
   SafetyCertificateOutlined,
   WalletOutlined,
+  LogoutOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -199,13 +200,20 @@ const AdminLayout = () => {
     ...breadcrumbItems,
   ];
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    message.success('Đã đăng xuất!');
+    navigate('/login');
+  };
+
   // --- Dropdown Menu ---
   const userMenuItems: MenuProps["items"] = [
     {
-      key: "home",
-      icon: <HomeOutlined />,
-      label: "Quay lại trang chủ",
-      onClick: () => navigate("/"),
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "Đăng xuất",
+      onClick: handleLogout,
     },
   ];
 

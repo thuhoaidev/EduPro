@@ -16,6 +16,7 @@ import leoProfanity from 'leo-profanity';
 import { courseService } from '../../../services/apiService';
 import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, toggleDislikeReview, reportReview } from '../../../services/courseReviewService';
 import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
+import { issueCertificate, getCertificate } from '../../../services/certificateService';
 dayjs.extend(relativeTime);
 
 const { Title, Paragraph, Text } = Typography;
@@ -969,6 +970,31 @@ const LessonVideoPage: React.FC = () => {
     }
   }, [isCompleted, courseId]);
 
+  // Khi hoàn thành khóa học, tự động lấy certificate nếu có
+  useEffect(() => {
+    if (isCompleted && courseId) {
+      setIsLoadingCertificate(true);
+      getCertificate(courseId)
+        .then(cert => setCertificate(cert))
+        .catch(() => setCertificate(null))
+        .finally(() => setIsLoadingCertificate(false));
+    }
+  }, [isCompleted, courseId]);
+
+  // Hàm nhận chứng chỉ
+  const handleIssueCertificate = async () => {
+    if (!courseId) return;
+    setIsLoadingCertificate(true);
+    try {
+      const cert = await issueCertificate(courseId);
+      setCertificate(cert);
+      message.success('Đã nhận chứng chỉ!');
+    } catch (e) {
+      message.error('Không thể nhận chứng chỉ. Hãy đảm bảo bạn đã hoàn thành tất cả bài học!');
+    }
+    setIsLoadingCertificate(false);
+  };
+
   // Render danh sách bình luận chuyên nghiệp hơn
   const renderCommentItem = (item: any) => (
     <div style={{
@@ -1033,6 +1059,9 @@ const LessonVideoPage: React.FC = () => {
     </div>
   );
 
+  const [certificate, setCertificate] = useState<any>(null);
+  const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
       <div style={{
@@ -1062,6 +1091,10 @@ const LessonVideoPage: React.FC = () => {
           onSelectLesson={(lessonId) => {
             navigate(`/lessons/${lessonId}/video`);
           }}
+          isCompleted={isCompleted}
+          onIssueCertificate={handleIssueCertificate}
+          certificate={certificate}
+          isLoadingCertificate={isLoadingCertificate}
         />
       </div>
       <motion.div

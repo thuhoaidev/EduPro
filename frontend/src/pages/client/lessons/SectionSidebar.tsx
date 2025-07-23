@@ -6,6 +6,7 @@ const { Title } = Typography;
 
 type Lesson = { _id: string; title: string };
 type Section = { _id: string; title: string; lessons: Lesson[] };
+type Certificate = { code: string; issuedAt: string; };
 
 type Props = {
   sections: Section[];
@@ -15,9 +16,13 @@ type Props = {
   currentVideoProgress?: number;
   isVideoPlaying?: boolean;
   onSelectLesson: (lessonId: string) => void;
+  isCompleted?: boolean;
+  onIssueCertificate?: () => void;
+  certificate?: Certificate | null;
+  isLoadingCertificate?: boolean;
 };
 
-const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLessonId, progress, currentVideoProgress, isVideoPlaying, onSelectLesson }) => {
+const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLessonId, progress, currentVideoProgress, isVideoPlaying, onSelectLesson, isCompleted, onIssueCertificate, certificate, isLoadingCertificate }) => {
   const completedLessons = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
   const lastWatched = progress?.lastWatched;
 
@@ -190,6 +195,61 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
           </div>
         ))}
       </div>
+      {/* Nút nhận chứng chỉ */}
+      {isCompleted && (
+        <div style={{ marginTop: 32, textAlign: 'center' }}>
+          {certificate ? (
+            <div>
+              <div style={{ fontWeight: 700, color: '#52c41a', fontSize: 18, marginBottom: 8 }}>
+                🎉 Bạn đã nhận chứng chỉ!
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ fontWeight: 600 }}>Mã chứng chỉ:</span> {certificate.code}
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <span style={{ fontWeight: 600 }}>Ngày cấp:</span> {new Date(certificate.issuedAt).toLocaleDateString()}
+              </div>
+              <button
+                style={{
+                  background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 24,
+                  padding: '12px 32px',
+                  fontWeight: 700,
+                  fontSize: 18,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 16px #bae6fd',
+                  marginBottom: 8
+                }}
+                onClick={() => window.open(`/certificates/${certificate.code}`,'_blank')}
+              >
+                Xem chứng chỉ
+              </button>
+            </div>
+          ) : (
+            <button
+              style={{
+                background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 24,
+                padding: '12px 32px',
+                fontWeight: 700,
+                fontSize: 18,
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px #bae6fd',
+                marginBottom: 8,
+                opacity: isLoadingCertificate ? 0.7 : 1
+              }}
+              disabled={isLoadingCertificate}
+              onClick={onIssueCertificate}
+            >
+              {isLoadingCertificate ? 'Đang cấp chứng chỉ...' : 'Nhận chứng chỉ'}
+            </button>
+          )}
+        </div>
+      )}
     </Card>
   );
 };
