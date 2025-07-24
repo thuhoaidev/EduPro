@@ -998,8 +998,19 @@ const LessonVideoPage: React.FC = () => {
       const cert = await issueCertificate(courseId);
       setCertificate(cert);
       message.success('Đã nhận chứng chỉ!');
-    } catch (e) {
-      message.error('Không thể nhận chứng chỉ. Hãy đảm bảo bạn đã hoàn thành tất cả bài học!');
+    } catch (e: any) {
+      // Nếu có danh sách bài học chưa hoàn thành, hiển thị chi tiết
+      if (e?.response?.data?.incompleteLessons && Array.isArray(e.response.data.incompleteLessons)) {
+        const ids = e.response.data.incompleteLessons;
+        message.error(
+          <span>
+            Không thể nhận chứng chỉ. Bạn còn <b>{ids.length}</b> bài học chưa hoàn thành.<br/>
+            Mã bài học: <span style={{color: '#1890ff'}}>{ids.join(', ')}</span>
+          </span>
+        );
+      } else {
+        message.error('Không thể nhận chứng chỉ. Hãy đảm bảo bạn đã hoàn thành tất cả bài học!');
+      }
     }
     setIsLoadingCertificate(false);
   };
