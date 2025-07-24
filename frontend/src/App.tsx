@@ -78,6 +78,7 @@ import WalletPage from "./pages/client/WalletPage";
 import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
 import MessagesPage from './pages/client/MessagesPage';
 import MessagesLayout from './pages/client/MessagesLayout';
+import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
 
 const queryClient = new QueryClient();
 
@@ -151,7 +152,7 @@ function App() {
         { path: "search/courses", element: <CourseSearchResultsPage /> },
         { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
-
+        { path: '/social-callback', element: <SocialAuthCallback /> },
       ]
     },
     {

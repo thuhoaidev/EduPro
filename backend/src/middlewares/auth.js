@@ -28,6 +28,7 @@ exports.auth = async (req, res, next) => {
     }
 
     // KHÔNG cần try ở đây, vì bên ngoài đã có try/catch
+    console.log('VERIFY JWT_SECRET:', process.env.JWT_SECRET);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id || decoded._id || decoded.sub).populate('role_id');
 

@@ -329,13 +329,33 @@ export default function LoginPage(): React.ReactElement {
               </motion.div>
 
               <motion.div variants={itemVariants}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+                  <Button
+                    style={{
+                      width: '100%',
+                      background: '#fff',
+                      color: '#444',
+                      border: '1px solid #ddd',
+                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      boxShadow: '0 2px 8px #f0f1f2',
+                      marginBottom: 8
+                    }}
+                    onClick={() => window.location.href = 'http://localhost:5000/api/auth/google'}
+                  >
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/4a/Logo_2013_Google.png" alt="Google" style={{ width: 20, marginRight: 8 }} />
+                    Đăng nhập với Google
+                  </Button>
+                </div>
                 <Form.Item>
                   <Button
                     type="primary"
-                    size="large"
                     htmlType="submit"
+                    style={{ width: '100%' }}
                     loading={isLoading}
-                    className="w-full h-12 rounded-lg !bg-gradient-to-r !from-cyan-500 !to-purple-500 !text-white !font-semibold hover:opacity-90 border-none shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
                   >
                     {isLoading ? "Đang đăng nhập..." : "Đăng Nhập"}
                   </Button>
@@ -376,6 +396,10 @@ export default function LoginPage(): React.ReactElement {
             >
               Chào mừng trở lại!
             </motion.h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+              {/* Xóa đoạn code nút Đăng nhập với Google ở phần bên phải (giao diện chào mừng) */}
+            </div>
 
             <div className="grid grid-cols-1 gap-6">
               <motion.div
