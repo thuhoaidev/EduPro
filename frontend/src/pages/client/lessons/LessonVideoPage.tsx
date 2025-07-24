@@ -19,6 +19,7 @@ import { courseService } from '../../../services/apiService';
 import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, toggleDislikeReview, reportReview } from '../../../services/courseReviewService';
 import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
 dayjs.extend(relativeTime);
+import CustomVideoPlayer from '../../../components/CustomVideoPlayer';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -1034,7 +1035,8 @@ const LessonVideoPage: React.FC = () => {
       </div>
     </div>
   );
-
+  const cloudName = 'dxsilzscb';
+  const publicId = 'edupor/videos/ovyuqhtkjutcgcdrfage';
   return (
     <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
       <div style={{
@@ -1091,7 +1093,7 @@ const LessonVideoPage: React.FC = () => {
               <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, width: '100%', maxWidth: 'none', background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)', border: 'none', padding: 0 }} styles={{ body: { padding: 0 } }}>
                 {videoUrl ? (
                   <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden' }}>
-                    <video
+                    {/* <video
                       ref={videoRef}
                       key={videoUrl}
                       src={videoUrl}
@@ -1104,7 +1106,16 @@ const LessonVideoPage: React.FC = () => {
                       onPause={() => setIsVideoPlaying(false)}
                     >
                       Trình duyệt không hỗ trợ video tag.
-                    </video>
+                    </video> */}
+                    <CustomVideoPlayer
+                      videoSources={{
+                        '360p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_640,h_360,c_limit/${publicId}.mp4`,
+                        '720p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1280,h_720,c_limit/${publicId}.mp4`,
+                        '1080p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1920,h_1080,c_limit/${publicId}.mp4`,
+                      }}
+                      subtitlesUrl="https://res.cloudinary.com/.../subs.vtt"
+                    />
+
                     {videoWatched && !quiz && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
                         <span style={{ background: '#52c41a', color: '#fff', padding: '10px 24px', borderRadius: 32, boxShadow: '0 2px 8px #b7eb8f', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 18 }}>
