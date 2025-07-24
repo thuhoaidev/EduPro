@@ -178,10 +178,18 @@ const LessonVideoPage: React.FC = () => {
     if (courseId && currentLessonId && videoRef.current) {
       updateVideoProgress(courseId, currentLessonId, videoRef.current.duration, videoRef.current.duration)
         .catch(e => console.error("Failed to update final progress", e));
+      // Đảm bảo cập nhật videoCompleted: true vào progress
+      updateProgress(courseId, currentLessonId, {
+        watchedSeconds: videoRef.current.duration,
+        videoDuration: videoRef.current.duration,
+        videoCompleted: true
+      } as any).catch(e => console.error("Failed to set videoCompleted", e));
     }
     // Nếu có quiz thì tự động chuyển sang tab quiz
     if (quiz) {
       setActiveTab('quiz');
+    } else {
+      goToNextLesson(); // <-- Tự động chuyển nếu không có quiz
     }
   };
 
@@ -414,7 +422,8 @@ const LessonVideoPage: React.FC = () => {
         if (res.data.success) {
           const unlocked = await getUnlockedLessons(courseId);
           setUnlockedLessons(unlocked || []);
-          message.success('Bạn đã hoàn thành bài học, bài tiếp theo đã được mở khóa!');
+          message.success('Bạn đã hoàn thành bài học, bài tiếp theo sẽ được mở...');
+          goToNextLesson(); // <-- Tự động chuyển sang bài tiếp theo khi quiz đạt
         } else {
           message.warning('Quiz chưa đạt, hãy thử lại.');
         }

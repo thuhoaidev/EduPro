@@ -19,6 +19,7 @@
     "js-sha256": "^0.11.1",
     "leo-profanity": "^1.8.0",
     "morgan": "^1.10.0",
+    "pdfkit": "^0.17.1",
     "react-confetti": "^6.4.0",
     "react-intersection-observer": "^9.16.0",
     "react-redux": "^9.2.0",
