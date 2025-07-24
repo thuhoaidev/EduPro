@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Input, Button, Avatar, List, Typography, message as antMessage, Spin } from 'antd';
+import { Input, Button, Avatar, Typography, message as antMessage, Spin } from 'antd';
 import { SendOutlined, UserOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { EventEmitter } from '../../utils/eventEmitter';
 import './MessagesPage.css';
 
 interface Message {
@@ -19,6 +20,7 @@ interface UserInfo {
   _id: string;
   fullname: string;
   avatar?: string;
+  slug?: string;
 }
 
 const api = axios.create({
@@ -76,7 +78,7 @@ const MessagesPage: React.FC = () => {
           throw new Error('No data in response');
         }
       })
-      .catch(err => {
+      .catch(() => {
        
         
         // Nếu không tìm thấy theo ID, thử tìm theo slug
@@ -128,12 +130,45 @@ const MessagesPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [userId, currentUser]);
 
-  
+  // Lắng nghe sự kiện follow/unfollow để refresh receiver info
+  useEffect(() => {
+    const handleFollowUpdate = (event: CustomEvent) => {
+      const data = event.detail;
+      // Nếu follow/unfollow user hiện tại, refresh receiver info
+      if (data?.targetUserId === userId || !data) {
+        console.log('Follow status updated, refreshing receiver info...');
+        // Refresh receiver info
+        if (userId) {
+          setLoadingReceiver(true);
+          api.get(`/api/users/profile/${userId}`)
+            .then(res => {
+              if (res.data.success && res.data.data) {
+                setReceiver(res.data.data);
+              }
+            })
+            .catch(() => {
+              api.get(`/api/users/slug/${userId}`)
+                .then(res2 => {
+                  if (res2.data.success && res2.data.data) {
+                    setReceiver(res2.data.data);
+                  }
+                })
+                .catch(() => console.log('Failed to refresh receiver info'));
+            })
+            .finally(() => setLoadingReceiver(false));
+        }
+      }
+    };
+
+    EventEmitter.on('followStatusChanged', handleFollowUpdate);
+    return () => {
+      EventEmitter.off('followStatusChanged', handleFollowUpdate);
+    };
+  }, [userId]);
 
   // Gửi tin nhắn
   const handleSend = async () => {
-    
-    
+    // Kiểm tra input
     
     if (!input.trim()) {
       console.log('ERROR: Input is empty');
@@ -241,6 +276,12 @@ const MessagesPage: React.FC = () => {
             : `https://ui-avatars.com/api/?name=${encodeURIComponent(receiver.fullname)}&background=1677ff&color=fff`
           } 
           icon={<UserOutlined />} 
+          style={{ cursor: 'pointer' }}
+          onClick={() => {
+            // Sử dụng slug nếu có, nếu không thì dùng _id
+            const profilePath = receiver.slug ? `/users/${receiver.slug}` : `/users/${receiver._id}`;
+            navigate(profilePath);
+          }}
         />
         <div>
           <Typography.Title level={4}>{receiver.fullname}</Typography.Title>

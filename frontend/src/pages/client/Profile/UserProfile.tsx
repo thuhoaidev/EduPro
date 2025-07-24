@@ -5,6 +5,7 @@ import { Button, Modal, List, Avatar, message, Card, List as AntList, Dropdown }
 import { UserOutlined, TeamOutlined, BookOutlined, DownOutlined, UpOutlined, MessageOutlined, UserDeleteOutlined, UserAddOutlined, MoreOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getToken, isTokenValid } from '../../../utils/tokenUtils';
+import { EventEmitter } from '../../../utils/eventEmitter';
 
 // Tạo instance axios riêng cho file này
 const api = axios.create({
@@ -184,6 +185,9 @@ const UserProfile: React.FC = () => {
         className: 'custom-follow-message',
         style: { boxShadow: '0 4px 24px 0 rgba(80,80,180,0.10)', borderRadius: 16, padding: 12 }
       });
+      
+      // Emit event để các component khác biết có thay đổi follow status
+      EventEmitter.emitFollowStatusChanged({ targetUserId: user?._id, action: 'follow' });
     } catch (err: unknown) {
       const msg = isAxiosErrorWithMessage(err)
         ? err.response.data.message
@@ -214,6 +218,8 @@ const UserProfile: React.FC = () => {
         className: 'custom-follow-message',
         style: { boxShadow: '0 4px 24px 0 rgba(180,80,180,0.10)', borderRadius: 16, padding: 12 }
       });
+      // Emit event để các component khác biết có thay đổi follow status
+      EventEmitter.emitFollowStatusChanged({ targetUserId: user._id, action: 'unfollow' });
     } catch {
       message.error('Bỏ theo dõi thất bại');
     }

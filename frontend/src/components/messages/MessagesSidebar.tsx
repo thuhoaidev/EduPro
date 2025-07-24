@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { List, Avatar, Typography, Input, Badge, Spin, Empty } from 'antd';
 import { SearchOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import './MessagesSidebar.css';
 
@@ -32,6 +32,7 @@ const MessagesSidebar: React.FC<MessagesSidebarProps> = ({ selectedUserId, onUse
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
   const [searchValue, setSearchValue] = useState('');
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Lấy danh sách cuộc trò chuyện (bao gồm cả người lạ)
   const { data: conversations, isLoading } = useQuery({
@@ -61,6 +62,25 @@ const MessagesSidebar: React.FC<MessagesSidebarProps> = ({ selectedUserId, onUse
       }
     }
   }, [searchValue, conversations]);
+
+  // Lắng nghe sự kiện follow/unfollow để refresh data
+  useEffect(() => {
+    const handleFollowChange = () => {
+      // Invalidate và refetch conversations khi có thay đổi follow
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    };
+
+    // Lắng nghe custom events
+    window.addEventListener('followStatusChanged', handleFollowChange);
+    window.addEventListener('messageReceived', handleFollowChange);
+    window.addEventListener('messageSent', handleFollowChange);
+
+    return () => {
+      window.removeEventListener('followStatusChanged', handleFollowChange);
+      window.removeEventListener('messageReceived', handleFollowChange);
+      window.removeEventListener('messageSent', handleFollowChange);
+    };
+  }, [queryClient]);
 
   const handleUserClick = (userId: string) => {
     onUserSelect(userId);
