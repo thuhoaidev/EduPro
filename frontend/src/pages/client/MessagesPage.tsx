@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Input, Button, Avatar, List, Typography, message as antMessage } from 'antd';
-import { SendOutlined, UserOutlined } from '@ant-design/icons';
+import { Input, Button, Avatar, List, Typography, message as antMessage, Spin } from 'antd';
+import { SendOutlined, UserOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import './MessagesPage.css';
 
 interface Message {
   _id: string;
@@ -35,6 +37,7 @@ api.interceptors.request.use((request) => {
 
 const MessagesPage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [receiver, setReceiver] = useState<UserInfo | null>(null);
@@ -190,76 +193,109 @@ const MessagesPage: React.FC = () => {
   };
 
   if (loadingUser || loadingReceiver) {
-    return <div className="text-center py-10 text-lg text-blue-600">Đang tải thông tin người dùng...</div>;
+    return (
+      <div className="loading-container">
+        <Spin size="large" />
+      </div>
+    );
   }
+  
   if (!currentUser) {
-    return <div className="text-center py-10 text-lg text-red-600">Không xác định được người dùng hiện tại. Vui lòng đăng nhập lại.</div>;
+    return (
+      <div className="error-container">
+        <Typography.Title level={4}>Lỗi xác thực</Typography.Title>
+        <Typography.Text>Không xác định được người dùng hiện tại. Vui lòng đăng nhập lại.</Typography.Text>
+        <Button type="primary" onClick={() => navigate('/login')} style={{ marginTop: 16 }}>
+          Đăng nhập
+        </Button>
+      </div>
+    );
   }
+  
   if (!receiver) {
-    return <div className="text-center py-10 text-lg text-red-600">Không tìm thấy người nhận.</div>;
+    return (
+      <div className="error-container">
+        <Typography.Title level={4}>Không tìm thấy người dùng</Typography.Title>
+        <Typography.Text>Không tìm thấy người nhận tin nhắn.</Typography.Text>
+        <Button type="primary" onClick={() => navigate('/messages')} style={{ marginTop: 16 }}>
+          Quay lại
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <div className="w-full bg-white rounded-3xl shadow-2xl mt-10 flex flex-col h-[80vh] border-1 border-blue-400">
-      
-      <div className="flex items-center gap-4 px-6 py-4 border-b border-blue-50 bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-3xl">
-        <Avatar size={48} src={receiver?.avatar} icon={<UserOutlined />} />
+    <div className="messages-page">
+      {/* Header */}
+      <div className="messages-header">
+        <Button 
+          type="text" 
+          icon={<ArrowLeftOutlined />} 
+          onClick={() => navigate('/messages')}
+          className="back-button"
+        />
+        <Avatar 
+          size={40} 
+          src={receiver.avatar && receiver.avatar !== 'default-avatar.jpg' 
+            ? receiver.avatar 
+            : `https://ui-avatars.com/api/?name=${encodeURIComponent(receiver.fullname)}&background=1677ff&color=fff`
+          } 
+          icon={<UserOutlined />} 
+        />
         <div>
-          <Typography.Title level={4} className="!mb-0 !text-blue-700">{receiver?.fullname || '...'}</Typography.Title>
+          <Typography.Title level={4}>{receiver.fullname}</Typography.Title>
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto px-6 py-4 bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <List
-          dataSource={messages}
-          renderItem={msg => (
-            <List.Item
-              className={msg.sender === currentUser?._id ? 'justify-end' : 'justify-start'}
-              style={{ display: 'flex' }}
+      {/* Messages Content */}
+      <div className="messages-content">
+        {/* Messages List */}
+        <div className="messages-list">
+          {messages.map(msg => (
+            <div 
+              key={msg._id} 
+              className={`message-item ${msg.sender === currentUser._id ? 'own' : 'other'}`}
             >
-              <div
-                className={
-                  msg.sender === currentUser?._id
-                    ? 'bg-blue-500 text-white rounded-2xl px-4 py-2 max-w-xs ml-auto'
-                    : 'bg-gray-100 text-gray-900 rounded-2xl px-4 py-2 max-w-xs'
-                }
-                style={{ wordBreak: 'break-word' }}
-              >
+              <div className={`message-bubble ${msg.sender === currentUser._id ? 'own' : 'other'}`}>
                 {msg.content}
-                <div className="text-xs text-right text-gray-300 mt-1">{new Date(msg.createdAt).toLocaleTimeString()}</div>
+                <div className={`message-time ${msg.sender === currentUser._id ? 'own' : 'other'}`}>
+                  {new Date(msg.createdAt).toLocaleTimeString('vi-VN', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </div>
               </div>
-            </List.Item>
-          )}
-          locale={{ emptyText: null }}
-        />
-        <div ref={messagesEndRef} />
-      </div>
-     
-      <div className="px-6 py-4 border-t border-blue-50 bg-white rounded-b-3xl flex gap-3">
-        <Input.TextArea
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onPressEnter={e => {
-            if (!e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          placeholder="Nhập tin nhắn..."
-          autoSize={{ minRows: 1, maxRows: 4 }}
-          className="flex-1 rounded-2xl"
-        />
-        <Button
-          type="primary"
-          shape="circle"
-          icon={<SendOutlined />}
-          onClick={handleSend}
-          disabled={!input.trim() || !currentUser || !receiver}
-          className="ml-2 bg-gradient-to-r from-blue-500 to-purple-500 border-0"
-        />
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+        
+        {/* Input Area */}
+        <div className="messages-input">
+          <Input.TextArea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onPressEnter={e => {
+              if (!e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Nhập tin nhắn..."
+            autoSize={{ minRows: 1, maxRows: 4 }}
+            style={{ flex: 1 }}
+          />
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={handleSend}
+            disabled={!input.trim() || !currentUser || !receiver}
+            className="send-button"
+          />
+        </div>
       </div>
     </div>
   );
 };
 
-export default MessagesPage; 
+export default MessagesPage;

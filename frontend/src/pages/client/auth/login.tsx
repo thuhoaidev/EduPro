@@ -169,9 +169,32 @@ export default function LoginPage(): React.ReactElement {
 
   useEffect(() => {
     if (notification.isVisible && notification.type === 'success' && notification.title.includes('Đăng nhập thành công')) {
-      // Chuyển hướng sau khi thông báo đăng nhập thành công
+      // Lấy user từ localStorage
+      const storedUser = localStorage.getItem('user');
+      let role = '';
+      if (storedUser) {
+        try {
+          const userObj = JSON.parse(storedUser);
+          // Có thể là user.role hoặc user.role.name hoặc user.role_id.name
+          if (typeof userObj.role === 'string') {
+            role = userObj.role;
+          } else if (userObj.role && userObj.role.name) {
+            role = userObj.role.name;
+          } else if (userObj.role_id && userObj.role_id.name) {
+            role = userObj.role_id.name;
+          }
+        } catch (e) {
+          // fallback
+        }
+      }
+      let redirectPath = '/';
+      if (role === 'admin') {
+        redirectPath = '/admin';
+      } else if (role === 'moderator') {
+        redirectPath = '/moderator/courses';
+      }
       const timer = setTimeout(() => {
-        navigate('/');
+        navigate(redirectPath);
       }, 1200); // Đợi animation hoặc thông báo hoàn thành
       return () => clearTimeout(timer);
     }

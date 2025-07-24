@@ -236,7 +236,7 @@ exports.handlePaymentResult = async (req, res) => {
           type: 'success',
           receiver: userId,
           icon: 'plus-circle',
-          meta: { amount: Number(amount) }
+          meta: { amount: Number(amount), link: '/wallet' }
         });
       } catch (notiErr) {
         console.error('Lỗi tạo notification nạp tiền:', notiErr);
@@ -331,7 +331,7 @@ exports.approveWithdraw = async (req, res) => {
           type: 'success',
           receiver: request.userId,
           icon: 'minus-circle',
-          meta: { amount: Number(request.amount) }
+          meta: { amount: Number(request.amount), link: '/wallet' }
         });
       } catch (notiErr) {
         console.error('Lỗi tạo notification rút tiền:', notiErr);

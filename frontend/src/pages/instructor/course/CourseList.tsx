@@ -65,7 +65,7 @@ const CourseList: React.FC = () => {
         const userStr = localStorage.getItem('user');
         if (userStr) {
           const user = JSON.parse(userStr);
-          const userRole = user.role?.name || user.role_id?.name;
+          const userRole = user?.role?.name || user?.role_id?.name || user?.role;
           console.log('User role:', userRole);
           
           // Cho phép admin và instructor truy cập
@@ -241,7 +241,7 @@ const CourseList: React.FC = () => {
   // Lấy thông tin user để kiểm tra role
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
-  const userRole = user?.role?.name || user?.role_id?.name;
+  const userRole = user?.role?.name || user?.role_id?.name || user?.role;
 
   // Định nghĩa columns cho table
   const columns: ColumnsType<Course> = [

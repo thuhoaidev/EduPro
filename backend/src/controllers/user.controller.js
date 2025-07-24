@@ -1681,11 +1681,31 @@ exports.getFollowers = async (req, res) => {
 // Lấy danh sách user mà user này đang theo dõi
 exports.getFollowing = async (req, res) => {
   try {
-    const userId = req.params.id;
-    const following = await Follow.find({ follower: userId }).populate('following', 'fullname nickname avatar slug');
-    res.status(200).json({ success: true, data: following.map(f => f.following) });
+    // Nếu có req.params.id thì lấy theo id đó (public route)
+    // Nếu không có thì lấy theo user hiện tại (authenticated route)
+    const userId = req.params.id || req.user._id;
+    
+    console.log('Getting following for userId:', userId);
+    
+    const following = await Follow.find({ follower: userId })
+      .populate('following', 'fullname nickname avatar slug _id')
+      .sort({ createdAt: -1 });
+    
+    console.log('Found following:', following.length);
+    
+    const followingUsers = following.map(f => f.following).filter(user => user !== null);
+    
+    res.status(200).json({ 
+      success: true, 
+      data: followingUsers 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi máy chủ', error: error.message });
+    console.error('Error getting following:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi máy chủ', 
+      error: error.message 
+    });
   }
 };
 

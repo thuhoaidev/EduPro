@@ -18,6 +18,7 @@ import leoProfanity from 'leo-profanity';
 import { courseService } from '../../../services/apiService';
 import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, toggleDislikeReview, reportReview } from '../../../services/courseReviewService';
 import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
+import { issueCertificate, getCertificate } from '../../../services/certificateService';
 dayjs.extend(relativeTime);
 import CustomVideoPlayer from '../../../components/CustomVideoPlayer';
 
@@ -180,10 +181,18 @@ const LessonVideoPage: React.FC = () => {
     if (courseId && currentLessonId && videoRef.current) {
       updateVideoProgress(courseId, currentLessonId, videoRef.current.duration, videoRef.current.duration)
         .catch(e => console.error("Failed to update final progress", e));
+      // Đảm bảo cập nhật videoCompleted: true vào progress
+      updateProgress(courseId, currentLessonId, {
+        watchedSeconds: videoRef.current.duration,
+        videoDuration: videoRef.current.duration,
+        videoCompleted: true
+      } as any).catch(e => console.error("Failed to set videoCompleted", e));
     }
     // Nếu có quiz thì tự động chuyển sang tab quiz
     if (quiz) {
       setActiveTab('quiz');
+    } else {
+      goToNextLesson(); // <-- Tự động chuyển nếu không có quiz
     }
   };
 
@@ -416,7 +425,8 @@ const LessonVideoPage: React.FC = () => {
         if (res.data.success) {
           const unlocked = await getUnlockedLessons(courseId);
           setUnlockedLessons(unlocked || []);
-          message.success('Bạn đã hoàn thành bài học, bài tiếp theo đã được mở khóa!');
+          message.success('Bạn đã hoàn thành bài học, bài tiếp theo sẽ được mở...');
+          goToNextLesson(); // <-- Tự động chuyển sang bài tiếp theo khi quiz đạt
         } else {
           message.warning('Quiz chưa đạt, hãy thử lại.');
         }
@@ -972,6 +982,31 @@ const LessonVideoPage: React.FC = () => {
     }
   }, [isCompleted, courseId]);
 
+  // Khi hoàn thành khóa học, tự động lấy certificate nếu có
+  useEffect(() => {
+    if (isCompleted && courseId) {
+      setIsLoadingCertificate(true);
+      getCertificate(courseId)
+        .then(cert => setCertificate(cert))
+        .catch(() => setCertificate(null))
+        .finally(() => setIsLoadingCertificate(false));
+    }
+  }, [isCompleted, courseId]);
+
+  // Hàm nhận chứng chỉ
+  const handleIssueCertificate = async () => {
+    if (!courseId) return;
+    setIsLoadingCertificate(true);
+    try {
+      const cert = await issueCertificate(courseId);
+      setCertificate(cert);
+      message.success('Đã nhận chứng chỉ!');
+    } catch (e) {
+      message.error('Không thể nhận chứng chỉ. Hãy đảm bảo bạn đã hoàn thành tất cả bài học!');
+    }
+    setIsLoadingCertificate(false);
+  };
+
   // Render danh sách bình luận chuyên nghiệp hơn
   const renderCommentItem = (item: any) => (
     <div style={{
@@ -1035,6 +1070,8 @@ const LessonVideoPage: React.FC = () => {
       </div>
     </div>
   );
+  const [certificate, setCertificate] = useState<any>(null);
+  const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
   const cloudName = 'dxsilzscb';
   const publicId = 'edupor/videos/ovyuqhtkjutcgcdrfage';
   return (
@@ -1066,6 +1103,10 @@ const LessonVideoPage: React.FC = () => {
           onSelectLesson={(lessonId) => {
             navigate(`/lessons/${lessonId}/video`);
           }}
+          isCompleted={isCompleted}
+          onIssueCertificate={handleIssueCertificate}
+          certificate={certificate}
+          isLoadingCertificate={isLoadingCertificate}
         />
       </div>
       <motion.div
