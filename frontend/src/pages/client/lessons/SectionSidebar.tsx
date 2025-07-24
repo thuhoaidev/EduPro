@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Typography, Progress, Tooltip } from 'antd';
 import { LockOutlined, CheckCircleTwoTone, PlayCircleTwoTone, ClockCircleOutlined, PauseCircleTwoTone, RightOutlined, DownOutlined } from '@ant-design/icons';
 
@@ -6,6 +6,7 @@ const { Title } = Typography;
 
 type Lesson = { _id: string; title: string };
 type Section = { _id: string; title: string; lessons: Lesson[] };
+type Certificate = { code: string; issuedAt: string; };
 
 type Props = {
   sections: Section[];
@@ -15,16 +16,48 @@ type Props = {
   currentVideoProgress?: number;
   isVideoPlaying?: boolean;
   onSelectLesson: (lessonId: string) => void;
+  isCompleted?: boolean;
+  onIssueCertificate?: () => void;
+  certificate?: Certificate | null;
+  isLoadingCertificate?: boolean;
 };
 
-const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLessonId, progress, currentVideoProgress, isVideoPlaying, onSelectLesson }) => {
+const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLessonId, progress, currentVideoProgress, isVideoPlaying, onSelectLesson, isCompleted, onIssueCertificate, certificate, isLoadingCertificate }) => {
   const completedLessons = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
   const lastWatched = progress?.lastWatched;
 
   // State quản lý section nào đang mở
   const [openSections, setOpenSections] = useState<{ [sectionId: string]: boolean }>({});
+  // Track if user has manually toggled a section
+  const [userToggled, setUserToggled] = useState(false);
+
+  // Auto open the section containing the current lesson when currentLessonId changes, unless user has toggled
+  useEffect(() => {
+    if (!currentLessonId || userToggled) return;
+    let foundSectionId: string | null = null;
+    for (const section of sections) {
+      if (section.lessons.some(lesson => String(lesson._id) === String(currentLessonId))) {
+        foundSectionId = section._id;
+        break;
+      }
+    }
+    if (foundSectionId) {
+      // Only open the found section, close others
+      setOpenSections(sections.reduce((acc, section) => {
+        acc[section._id] = section._id === foundSectionId;
+        return acc;
+      }, {} as { [sectionId: string]: boolean }));
+    }
+  }, [currentLessonId, sections, userToggled]);
+
+  // Reset userToggled when currentLessonId changes
+  useEffect(() => {
+    setUserToggled(false);
+  }, [currentLessonId]);
+
   const toggleSection = (sectionId: string) => {
     setOpenSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+    setUserToggled(true);
   };
 
   // Debug log danh sách bài học
@@ -95,11 +128,35 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                 {section.lessons.map((lesson, lIdx) => {
                   // Đảm bảo so sánh unlockedLessons và lesson._id đều là string
                   const lessonIdStr = String(lesson._id);
-                  const unlocked = unlockedLessons.map(String).includes(lessonIdStr) || completedLessons.map(String).includes(lessonIdStr);
+                  // Determine if lesson is unlocked: previous lesson must have videoCompleted && quizPassed
+                  let unlocked = false;
+                  const isFirstLesson = sIdx === 0 && lIdx === 0;
+                  if (isFirstLesson) {
+                    unlocked = true;
+                  } else {
+                    // Find previous lesson
+                    let prevLesson = null;
+                    if (lIdx > 0) {
+                      prevLesson = section.lessons[lIdx - 1];
+                    } else if (sIdx > 0) {
+                      const prevSection = sections[sIdx - 1];
+                      if (prevSection.lessons.length > 0) {
+                        prevLesson = prevSection.lessons[prevSection.lessons.length - 1];
+                      }
+                    }
+                    if (prevLesson) {
+                      const prevProgress = progress && progress[prevLesson._id];
+                      if (prevProgress && prevProgress.videoCompleted && prevProgress.quizPassed) {
+                        unlocked = true;
+                      }
+                    }
+                  }
+                  // Also allow access if lesson is completed
+                  const isCompleted = completedLessons.map(String).includes(lessonIdStr);
+                  if (isCompleted) unlocked = true;
                   // Debug log
                   // console.log('lessonId:', lessonIdStr, 'unlocked:', unlocked, 'unlockedLessons:', unlockedLessons);
                   const isCurrent = lessonIdStr === currentLessonId;
-                  const isCompleted = completedLessons.map(String).includes(lessonIdStr);
                   let progressValue = getLessonVideoPercent(lessonIdStr);
                   // Nếu là bài học hiện tại và có currentVideoProgress thì dùng giá trị này
                   if (isCurrent && typeof currentVideoProgress === 'number') {
@@ -190,6 +247,64 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
           </div>
         ))}
       </div>
+      {/* Nút nhận chứng chỉ */}
+      {isCompleted && (
+        <div style={{ marginTop: 32, textAlign: 'center' }}>
+          {certificate ? (
+            <div>
+              <div style={{ fontWeight: 700, color: '#52c41a', fontSize: 18, marginBottom: 8 }}>
+                🎉 Bạn đã nhận chứng chỉ!
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ fontWeight: 600 }}>Mã chứng chỉ:</span> {certificate.code}
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <span style={{ fontWeight: 600 }}>Ngày cấp:</span> {new Date(certificate.issuedAt).toLocaleDateString()}
+              </div>
+              {/* Nút tải chứng chỉ PDF */}
+              {certificate.file || certificate.fileUrl ? (
+                <button
+                  style={{
+                    background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 24,
+                    padding: '12px 32px',
+                    fontWeight: 700,
+                    fontSize: 18,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 16px #bae6fd',
+                    marginBottom: 8
+                  }}
+                  onClick={() => window.open(`/api/certificates/download/${certificate.file || (certificate.fileUrl && certificate.fileUrl.split('/').pop())}`,'_blank')}
+                >
+                  Tải chứng chỉ (PDF)
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <button
+              style={{
+                background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 24,
+                padding: '12px 32px',
+                fontWeight: 700,
+                fontSize: 18,
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px #bae6fd',
+                marginBottom: 8,
+                opacity: isLoadingCertificate ? 0.7 : 1
+              }}
+              disabled={isLoadingCertificate}
+              onClick={onIssueCertificate}
+            >
+              {isLoadingCertificate ? 'Đang cấp chứng chỉ...' : 'Nhận chứng chỉ'}
+            </button>
+          )}
+        </div>
+      )}
     </Card>
   );
 };

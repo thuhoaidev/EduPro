@@ -5,6 +5,7 @@ const certificateSchema = new mongoose.Schema({
   course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
   issuedAt: { type: Date, default: Date.now },
   code: { type: String, required: true, unique: true },
+  file: { type: String }, // Đường dẫn file PDF chứng chỉ
   // Optionally: file, template, etc.
 });
 

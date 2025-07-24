@@ -2,8 +2,10 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, Row, Col, Radio, Avatar, Tabs, Rate, Select, Modal } from 'antd';
 import { config } from '../../../api/axios';
-import { LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined, PauseCircleOutlined, 
-  EditOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
+import {
+  LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined, PauseCircleOutlined,
+  EditOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, CloseOutlined
+} from '@ant-design/icons';
 import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress, markCourseCompleted } from '../../../services/progressService';
 import { getComments, addComment, replyComment } from '../../../services/lessonCommentService';
 import { getNotesByLesson, createNote, deleteNote, updateNote, type Note } from '../../../services/noteService';
@@ -16,7 +18,9 @@ import leoProfanity from 'leo-profanity';
 import { courseService } from '../../../services/apiService';
 import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, toggleDislikeReview, reportReview } from '../../../services/courseReviewService';
 import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
+import { issueCertificate, getCertificate } from '../../../services/certificateService';
 dayjs.extend(relativeTime);
+import CustomVideoPlayer from '../../../components/CustomVideoPlayer';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -44,7 +48,7 @@ const LessonVideoPage: React.FC = () => {
   const [courseSections, setCourseSections] = useState<Section[]>([]);
   const [currentLessonId, setCurrentLessonId] = useState<string | null>(null);
   const [sidebarLoading, setSidebarLoading] = useState(false);
-  const [progress, setProgress] = useState<{ completedLessons: string[]; lastWatched?: string; [lessonId: string]: any }>({ completedLessons: [] });
+  const [progress, setProgress] = useState<{ completedLessons: string[]; lastWatched?: string;[lessonId: string]: any }>({ completedLessons: [] });
   const [quiz, setQuiz] = useState<{ _id: string; questions: { question: string; options: string[]; correctIndex?: number }[] } | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizError, setQuizError] = useState<string | null>(null);
@@ -177,10 +181,18 @@ const LessonVideoPage: React.FC = () => {
     if (courseId && currentLessonId && videoRef.current) {
       updateVideoProgress(courseId, currentLessonId, videoRef.current.duration, videoRef.current.duration)
         .catch(e => console.error("Failed to update final progress", e));
+      // Đảm bảo cập nhật videoCompleted: true vào progress
+      updateProgress(courseId, currentLessonId, {
+        watchedSeconds: videoRef.current.duration,
+        videoDuration: videoRef.current.duration,
+        videoCompleted: true
+      } as any).catch(e => console.error("Failed to set videoCompleted", e));
     }
     // Nếu có quiz thì tự động chuyển sang tab quiz
     if (quiz) {
       setActiveTab('quiz');
+    } else {
+      goToNextLesson(); // <-- Tự động chuyển nếu không có quiz
     }
   };
 
@@ -413,7 +425,8 @@ const LessonVideoPage: React.FC = () => {
         if (res.data.success) {
           const unlocked = await getUnlockedLessons(courseId);
           setUnlockedLessons(unlocked || []);
-          message.success('Bạn đã hoàn thành bài học, bài tiếp theo đã được mở khóa!');
+          message.success('Bạn đã hoàn thành bài học, bài tiếp theo sẽ được mở...');
+          goToNextLesson(); // <-- Tự động chuyển sang bài tiếp theo khi quiz đạt
         } else {
           message.warning('Quiz chưa đạt, hãy thử lại.');
         }
@@ -493,7 +506,7 @@ const LessonVideoPage: React.FC = () => {
         console.log('Total lessons:', totalLessons);
 
         // Đếm số bài học đã hoàn thành
-        const completedLessons = Object.values(progress || {}).filter((p: any) => 
+        const completedLessons = Object.values(progress || {}).filter((p: any) =>
           p.completed === true && p.videoCompleted === true && p.quizPassed === true
         ).length;
         console.log('Completed lessons:', completedLessons);
@@ -969,6 +982,31 @@ const LessonVideoPage: React.FC = () => {
     }
   }, [isCompleted, courseId]);
 
+  // Khi hoàn thành khóa học, tự động lấy certificate nếu có
+  useEffect(() => {
+    if (isCompleted && courseId) {
+      setIsLoadingCertificate(true);
+      getCertificate(courseId)
+        .then(cert => setCertificate(cert))
+        .catch(() => setCertificate(null))
+        .finally(() => setIsLoadingCertificate(false));
+    }
+  }, [isCompleted, courseId]);
+
+  // Hàm nhận chứng chỉ
+  const handleIssueCertificate = async () => {
+    if (!courseId) return;
+    setIsLoadingCertificate(true);
+    try {
+      const cert = await issueCertificate(courseId);
+      setCertificate(cert);
+      message.success('Đã nhận chứng chỉ!');
+    } catch (e) {
+      message.error('Không thể nhận chứng chỉ. Hãy đảm bảo bạn đã hoàn thành tất cả bài học!');
+    }
+    setIsLoadingCertificate(false);
+  };
+
   // Render danh sách bình luận chuyên nghiệp hơn
   const renderCommentItem = (item: any) => (
     <div style={{
@@ -1032,7 +1070,10 @@ const LessonVideoPage: React.FC = () => {
       </div>
     </div>
   );
-
+  const [certificate, setCertificate] = useState<any>(null);
+  const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
+  const cloudName = 'dxsilzscb';
+  const publicId = 'edupor/videos/ovyuqhtkjutcgcdrfage';
   return (
     <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
       <div style={{
@@ -1062,6 +1103,10 @@ const LessonVideoPage: React.FC = () => {
           onSelectLesson={(lessonId) => {
             navigate(`/lessons/${lessonId}/video`);
           }}
+          isCompleted={isCompleted}
+          onIssueCertificate={handleIssueCertificate}
+          certificate={certificate}
+          isLoadingCertificate={isLoadingCertificate}
         />
       </div>
       <motion.div
@@ -1087,9 +1132,9 @@ const LessonVideoPage: React.FC = () => {
             <Divider style={{ margin: '12px 0 24px 0' }} />
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
               <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, width: '100%', maxWidth: 'none', background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)', border: 'none', padding: 0 }} styles={{ body: { padding: 0 } }}>
-                {videoUrl ? ( 
+                {videoUrl ? (
                   <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden' }}>
-                    <video
+                    {/* <video
                       ref={videoRef}
                       key={videoUrl}
                       src={videoUrl}
@@ -1102,7 +1147,16 @@ const LessonVideoPage: React.FC = () => {
                       onPause={() => setIsVideoPlaying(false)}
                     >
                       Trình duyệt không hỗ trợ video tag.
-                    </video>
+                    </video> */}
+                    <CustomVideoPlayer
+                      videoSources={{
+                        '360p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_640,h_360,c_limit/${publicId}.mp4`,
+                        '720p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1280,h_720,c_limit/${publicId}.mp4`,
+                        '1080p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1920,h_1080,c_limit/${publicId}.mp4`,
+                      }}
+                      subtitlesUrl="https://res.cloudinary.com/.../subs.vtt"
+                    />
+
                     {videoWatched && !quiz && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
                         <span style={{ background: '#52c41a', color: '#fff', padding: '10px 24px', borderRadius: 32, boxShadow: '0 2px 8px #b7eb8f', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 18 }}>
@@ -1116,7 +1170,7 @@ const LessonVideoPage: React.FC = () => {
                 )}
               </Card>
             </motion.div>
-   
+
             {/* Comments Section */}
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
               <Tabs
@@ -1364,7 +1418,7 @@ const LessonVideoPage: React.FC = () => {
                           loading={noteLoading}
                           dataSource={notes}
                           locale={{ emptyText: 'Chưa có ghi chú nào.' }}
-                          style={{ 
+                          style={{
                             background: '#fff',
                             borderRadius: 12,
                             padding: '8px 0'
@@ -1389,7 +1443,7 @@ const LessonVideoPage: React.FC = () => {
                                     type="link"
                                     icon={<PlayCircleOutlined />}
                                     onClick={() => seekToTimestamp(note.timestamp)}
-                                    style={{ 
+                                    style={{
                                       color: '#1890ff',
                                       display: 'flex',
                                       alignItems: 'center',
@@ -1403,7 +1457,7 @@ const LessonVideoPage: React.FC = () => {
                                       type="link"
                                       icon={<EditOutlined />}
                                       onClick={() => startEditNote(note)}
-                                      style={{ 
+                                      style={{
                                         color: '#52c41a',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -1418,7 +1472,7 @@ const LessonVideoPage: React.FC = () => {
                                     danger
                                     icon={<DeleteOutlined />}
                                     onClick={() => handleDeleteNote(note._id)}
-                                    style={{ 
+                                    style={{
                                       display: 'flex',
                                       alignItems: 'center',
                                       gap: 4
@@ -1449,7 +1503,7 @@ const LessonVideoPage: React.FC = () => {
                                     </div>
                                   }
                                   title={
-                                    <span style={{ 
+                                    <span style={{
                                       color: '#1890ff',
                                       fontWeight: 600,
                                       fontSize: 14,
@@ -1478,9 +1532,9 @@ const LessonVideoPage: React.FC = () => {
                                           bodyStyle={{ padding: '16px' }}
                                         >
                                           <div style={{ marginBottom: 12 }}>
-                                            <Text style={{ 
-                                              fontSize: 14, 
-                                              fontWeight: 600, 
+                                            <Text style={{
+                                              fontSize: 14,
+                                              fontWeight: 600,
                                               color: '#1890ff',
                                               marginBottom: 8,
                                               display: 'block'
@@ -1492,7 +1546,7 @@ const LessonVideoPage: React.FC = () => {
                                               value={editingContent}
                                               onChange={e => setEditingContent(e.target.value)}
                                               placeholder="Nhập nội dung ghi chú..."
-                                              style={{ 
+                                              style={{
                                                 borderRadius: 8,
                                                 fontSize: 15,
                                                 border: '1px solid #d9d9d9',
@@ -1503,9 +1557,9 @@ const LessonVideoPage: React.FC = () => {
                                               autoFocus
                                             />
                                           </div>
-                                          <div style={{ 
-                                            display: 'flex', 
-                                            gap: 8, 
+                                          <div style={{
+                                            display: 'flex',
+                                            gap: 8,
                                             justifyContent: 'flex-end',
                                             borderTop: '1px solid #e6f4ff',
                                             paddingTop: 12
@@ -1539,7 +1593,7 @@ const LessonVideoPage: React.FC = () => {
                                         </Card>
                                       </motion.div>
                                     ) : (
-                                      <p style={{ 
+                                      <p style={{
                                         fontSize: 15,
                                         margin: '8px 0 0 0',
                                         color: '#262626',
@@ -1575,9 +1629,9 @@ const LessonVideoPage: React.FC = () => {
                           </div>
                           <div style={{ flex: 1, minWidth: 220, marginTop: 8 }}>
                             {ratingStats.stats.map((count, idx) => (
-                              <div key={5-idx} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-                                <span style={{ fontWeight: 600, color: '#06b6d4', minWidth: 24 }}>{5-idx}</span>
-                                <Rate disabled value={5-idx} style={{ fontSize: 16, color: '#06b6d4' }} />
+                              <div key={5 - idx} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                                <span style={{ fontWeight: 600, color: '#06b6d4', minWidth: 24 }}>{5 - idx}</span>
+                                <Rate disabled value={5 - idx} style={{ fontSize: 16, color: '#06b6d4' }} />
                                 <div style={{ flex: 1, background: '#e0f2fe', borderRadius: 6, height: 10, margin: '0 8px', overflow: 'hidden' }}>
                                   <div style={{ width: ratingStats.percent[idx] + '%', background: '#8b5cf6', height: '100%', borderRadius: 6, transition: 'width 0.3s' }} />
                                 </div>
@@ -1629,11 +1683,11 @@ const LessonVideoPage: React.FC = () => {
                                 <List.Item style={{ padding: '20px 0', borderBottom: '1px solid #f0f0f0', alignItems: 'flex-start' }}>
                                   <List.Item.Meta
                                     avatar={
-                                      <Avatar 
-                                        src={item.user?.avatar} 
-                                        icon={<UserOutlined />} 
+                                      <Avatar
+                                        src={item.user?.avatar}
+                                        icon={<UserOutlined />}
                                         size={48}
-                                        style={{ 
+                                        style={{
                                           background: '#e0f2fe',
                                           color: '#8b5cf6',
                                           fontWeight: 700,
@@ -1673,7 +1727,7 @@ const LessonVideoPage: React.FC = () => {
                         {/* Form đánh giá của bạn (đưa xuống dưới cùng) */}
                         {isEnrolled && isCompleted && (
                           <div style={{ marginTop: 32 }}>
-                            <Card 
+                            <Card
                               title={<Title level={4} style={{ color: '#06b6d4' }}>{myReview ? 'Cập nhật đánh giá của bạn' : 'Đánh giá của bạn'}</Title>}
                               style={{
                                 background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)',
@@ -1682,8 +1736,8 @@ const LessonVideoPage: React.FC = () => {
                               }}
                               headStyle={{ borderBottom: '1px solid #e6f4ff' }}
                             >
-                              <Rate 
-                                value={reviewValue} 
+                              <Rate
+                                value={reviewValue}
                                 onChange={setReviewValue}
                                 style={{ fontSize: 24, marginBottom: 16, color: '#f59e42' }}
                               />
@@ -1692,17 +1746,17 @@ const LessonVideoPage: React.FC = () => {
                                 value={reviewComment}
                                 onChange={(e) => setReviewComment(e.target.value)}
                                 placeholder="Chia sẻ trải nghiệm học tập của bạn..."
-                                style={{ 
-                                  borderRadius: 8, 
+                                style={{
+                                  borderRadius: 8,
                                   fontSize: 15,
                                   marginBottom: 16,
                                   resize: 'vertical'
                                 }}
                               />
                               <div style={{ textAlign: 'right' }}>
-                                <Button 
-                                  type="primary" 
-                                  onClick={handleSubmitReview} 
+                                <Button
+                                  type="primary"
+                                  onClick={handleSubmitReview}
                                   loading={reviewLoading}
                                   style={{
                                     borderRadius: 6,
@@ -1751,18 +1805,18 @@ const LessonVideoPage: React.FC = () => {
         okText="Gửi"
         cancelText="Hủy"
       >
-        <Input.TextArea 
-          rows={4} 
-          value={reportReason} 
-          onChange={e => setReportReason(e.target.value)} 
-          placeholder="Nhập lý do báo cáo..." 
+        <Input.TextArea
+          rows={4}
+          value={reportReason}
+          onChange={e => setReportReason(e.target.value)}
+          placeholder="Nhập lý do báo cáo..."
         />
       </Modal>
     </div>
   );
 };
 
-export default LessonVideoPage; 
+export default LessonVideoPage;
 
 <style>{`
   .hide-scrollbar::-webkit-scrollbar {

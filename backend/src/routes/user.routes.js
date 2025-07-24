@@ -46,6 +46,9 @@ router.get('/profile/:id', getUserById);
 // Routes cho người dùng hiện tại (cần đăng nhập)
 router.use(auth);
 
+// Lấy danh sách người đang theo dõi (cho tin nhắn)
+router.get('/following', getFollowing);
+
 // Test endpoint để kiểm tra role
 router.get('/test-role', (req, res) => {
   console.log('Test role endpoint - User info:', {

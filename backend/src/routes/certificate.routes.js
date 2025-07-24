@@ -9,5 +9,7 @@ router.use(auth);
 router.post('/:courseId/issue', certificateController.issueCertificate);
 // Lấy chứng chỉ của user cho một khóa học
 router.get('/:courseId', certificateController.getCertificate);
+// Tải file PDF chứng chỉ
+router.get('/download/:fileName', certificateController.downloadCertificate);
 
 module.exports = router; 

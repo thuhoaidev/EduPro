@@ -84,7 +84,7 @@ exports.replyComment = async (req, res, next) => {
         type: 'info',
         receiver: parentComment.user,
         icon: 'corner-down-right',
-        meta: { link: `/lessons/${parentComment.lesson}` }
+        meta: { link: `/lessons/${parentComment.lesson}/video?commentId=${commentId}` }
       });
       const io = req.app.get && req.app.get('io');
       if (io && notification.receiver) {

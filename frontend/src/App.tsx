@@ -77,6 +77,7 @@ import CoursesModerationPage from './pages/Moderator/Courses/CoursesModerationPa
 import WalletPage from "./pages/client/WalletPage";
 import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
 import MessagesPage from './pages/client/MessagesPage';
+import MessagesLayout from './pages/client/MessagesLayout';
 
 const queryClient = new QueryClient();
 
@@ -150,7 +151,7 @@ function App() {
         { path: "search/courses", element: <CourseSearchResultsPage /> },
         { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
-        { path: "messages/:userId", element: <MessagesPage /> },
+
       ]
     },
     {
@@ -161,6 +162,13 @@ function App() {
         { path: 'edit', element: <ProfileEdit /> },
         { path: 'change-password', element: <ChangePassword /> },
         { path: 'orders', element: <OrdersPage /> },
+      ]
+    },
+    {
+      path: "/messages",
+      element: <MessagesLayout />,
+      children: [
+        { path: ":userId", element: <MessagesPage /> }
       ]
     },
     {
