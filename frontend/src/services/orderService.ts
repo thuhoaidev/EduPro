@@ -11,7 +11,7 @@ export interface OrderItem {
 export interface CreateOrderData {
   items: OrderItem[];
   voucherCode?: string;
-  paymentMethod?: 'bank_transfer' | 'momo' | 'vnpay';
+  paymentMethod?: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
   shippingInfo?: {
     fullName: string;
     phone: string;
@@ -47,7 +47,7 @@ export interface Order {
   };
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   paymentStatus: 'pending' | 'paid' | 'failed';
-  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay';
+  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
   fullName?: string;
   phone?: string;
   email?: string;

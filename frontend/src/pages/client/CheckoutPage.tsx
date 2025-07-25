@@ -188,7 +188,6 @@ const handleSubmit = async (values: FormValues) => {
 
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('role', userData.role?.name || userData.role || '');
-        window.location.reload();
       }
     } catch {
       // Không cần xử lý lỗi ở đây
