@@ -23,13 +23,13 @@ type Props = {
 };
 
 const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLessonId, progress, currentVideoProgress, isVideoPlaying, onSelectLesson, isCompleted, onIssueCertificate, certificate, isLoadingCertificate }) => {
+  // Đặt tất cả hook ở đầu function component
+  const [openSections, setOpenSections] = useState<{ [sectionId: string]: boolean }>({});
+  const [userToggled, setUserToggled] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
   const completedLessons = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
   const lastWatched = progress?.lastWatched;
-
-  // State quản lý section nào đang mở
-  const [openSections, setOpenSections] = useState<{ [sectionId: string]: boolean }>({});
-  // Track if user has manually toggled a section
-  const [userToggled, setUserToggled] = useState(false);
 
   // Auto open the section containing the current lesson when currentLessonId changes, unless user has toggled
   useEffect(() => {
@@ -77,6 +77,65 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
   if (!sections.length) {
     return <Card variant="outlined"><ClockCircleOutlined spin style={{ fontSize: 32, color: '#1890ff' }} /></Card>;
   }
+
+  // Hàm tải chứng chỉ PDF (dùng fetch truyền token)
+  const handleDownloadCertificate = async () => {
+    if (!certificate?.file && !(certificate?.fileUrl && certificate?.fileUrl.split('/').pop())) return;
+    const fileName = certificate.file || (certificate.fileUrl && certificate.fileUrl.split('/').pop());
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Bạn cần đăng nhập để tải chứng chỉ!');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/certificates/download/${fileName}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) {
+        alert('Không thể tải chứng chỉ!');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Có lỗi khi tải chứng chỉ!');
+    }
+  };
+
+  // Xem trước chứng chỉ PDF
+  const handlePreviewCertificate = async () => {
+    if (!certificate?.file && !(certificate?.fileUrl && certificate.fileUrl.split('/').pop())) return;
+    const fileName = certificate.file || (certificate.fileUrl && certificate.fileUrl.split('/').pop());
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Bạn cần đăng nhập để xem chứng chỉ!');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/certificates/download/${fileName}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) {
+        alert('Không thể xem trước chứng chỉ!');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      setPreviewUrl(url);
+    } catch (err) {
+      alert('Có lỗi khi xem trước chứng chỉ!');
+    }
+  };
+
   return (
     <Card
       variant="outlined"
@@ -263,24 +322,51 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
               </div>
               {/* Nút tải chứng chỉ PDF */}
               {certificate.file || certificate.fileUrl ? (
-                <button
-                  style={{
-                    background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 24,
-                    padding: '12px 32px',
-                    fontWeight: 700,
-                    fontSize: 18,
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 16px #bae6fd',
-                    marginBottom: 8
-                  }}
-                  onClick={() => window.open(`/api/certificates/download/${certificate.file || (certificate.fileUrl && certificate.fileUrl.split('/').pop())}`,'_blank')}
-                >
-                  Tải chứng chỉ (PDF)
-                </button>
+                <div style={{ display: 'flex', gap: 12, flexDirection: 'column', alignItems: 'center' }}>
+                  <button
+                    style={{
+                      background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 24,
+                      padding: '12px 32px',
+                      fontWeight: 700,
+                      fontSize: 18,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 16px #bae6fd',
+                      marginBottom: 4
+                    }}
+                    onClick={handleDownloadCertificate}
+                  >
+                    Tải chứng chỉ (PDF)
+                  </button>
+                  <button
+                    style={{
+                      background: '#fff',
+                      color: '#06b6d4',
+                      border: '2px solid #06b6d4',
+                      borderRadius: 24,
+                      padding: '10px 28px',
+                      fontWeight: 700,
+                      fontSize: 16,
+                      cursor: 'pointer',
+                      marginBottom: 4
+                    }}
+                    onClick={handlePreviewCertificate}
+                  >
+                    Xem trước chứng chỉ
+                  </button>
+                </div>
               ) : null}
+              {previewUrl && (
+                <iframe
+                  src={previewUrl}
+                  title="Xem trước chứng chỉ"
+                  width="100%"
+                  height={400}
+                  style={{ border: '1px solid #ccc', borderRadius: 8, marginTop: 12 }}
+                />
+              )}
             </div>
           ) : (
             <button

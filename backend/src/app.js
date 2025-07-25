@@ -40,6 +40,7 @@ const vnpayRouter = require('./routes/paymentRouter');
 const userWalletRoutes = require('./routes/userWallet.routes');
 const lessonCommentRoutes = require('./routes/lessonComment.routes');
 const messageRoutes = require('./routes/message.routes');
+const certificateRoutes = require('./routes/certificate.routes');
 
 
 // Khởi tạo app
@@ -124,6 +125,7 @@ app.use('/api', vnpayRouter);
 app.use('/api/wallet', userWalletRoutes);
 app.use('/api/lesson-comments', lessonCommentRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/certificates', certificateRoutes);
 // Error handling middleware
 app.use((err, req, res, _next) => {
   console.error(err.stack);
