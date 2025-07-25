@@ -219,7 +219,7 @@ const TransactionHistory = () => {
           onChange={e => setMaxAmount(e.target.value ? +e.target.value : null)}
           className="tw-w-40"
         />
-        <Dropdown overlay={sortMenu}>
+        <Dropdown menu={sortMenu}>
           <Button>
             Sắp xếp giá: {sortOrder === 'asc' ? 'Tăng' : sortOrder === 'desc' ? 'Giảm' : 'Không'}{' '}
             <CaretDownOutlined />

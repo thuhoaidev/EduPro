@@ -284,7 +284,7 @@ const UserProfile: React.FC = () => {
           {isLoggedIn && currentUserId && currentUserId !== user._id && (
             isFollowing ? (
               <Dropdown
-                overlay={
+                menu={
                   <motion.ul
                     initial={{ opacity: 0, y: -12 }}
                     animate={{ opacity: 1, y: 0 }}

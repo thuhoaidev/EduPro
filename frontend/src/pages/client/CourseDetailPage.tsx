@@ -351,6 +351,10 @@ const CourseDetailPage: React.FC = () => {
     if (error) return <div className="p-8"><Alert message="Lỗi" description={error} type="error" showIcon /></div>;
     if (!course) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Empty description="Không tìm thấy dữ liệu khóa học." /></div>;
 
+    // Thêm log kiểm tra dữ liệu giảng viên
+    console.log('COURSE DATA:', course);
+    console.log('THÔNG TIN GIẢNG VIÊN:', course.author);
+
     const totalLessons = courseContent.reduce((acc, section) => acc + section.lessons.length, 0);
 
     const toggleSection = (sectionIndex: number) => {
@@ -462,11 +466,15 @@ const CourseDetailPage: React.FC = () => {
             <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 text-gray-900 shadow-inner">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                        <Breadcrumb separator={<span className="text-gray-400">/</span>} className="mb-4">
-                            <Breadcrumb.Item><Link to="/" className="text-gray-500 hover:text-cyan-600 transition-colors">Trang chủ</Link></Breadcrumb.Item>
-                            <Breadcrumb.Item><Link to="/courses" className="text-gray-500 hover:text-cyan-600 transition-colors">Khóa học</Link></Breadcrumb.Item>
-                            <Breadcrumb.Item className="text-gray-900 font-medium">{course.title}</Breadcrumb.Item>
-                        </Breadcrumb>
+                        <Breadcrumb
+                          separator={<span className="text-gray-400">/</span>}
+                          className="mb-4"
+                          items={[
+                            { title: <Link to="/" className="text-gray-500 hover:text-cyan-600 transition-colors">Trang chủ</Link> },
+                            { title: <Link to="/courses" className="text-gray-500 hover:text-cyan-600 transition-colors">Khóa học</Link> },
+                            { title: <span className="text-gray-900 font-medium">{course.title}</span> }
+                          ]}
+                        />
                         <h1 className="text-3xl md:text-5xl font-bold leading-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">{course.title}</h1>
                         <Paragraph className="text-gray-700 text-lg md:text-xl max-w-4xl">{course.subtitle}</Paragraph>
                         <div className="flex items-center gap-x-6 gap-y-2 mt-6 flex-wrap">
