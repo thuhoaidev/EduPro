@@ -1,6 +1,6 @@
 const cloudinary = require('cloudinary').v2;
 const fs = require('fs');
-
+const path = require('path');
 // Cấu hình Cloudinary với các biến môi trường riêng lẻ
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -100,3 +100,58 @@ exports.getPublicIdFromUrl = (url) => {
     const matches = url.match(/\/v\d+\/([^/]+)\./);
     return matches ? matches[1] : null;
 }; 
+// Upload 1 video và chuyển đổi nhiều độ phân giải
+exports.uploadVideoWithQualitiesToCloudinary = async (filePath, folder = 'videos') => {
+  const baseFolder = `edupor/${folder}`;
+  const resolutions = [
+    { label: '360p', transformation: { width: 640, height: 360, crop: 'limit' } },
+    { label: '720p', transformation: { width: 1280, height: 720, crop: 'limit' } },
+    { label: '1080p', transformation: { width: 1920, height: 1080, crop: 'limit' } },
+  ];
+
+  const result = {
+    original: null,
+    variants: {},
+  };
+
+  try {
+    // Upload bản gốc
+    const original = await cloudinary.uploader.upload(filePath, {
+      folder: baseFolder,
+      resource_type: 'video',
+      use_filename: true,
+      unique_filename: true,
+    });
+
+    result.original = {
+      url: original.secure_url,
+      public_id: original.public_id,
+      duration: original.duration,
+    };
+
+    // Upload từng bản chuyển đổi
+    for (const { label, transformation } of resolutions) {
+      const variant = await cloudinary.uploader.upload(filePath, {
+        folder: baseFolder,
+        resource_type: 'video',
+        transformation,
+        use_filename: true,
+        unique_filename: true,
+        public_id: `${path.parse(original.public_id).name}_${label}`, // đặt tên khác nhau
+      });
+
+      result.variants[label] = {
+        url: variant.secure_url,
+        public_id: variant.public_id,
+      };
+    }
+
+    // Xóa file tạm
+    fs.unlinkSync(filePath);
+
+    return result;
+  } catch (error) {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    throw error;
+  }
+};
