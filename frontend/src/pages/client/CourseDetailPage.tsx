@@ -17,6 +17,7 @@ import { SearchOutlined, FlagOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
+import orderService from '../../services/orderService';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -66,6 +67,9 @@ const CourseDetailPage: React.FC = () => {
     const [reportModalVisible, setReportModalVisible] = useState(false);
     const [reportReason, setReportReason] = useState('');
     const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+    const [canRefund, setCanRefund] = useState(false);
+    const [refundLoading, setRefundLoading] = useState(false);
+    const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
 
     // Function to calculate total duration from course content
     const calculateTotalDuration = (sections: Section[]): string => {
@@ -347,6 +351,41 @@ const CourseDetailPage: React.FC = () => {
         return list;
     }, [reviews, reviewFilter, reviewSearch]);
 
+    useEffect(() => {
+        // Kiểm tra điều kiện hoàn tiền
+        const checkRefundable = async () => {
+          if (!isEnrolled || !user || !course) return;
+          try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const res = await orderService.getUserOrders(token, 1, 20, 'paid');
+            const now = new Date();
+            let found = false;
+            for (const order of res.orders) {
+              const hasCourse = order.items.some(item => String(item.courseId._id) === String(course.id));
+              if (hasCourse) {
+                const created = new Date(order.createdAt);
+                const diffDays = (now.getTime() - created.getTime()) / (1000 * 3600 * 24);
+                if (diffDays <= 7) {
+                  setCanRefund(true);
+                  setRefundOrderId(order.id);
+                  found = true;
+                  break;
+                }
+              }
+            }
+            if (!found) {
+              setCanRefund(false);
+              setRefundOrderId(null);
+            }
+          } catch {
+            setCanRefund(false);
+            setRefundOrderId(null);
+          }
+        };
+        checkRefundable();
+    }, [isEnrolled, user, course]);
+
     if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Spin size="large" /></div>;
     if (error) return <div className="p-8"><Alert message="Lỗi" description={error} type="error" showIcon /></div>;
     if (!course) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Empty description="Không tìm thấy dữ liệu khóa học." /></div>;
@@ -456,6 +495,23 @@ const CourseDetailPage: React.FC = () => {
         setSelectedReviewId(null);
       } catch (error) {
         message.error('Có lỗi xảy ra');
+      }
+    };
+
+    const handleRefund = async () => {
+      if (!refundOrderId) return;
+      setRefundLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('Chưa đăng nhập');
+        await orderService.refundOrder(refundOrderId, course.id, token);
+        message.success('Hoàn tiền thành công! 70% chi phí đã được cộng vào ví.');
+        setCanRefund(false);
+        setTimeout(() => window.location.reload(), 1000);
+      } catch (err: any) {
+        message.error(err?.message || 'Hoàn tiền thất bại!');
+      } finally {
+        setRefundLoading(false);
       }
     };
 
@@ -968,6 +1024,19 @@ const CourseDetailPage: React.FC = () => {
                                             loading={isAddingToCart}
                                         >
                                             {isAddingToCart ? 'Đang thêm...' : getButtonText()}
+                                        </Button>
+                                    )}
+                                    {isEnrolled && canRefund && (
+                                        <Button
+                                            danger
+                                            type="primary"
+                                            size="large"
+                                            block
+                                            loading={refundLoading}
+                                            onClick={handleRefund}
+                                            className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-red-500 !to-orange-500 hover:!from-red-600 hover:!to-orange-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                                        >
+                                            Hoàn tiền 70% (nếu mua dưới 7 ngày)
                                         </Button>
                                     )}
                                 </div>

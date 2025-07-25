@@ -11,7 +11,7 @@ export interface OrderItem {
 export interface CreateOrderData {
   items: OrderItem[];
   voucherCode?: string;
-  paymentMethod?: 'bank_transfer' | 'momo' | 'vnpay';
+  paymentMethod?: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
   shippingInfo?: {
     fullName: string;
     phone: string;
@@ -47,7 +47,7 @@ export interface Order {
   };
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   paymentStatus: 'pending' | 'paid' | 'failed';
-  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay';
+  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
   fullName?: string;
   phone?: string;
   email?: string;
@@ -145,6 +145,20 @@ class OrderService {
       );
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi hoàn thành thanh toán');
+    }
+  }
+
+  // Hoàn tiền đơn hàng cho một khóa học
+  async refundOrder(orderId: string, courseId: string, token: string): Promise<void> {
+    try {
+      await axios.post(`${API_URL}/orders/${orderId}/refund`, { courseId }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi hoàn tiền');
     }
   }
 }

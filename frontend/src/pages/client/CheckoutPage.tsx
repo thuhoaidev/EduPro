@@ -12,6 +12,7 @@ import orderService from '../../services/orderService';
 import config from '../../api/axios';
 import type { CreateOrderData } from '../../services/orderService';
 import { useCart } from '../../contexts/CartContext';
+import { Card as AntCard } from 'antd'; // Để tránh trùng tên Card
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -21,7 +22,7 @@ interface FormValues {
   fullName: string;
   phone: string;
   email: string;
-  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
+  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay' | 'wallet';
   notes?: string;
 }
 
@@ -55,6 +56,7 @@ const CheckoutPage: React.FC = () => {
   const { clearCart } = useCart();
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
+  const [walletBalance, setWalletBalance] = useState<number>(0);
 
   // const [zalopayUrl, setZalopayUrl] = useState(''); // Không dùng
 
@@ -86,6 +88,21 @@ const CheckoutPage: React.FC = () => {
       });
     }
   }, [user, form]);
+
+  useEffect(() => {
+    // Lấy số dư ví
+    const fetchWallet = async () => {
+      if (!token) return;
+      try {
+        const res = await fetch('http://localhost:5000/api/wallet', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const json = await res.json();
+        if (json.success) setWalletBalance(json.balance);
+      } catch {}
+    };
+    fetchWallet();
+  }, [token]);
 
 const handleSubmit = async (values: FormValues) => {
   if (!checkoutData || !token) {
@@ -155,6 +172,35 @@ const handleSubmit = async (values: FormValues) => {
       return;
     }
 
+    // Thêm xử lý cho ví
+    if (values.paymentMethod === 'wallet') {
+      if (walletBalance < checkoutData.total) {
+        message.error('Số dư ví không đủ để thanh toán!');
+        setIsSubmitting(false);
+        return;
+      }
+      // Gọi API tạo đơn hàng với paymentMethod: 'wallet'
+      const createOrderPayload: CreateOrderData = {
+        items: orderPayload.items,
+        voucherCode: orderPayload.voucherCode,
+        paymentMethod: 'bank_transfer',
+        shippingInfo: {
+          fullName: values.fullName,
+          phone: values.phone,
+          email: values.email
+        },
+        notes: values.notes
+      };
+      const response = await orderService.createOrder(createOrderPayload, token);
+      setOrderId(response.order.id);
+      setOrderSuccess(true);
+      localStorage.removeItem('checkoutData');
+      clearCart();
+      message.success('Thanh toán bằng ví thành công!');
+      setIsSubmitting(false);
+      return;
+    }
+
     // ✅ Với các phương thức còn lại
     const createOrderPayload: CreateOrderData = {
       items: orderPayload.items,
@@ -188,7 +234,6 @@ const handleSubmit = async (values: FormValues) => {
 
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('role', userData.role?.name || userData.role || '');
-        window.location.reload();
       }
     } catch {
       // Không cần xử lý lỗi ở đây
@@ -277,11 +322,19 @@ const handleSubmit = async (values: FormValues) => {
               <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
                 <Input prefix={<MailOutlined />} />
               </Form.Item>
-              <Form.Item name="paymentMethod" label="Phương thức thanh toán" rules={[{ required: true }]}>
+              <Form.Item
+                name="paymentMethod"
+                label="Phương thức thanh toán"
+                rules={[{ required: true, message: 'Vui lòng chọn phương thức thanh toán' }]}
+              >
                 <Select>
-                  <Option value="momo"><WalletOutlined /> MoMo</Option>
-                  <Option value="vnpay"><WalletOutlined /> VNPAY</Option>
-                  <Option value="zalopay"><WalletOutlined /> ZaloPay</Option>
+                  <Option value="bank_transfer">Chuyển khoản ngân hàng</Option>
+                  <Option value="momo">Momo</Option>
+                  <Option value="vnpay">VNPAY</Option>
+                  <Option value="zalopay">ZaloPay</Option>
+                  <Option value="wallet">
+                    <WalletOutlined /> Ví ({walletBalance.toLocaleString('vi-VN')}₫)
+                  </Option>
                 </Select>
               </Form.Item>
               <Form.Item name="notes" label="Ghi chú">
