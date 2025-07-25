@@ -79,6 +79,7 @@ import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
 import MessagesPage from './pages/client/MessagesPage';
 import MessagesLayout from './pages/client/MessagesLayout';
 import CertificatePage from "./pages/client/CertificatePage";
+import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
 
 const queryClient = new QueryClient();
 
@@ -153,6 +154,7 @@ function App() {
         { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
         { path: "certificates/:courseId", element: <CertificatePage /> },
+        { path: '/social-callback', element: <SocialAuthCallback /> },
       ]
     },
     {

@@ -8,6 +8,7 @@ const { validateSchema } = require('../utils/validateSchema');
 const { loginSchema, registerSchema } = require('../validations/auth.validation');
 const slugify = require('slugify');
 
+console.log('JWT_SECRET:', process.env.JWT_SECRET);
 
 exports.getMe = async (req, res) => {
   try {
@@ -28,8 +29,8 @@ const createToken = (userId) => {
   console.log('Token ID:', id);
   
   try {
-    // Sử dụng Buffer và string literal cho secret
-    const token = jwt.sign({ id }, Buffer.from('your-secret-key'), {
+    // Sử dụng process.env.JWT_SECRET cho secret
+    const token = jwt.sign({ id }, process.env.JWT_SECRET, {
       expiresIn: '24h'
     });
     console.log('Token created:', token);
@@ -580,3 +581,5 @@ exports.changePassword = async (req, res) => {
     });
   }
 };
+
+exports.createToken = createToken;
