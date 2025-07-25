@@ -8,6 +8,7 @@ const TeacherWallet = require('../models/TeacherWallet');
 const Course = require('../models/Course'); // Nên thêm rõ ràng
 const InstructorProfile = require('../models/InstructorProfile');
 const Notification = require('../models/Notification');
+const UserWallet = require('../models/UserWallet');
 
 class OrderController {
   // Tạo đơn hàng
@@ -91,6 +92,28 @@ class OrderController {
       }
 
       const finalAmount = totalAmount - discountAmount;
+
+      // Nếu thanh toán bằng ví, kiểm tra và trừ tiền ví trước khi tạo đơn hàng
+      if (paymentMethod === 'wallet') {
+        let wallet = await UserWallet.findOne({ userId }).session(session);
+        if (!wallet) {
+          wallet = new UserWallet({ userId, balance: 0, history: [] });
+        }
+        if (wallet.balance < finalAmount) {
+          await session.abortTransaction();
+          return res.status(400).json({ success: false, message: 'Số dư ví không đủ để thanh toán!' });
+        }
+        wallet.balance -= finalAmount;
+        wallet.history.push({
+          type: 'payment',
+          amount: -finalAmount,
+          method: 'wallet',
+          status: 'paid',
+          note: `Thanh toán đơn hàng khóa học`,
+          createdAt: new Date()
+        });
+        await wallet.save({ session });
+      }
 
       // Tạo đơn hàng
       const order = new Order({
