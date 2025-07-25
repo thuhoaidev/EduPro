@@ -147,6 +147,20 @@ class OrderService {
       throw new Error(error.response?.data?.message || 'Lỗi khi hoàn thành thanh toán');
     }
   }
+
+  // Hoàn tiền đơn hàng cho một khóa học
+  async refundOrder(orderId: string, courseId: string, token: string): Promise<void> {
+    try {
+      await axios.post(`${API_URL}/orders/${orderId}/refund`, { courseId }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi hoàn tiền');
+    }
+  }
 }
 
 export default new OrderService(); 
