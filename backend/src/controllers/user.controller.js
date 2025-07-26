@@ -774,6 +774,28 @@ exports.updateInstructorApproval = async (req, res) => {
 
     await instructor.save();
 
+    // Cập nhật bảng instructorprofiles
+    const InstructorProfile = require('../models/InstructorProfile');
+    let instructorProfile = await InstructorProfile.findOne({ user: instructorId });
+    
+    if (instructorProfile) {
+      // Cập nhật trạng thái trong bảng instructorprofiles
+      instructorProfile.status = status;
+      instructorProfile.is_approved = status === 'approved';
+      await instructorProfile.save();
+    } else {
+      // Tạo mới record trong bảng instructorprofiles nếu chưa có
+      instructorProfile = await InstructorProfile.create({
+        user: instructorId,
+        status: status,
+        is_approved: status === 'approved',
+        bio: info.bio || '',
+        expertise: info.specializations || [],
+        education: instructor.education || [],
+        experience: info.experience || []
+      });
+    }
+
     // Gửi email thông báo kết quả duyệt
     try {
       await sendInstructorApprovalResultEmail(
