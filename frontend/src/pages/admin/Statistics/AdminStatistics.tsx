@@ -40,41 +40,14 @@ import { config } from '../../../api/axios';
 import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import '../../../styles/AdminStatistics.css';
+import statisticsService from '../../../services/statisticsService';
+import type { StatisticsData, TopCourse, RevenueData } from '../../../types/statistics';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-interface StatisticsData {
-  totalUsers: number;
-  totalCourses: number;
-  totalRevenue: number;
-  totalOrders: number;
-  newUsersToday: number;
-  newCoursesToday: number;
-  revenueToday: number;
-  ordersToday: number;
-  userGrowth: number;
-  courseGrowth: number;
-  revenueGrowth: number;
-  orderGrowth: number;
-}
 
-interface TopCourse {
-  id: string;
-  title: string;
-  instructor: string;
-  sales: number;
-  revenue: number;
-  rating: number;
-  thumbnail: string;
-}
-
-interface RevenueData {
-  date: string;
-  revenue: number;
-  orders: number;
-}
 
 const AdminStatistics: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -104,79 +77,16 @@ const AdminStatistics: React.FC = () => {
   const fetchStatistics = async () => {
     setLoading(true);
     try {
-      // Mock data - replace with actual API calls
-      const mockStats: StatisticsData = {
-        totalUsers: 15420,
-        totalCourses: 342,
-        totalRevenue: 1250000000,
-        totalOrders: 8920,
-        newUsersToday: 156,
-        newCoursesToday: 8,
-        revenueToday: 45000000,
-        ordersToday: 234,
-        userGrowth: 12.5,
-        courseGrowth: 8.3,
-        revenueGrowth: 23.7,
-        orderGrowth: 15.2
-      };
+      // Fetch data from API
+      const [statsData, topCoursesData, revenueData] = await Promise.all([
+        statisticsService.getOverviewStatistics(),
+        statisticsService.getTopCourses(5),
+        statisticsService.getRevenueData(30)
+      ]);
 
-      const mockTopCourses: TopCourse[] = [
-        {
-          id: '1',
-          title: 'React từ cơ bản đến nâng cao',
-          instructor: 'Nguyễn Văn A',
-          sales: 1250,
-          revenue: 125000000,
-          rating: 4.8,
-          thumbnail: 'https://via.placeholder.com/60x40'
-        },
-        {
-          id: '2',
-          title: 'Node.js Backend Development',
-          instructor: 'Trần Thị B',
-          sales: 980,
-          revenue: 98000000,
-          rating: 4.9,
-          thumbnail: 'https://via.placeholder.com/60x40'
-        },
-        {
-          id: '3',
-          title: 'Python Machine Learning',
-          instructor: 'Lê Văn C',
-          sales: 756,
-          revenue: 75600000,
-          rating: 4.7,
-          thumbnail: 'https://via.placeholder.com/60x40'
-        },
-        {
-          id: '4',
-          title: 'Vue.js Frontend Mastery',
-          instructor: 'Phạm Thị D',
-          sales: 654,
-          revenue: 65400000,
-          rating: 4.6,
-          thumbnail: 'https://via.placeholder.com/60x40'
-        },
-        {
-          id: '5',
-          title: 'DevOps với Docker & Kubernetes',
-          instructor: 'Hoàng Văn E',
-          sales: 543,
-          revenue: 54300000,
-          rating: 4.8,
-          thumbnail: 'https://via.placeholder.com/60x40'
-        }
-      ];
-
-      const mockRevenueData: RevenueData[] = Array.from({ length: 30 }, (_, i) => ({
-        date: dayjs().subtract(29 - i, 'day').format('YYYY-MM-DD'),
-        revenue: Math.floor(Math.random() * 5000000) + 1000000,
-        orders: Math.floor(Math.random() * 100) + 20
-      }));
-
-      setStatistics(mockStats);
-      setTopCourses(mockTopCourses);
-      setRevenueData(mockRevenueData);
+      setStatistics(statsData);
+      setTopCourses(topCoursesData);
+      setRevenueData(revenueData);
     } catch (error) {
       console.error('Error fetching statistics:', error);
     } finally {
@@ -237,7 +147,7 @@ const AdminStatistics: React.FC = () => {
       render: (text: string, record: TopCourse) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Avatar 
-            src={record.thumbnail} 
+            src={record.thumbnail || 'https://via.placeholder.com/60x40'} 
             size={40}
             shape="square"
           />
@@ -273,7 +183,7 @@ const AdminStatistics: React.FC = () => {
       render: (value: number) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <StarOutlined style={{ color: '#faad14' }} />
-          <span>{value}</span>
+          <span>{value || 'N/A'}</span>
         </div>
       ),
     },
@@ -483,13 +393,13 @@ const AdminStatistics: React.FC = () => {
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)' 
           }}
         >
-          <Table
-            columns={columns}
-            dataSource={topCourses}
-            pagination={false}
-            rowKey="id"
-            size="middle"
-          />
+                     <Table
+             columns={columns}
+             dataSource={topCourses}
+             pagination={false}
+             rowKey="_id"
+             size="middle"
+           />
         </Card>
       </motion.div>
     </div>

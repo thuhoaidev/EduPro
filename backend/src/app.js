@@ -41,6 +41,7 @@ const userWalletRoutes = require('./routes/userWallet.routes');
 const lessonCommentRoutes = require('./routes/lessonComment.routes');
 const messageRoutes = require('./routes/message.routes');
 const certificateRoutes = require('./routes/certificate.routes');
+const statisticsRoutes = require('./routes/statistics.routes');
 
 
 // Khởi tạo app
@@ -126,6 +127,7 @@ app.use('/api/wallet', userWalletRoutes);
 app.use('/api/lesson-comments', lessonCommentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/certificates', certificateRoutes);
+app.use('/api/statistics', statisticsRoutes);
 // Error handling middleware
 app.use((err, req, res, _next) => {
   console.error(err.stack);
