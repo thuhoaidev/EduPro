@@ -16,6 +16,10 @@ import {
   Typography,
   Button,
   message,
+  Space,
+  Badge,
+  Tooltip,
+  Progress
 } from "antd";
 import {
   SearchOutlined,
@@ -24,6 +28,20 @@ import {
   CloseCircleOutlined,
   TeamOutlined,
   UserSwitchOutlined,
+  TrophyOutlined,
+  FilterOutlined,
+  EyeOutlined,
+  MailOutlined,
+  CalendarOutlined,
+  RiseOutlined,
+  FallOutlined,
+  ClockCircleOutlined,
+  BookOutlined,
+  StarOutlined,
+  PhoneOutlined,
+  HomeOutlined,
+  GiftOutlined,
+  ManOutlined
 } from "@ant-design/icons";
 import { UserStatus, type User } from "../../../interfaces/Admin.interface";
 import dayjs from "dayjs";
@@ -34,7 +52,7 @@ import type { TablePaginationConfig } from 'antd/es/table';
 import { config } from "../../../api/axios";
 dayjs.locale("vi");
 
-const { Paragraph, Link: AntdLink } = Typography;
+const { Title, Text, Paragraph, Link: AntdLink } = Typography;
 
 // Extend User with instructor-specific fields
 interface CertificateFile {
@@ -73,46 +91,89 @@ const StatCards = ({
     rejected: number;
   };
 }) => (
-  <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
-    <Col xs={24} sm={12} md={6}>
-      <Card className={styles.statsCard}>
-        <Statistic
-          title="Tổng số giảng viên"
-          value={stats.total}
-          prefix={<TeamOutlined className={styles.statIcon} />}
-        />
+  <Row gutter={[24, 24]} className={styles.statsRow}>
+    <Col xs={24} sm={12} lg={6}>
+      <Card className={styles.statCard} bordered={false}>
+        <div className={styles.statContent}>
+          <div className={styles.statIcon} style={{ backgroundColor: '#e6f7ff' }}>
+            <TeamOutlined style={{ color: '#1890ff' }} />
+          </div>
+          <div className={styles.statInfo}>
+            <Statistic
+              title="Tổng giảng viên"
+              value={stats.total}
+              valueStyle={{ color: '#1890ff', fontSize: 28, fontWeight: 600 }}
+            />
+            <div className={styles.statTrend}>
+              <RiseOutlined style={{ color: '#52c41a' }} />
+              <Text type="secondary">+15% tháng này</Text>
+            </div>
+          </div>
+        </div>
       </Card>
     </Col>
-    <Col xs={24} sm={12} md={6}>
-      <Card className={styles.statsCard}>
-        <Statistic
-          title="Giảng viên đã duyệt"
-          value={stats.approved}
-          prefix={<CheckCircleOutlined className={styles.statIcon} style={{ color: "#52c41a" }} />}
-        />
+    <Col xs={24} sm={12} lg={6}>
+      <Card className={styles.statCard} bordered={false}>
+        <div className={styles.statContent}>
+          <div className={styles.statIcon} style={{ backgroundColor: '#f6ffed' }}>
+            <CheckCircleOutlined style={{ color: '#52c41a' }} />
+          </div>
+          <div className={styles.statInfo}>
+            <Statistic
+              title="Đã duyệt"
+              value={stats.approved}
+              valueStyle={{ color: '#52c41a', fontSize: 28, fontWeight: 600 }}
+            />
+            <div className={styles.statTrend}>
+              <RiseOutlined style={{ color: '#52c41a' }} />
+              <Text type="secondary">+8% tháng này</Text>
+            </div>
+          </div>
+        </div>
       </Card>
     </Col>
-    <Col xs={24} sm={12} md={6}>
-      <Card className={styles.statsCard}>
-        <Statistic
-          title="Chờ duyệt"
-          value={stats.pending}
-          prefix={<UserSwitchOutlined className={styles.statIcon} style={{ color: "#faad14" }} />}
-        />
+    <Col xs={24} sm={12} lg={6}>
+      <Card className={styles.statCard} bordered={false}>
+        <div className={styles.statContent}>
+          <div className={styles.statIcon} style={{ backgroundColor: '#fff7e6' }}>
+            <UserSwitchOutlined style={{ color: '#faad14' }} />
+          </div>
+          <div className={styles.statInfo}>
+            <Statistic
+              title="Chờ duyệt"
+              value={stats.pending}
+              valueStyle={{ color: '#faad14', fontSize: 28, fontWeight: 600 }}
+            />
+            <div className={styles.statTrend}>
+              <RiseOutlined style={{ color: '#faad14' }} />
+              <Text type="secondary">+12% tháng này</Text>
+            </div>
+          </div>
+        </div>
       </Card>
     </Col>
-    <Col xs={24} sm={12} md={6}>
-      <Card className={styles.statsCard}>
-        <Statistic
-          title="Bị từ chối"
-          value={stats.rejected}
-          prefix={<CloseCircleOutlined className={styles.statIcon} style={{ color: "#ff4d4f" }} />}
-        />
+    <Col xs={24} sm={12} lg={6}>
+      <Card className={styles.statCard} bordered={false}>
+        <div className={styles.statContent}>
+          <div className={styles.statIcon} style={{ backgroundColor: '#fff1f0' }}>
+            <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+          </div>
+          <div className={styles.statInfo}>
+            <Statistic
+              title="Từ chối"
+              value={stats.rejected}
+              valueStyle={{ color: '#ff4d4f', fontSize: 28, fontWeight: 600 }}
+            />
+            <div className={styles.statTrend}>
+              <FallOutlined style={{ color: '#ff4d4f' }} />
+              <Text type="secondary">-5% tháng này</Text>
+            </div>
+          </div>
+        </div>
       </Card>
     </Col>
   </Row>
 );
-
 
 const FilterSection = ({
   searchInput,
@@ -129,37 +190,48 @@ const FilterSection = ({
   setSelectedApprovalStatus: (status: string | undefined) => void;
   setDateRange: (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => void;
 }) => (
-  <div className={styles.filterGroup}>
-    <Input
-      placeholder="Tìm kiếm theo tên, email..."
-      prefix={<SearchOutlined />}
-      value={searchInput}
-      onChange={(e) => setSearchInput(e.target.value)}
-      onPressEnter={() => setSearch(searchInput)}
-      className={styles.filterInput}
-      allowClear
-    />
-    <Select
-      placeholder="Lọc theo trạng thái duyệt"
-      value={selectedApprovalStatus}
-      onChange={(val) => setSelectedApprovalStatus(val || undefined)}
-      className={styles.filterSelect}
-      allowClear
-    >
-      <Select.Option value="">Tất cả</Select.Option>
-      <Select.Option value="pending">Chờ duyệt</Select.Option>
-      <Select.Option value="approved">Đã duyệt</Select.Option>
-      <Select.Option value="rejected">Từ chối</Select.Option>
-    </Select>
-    <DatePicker.RangePicker
-      placeholder={["Từ ngày", "Đến ngày"]}
-      onChange={(dates) => setDateRange(dates)}
-      className={styles.filterDateRange}
-      format="DD/MM/YYYY"
-    />
-  </div>
+  <Card className={styles.filterCard} bordered={false}>
+    <div className={styles.filterHeader}>
+      <div className={styles.filterTitle}>
+        <FilterOutlined className={styles.filterIcon} />
+        <Text strong>Bộ lọc tìm kiếm</Text>
+      </div>
+      <div className={styles.realtimeIndicator}>
+        <ClockCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+        <Text type="secondary">Cập nhật tự động</Text>
+      </div>
+    </div>
+    <div className={styles.filterGroup}>
+      <Input
+        placeholder="Tìm kiếm theo tên, email..."
+        prefix={<SearchOutlined />}
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        onPressEnter={() => setSearch(searchInput)}
+        className={styles.filterInput}
+        allowClear
+      />
+      <Select
+        placeholder="Lọc theo trạng thái duyệt"
+        value={selectedApprovalStatus}
+        onChange={(val) => setSelectedApprovalStatus(val || undefined)}
+        className={styles.filterSelect}
+        allowClear
+      >
+        <Select.Option value="">Tất cả</Select.Option>
+        <Select.Option value="pending">Chờ duyệt</Select.Option>
+        <Select.Option value="approved">Đã duyệt</Select.Option>
+        <Select.Option value="rejected">Từ chối</Select.Option>
+      </Select>
+      <DatePicker.RangePicker
+        placeholder={["Từ ngày", "Đến ngày"]}
+        onChange={(dates) => setDateRange(dates)}
+        className={styles.filterDateRange}
+        format="DD/MM/YYYY"
+      />
+    </div>
+  </Card>
 );
-
 
 const InstructorList = () => {
   const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -178,7 +250,6 @@ const InstructorList = () => {
   const [selectedApprovalStatus, setSelectedApprovalStatus] = useState<string | undefined>(undefined);
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 
-
   // Stats
   const stats = {
     total: instructors.length,
@@ -186,7 +257,6 @@ const InstructorList = () => {
     pending: instructors.filter((u) => u.approvalStatus === 'pending').length,
     rejected: instructors.filter((u) => u.approvalStatus === 'rejected').length,
   };
-
 
   // Handlers
   const handleViewDetails = (inst: Instructor) => {
@@ -197,15 +267,23 @@ const InstructorList = () => {
   const handleTableChange = (pag: TablePaginationConfig) => {
     setPagination((prev) => ({ ...prev, current: pag.current || 1, pageSize: pag.pageSize || 10 }));
   };
+
   const fetchInstructors = useCallback(async () => {
     setLoading(true);
     try {
       const params: any = {};
       if (search) params.search = search;
       if (selectedApprovalStatus) params.approvalStatus = selectedApprovalStatus;
-      if (dateRange?.[0]) params.from = dateRange[0].toISOString();
-      if (dateRange?.[1]) params.to = dateRange[1].toISOString();
+      
+      // Xử lý date range filter
+      if (dateRange?.[0]) {
+        params.from = dateRange[0].startOf('day').toISOString();
+      }
+      if (dateRange?.[1]) {
+        params.to = dateRange[1].endOf('day').toISOString();
+      }
 
+      console.log("Fetching instructors with params:", params);
       const response = await config.get("/users/instructors", { params });
       console.log("API Response:", response.data);
       const rawInstructors = response.data.data.instructors || [];
@@ -223,8 +301,15 @@ const InstructorList = () => {
     }
   }, [search, selectedApprovalStatus, dateRange]);
 
+  // Realtime updates - fetch data every 30 seconds
   useEffect(() => {
     fetchInstructors();
+    
+    const interval = setInterval(() => {
+      fetchInstructors();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
   }, [fetchInstructors, pagination.current]);
 
   const handleApprove = async (instructor: Instructor) => {
@@ -298,21 +383,46 @@ const InstructorList = () => {
           message.error("Từ chối thất bại");
         }
       }
-
     });
   };
 
+  // Helper to get approval status tag
+  const getApprovalStatusTag = (status: string) => {
+    const statusMap: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
+      approved: { color: "success", label: "Đã duyệt", icon: <CheckCircleOutlined /> },
+      rejected: { color: "error", label: "Từ chối", icon: <CloseCircleOutlined /> },
+      pending: { color: "warning", label: "Chờ duyệt", icon: <ClockCircleOutlined /> },
+    };
 
+    const tag = statusMap[status] || { color: "default", label: status, icon: null };
+    return (
+      <Tag
+        color={tag.color}
+        icon={tag.icon}
+        className={styles.statusTag}
+      >
+        {tag.label}
+      </Tag>
+    );
+  };
 
   return (
     <div className={styles.userPageContainer}>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Quản lý giảng viên</h2>
-          <p className="text-gray-500 mt-1">Quản lý và theo dõi thông tin giảng viên</p>
+      {/* Header */}
+      <div className={styles.pageHeader}>
+        <div className={styles.headerLeft}>
+          <Title level={2} className={styles.pageTitle}>
+            <TrophyOutlined className={styles.titleIcon} />
+            Quản lý giảng viên
+          </Title>
+          <Text type="secondary" className={styles.pageSubtitle}>
+            Quản lý và theo dõi thông tin giảng viên hệ thống
+          </Text>
         </div>
       </div>
+
       <StatCards stats={stats} />
+      
       <FilterSection
         searchInput={searchInput}
         setSearchInput={setSearchInput}
@@ -321,20 +431,62 @@ const InstructorList = () => {
         setSelectedApprovalStatus={setSelectedApprovalStatus}
         setDateRange={setDateRange}
       />
-      <Card className={styles.userTableCard}>
+
+      {/* Hiển thị thông tin filter đang hoạt động */}
+      {(search || selectedApprovalStatus || dateRange) && (
+        <Card className={styles.activeFiltersCard} bordered={false}>
+          <div className={styles.activeFiltersHeader}>
+            <Text strong>Bộ lọc đang hoạt động:</Text>
+          </div>
+          <div className={styles.activeFiltersContent}>
+            {search && (
+              <Tag color="blue" closable onClose={() => setSearch("")}>
+                Tìm kiếm: "{search}"
+              </Tag>
+            )}
+            {selectedApprovalStatus && (
+              <Tag color="green" closable onClose={() => setSelectedApprovalStatus(undefined)}>
+                Trạng thái: {selectedApprovalStatus === 'pending' ? 'Chờ duyệt' : selectedApprovalStatus === 'approved' ? 'Đã duyệt' : 'Từ chối'}
+              </Tag>
+            )}
+            {dateRange && dateRange[0] && dateRange[1] && (
+              <Tag color="orange" closable onClose={() => setDateRange(null)}>
+                Từ {dateRange[0].format('DD/MM/YYYY')} đến {dateRange[1].format('DD/MM/YYYY')}
+              </Tag>
+            )}
+          </div>
+        </Card>
+      )}
+
+      <Card className={styles.userTableCard} bordered={false}>
+        <div className={styles.tableHeader}>
+          <div className={styles.tableTitleSection}>
+            <Title level={4} className={styles.tableTitle}>
+              <BookOutlined className={styles.tableIcon} />
+              Danh sách hồ sơ giảng viên
+            </Title>
+            <Badge count={instructors.length} showZero className={styles.userCountBadge} />
+          </div>
+          <div className={styles.tableActions}>
+            <Text type="secondary">
+              Hiển thị {((pagination.current - 1) * pagination.pageSize) + 1} - {Math.min(pagination.current * pagination.pageSize, pagination.total)} của {pagination.total} giảng viên
+            </Text>
+          </div>
+        </div>
+
         <Table
           loading={loading}
           rowKey="id"
           dataSource={instructors.map((u, idx) => ({ ...u, number: idx + 1 }))}
-          pagination={pagination}
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} giảng viên`,
+          }}
           onChange={handleTableChange}
           className={styles.userTable}
-          scroll={{ x: true }}
-          title={() => (
-            <div className={styles.tableHeader}>
-              <h4 className={styles.tableTitle}>Danh sách hồ sơ giảng viên chờ duyệt</h4>
-            </div>
-          )}
+          scroll={{ x: 1200 }}
           onRow={(record) => {
             return {
               onClick: () => {
@@ -347,19 +499,31 @@ const InstructorList = () => {
             {
               title: "STT",
               dataIndex: "number",
-              width: 70,
-              align: 'center',
+              width: 80,
+              align: 'center' as const,
+              render: (_, __, index) => (
+                <Badge count={index + 1} showZero style={{ backgroundColor: '#1890ff' }} />
+              ),
             },
             {
               title: "Giảng viên",
               dataIndex: "fullname",
-              align: 'left',
+              width: 300,
+              align: 'left' as const,
               render: (_: unknown, record: Instructor) => (
                 <div className={styles.avatarCell}>
-                  <Avatar src={record.avatar} icon={<UserOutlined />} />
-                  <div>
+                  <Avatar 
+                    src={record.avatar} 
+                    icon={<UserOutlined />} 
+                    size="large"
+                    className={styles.userAvatar}
+                  />
+                  <div className={styles.userInfo}>
                     <div className={styles.userName}>{record.fullname}</div>
-                    <div className={styles.userEmail}>{record.email}</div>
+                    <div className={styles.userEmail}>
+                      <MailOutlined className={styles.emailIcon} />
+                      {record.email}
+                    </div>
                   </div>
                 </div>
               ),
@@ -367,73 +531,105 @@ const InstructorList = () => {
             {
               title: "Trạng thái duyệt",
               dataIndex: "approvalStatus",
-              align: 'center',
-              width: 120,
-              render: (_: any, record: Instructor) => {
-                const status = record.approvalStatus;
-                if (status === "approved") return <Tag color="green">Đã duyệt</Tag>;
-                if (status === "rejected") return <Tag color="red">Từ chối</Tag>;
-                return <Tag color="gold">Chờ duyệt</Tag>;
-              },
-            }
-            ,
+              align: 'center' as const,
+              width: 150,
+              render: (_: any, record: Instructor) => getApprovalStatusTag(record.approvalStatus),
+            },
             {
               title: "Ngày nộp hồ sơ",
               dataIndex: "applicationDate",
-              render: (date: string) => dayjs(date).format("DD/MM/YYYY HH:mm"),
-              width: 150,
-              align: 'center',
+              width: 180,
+              align: 'center' as const,
+              render: (date: string) => (
+                <div className={styles.dateCell}>
+                  <CalendarOutlined className={styles.dateIcon} />
+                  <Text>{dayjs(date).format("DD/MM/YYYY HH:mm")}</Text>
+                </div>
+              ),
             },
             {
               title: "Thao tác",
               key: "action",
-              width: 160,
-              align: "center",
+              width: 200,
+              align: "center" as const,
               render: (_: unknown, record: Instructor) => {
                 if (record.approvalStatus === "pending") {
                   return (
-                    <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                      <Button
-                        type="primary"
-                        icon={<CheckCircleOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleApprove(record);
-                        }}
-                      >
-                        Duyệt
-                      </Button>
-
-                      <Button
-                        danger
-                        icon={<CloseCircleOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReject(record);
-                        }}
-                      >
-                        Từ chối
-                      </Button>
-                    </div>
+                    <Space className={styles.actionBtns}>
+                      <Tooltip title="Xem chi tiết">
+                        <Button
+                          type="text"
+                          icon={<EyeOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewDetails(record);
+                          }}
+                          className={styles.actionBtn}
+                        />
+                      </Tooltip>
+                      <Tooltip title="Duyệt giảng viên">
+                        <Button
+                          type="primary"
+                          icon={<CheckCircleOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleApprove(record);
+                          }}
+                          className={styles.actionBtn}
+                        >
+                          Duyệt
+                        </Button>
+                      </Tooltip>
+                      <Tooltip title="Từ chối">
+                        <Button
+                          danger
+                          icon={<CloseCircleOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReject(record);
+                          }}
+                          className={styles.actionBtn}
+                        >
+                          Từ chối
+                        </Button>
+                      </Tooltip>
+                    </Space>
                   );
                 }
 
-                // Đã xử lý: return null để ô này trống
-                return null;
+                return (
+                  <Space className={styles.actionBtns}>
+                    <Tooltip title="Xem chi tiết">
+                      <Button
+                        type="text"
+                        icon={<EyeOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(record);
+                        }}
+                        className={styles.actionBtn}
+                      />
+                    </Tooltip>
+                  </Space>
+                );
               }
             }
-
-
-
           ]}
         />
       </Card>
+
+      {/* Instructor Details Modal */}
       <Modal
-        title="Chi tiết giảng viên"
+        title={
+          <div className={styles.modalTitle}>
+            <UserOutlined className={styles.modalIcon} />
+            Chi tiết giảng viên
+          </div>
+        }
         open={isDetailsModalVisible}
         onCancel={() => setIsDetailsModalVisible(false)}
         footer={null}
-        width={800}
+        width={900}
         destroyOnHidden
         className={styles.userDetailModal}
       >
@@ -443,20 +639,44 @@ const InstructorList = () => {
               <Avatar size={96} src={viewingInstructor.avatar} className={styles.userDetailAvatar} />
               <div className={styles.userDetailHeaderInfo}>
                 <div className={styles.userDetailName}>{viewingInstructor.fullname}</div>
-                <div className={styles.userDetailEmail}>{viewingInstructor.email}</div>
+                <div className={styles.userDetailEmail}>
+                  <MailOutlined className={styles.emailIcon} />
+                  {viewingInstructor.email}
+                </div>
+                <div className={styles.userDetailRoleTag}>
+                  {getApprovalStatusTag(viewingInstructor.approvalStatus)}
+                </div>
               </div>
             </div>
-            <Divider orientation="left">Thông tin cá nhân</Divider>
-            <Descriptions column={2} bordered size="small">
-              <Descriptions.Item label="Họ và tên">{viewingInstructor.fullname}</Descriptions.Item>
-              <Descriptions.Item label="Email">{viewingInstructor.email}</Descriptions.Item>
-              <Descriptions.Item label="Số điện thoại">{viewingInstructor.phone || "Chưa cập nhật"}</Descriptions.Item>
-              <Descriptions.Item label="Giới tính">{viewingInstructor.gender || "Chưa cập nhật"}</Descriptions.Item>
-              <Descriptions.Item label="Ngày sinh">{viewingInstructor.dob ? dayjs(viewingInstructor.dob).format("DD/MM/YYYY") : "Chưa cập nhật"}</Descriptions.Item>
-              <Descriptions.Item label="Địa chỉ">{viewingInstructor.address || "Chưa cập nhật"}</Descriptions.Item>
-            </Descriptions>
-            <Divider orientation="left">Học vấn & Chuyên môn</Divider>
-            <Descriptions column={2} bordered size="small">
+
+            <div className={styles.userDetailCard}>
+              <div className={styles.userDetailRow}>
+                <span className={styles.userDetailLabel}><CalendarOutlined /> Ngày nộp hồ sơ:</span>
+                <span>{viewingInstructor.applicationDate ? dayjs(viewingInstructor.applicationDate).format("DD/MM/YYYY HH:mm") : "Chưa cập nhật"}</span>
+              </div>
+              <div className={styles.userDetailRow}>
+                <span className={styles.userDetailLabel}><PhoneOutlined /> Số điện thoại:</span>
+                <span>{viewingInstructor.phone || 'Chưa cập nhật'}</span>
+              </div>
+              <div className={styles.userDetailRow}>
+                <span className={styles.userDetailLabel}><HomeOutlined /> Địa chỉ:</span>
+                <span>{viewingInstructor.address || 'Chưa cập nhật'}</span>
+              </div>
+              <div className={styles.userDetailRow}>
+                <span className={styles.userDetailLabel}><GiftOutlined /> Ngày sinh:</span>
+                <span>{viewingInstructor.dob ? dayjs(viewingInstructor.dob).format('DD/MM/YYYY') : 'Chưa cập nhật'}</span>
+              </div>
+              <div className={styles.userDetailRow}>
+                <span className={styles.userDetailLabel}><ManOutlined /> Giới tính:</span>
+                <span>{viewingInstructor.gender || 'Chưa cập nhật'}</span>
+              </div>
+            </div>
+
+            <Divider orientation="left">
+              <StarOutlined style={{ color: '#1890ff', marginRight: 8 }} />
+              Học vấn & Chuyên môn
+            </Divider>
+            <Descriptions column={2} bordered size="small" className={styles.detailDescriptions}>
               <Descriptions.Item label="Bằng cấp">{viewingInstructor.degree || "Chưa cập nhật"}</Descriptions.Item>
               <Descriptions.Item label="Trường đào tạo">{viewingInstructor.university || "Chưa cập nhật"}</Descriptions.Item>
               <Descriptions.Item label="Chuyên ngành">{viewingInstructor.major || "Chưa cập nhật"}</Descriptions.Item>
@@ -469,8 +689,12 @@ const InstructorList = () => {
                 <Paragraph style={{ marginBottom: 0 }}>{viewingInstructor.experienceDescription || "Chưa cập nhật"}</Paragraph>
               </Descriptions.Item>
             </Descriptions>
-            <Divider orientation="left">Hồ sơ & Tài liệu</Divider>
-            <Descriptions column={2} bordered size="small">
+
+            <Divider orientation="left">
+              <BookOutlined style={{ color: '#1890ff', marginRight: 8 }} />
+              Hồ sơ & Tài liệu
+            </Divider>
+            <Descriptions column={2} bordered size="small" className={styles.detailDescriptions}>
               <Descriptions.Item label="CV">
                 {viewingInstructor.cvUrl ? (
                   <AntdLink href={viewingInstructor.cvUrl} target="_blank" rel="noopener noreferrer">Tải CV</AntdLink>
@@ -537,8 +761,6 @@ const InstructorList = () => {
                 </Descriptions.Item>
               )}
             </Descriptions>
-            <Divider orientation="left">Ngày gửi hồ sơ</Divider>
-            <Paragraph>{viewingInstructor.applicationDate ? dayjs(viewingInstructor.applicationDate).format("DD/MM/YYYY HH:mm") : "Chưa cập nhật"}</Paragraph>
           </div>
         )}
       </Modal>

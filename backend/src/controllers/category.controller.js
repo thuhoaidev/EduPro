@@ -27,8 +27,47 @@ exports.createCategory = async (req, res, next) => {
 // Lấy danh sách danh mục (phẳng)
 exports.getCategories = async (req, res, next) => {
     try {
-        // Lấy tất cả danh mục mà không populate children vì trường parent đã bị xóa
-        const categories = await Category.find();
+        const { search, status, startDate, endDate, page = 1, limit = 100 } = req.query;
+        
+        // Build query conditions
+        const conditions = {};
+        
+        // Search condition
+        if (search) {
+            conditions.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
+        }
+        
+        // Status condition
+        if (status) {
+            conditions.status = status;
+        }
+        
+        // Date range condition
+        if (startDate || endDate) {
+            conditions.createdAt = {};
+            if (startDate) {
+                conditions.createdAt.$gte = new Date(startDate);
+            }
+            if (endDate) {
+                const toDate = new Date(endDate);
+                toDate.setHours(23, 59, 59, 999); // Set to end of day
+                conditions.createdAt.$lte = toDate;
+            }
+        }
+        
+        console.log('Categories query:', JSON.stringify(conditions, null, 2));
+        
+        // Calculate pagination
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        // Execute query with pagination
+        const categories = await Category.find(conditions)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit));
 
         res.json({
             success: true,

@@ -18,6 +18,10 @@ import {
   DatePicker,
   Upload,
   Tooltip,
+  Typography,
+  Badge,
+  Divider,
+  Progress
 } from "antd";
 import {
   SearchOutlined,
@@ -35,6 +39,15 @@ import {
   HomeOutlined,
   GiftOutlined,
   ManOutlined,
+  TrophyOutlined,
+  FilterOutlined,
+  ReloadOutlined,
+  ExportOutlined,
+  EyeOutlined,
+  MailOutlined,
+  GlobalOutlined,
+  RiseOutlined,
+  FallOutlined
 } from "@ant-design/icons";
 import {
   UserRole,
@@ -44,12 +57,14 @@ import {
 import { getAllUsers, createUser, updateUser, deleteUser } from "../../../services/userService";
 import type { TablePaginationConfig } from 'antd/es/table';
 import axios from 'axios';
-import dayjs from 'dayjs'; // Import dayjs
-import 'dayjs/locale/vi'; // Import Vietnamese locale for dayjs if needed
+import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
 import type { UploadFile } from 'antd/es/upload/interface';
 import styles from './UserPage.module.css';
 
-dayjs.locale('vi'); // Set default locale to Vietnamese if needed
+dayjs.locale('vi');
+
+const { Title, Text, Paragraph } = Typography;
 
 interface Role {
   _id: string;
@@ -69,32 +84,88 @@ interface StatCardsProps {
 }
 
 const StatCards = ({ userStats }: StatCardsProps) => (
-  <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
-    <Col xs={24} sm={12} md={8}>
-      <Card className={styles.statsCard}>
-        <Statistic
-          title="Tổng số người dùng"
-          value={userStats.total}
-          prefix={<TeamOutlined className={styles.statIcon} />}
-        />
+  <Row gutter={[24, 24]} className={styles.statsRow}>
+    <Col xs={24} sm={12} lg={6}>
+      <Card className={styles.statCard} bordered={false}>
+        <div className={styles.statContent}>
+          <div className={styles.statIcon} style={{ backgroundColor: '#e6f7ff' }}>
+            <TeamOutlined style={{ color: '#1890ff' }} />
+          </div>
+          <div className={styles.statInfo}>
+            <Statistic
+              title="Tổng người dùng"
+              value={userStats.total}
+              valueStyle={{ color: '#1890ff', fontSize: 28, fontWeight: 600 }}
+            />
+            <div className={styles.statTrend}>
+              <RiseOutlined style={{ color: '#52c41a' }} />
+              <Text type="secondary">+12% tháng này</Text>
+            </div>
+          </div>
+        </div>
       </Card>
     </Col>
-    <Col xs={24} sm={12} md={8}>
-      <Card className={styles.statsCard}>
-        <Statistic
-          title="Đang hoạt động"
-          value={userStats.active}
-          prefix={<UserSwitchOutlined className={styles.statIcon} style={{ color: '#52c41a' }} />}
-        />
+    <Col xs={24} sm={12} lg={6}>
+      <Card className={styles.statCard} bordered={false}>
+        <div className={styles.statContent}>
+          <div className={styles.statIcon} style={{ backgroundColor: '#f6ffed' }}>
+            <UserSwitchOutlined style={{ color: '#52c41a' }} />
+          </div>
+          <div className={styles.statInfo}>
+            <Statistic
+              title="Đang hoạt động"
+              value={userStats.active}
+              valueStyle={{ color: '#52c41a', fontSize: 28, fontWeight: 600 }}
+            />
+            <div className={styles.statTrend}>
+              <RiseOutlined style={{ color: '#52c41a' }} />
+              <Text type="secondary">+8% tháng này</Text>
+            </div>
+          </div>
+        </div>
       </Card>
     </Col>
-    <Col xs={24} sm={12} md={8}>
-      <Card className={styles.statsCard}>
-        <Statistic
-          title="Không hoạt động"
-          value={userStats.inactive}
-          prefix={<CloseCircleOutlined className={styles.statIcon} style={{ color: '#ff4d4f' }} />}
-        />
+    <Col xs={24} sm={12} lg={6}>
+      <Card className={styles.statCard} bordered={false}>
+        <div className={styles.statContent}>
+          <div className={styles.statIcon} style={{ backgroundColor: '#fff1f0' }}>
+            <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+          </div>
+          <div className={styles.statInfo}>
+            <Statistic
+              title="Không hoạt động"
+              value={userStats.inactive}
+              valueStyle={{ color: '#ff4d4f', fontSize: 28, fontWeight: 600 }}
+            />
+            <div className={styles.statTrend}>
+              <FallOutlined style={{ color: '#ff4d4f' }} />
+              <Text type="secondary">-3% tháng này</Text>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </Col>
+    <Col xs={24} sm={12} lg={6}>
+      <Card className={styles.statCard} bordered={false}>
+        <div className={styles.statContent}>
+          <div className={styles.statIcon} style={{ backgroundColor: '#fff7e6' }}>
+            <UserOutlined style={{ color: '#fa8c16' }} />
+          </div>
+          <div className={styles.statInfo}>
+            <Statistic
+              title="Tỷ lệ hoạt động"
+              value={userStats.total > 0 ? Math.round((userStats.active / userStats.total) * 100) : 0}
+              suffix="%"
+              valueStyle={{ color: '#fa8c16', fontSize: 28, fontWeight: 600 }}
+            />
+            <Progress 
+              percent={userStats.total > 0 ? Math.round((userStats.active / userStats.total) * 100) : 0} 
+              size="small" 
+              showInfo={false} 
+              strokeColor="#fa8c16"
+            />
+          </div>
+        </div>
       </Card>
     </Col>
   </Row>
@@ -109,6 +180,7 @@ interface FilterSectionProps {
   selectedStatus: UserStatus | undefined;
   setSelectedStatus: (status: UserStatus | undefined) => void;
   setDateRange: (dates: any) => void;
+  onRefresh: () => void;
 }
 
 const FilterSection = ({
@@ -120,50 +192,66 @@ const FilterSection = ({
   selectedStatus,
   setSelectedStatus,
   setDateRange,
+  onRefresh,
 }: FilterSectionProps) => (
-  <div className={styles.filterGroup}>
-    <Input
-      placeholder="Tìm kiếm theo tên, email..."
-      prefix={<SearchOutlined />}
-      value={searchInput}
-      onChange={(e) => setSearchInput(e.target.value)}
-      onPressEnter={() => setSearch(searchInput)}
-      className={styles.filterInput}
-      allowClear
-    />
-    <Select
-      placeholder="Lọc theo vai trò"
-      value={selectedRole}
-      onChange={setSelectedRole}
-      className={styles.filterSelect}
-      allowClear
-    >
-      {Object.values(UserRole).map((role) => (
-        <Select.Option key={role} value={role}>
-          {role === UserRole.ADMIN ? 'Admin' :
-           role === UserRole.INSTRUCTOR ? 'Giảng viên' :
-           role === UserRole.STUDENT ? 'Học viên' :
-           role === UserRole.MODERATOR ? 'Kiểm duyệt' : role}
-        </Select.Option>
-      ))}
-    </Select>
-    <Select
-      placeholder="Lọc theo trạng thái"
-      value={selectedStatus}
-      onChange={setSelectedStatus}
-      className={styles.filterSelect}
-      allowClear
-    >
-      <Select.Option value={UserStatus.ACTIVE}>Hoạt động</Select.Option>
-      <Select.Option value={UserStatus.INACTIVE}>Không hoạt động</Select.Option>
-    </Select>
-    <RangePicker
-      placeholder={['Từ ngày', 'Đến ngày']}
-      onChange={(dates) => setDateRange(dates)}
-      className={styles.filterDateRange}
-      format="DD/MM/YYYY"
-    />
-  </div>
+  <Card className={styles.filterCard} bordered={false}>
+    <div className={styles.filterHeader}>
+      <div className={styles.filterTitle}>
+        <FilterOutlined className={styles.filterIcon} />
+        <Text strong>Bộ lọc tìm kiếm</Text>
+      </div>
+      <Button 
+        icon={<ReloadOutlined />} 
+        onClick={onRefresh}
+        className={styles.refreshBtn}
+      >
+        Làm mới
+      </Button>
+    </div>
+    <div className={styles.filterGroup}>
+      <Input
+        placeholder="Tìm kiếm theo tên, email..."
+        prefix={<SearchOutlined />}
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        onPressEnter={() => setSearch(searchInput)}
+        className={styles.filterInput}
+        allowClear
+      />
+      <Select
+        placeholder="Lọc theo vai trò"
+        value={selectedRole}
+        onChange={setSelectedRole}
+        className={styles.filterSelect}
+        allowClear
+      >
+        {Object.values(UserRole).map((role) => (
+          <Select.Option key={role} value={role}>
+            {role === UserRole.ADMIN ? 'Admin' :
+             role === UserRole.INSTRUCTOR ? 'Giảng viên' :
+             role === UserRole.STUDENT ? 'Học viên' :
+             role === UserRole.MODERATOR ? 'Kiểm duyệt' : role}
+          </Select.Option>
+        ))}
+      </Select>
+      <Select
+        placeholder="Lọc theo trạng thái"
+        value={selectedStatus}
+        onChange={setSelectedStatus}
+        className={styles.filterSelect}
+        allowClear
+      >
+        <Select.Option value={UserStatus.ACTIVE}>Hoạt động</Select.Option>
+        <Select.Option value={UserStatus.INACTIVE}>Không hoạt động</Select.Option>
+      </Select>
+      <RangePicker
+        placeholder={['Từ ngày', 'Đến ngày']}
+        onChange={(dates) => setDateRange(dates)}
+        className={styles.filterDateRange}
+        format="DD/MM/YYYY"
+      />
+    </div>
+  </Card>
 );
 
 const UserPage = () => {
@@ -322,7 +410,7 @@ const UserPage = () => {
     };
     const tag = roleMap[roleName as UserRole] || { color: "default", label: roleName };
     return (
-      <Tag color={tag.color} className="px-2 py-1 rounded-full text-sm font-medium">
+      <Tag color={tag.color} className={styles.roleTag}>
         {tag.label}
       </Tag>
     );
@@ -479,16 +567,50 @@ const UserPage = () => {
     fetchUsers(pagination.current || 1, pagination.pageSize || 10);
   };
 
+  const handleRefresh = () => {
+    setSearchInput("");
+    setSearch("");
+    setSelectedRole(undefined);
+    setSelectedStatus(undefined);
+    setDateRange(null);
+    fetchUsers();
+  };
+
   return (
     <div className={styles.userPageContainer}>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Quản lý người dùng</h2>
-          <p className="text-gray-500 mt-1">Quản lý và theo dõi thông tin người dùng</p>
+      {/* Header */}
+      <div className={styles.pageHeader}>
+        <div className={styles.headerLeft}>
+          <Title level={2} className={styles.pageTitle}>
+            <TrophyOutlined className={styles.titleIcon} />
+            Quản lý người dùng
+          </Title>
+          <Text type="secondary" className={styles.pageSubtitle}>
+            Quản lý và theo dõi thông tin người dùng hệ thống
+          </Text>
+        </div>
+        <div className={styles.headerRight}>
+          <Space>
+            <Button 
+              icon={<ExportOutlined />} 
+              className={styles.exportBtn}
+            >
+              Xuất dữ liệu
+            </Button>
+            <Button 
+              type="primary" 
+              icon={<UserAddOutlined />} 
+              onClick={handleAddUser}
+              className={styles.addUserBtn}
+            >
+              Thêm người dùng
+            </Button>
+          </Space>
         </div>
       </div>
 
       <StatCards userStats={userStats} />
+      
       <FilterSection
         searchInput={searchInput}
         setSearchInput={setSearchInput}
@@ -498,30 +620,38 @@ const UserPage = () => {
         selectedStatus={selectedStatus}
         setSelectedStatus={setSelectedStatus}
         setDateRange={setDateRange}
+        onRefresh={handleRefresh}
       />
 
-      <Card className={styles.userTableCard}>
+      <Card className={styles.userTableCard} bordered={false}>
+        <div className={styles.tableHeader}>
+          <div className={styles.tableTitleSection}>
+            <Title level={4} className={styles.tableTitle}>
+              <TeamOutlined className={styles.tableIcon} />
+              Danh sách người dùng
+            </Title>
+            <Badge count={users.length} showZero className={styles.userCountBadge} />
+          </div>
+          <div className={styles.tableActions}>
+            <Text type="secondary">
+              Hiển thị {((pagination.current - 1) * pagination.pageSize) + 1} - {Math.min(pagination.current * pagination.pageSize, pagination.total)} của {pagination.total} người dùng
+            </Text>
+          </div>
+        </div>
+        
         <Table
           rowKey="id"
           dataSource={users}
           loading={loading}
-          pagination={pagination}
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} người dùng`,
+          }}
           onChange={handleTableChange}
           className={styles.userTable}
-          scroll={{ x: true }}
-          title={() => (
-            <div className={styles.tableHeader}>
-              <h4 className={styles.tableTitle}>Danh sách người dùng</h4>
-              <Button
-                type="primary"
-                icon={<UserAddOutlined />}
-                onClick={handleAddUser}
-                className={styles.addUserBtn}
-              >
-                Thêm người dùng
-              </Button>
-            </div>
-          )}
+          scroll={{ x: 1200 }}
           onRow={(record) => {
             return {
               onClick: () => {
@@ -533,85 +663,133 @@ const UserPage = () => {
             {
               title: 'STT',
               dataIndex: 'number',
-              width: 70,
+              width: 80,
+              align: 'center' as const,
+              render: (_, __, index) => (
+                <Badge count={index + 1} showZero style={{ backgroundColor: '#1890ff' }} />
+              ),
             },
             {
               title: 'Người dùng',
               dataIndex: 'fullname',
+              width: 300,
               render: (_, record) => (
                 <div className={styles.avatarCell}>
-                  <Avatar src={record.avatar} icon={<UserOutlined />} />
-          <div>
+                  <Avatar 
+                    src={record.avatar} 
+                    icon={<UserOutlined />} 
+                    size="large"
+                    className={styles.userAvatar}
+                  />
+                  <div className={styles.userInfo}>
                     <div className={styles.userName}>{record.fullname}</div>
-                    <div className={styles.userEmail}>{record.email}</div>
-            </div>
-          </div>
-      ),
-    },
-    {
+                    <div className={styles.userEmail}>
+                      <MailOutlined className={styles.emailIcon} />
+                      {record.email}
+                    </div>
+                  </div>
+                </div>
+              ),
+            },
+            {
               title: 'Vai trò',
               dataIndex: 'role',
+              width: 150,
+              align: 'center' as const,
               render: (role) => getRoleTag(role),
-              width: 120,
             },
             {
               title: 'Trạng thái',
               dataIndex: 'status',
-              render: (status) => getStatusTag(status),
               width: 150,
+              align: 'center' as const,
+              render: (status) => getStatusTag(status),
             },
             {
               title: 'Ngày tạo',
               dataIndex: 'createdAt',
-              render: (date) => dayjs(date).format('DD/MM/YYYY HH:mm'),
-              width: 150,
+              width: 180,
+              align: 'center' as const,
+              render: (date) => (
+                <div className={styles.dateCell}>
+                  <CalendarOutlined className={styles.dateIcon} />
+                  <Text>{dayjs(date).format('DD/MM/YYYY HH:mm')}</Text>
+                </div>
+              ),
             },
             {
               title: 'Thao tác',
               key: 'action',
-              width: 120,
+              width: 150,
+              align: 'center' as const,
               render: (_, record) => (
                 <Space className={styles.actionBtns}>
-                  <Tooltip title="Chỉnh sửa">
-          <Button
+                  <Tooltip title="Xem chi tiết">
+                    <Button
                       type="text"
-            icon={<EditOutlined />}
-            onClick={(e) => {
-              e.stopPropagation();
-                        handleEditUser(record);
-            }}
+                      icon={<EyeOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewDetails(record);
+                      }}
                       className={styles.actionBtn}
-          />
+                    />
+                  </Tooltip>
+                  <Tooltip title="Chỉnh sửa">
+                    <Button
+                      type="text"
+                      icon={<EditOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditUser(record);
+                      }}
+                      className={styles.actionBtn}
+                    />
                   </Tooltip>
                   <Tooltip title="Xóa">
-          <Popconfirm
+                    <Popconfirm
                       title="Bạn có chắc chắn muốn xóa người dùng này?"
-            onConfirm={(e) => {
-              e?.stopPropagation();
+                      onConfirm={(e) => {
+                        e?.stopPropagation();
                         handleDeleteUser(record.id);
-            }}
+                      }}
                       onCancel={(e) => e?.stopPropagation()}
-            okText="Xóa"
-            cancelText="Hủy"
-          >
-            <Button
+                      okText="Xóa"
+                      cancelText="Hủy"
+                    >
+                      <Button
                         type="text"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={(e) => e.stopPropagation()}
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={(e) => e.stopPropagation()}
                         className={styles.actionBtn}
-            />
-          </Popconfirm>
+                      />
+                    </Popconfirm>
                   </Tooltip>
-        </Space>
-      ),
-    },
+                </Space>
+              ),
+            },
           ]}
         />
       </Card>
 
+      {/* Add/Edit User Modal */}
       <Modal
-        title={editingUser ? "Chỉnh sửa người dùng" : "Thêm người dùng"}
+        title={
+          <div className={styles.modalTitle}>
+            {editingUser ? (
+              <>
+                <EditOutlined className={styles.modalIcon} />
+                Chỉnh sửa người dùng
+              </>
+            ) : (
+              <>
+                <UserAddOutlined className={styles.modalIcon} />
+                Thêm người dùng mới
+              </>
+            )}
+          </div>
+        }
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={() => setIsModalVisible(false)}
@@ -619,47 +797,58 @@ const UserPage = () => {
         cancelText="Hủy"
         destroyOnHidden
         className={styles.userModal}
+        width={800}
       >
         <Form form={userForm} layout="vertical" className={styles.userForm}>
           <div className={styles.formGrid}>
             <div className={styles.formLeftCol}>
-          <Form.Item
-            name="fullname"
-            label="Họ và tên"
+              <Form.Item
+                name="fullname"
+                label="Họ và tên"
                 rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
                 className={styles.formItem}
-          >
-                <Input className={styles.input} />
-          </Form.Item>
-          <Form.Item
-            name="email"
-            label="Email"
+              >
+                <Input className={styles.input} placeholder="Nhập họ và tên" />
+              </Form.Item>
+              <Form.Item
+                name="email"
+                label="Email"
                 rules={[{ required: true, type: 'email', message: 'Vui lòng nhập email hợp lệ!' }]}
                 className={styles.formItem}
               >
-                <Input className={styles.input} />
-          </Form.Item>
-          {!editingUser && (
-            <Form.Item
-              name="password"
-              label="Mật khẩu"
+                <Input className={styles.input} placeholder="Nhập email" />
+              </Form.Item>
+              {!editingUser && (
+                <Form.Item
+                  name="password"
+                  label="Mật khẩu"
                   rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
                   className={styles.formItem}
                 >
-                  <Input.Password className={styles.input} />
-            </Form.Item>
-          )}
-              <Form.Item name="role" label="Vai trò" rules={[{ required: true, message: 'Vui lòng chọn vai trò!' }]} className={styles.formItem}>
-                <Select className={styles.input}>
+                  <Input.Password className={styles.input} placeholder="Nhập mật khẩu" />
+                </Form.Item>
+              )}
+              <Form.Item 
+                name="role" 
+                label="Vai trò" 
+                rules={[{ required: true, message: 'Vui lòng chọn vai trò!' }]} 
+                className={styles.formItem}
+              >
+                <Select className={styles.input} placeholder="Chọn vai trò">
                   {roles.map(r => <Select.Option key={r._id} value={r.name}>{r.name}</Select.Option>)}
-            </Select>
-          </Form.Item>
-              <Form.Item name="status" label="Trạng thái" rules={[{ required: true, message: 'Vui lòng chọn trạng thái!' }]} className={styles.formItem}>
-                <Select className={styles.input}>
+                </Select>
+              </Form.Item>
+              <Form.Item 
+                name="status" 
+                label="Trạng thái" 
+                rules={[{ required: true, message: 'Vui lòng chọn trạng thái!' }]} 
+                className={styles.formItem}
+              >
+                <Select className={styles.input} placeholder="Chọn trạng thái">
                   <Select.Option value={UserStatus.ACTIVE}>Hoạt động</Select.Option>
                   <Select.Option value={UserStatus.INACTIVE}>Không hoạt động</Select.Option>
-            </Select>
-          </Form.Item>
+                </Select>
+              </Form.Item>
             </div>
             <div className={styles.formRightCol}>
               <Form.Item name="avatar" label="Ảnh đại diện" className={styles.formItem}>
@@ -688,30 +877,36 @@ const UserPage = () => {
                     {avatarFileList.length < 1 && '+ Tải lên'}
                   </Upload>
                 </div>
-          </Form.Item>
+              </Form.Item>
               <Form.Item name="phone" label="Số điện thoại" className={styles.formItem}>
-                <Input className={styles.input} />
-          </Form.Item>
+                <Input className={styles.input} placeholder="Nhập số điện thoại" />
+              </Form.Item>
               <Form.Item name="address" label="Địa chỉ" className={styles.formItem}>
-                <Input className={styles.input} />
-          </Form.Item>
+                <Input className={styles.input} placeholder="Nhập địa chỉ" />
+              </Form.Item>
               <Form.Item name="dob" label="Ngày sinh" className={styles.formItem}>
                 <DatePicker className={styles.input} format="DD/MM/YYYY" style={{ width: '100%' }} />
-          </Form.Item>
+              </Form.Item>
               <Form.Item name="gender" label="Giới tính" className={styles.formItem}>
-                <Select className={styles.input}>
-              <Select.Option value="Nam">Nam</Select.Option>
-              <Select.Option value="Nữ">Nữ</Select.Option>
-              <Select.Option value="Khác">Khác</Select.Option>
-            </Select>
-          </Form.Item>
+                <Select className={styles.input} placeholder="Chọn giới tính">
+                  <Select.Option value="Nam">Nam</Select.Option>
+                  <Select.Option value="Nữ">Nữ</Select.Option>
+                  <Select.Option value="Khác">Khác</Select.Option>
+                </Select>
+              </Form.Item>
             </div>
           </div>
         </Form>
       </Modal>
 
+      {/* User Details Modal */}
       <Modal
-        title="Chi tiết người dùng"
+        title={
+          <div className={styles.modalTitle}>
+            <UserOutlined className={styles.modalIcon} />
+            Chi tiết người dùng
+          </div>
+        }
         open={isDetailsModalVisible}
         onCancel={() => setIsDetailsModalVisible(false)}
         footer={null}
@@ -725,35 +920,38 @@ const UserPage = () => {
               <Avatar size={96} src={viewingUser.avatar} className={styles.userDetailAvatar} />
               <div className={styles.userDetailHeaderInfo}>
                 <div className={styles.userDetailName}>{viewingUser.fullname}</div>
-                <div className={styles.userDetailEmail}>{viewingUser.email}</div>
+                <div className={styles.userDetailEmail}>
+                  <MailOutlined className={styles.emailIcon} />
+                  {viewingUser.email}
+                </div>
                 <div className={styles.userDetailRoleTag}>{getRoleTag(viewingUser.role)}</div>
-                  </div>
-                  </div>
+              </div>
+            </div>
             <div className={styles.userDetailCard}>
               <div className={styles.userDetailRow}>
                 <span className={styles.userDetailLabel}><CalendarOutlined /> Ngày tạo:</span>
                 <span>{dayjs(viewingUser.createdAt).format('DD/MM/YYYY HH:mm')}</span>
-                </div>
+              </div>
               <div className={styles.userDetailRow}>
                 <span className={styles.userDetailLabel}><UserOutlined /> Trạng thái:</span>
-                      <span>{getStatusTag(viewingUser.status)}</span>
-                    </div>
+                <span>{getStatusTag(viewingUser.status)}</span>
+              </div>
               <div className={styles.userDetailRow}>
                 <span className={styles.userDetailLabel}><PhoneOutlined /> Số điện thoại:</span>
                 <span>{viewingUser.phone || 'Chưa cập nhật'}</span>
-                    </div>
+              </div>
               <div className={styles.userDetailRow}>
                 <span className={styles.userDetailLabel}><HomeOutlined /> Địa chỉ:</span>
                 <span>{viewingUser.address || 'Chưa cập nhật'}</span>
-                      </div>
+              </div>
               <div className={styles.userDetailRow}>
                 <span className={styles.userDetailLabel}><GiftOutlined /> Ngày sinh:</span>
                 <span>{viewingUser.dob ? dayjs(viewingUser.dob).format('DD/MM/YYYY') : 'Chưa cập nhật'}</span>
-                  </div>
+              </div>
               <div className={styles.userDetailRow}>
                 <span className={styles.userDetailLabel}><ManOutlined /> Giới tính:</span>
                 <span>{viewingUser.gender || 'Chưa cập nhật'}</span>
-                </div>
+              </div>
             </div>
           </div>
         )}

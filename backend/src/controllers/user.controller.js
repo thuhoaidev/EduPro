@@ -609,6 +609,8 @@ exports.getInstructors = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
     const approvalStatus = req.query.approvalStatus;
+    const from = req.query.from;
+    const to = req.query.to;
 
     // Tìm role instructor
     const instructorRole = await Role.findOne({ name: ROLES.INSTRUCTOR });
@@ -624,21 +626,55 @@ exports.getInstructors = async (req, res) => {
       role_id: instructorRole._id,
     };
 
+    // Tạo mảng conditions để kết hợp
+    const conditions = [];
+
     // Tìm kiếm
     if (search) {
       const searchRegex = new RegExp(search, 'i');
-      instructorsQuery.$or = [
-        { fullname: searchRegex },
-        { email: searchRegex },
-        { nickname: searchRegex },
-        { phone: searchRegex },
-      ];
+      conditions.push({
+        $or: [
+          { fullname: searchRegex },
+          { email: searchRegex },
+          { nickname: searchRegex },
+          { phone: searchRegex },
+        ]
+      });
     }
 
     // Lọc theo trạng thái duyệt nếu có
     if (approvalStatus) {
-      instructorsQuery['instructorInfo.approval_status'] = approvalStatus;
+      conditions.push({ 'instructorInfo.approval_status': approvalStatus });
     }
+
+    // Lọc theo khoảng thời gian nộp hồ sơ
+    if (from || to) {
+      const dateQuery = {};
+      if (from) {
+        dateQuery.$gte = new Date(from);
+      }
+      if (to) {
+        // Đặt thời gian cuối ngày cho 'to' date
+        const toDate = new Date(to);
+        toDate.setHours(23, 59, 59, 999);
+        dateQuery.$lte = toDate;
+      }
+      
+      // Lọc theo application_date hoặc createdAt
+      conditions.push({
+        $or: [
+          { 'instructorInfo.application_date': dateQuery },
+          { createdAt: dateQuery }
+        ]
+      });
+    }
+
+    // Kết hợp tất cả conditions
+    if (conditions.length > 0) {
+      instructorsQuery.$and = conditions;
+    }
+
+    console.log('Instructors query:', JSON.stringify(instructorsQuery, null, 2));
 
     // Query + lean để truy cập nested fields
     const instructors = await User.find(instructorsQuery)
