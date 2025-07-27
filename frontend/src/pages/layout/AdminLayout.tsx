@@ -18,6 +18,7 @@ import {
   SafetyCertificateOutlined,
   WalletOutlined,
   LogoutOutlined,
+  KeyOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -159,7 +160,10 @@ const AdminLayout = () => {
       {
         label: "HỆ THỐNG",
         type: "group",
-        children: [{ key: "/admin/settings", icon: <SettingOutlined />, label: "Cài đặt" }],
+        children: [
+          { key: "/admin/settings", icon: <SettingOutlined />, label: "Cài đặt" },
+          { key: "/admin/roles", icon: <KeyOutlined />, label: "Phân quyền" },
+        ],
       },
       {
         label: "Thu nhập giảng viên",
@@ -183,15 +187,23 @@ const AdminLayout = () => {
     '/admin/users': 'Quản lý người dùng',
     '/admin/instructors': 'Quản lý giảng viên',
     '/admin/categories': 'Quản lý danh mục',
+    '/admin/roles': 'Quản lý phân quyền',
     // Thêm các path khác ở đây
   };
 
   const pathSnippets = location.pathname.split("/").filter((i) => i);
   const breadcrumbItems = pathSnippets.map((_, index) => {
     const url = `/${pathSnippets.slice(0, index + 1).join("/")}`;
+    let title = breadcrumbNameMap[url] || url.split('/').pop();
+    
+    // Xử lý trường hợp trang chi tiết vai trò
+    if (url.includes('/admin/roles/') && url !== '/admin/roles') {
+      title = 'Chi tiết vai trò';
+    }
+    
     return {
       key: url,
-      title: <Link to={url}>{breadcrumbNameMap[url] || url.split('/').pop()}</Link>,
+      title: <Link to={url}>{title}</Link>,
     };
   });
 

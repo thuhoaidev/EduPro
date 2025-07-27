@@ -62,6 +62,8 @@ import UserProfile from "./pages/client/Profile/UserProfile";
 import CheckPayment from "./pages/client/CheckPayment";
 import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
 import UserWithdrawRequestsAdmin from './pages/admin/earnings/UserWithdrawRequestsAdmin';
+import RolesPage from './pages/admin/roles/RolesPage';
+import RoleDetailPage from './pages/admin/roles/RoleDetailPage';
 
 import BlogPage from "./pages/client/BlogPage";
 import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
@@ -196,6 +198,8 @@ function App() {
         { path: "transactions", element: <TransactionHistory /> },
         { path: "earnings", element: <WithdrawRequestsAdmin />},
         { path: "user-withdraw-requests", element: <UserWithdrawRequestsAdmin /> },
+        { path: "roles", element: <RolesPage /> },
+        { path: "roles/:id", element: <RoleDetailPage /> },
       ],
     },
     {
