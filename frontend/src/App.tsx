@@ -45,6 +45,7 @@ import CheckoutPage from './pages/client/CheckoutPage';
 import OrdersPage from './pages/client/OrdersPage';
 import CourseDetailPage from "./pages/client/CourseDetailPage";
 import Dashboard from './pages/admin/Dashboard/Dashboard';
+import AdminStatistics from './pages/admin/Statistics/AdminStatistics';
 import MyCourseList from './pages/instructor/course/MyCourseList';
 import MyCourseAdd from './pages/instructor/course/MyCourseAdd';
 import MyLessonManager from './pages/instructor/lessons/MyLessonManager';
@@ -193,6 +194,7 @@ function App() {
         { path: "system/vouchers", element: <CouponManagement /> },
         { path: "history", element: <TransactionHistory /> },
         { path: "vouchers", element: <VoucherPage />},
+        { path: "statistics", element: <AdminStatistics /> },
         { path: "courses", element: <CourseList />},
         { path: "courses/:id", element: <AdminCourseDetail />},
         { path: "transactions", element: <TransactionHistory /> },

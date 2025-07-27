@@ -250,7 +250,7 @@ const Dashboard: React.FC = () => {
           <Text type="secondary" style={{ fontSize: 15 }}>{courses.length} khóa học</Text>
         </div>
       }
-      bordered={false}
+      variant="borderless"
       className={styles.tableCard}
       style={{
         borderRadius: 16,
@@ -258,7 +258,7 @@ const Dashboard: React.FC = () => {
         marginTop: 24,
         padding: 0,
       }}
-      bodyStyle={{ padding: 0 }}
+      styles={{ body: { padding: 0 } }}
     >
       <Table
         dataSource={courses}

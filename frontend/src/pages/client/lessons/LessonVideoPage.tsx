@@ -1540,7 +1540,7 @@ const LessonVideoPage: React.FC = () => {
                                             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                                             marginBottom: 8
                                           }}
-                                          bodyStyle={{ padding: '16px' }}
+                                          styles={{ body: { padding: '16px' } }}
                                         >
                                           <div style={{ marginBottom: 12 }}>
                                             <Text style={{

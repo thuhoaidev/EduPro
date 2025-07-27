@@ -11,7 +11,6 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   BellOutlined,
-  SettingOutlined,
   BookOutlined,
   GiftOutlined,
   DollarCircleOutlined,
@@ -161,7 +160,6 @@ const AdminLayout = () => {
         label: "HỆ THỐNG",
         type: "group",
         children: [
-          { key: "/admin/settings", icon: <SettingOutlined />, label: "Cài đặt" },
           { key: "/admin/roles", icon: <KeyOutlined />, label: "Phân quyền" },
         ],
       },

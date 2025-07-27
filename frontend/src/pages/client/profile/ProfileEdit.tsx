@@ -282,7 +282,7 @@ const ProfileEdit = () => {
               <Card
                 className="shadow-2xl border-0 glass-card bg-white/70 backdrop-blur-lg"
                 style={{ borderRadius: 24 }}
-                bodyStyle={{ padding: '2rem' }}
+                styles={{ body: { padding: '2rem' } }}
               >
                 <Form
                   form={form}

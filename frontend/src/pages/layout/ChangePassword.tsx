@@ -129,7 +129,7 @@ const ChangePassword: React.FC = () => {
                 <span>Đổi mật khẩu</span>
               </div>
             }
-            bodyStyle={{ padding: '3.5rem 2rem' }}
+            styles={{ body: { padding: '3.5rem 2rem' } }}
           >
             <Form
               form={form}
