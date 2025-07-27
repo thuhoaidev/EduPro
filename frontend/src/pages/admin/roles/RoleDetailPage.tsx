@@ -91,21 +91,360 @@ const RoleDetailPage: React.FC = () => {
   const [role, setRole] = useState<Role | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [permissions] = useState<Permission[]>([
-    { id: '1', name: 'quản_lý_người_dùng', description: 'Quản lý người dùng', category: 'Quản lý người dùng', isActive: true },
-    { id: '2', name: 'quản_lý_vai_trò', description: 'Quản lý vai trò', category: 'Quản lý vai trò', isActive: true },
-    { id: '3', name: 'tạo_khóa_học', description: 'Tạo khóa học', category: 'Quản lý khóa học', isActive: true },
-    { id: '4', name: 'chỉnh_sửa_khóa_học', description: 'Chỉnh sửa khóa học', category: 'Quản lý khóa học', isActive: true },
-    { id: '5', name: 'xóa_khóa_học', description: 'Xóa khóa học', category: 'Quản lý khóa học', isActive: true },
-    { id: '6', name: 'phê_duyệt_khóa_học', description: 'Phê duyệt khóa học', category: 'Quản lý khóa học', isActive: true },
-    { id: '7', name: 'tạo_bài_học', description: 'Tạo bài học', category: 'Quản lý bài học', isActive: true },
-    { id: '8', name: 'chỉnh_sửa_bài_học', description: 'Chỉnh sửa bài học', category: 'Quản lý bài học', isActive: true },
-    { id: '9', name: 'phê_duyệt_nội_dung', description: 'Phê duyệt nội dung', category: 'Kiểm duyệt nội dung', isActive: true },
-    { id: '10', name: 'từ_chối_nội_dung', description: 'Từ chối nội dung', category: 'Kiểm duyệt nội dung', isActive: true },
-    { id: '11', name: 'xem_báo_cáo', description: 'Xem báo cáo', category: 'Báo cáo', isActive: true },
-    { id: '12', name: 'xử_lý_báo_cáo', description: 'Xử lý báo cáo', category: 'Báo cáo', isActive: true },
-    { id: '13', name: 'xem_thống_kê', description: 'Xem thống kê', category: 'Thống kê', isActive: true },
-    { id: '14', name: 'quản_lý_thanh_toán', description: 'Quản lý thanh toán', category: 'Thanh toán', isActive: true },
-    { id: '15', name: 'cài_đặt_hệ_thống', description: 'Cài đặt hệ thống', category: 'Hệ thống', isActive: true },
+    {
+      id: '1',
+      name: 'quản lý người dùng',
+      description: 'Quản lý toàn bộ người dùng trong hệ thống',
+      category: 'Quản lý người dùng',
+    },
+    {
+      id: '2',
+      name: 'phân quyền người dùng',
+      description: 'Gán vai trò và phân quyền cho người dùng',
+      category: 'Quản lý người dùng',
+    },
+    {
+      id: '3',
+      name: 'khóa mở người dùng',
+      description: 'Khóa hoặc mở khóa tài khoản người dùng',
+      category: 'Quản lý người dùng',
+    },
+    {
+      id: '4',
+      name: 'duyệt giảng viên',
+      description: 'Duyệt hồ sơ đăng ký giảng viên',
+      category: 'Quản lý người dùng',
+    },
+    {
+      id: '5',
+      name: 'quản lý khóa học',
+      description: 'Duyệt, từ chối, xóa khóa học',
+      category: 'Quản lý nội dung',
+    },
+    {
+      id: '6',
+      name: 'quản lý bài viết',
+      description: 'Duyệt, từ chối bài viết blog',
+      category: 'Quản lý nội dung',
+    },
+    {
+      id: '7',
+      name: 'quản lý bình luận',
+      description: 'Xóa bình luận vi phạm',
+      category: 'Quản lý nội dung',
+    },
+    {
+      id: '8',
+      name: 'quản lý danh mục',
+      description: 'Tạo, sửa, xóa danh mục khóa học',
+      category: 'Quản lý nội dung',
+    },
+    {
+      id: '9',
+      name: 'quản lý vai trò',
+      description: 'Tạo, sửa, xóa vai trò và phân quyền',
+      category: 'Quản lý hệ thống',
+    },
+    {
+      id: '10',
+      name: 'quản lý voucher',
+      description: 'Tạo, sửa, xóa mã giảm giá',
+      category: 'Quản lý hệ thống',
+    },
+    {
+      id: '11',
+      name: 'quản lý thanh toán',
+      description: 'Xem lịch sử giao dịch',
+      category: 'Quản lý hệ thống',
+    },
+    {
+      id: '12',
+      name: 'quản lý báo cáo',
+      description: 'Xử lý báo cáo vi phạm',
+      category: 'Quản lý hệ thống',
+    },
+    {
+      id: '13',
+      name: 'xem thống kê tổng quan',
+      description: 'Xem dashboard tổng thể hệ thống',
+      category: 'Thống kê và báo cáo',
+    },
+    {
+      id: '14',
+      name: 'xem thống kê doanh thu',
+      description: 'Xem báo cáo tài chính',
+      category: 'Thống kê và báo cáo',
+    },
+    {
+      id: '15',
+      name: 'xem thống kê người dùng',
+      description: 'Xem thống kê người dùng',
+      category: 'Thống kê và báo cáo',
+    },
+    {
+      id: '16',
+      name: 'xem thống kê khóa học',
+      description: 'Xem thống kê khóa học',
+      category: 'Thống kê và báo cáo',
+    },
+    {
+      id: '17',
+      name: 'tạo khóa học',
+      description: 'Tạo khóa học mới',
+      category: 'Quản lý khóa học',
+    },
+    {
+      id: '18',
+      name: 'chỉnh sửa khóa học',
+      description: 'Sửa khóa học của mình',
+      category: 'Quản lý khóa học',
+    },
+    {
+      id: '19',
+      name: 'xóa khóa học',
+      description: 'Xóa khóa học của mình',
+      category: 'Quản lý khóa học',
+    },
+    {
+      id: '20',
+      name: 'xuất bản khóa học',
+      description: 'Đăng khóa học',
+      category: 'Quản lý khóa học',
+    },
+    {
+      id: '21',
+      name: 'tạo bài học',
+      description: 'Tạo bài học mới',
+      category: 'Quản lý nội dung',
+    },
+    {
+      id: '22',
+      name: 'chỉnh sửa bài học',
+      description: 'Sửa bài học',
+      category: 'Quản lý nội dung',
+    },
+    {
+      id: '23',
+      name: 'xóa bài học',
+      description: 'Xóa bài học',
+      category: 'Quản lý nội dung',
+    },
+    {
+      id: '24',
+      name: 'upload video',
+      description: 'Upload video bài giảng',
+      category: 'Quản lý nội dung',
+    },
+    {
+      id: '25',
+      name: 'tạo quiz',
+      description: 'Tạo bài kiểm tra',
+      category: 'Quản lý nội dung',
+    },
+    {
+      id: '26',
+      name: 'chỉnh sửa quiz',
+      description: 'Sửa bài kiểm tra',
+      category: 'Quản lý nội dung',
+    },
+    {
+      id: '27',
+      name: 'xem danh sách học viên',
+      description: 'Xem học viên đăng ký',
+      category: 'Quản lý học viên',
+    },
+    {
+      id: '28',
+      name: 'xem tiến độ học viên',
+      description: 'Theo dõi tiến độ học',
+      category: 'Quản lý học viên',
+    },
+    {
+      id: '29',
+      name: 'gửi thông báo',
+      description: 'Gửi thông báo cho học viên',
+      category: 'Quản lý học viên',
+    },
+    {
+      id: '30',
+      name: 'xem thống kê thu nhập',
+      description: 'Xem doanh thu',
+      category: 'Thu nhập',
+    },
+    {
+      id: '31',
+      name: 'rút tiền',
+      description: 'Tạo yêu cầu rút tiền',
+      category: 'Thu nhập',
+    },
+    {
+      id: '32',
+      name: 'xem lịch sử giao dịch',
+      description: 'Xem giao dịch',
+      category: 'Thu nhập',
+    },
+    {
+      id: '33',
+      name: 'xem khóa học',
+      description: 'Xem danh sách khóa học',
+      category: 'Học tập',
+    },
+    {
+      id: '34',
+      name: 'đăng ký khóa học',
+      description: 'Đăng ký khóa học',
+      category: 'Học tập',
+    },
+    {
+      id: '35',
+      name: 'xem bài học',
+      description: 'Xem video bài giảng',
+      category: 'Học tập',
+    },
+    {
+      id: '36',
+      name: 'làm quiz',
+      description: 'Làm bài kiểm tra',
+      category: 'Học tập',
+    },
+    {
+      id: '37',
+      name: 'xem tiến độ',
+      description: 'Xem tiến độ học tập',
+      category: 'Học tập',
+    },
+    {
+      id: '38',
+      name: 'tạo ghi chú',
+      description: 'Tạo ghi chú khi học',
+      category: 'Học tập',
+    },
+    {
+      id: '39',
+      name: 'bình luận bài học',
+      description: 'Bình luận bài học',
+      category: 'Tương tác',
+    },
+    {
+      id: '40',
+      name: 'đánh giá khóa học',
+      description: 'Đánh giá khóa học',
+      category: 'Tương tác',
+    },
+    {
+      id: '41',
+      name: 'báo cáo vấn đề',
+      description: 'Báo cáo vấn đề',
+      category: 'Tương tác',
+    },
+    {
+      id: '42',
+      name: 'xem bài viết',
+      description: 'Xem bài viết blog',
+      category: 'Cộng đồng',
+    },
+    {
+      id: '43',
+      name: 'bình luận bài viết',
+      description: 'Bình luận bài viết',
+      category: 'Cộng đồng',
+    },
+    {
+      id: '44',
+      name: 'thích lưu bài viết',
+      description: 'Thích/lưu bài viết',
+      category: 'Cộng đồng',
+    },
+    {
+      id: '45',
+      name: 'xem chứng chỉ',
+      description: 'Xem chứng chỉ đã đạt',
+      category: 'Chứng chỉ',
+    },
+    {
+      id: '46',
+      name: 'tải chứng chỉ',
+      description: 'Tải chứng chỉ',
+      category: 'Chứng chỉ',
+    },
+    {
+      id: '47',
+      name: 'duyệt bài viết',
+      description: 'Duyệt bài viết blog',
+      category: 'Duyệt nội dung',
+    },
+    {
+      id: '48',
+      name: 'từ chối bài viết',
+      description: 'Từ chối bài viết',
+      category: 'Duyệt nội dung',
+    },
+    {
+      id: '49',
+      name: 'duyệt bình luận',
+      description: 'Duyệt bình luận',
+      category: 'Duyệt nội dung',
+    },
+    {
+      id: '50',
+      name: 'xóa bình luận',
+      description: 'Xóa bình luận vi phạm',
+      category: 'Duyệt nội dung',
+    },
+    {
+      id: '51',
+      name: 'xem báo cáo',
+      description: 'Xem danh sách báo cáo',
+      category: 'Xử lý báo cáo',
+    },
+    {
+      id: '52',
+      name: 'xử lý báo cáo',
+      description: 'Xử lý báo cáo vi phạm',
+      category: 'Xử lý báo cáo',
+    },
+    {
+      id: '53',
+      name: 'cảnh cáo người dùng',
+      description: 'Cảnh cáo người dùng',
+      category: 'Xử lý báo cáo',
+    },
+    {
+      id: '54',
+      name: 'quản lý từ khóa',
+      description: 'Quản lý từ khóa cấm',
+      category: 'Quản lý cộng đồng',
+    },
+    {
+      id: '55',
+      name: 'xem thống kê báo cáo',
+      description: 'Thống kê báo cáo',
+      category: 'Quản lý cộng đồng',
+    },
+    {
+      id: '56',
+      name: 'xem khóa học công khai',
+      description: 'Xem thông tin khóa học',
+      category: 'Xem công khai',
+    },
+    {
+      id: '57',
+      name: 'xem bài viết công khai',
+      description: 'Xem bài viết blog',
+      category: 'Xem công khai',
+    },
+    {
+      id: '58',
+      name: 'tìm kiếm khóa học',
+      description: 'Tìm kiếm khóa học',
+      category: 'Xem công khai',
+    },
+    {
+      id: '59',
+      name: 'xem giảng viên',
+      description: 'Xem thông tin giảng viên',
+      category: 'Xem công khai',
+    },
   ]);
 
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -115,9 +454,15 @@ const RoleDetailPage: React.FC = () => {
   useEffect(() => {
     const mockRole: Role = {
       id: id || '1',
-      name: 'giảng_viên',
+      name: 'giảng viên',
       description: 'Giảng viên có thể tạo và quản lý khóa học',
-      permissions: ['tạo_khóa_học', 'chỉnh_sửa_khóa_học', 'xóa_khóa_học', 'tạo_bài_học', 'chỉnh_sửa_bài_học'],
+      permissions: [
+        'tạo khóa học', 'chỉnh sửa khóa học', 'xóa khóa học', 'xuất bản khóa học',
+        'tạo bài học', 'chỉnh sửa bài học', 'xóa bài học', 'upload video',
+        'tạo quiz', 'chỉnh sửa quiz',
+        'xem danh sách học viên', 'xem tiến độ học viên', 'gửi thông báo',
+        'xem thống kê thu nhập', 'rút tiền', 'xem lịch sử giao dịch'
+      ],
       userCount: 25,
       isActive: true,
       createdAt: '2024-01-01',
@@ -130,24 +475,24 @@ const RoleDetailPage: React.FC = () => {
         fullname: 'Nguyễn Văn A',
         email: 'nguyenvana@example.com',
         status: 'hoạt_động',
-        joinedAt: '2024-01-15',
-        lastLogin: '2024-01-20',
+        joinedAt: '2024-01-01',
+        lastLogin: '2024-01-15',
       },
       {
         id: '2',
         fullname: 'Trần Thị B',
         email: 'tranthib@example.com',
         status: 'hoạt_động',
-        joinedAt: '2024-01-10',
-        lastLogin: '2024-01-19',
+        joinedAt: '2024-01-02',
+        lastLogin: '2024-01-14',
       },
       {
         id: '3',
         fullname: 'Lê Văn C',
         email: 'levanc@example.com',
         status: 'không_hoạt_động',
-        joinedAt: '2024-01-05',
-        lastLogin: '2024-01-15',
+        joinedAt: '2024-01-03',
+        lastLogin: '2024-01-10',
       },
     ];
 
@@ -272,14 +617,14 @@ const RoleDetailPage: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <Title level={2} style={{ margin: 0 }}>
-                <Avatar 
-                  icon={role.name === 'quản_trị_viên' ? <CrownOutlined /> : role.name === 'giảng_viên' ? <TeamOutlined /> : <UserOutlined />}
-                  size={48}
-                  style={{ 
-                    backgroundColor: role.name === 'quản_trị_viên' ? '#ff4d4f' : role.name === 'giảng_viên' ? '#1890ff' : '#52c41a',
-                    marginRight: '16px'
-                  }}
-                />
+                        <Avatar 
+          icon={role.name === 'quản trị viên' ? <CrownOutlined /> : role.name === 'giảng viên' ? <TeamOutlined /> : <UserOutlined />}
+          size={48}
+          style={{ 
+            backgroundColor: role.name === 'quản trị viên' ? '#ff4d4f' : role.name === 'giảng viên' ? '#1890ff' : '#52c41a',
+            marginRight: '16px'
+          }}
+        />
                 {role.name}
               </Title>
               <Text type="secondary">{role.description}</Text>
@@ -403,7 +748,7 @@ const RoleDetailPage: React.FC = () => {
               </Col>
             </Row>
 
-            {role.name === 'quản_trị_viên' && (
+            {role.name === 'quản trị viên' && (
               <Alert
                 message="Cảnh báo bảo mật"
                 description="Vai trò quản trị viên có toàn quyền trong hệ thống. Hãy cẩn thận khi phân quyền cho vai trò này."
