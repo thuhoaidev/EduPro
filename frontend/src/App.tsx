@@ -80,6 +80,7 @@ import MessagesPage from './pages/client/MessagesPage';
 import MessagesLayout from './pages/client/MessagesLayout';
 import CertificatePage from "./pages/client/CertificatePage";
 import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
+import InstructorDashboard from './pages/instructor/Dashboard/InstructorDashboard';
 
 const queryClient = new QueryClient();
 
@@ -211,6 +212,7 @@ function App() {
       path: "/instructor",
       element: <InstructorLayout />,
       children: [
+        { index: true, element: <InstructorDashboard /> },
         { path: "courses", element: <MyCourseList /> },
         { path: "courses/create", element: <MyCourseAdd /> },
         { path: "courses/:id", element: <CourseDetail /> },
