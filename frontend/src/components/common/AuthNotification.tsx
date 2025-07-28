@@ -8,7 +8,10 @@ import {
   MailOutlined,
   UserOutlined,
   LockOutlined,
-  CloseOutlined
+  CloseOutlined,
+  RocketOutlined,
+  SmileOutlined,
+  HeartOutlined
 } from "@ant-design/icons";
 import { notification } from 'antd';
 import { isTokenValid } from '../../utils/tokenUtils';
@@ -118,30 +121,55 @@ const AuthNotification: React.FC<AuthNotificationProps> = ({
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircleOutlined className="text-green-500 text-xl" />;
+        return (
+          <div className="relative">
+            <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-20"></div>
+            <CheckCircleOutlined className="relative text-green-500 text-2xl" />
+          </div>
+        );
       case 'error':
-        return <ExclamationCircleOutlined className="text-red-500 text-xl" />;
+        return (
+          <div className="relative">
+            <div className="absolute inset-0 bg-red-400 rounded-full animate-ping opacity-20"></div>
+            <ExclamationCircleOutlined className="relative text-red-500 text-2xl" />
+          </div>
+        );
       case 'warning':
-        return <ExclamationCircleOutlined className="text-yellow-500 text-xl" />;
+        return (
+          <div className="relative">
+            <div className="absolute inset-0 bg-yellow-400 rounded-full animate-ping opacity-20"></div>
+            <ExclamationCircleOutlined className="relative text-yellow-500 text-2xl" />
+          </div>
+        );
       case 'info':
-        return <InfoCircleOutlined className="text-blue-500 text-xl" />;
+        return (
+          <div className="relative">
+            <div className="absolute inset-0 bg-blue-400 rounded-full animate-ping opacity-20"></div>
+            <InfoCircleOutlined className="relative text-blue-500 text-2xl" />
+          </div>
+        );
       default:
-        return <InfoCircleOutlined className="text-blue-500 text-xl" />;
+        return (
+          <div className="relative">
+            <div className="absolute inset-0 bg-blue-400 rounded-full animate-ping opacity-20"></div>
+            <InfoCircleOutlined className="relative text-blue-500 text-2xl" />
+          </div>
+        );
     }
   };
 
-  const getBgColor = () => {
+  const getGradientBg = () => {
     switch (type) {
       case 'success':
-        return 'bg-green-50 border-green-200';
+        return 'bg-gradient-to-br from-green-50 via-emerald-50 to-green-100 border-green-200/50';
       case 'error':
-        return 'bg-red-50 border-red-200';
+        return 'bg-gradient-to-br from-red-50 via-rose-50 to-red-100 border-red-200/50';
       case 'warning':
-        return 'bg-yellow-50 border-yellow-200';
+        return 'bg-gradient-to-br from-yellow-50 via-amber-50 to-yellow-100 border-yellow-200/50';
       case 'info':
-        return 'bg-blue-50 border-blue-200';
+        return 'bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100 border-blue-200/50';
       default:
-        return 'bg-blue-50 border-blue-200';
+        return 'bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100 border-blue-200/50';
     }
   };
 
@@ -160,53 +188,148 @@ const AuthNotification: React.FC<AuthNotificationProps> = ({
     }
   };
 
+  const getProgressColor = () => {
+    switch (type) {
+      case 'success':
+        return 'bg-gradient-to-r from-green-400 to-emerald-500';
+      case 'error':
+        return 'bg-gradient-to-r from-red-400 to-rose-500';
+      case 'warning':
+        return 'bg-gradient-to-r from-yellow-400 to-amber-500';
+      case 'info':
+        return 'bg-gradient-to-r from-blue-400 to-cyan-500';
+      default:
+        return 'bg-gradient-to-r from-blue-400 to-cyan-500';
+    }
+  };
+
+  const getSpecialIcon = () => {
+    if (title.includes('Đăng ký thành công') || title.includes('Tạo tài khoản thành công')) {
+      return <RocketOutlined className="text-purple-500 text-lg ml-2" />;
+    }
+    if (title.includes('Đăng nhập thành công')) {
+      return <SmileOutlined className="text-green-500 text-lg ml-2" />;
+    }
+    if (title.includes('Đăng xuất thành công')) {
+      return <HeartOutlined className="text-pink-500 text-lg ml-2" />;
+    }
+    return null;
+  };
+
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.div
-          initial={{ opacity: 0, y: -50, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -50, scale: 0.9 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-          className="fixed top-4 right-4 z-50 max-w-sm w-full"
-        >
-          <div className={`${getBgColor()} border rounded-lg shadow-lg p-4 relative overflow-hidden`}>
-            {/* Progress bar */}
-            {showProgress && (
-              <div className="absolute top-0 left-0 w-full h-1 bg-gray-200">
-                <motion.div
-                  className="h-full bg-green-500"
-                  initial={{ width: '100%' }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.05 }}
-                />
+        <>
+          {/* Overlay background blur */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+            style={{ pointerEvents: 'auto' }}
+          />
+          <motion.div
+            initial={{ opacity: 0, y: -100, scale: 0.8, rotateX: -15 }}
+            animate={{ 
+              opacity: 1, 
+              y: 0, 
+              scale: 1, 
+              rotateX: 0,
+              transition: {
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }
+            }}
+            exit={{ 
+              opacity: 0, 
+              y: -100, 
+              scale: 0.8, 
+              rotateX: -15,
+              transition: {
+                duration: 0.2
+              }
+            }}
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 max-w-md w-full"
+          >
+            <div className={`${getGradientBg()} border rounded-2xl shadow-2xl p-6 relative overflow-hidden backdrop-blur-sm`}>
+              {/* Animated background pattern */}
+              <div className="absolute inset-0 opacity-5">
+                <div className="absolute top-0 left-0 w-20 h-20 bg-current rounded-full -translate-x-10 -translate-y-10"></div>
+                <div className="absolute bottom-0 right-0 w-32 h-32 bg-current rounded-full translate-x-16 translate-y-16"></div>
               </div>
-            )}
-
-            {/* Close button */}
-            <button
-              onClick={onComplete}
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <CloseOutlined />
-            </button>
-
-            {/* Content */}
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 mt-0.5">
-                {getIcon()}
+              {/* Progress bar */}
+              {showProgress && (
+                <div className="absolute top-0 left-0 w-full h-1 bg-gray-200/50">
+                  <motion.div
+                    className={`h-full ${getProgressColor()} rounded-r-full`}
+                    initial={{ width: '100%' }}
+                    animate={{ width: `${progress}%` }}
+                    transition={{ duration: 0.05, ease: "linear" }}
+                  />
+                </div>
+              )}
+              {/* Close button */}
+              <motion.button
+                onClick={onComplete}
+                className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-all duration-200 hover:scale-110 p-1 rounded-full hover:bg-white/20"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <CloseOutlined />
+              </motion.button>
+              {/* Content */}
+              <div className="flex items-start gap-4 relative z-10">
+                <div className="flex-shrink-0 mt-1">
+                  {getIcon()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h4 className={`font-bold text-base ${getTextColor()} tracking-wide`}>
+                      {title}
+                    </h4>
+                    {getSpecialIcon()}
+                  </div>
+                  <p className="text-gray-700 text-sm leading-relaxed font-medium">
+                    {message}
+                  </p>
+                  {/* Success specific content */}
+                  {type === 'success' && (title.includes('Đăng ký') || title.includes('Tạo tài khoản')) && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="mt-3 p-3 bg-white/50 rounded-lg border border-green-200/50"
+                    >
+                      <div className="flex items-center gap-2 text-green-700 text-xs">
+                        <MailOutlined />
+                        <span className="font-medium">Vui lòng kiểm tra email để xác minh tài khoản</span>
+                      </div>
+                    </motion.div>
+                  )}
+                  {/* Login specific content */}
+                  {type === 'success' && title.includes('Đăng nhập thành công') && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="mt-3 p-3 bg-white/50 rounded-lg border border-green-200/50"
+                    >
+                      <div className="flex items-center gap-2 text-green-700 text-xs">
+                        <UserOutlined />
+                        <span className="font-medium">Chào mừng bạn trở lại! Đang chuyển hướng...</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h4 className={`font-semibold text-sm mb-1 ${getTextColor()}`}>
-                  {title}
-                </h4>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  {message}
-                </p>
+              {/* Decorative elements */}
+              <div className="absolute bottom-2 right-2 opacity-10">
+                <div className="w-8 h-8 border-2 border-current rounded-full"></div>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
   );

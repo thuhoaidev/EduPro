@@ -6,7 +6,10 @@ import { config } from "../../../api/axios";
 import { motion } from "framer-motion";
 import { EyeInvisibleOutlined, EyeTwoTone, UserOutlined, LockOutlined, MailOutlined, ReadOutlined, TeamOutlined, BookOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import AuthNotification from "../../../components/common/AuthNotification";
+import ToastNotification from "../../../components/common/ToastNotification";
 import AccountTypeModal from "../../../components/common/AccountTypeModal";
+import { useNotification } from "../../../hooks/useNotification";
+import socket from '../../../services/socket';
 
 export default function LoginPage(): React.ReactElement {
   console.log('🔍 LoginPage component is rendering...');
@@ -19,17 +22,18 @@ export default function LoginPage(): React.ReactElement {
   const [verificationEmail, setVerificationEmail] = useState("");
   const [resendingVerification, setResendingVerification] = useState(false);
   const [accountTypeModalVisible, setAccountTypeModalVisible] = useState(false);
-  const [notification, setNotification] = useState<{
-    isVisible: boolean;
-    type: 'success' | 'error' | 'info' | 'warning';
-    title: string;
-    message: string;
-  }>({
-    isVisible: false,
-    type: 'success',
-    title: '',
-    message: ''
-  });
+  
+  // Sử dụng hook notification mới
+  const { 
+    notification, 
+    toast,
+    showLoginSuccess, 
+    showLoginError, 
+    showVerificationRequired,
+    showSuccessToast,
+    hideNotification, 
+    hideToast 
+  } = useNotification();
 
   const onFinish = (values: { identifier: string; password: string }) => {
     console.log('🔍 Form submitted:', values);
@@ -57,30 +61,24 @@ export default function LoginPage(): React.ReactElement {
           // Lưu user info nếu có
           if (data?.user) {
             localStorage.setItem('user', JSON.stringify(data.user));
-            console.log('User info saved:', data.user);
+            // Emit realtime event
+            socket.connect();
+            socket.emit('auth-event', { type: 'login', user: data.user });
           } else if (data?.data?.user) {
             localStorage.setItem('user', JSON.stringify(data.data.user));
-            console.log('User info saved:', data.data.user);
+            // Emit realtime event
+            socket.connect();
+            socket.emit('auth-event', { type: 'login', user: data.data.user });
           }
           
-          // Hiển thị thông báo thành công
-          setNotification({
-            isVisible: true,
-            type: 'success',
-            title: 'Đăng nhập thành công!',
-            message: 'Chào mừng bạn trở lại!'
-          });
+          // Hiển thị thông báo thành công với giao diện mới
+          showLoginSuccess();
           
           // Không chuyển hướng ngay, để thông báo tự động chuyển hướng
         } else {
           console.warn('Không tìm thấy token trong response!', data);
           // Nếu không có token, vẫn hiển thị thông báo thành công
-          setNotification({
-            isVisible: true,
-            type: 'success',
-            title: 'Đăng nhập thành công!',
-            message: 'Chào mừng bạn trở lại!'
-          });
+          showLoginSuccess();
         }
         
         // Kiểm tra email verification nếu cần
@@ -93,12 +91,7 @@ export default function LoginPage(): React.ReactElement {
       },
       onError: (error: { response?: { data?: { message?: string } } }) => {
         // Luôn hiển thị thông báo chung khi đăng nhập sai
-        setNotification({
-          isVisible: true,
-          type: 'error',
-          title: 'Lỗi đăng nhập!',
-          message: 'Sai email hoặc mật khẩu!'
-        });
+        showLoginError();
         setIsLoading(false);
       }
     });
@@ -108,20 +101,10 @@ export default function LoginPage(): React.ReactElement {
     setResendingVerification(true);
     try {
       await config.post("/auth/resend-verification", { email: verificationEmail });
-      setNotification({
-        isVisible: true,
-        type: 'success',
-        title: 'Gửi lại email thành công!',
-        message: 'Vui lòng kiểm tra hộp thư của bạn.'
-      });
+      showSuccessToast('Gửi lại email thành công!', 'Vui lòng kiểm tra hộp thư của bạn.');
     } catch (error: unknown) {
       const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Không thể gửi lại email. Vui lòng thử lại.";
-      setNotification({
-        isVisible: true,
-        type: 'error',
-        title: 'Lỗi gửi email!',
-        message: errorMessage
-      });
+      showSuccessToast('Lỗi gửi email!', errorMessage, { type: 'error' });
     } finally {
       setResendingVerification(false);
     }
@@ -515,13 +498,25 @@ export default function LoginPage(): React.ReactElement {
       {/* Shared Auth Notification */}
       <AuthNotification
         isVisible={notification.isVisible}
-        onComplete={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+        onComplete={hideNotification}
         type={notification.type}
         title={notification.title}
         message={notification.message}
-        autoClose={true}
-        duration={2500}
-        showProgress={notification.type === 'success'}
+        autoClose={notification.autoClose}
+        duration={notification.duration}
+        showProgress={notification.showProgress}
+      />
+
+      {/* Toast Notification */}
+      <ToastNotification
+        isVisible={toast.isVisible}
+        onComplete={hideToast}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        autoClose={toast.autoClose}
+        duration={toast.duration}
+        position={toast.position}
       />
 
       {/* Account Type Modal */}

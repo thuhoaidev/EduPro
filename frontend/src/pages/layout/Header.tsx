@@ -31,11 +31,14 @@ import {
   WalletOutlined,
 } from '@ant-design/icons';
 import AuthNotification from '../../components/common/AuthNotification';
+import ToastNotification from '../../components/common/ToastNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
 import { useCart } from '../../contexts/CartContext';
 import { courseService } from '../../services/apiService';
+import { useNotification } from '../../hooks/useNotification';
 import './Header.css';
 import { io } from 'socket.io-client';
+import socket from '../../services/socket';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
@@ -70,17 +73,15 @@ const AppHeader = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [accountTypeModalVisible, setAccountTypeModalVisible] = useState(false);
   const navigate = useNavigate();
-  const [notification, setNotification] = useState<{
-    isVisible: boolean;
-    type: 'success' | 'error' | 'info' | 'warning';
-    title: string;
-    message: string;
-  }>({
-    isVisible: false,
-    type: 'success',
-    title: '',
-    message: ''
-  });
+  
+  // Sử dụng hook notification mới
+  const { 
+    notification, 
+    toast,
+    showLogoutSuccess, 
+    hideNotification, 
+    hideToast 
+  } = useNotification();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
@@ -166,15 +167,15 @@ const AppHeader = () => {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleLogout = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user && user._id) {
+      socket.connect();
+      socket.emit('auth-event', { type: 'logout', userId: user._id });
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(false);
-    setNotification({
-      isVisible: true,
-      type: 'success',
-      title: 'Đăng xuất thành công!',
-      message: 'Bạn đã đăng xuất khỏi hệ thống. Hẹn gặp lại!'
-    });
+    showLogoutSuccess();
   };
 
   const handleRegisterClick = () => {
@@ -732,13 +733,25 @@ const AppHeader = () => {
       {/* Shared Auth Notification */}
       <AuthNotification
         isVisible={notification.isVisible}
-        onComplete={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+        onComplete={hideNotification}
         type={notification.type}
         title={notification.title}
         message={notification.message}
-        autoClose={true}
-        duration={2000}
-        showProgress={notification.type === 'success'}
+        autoClose={notification.autoClose}
+        duration={notification.duration}
+        showProgress={notification.showProgress}
+      />
+
+      {/* Toast Notification */}
+      <ToastNotification
+        isVisible={toast.isVisible}
+        onComplete={hideToast}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        autoClose={toast.autoClose}
+        duration={toast.duration}
+        position={toast.position}
       />
 
       {/* Account Type Modal */}

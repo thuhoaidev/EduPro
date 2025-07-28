@@ -1,0 +1,298 @@
+/* Notification System Styles */
+
+/* Custom scrollbar for notification content */
+.notification-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.notification-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+.notification-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+}
+
+.notification-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Glow effects for different notification types */
+.notification-glow-success {
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+}
+
+.notification-glow-error {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+.notification-glow-warning {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+.notification-glow-info {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.notification-glow-achievement {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+}
+
+/* Pulse animation for icons */
+@keyframes iconPulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.icon-pulse {
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+/* Shimmer effect for progress bar */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.progress-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  background-size: 200px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Floating animation for decorative elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.floating {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Bounce animation for close button */
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -8px, 0);
+  }
+  70% {
+    transform: translate3d(0, -4px, 0);
+  }
+  90% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+.close-button-bounce:hover {
+  animation: bounce 0.6s ease-in-out;
+}
+
+/* Gradient text effect */
+.gradient-text {
+  background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 3s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Glass morphism effect */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* Neon glow effect */
+.neon-glow {
+  box-shadow: 
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    0 0 15px currentColor,
+    0 0 20px currentColor;
+}
+
+/* Ripple effect for buttons */
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.ripple-effect:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Custom notification positions */
+.notification-top-center {
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.notification-bottom-center {
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.notification-top-left {
+  top: 20px;
+  left: 20px;
+}
+
+.notification-bottom-left {
+  bottom: 20px;
+  left: 20px;
+}
+
+.notification-top-right {
+  top: 20px;
+  right: 20px;
+}
+
+.notification-bottom-right {
+  bottom: 20px;
+  right: 20px;
+}
+
+/* Stack multiple notifications */
+.notification-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Notification with image */
+.notification-with-image {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notification-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .notification-dark {
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .notification-dark .text-gray-600 {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  
+  .notification-dark .text-gray-700 {
+    color: rgba(255, 255, 255, 0.8);
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .notification-mobile {
+    max-width: calc(100vw - 40px);
+    margin: 0 20px;
+  }
+  
+  .notification-mobile .text-sm {
+    font-size: 0.875rem;
+  }
+  
+  .notification-mobile .text-base {
+    font-size: 1rem;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .notification-high-contrast {
+    border-width: 2px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  .notification-high-contrast .text-gray-600 {
+    color: #374151;
+  }
+  
+  .notification-high-contrast .text-gray-700 {
+    color: #1f2937;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .notification-reduced-motion * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .notification-print {
+    display: none !important;
+  }
+} 
