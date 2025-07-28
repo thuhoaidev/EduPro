@@ -19,12 +19,13 @@ const ClientLayout = () => {
   const isCheckoutPage = location.pathname === '/checkout';
   const isLessonVideoOrQuiz = /^\/lessons\/[^/]+\/(video|quiz)$/.test(location.pathname);
   const isUserProfilePage = /^\/users\//.test(location.pathname);
+  const isSavedBlogPage = location.pathname === '/blog/saved';
 
   return (
     <Layout className="client-layout">
       <AppHeader />
       <Layout className="main-content">
-        {!isProfilePage && !isCoursesPage && !isVouchersPage && !isInstructorsPage && !isBlogPage && !isCartPage && !isCheckoutPage && !isLessonVideoOrQuiz && !isUserProfilePage && (
+        {!isProfilePage && !isCoursesPage && !isVouchersPage && !isInstructorsPage && !isBlogPage && !isCartPage && !isCheckoutPage && !isLessonVideoOrQuiz && !isUserProfilePage && !isSavedBlogPage && (
           <div className="sidebar-container">
             <AppSidebar />
           </div>

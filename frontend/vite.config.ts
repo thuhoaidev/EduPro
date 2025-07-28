@@ -18,5 +18,17 @@ export default defineConfig({
         secure: false
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Bỏ qua tất cả warnings
+        return;
+      }
+    }
+  },
+  esbuild: {
+    // Bỏ qua lỗi TypeScript trong esbuild
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }
 })

@@ -25,6 +25,7 @@ import { Pagination } from 'antd';
 // Nếu dùng TypeScript và gặp lỗi thiếu types cho leo-profanity, thêm khai báo sau vào đầu file hoặc tạo file leo-profanity.d.ts
 // @ts-ignore
 import leoProfanity from 'leo-profanity';
+import { useNavigate } from 'react-router-dom';
 const API_BASE = 'http://localhost:5000/api';
 
 const axiosClient = {
@@ -95,6 +96,7 @@ const BlogPage = () => {
   const blogsPerPage = 6;
   const [commentWarning, setCommentWarning] = useState('');
   const [replyWarning, setReplyWarning] = useState('');
+  const [categories, setCategories] = useState<any[]>([]);
 
   const commentEndRef = useRef<HTMLDivElement>(null);
  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -106,7 +108,7 @@ const BlogPage = () => {
   }
 };
 
-
+  const navigate = useNavigate();
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -142,6 +144,7 @@ const loadDetail = async (id: string) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const blog = await axiosClient.get(`/blogs/${id}`);
     const cmts = await axiosClient.get(`/blogs/${id}/comments`);
+    console.log('API /blogs/:id/comments response:', cmts);
 
     setSelectedBlog(blog.data);
 
@@ -153,12 +156,14 @@ const loadDetail = async (id: string) => {
       ...cmt,
       author: {
         ...cmt.author,
+        avatar: cmt.author?.avatar || cmt.author?.profilePic || '',
         name: cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'
       },
       replies: (cmt.replies || []).map((r: any) => ({
         ...r,
         author: {
           ...r.author,
+          avatar: r.author?.avatar || r.author?.profilePic || '',
           name: r.author?.name || r.author?.fullname || 'Ẩn danh'
         }
       }))
@@ -193,32 +198,32 @@ const loadDetail = async (id: string) => {
 
 
 
-const handleLike = async () => {
-  if (!selectedBlog || !selectedBlog._id) return;
-
+const handleLike = async (blogId: string) => {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const res = await axiosClient.post(`/blogs/${selectedBlog._id}/like`, {
+    const res = await axiosClient.post(`/blogs/${blogId}/like`, {
       userId: user._id,
     });
 
     if (typeof res.liked === 'boolean') {
-      const updated = {
-        ...selectedBlog,
-        likes: res.likes_count,
-        likes_count: res.likes_count, // ✅ Cập nhật likes_count để hiển thị đúng
-        isLiked: res.liked,
-      };
-      setSelectedBlog(updated);
-
-      // 🔁 Đồng bộ lại trong danh sách blogs (nếu có)
+      // Nếu đang ở chi tiết bài viết
+      if (selectedBlog && selectedBlog._id === blogId) {
+        const updated = {
+          ...selectedBlog,
+          likes: res.likes_count,
+          likes_count: res.likes_count,
+          isLiked: res.liked,
+        };
+        setSelectedBlog(updated);
+      }
+      // Cập nhật ngay trong danh sách blogs
       setBlogs((prevBlogs) =>
         prevBlogs.map((b) =>
-          b._id === updated._id
+          b._id === blogId
             ? {
                 ...b,
                 likes: res.likes_count,
-                likes_count: res.likes_count, // ✅ Bổ sung để cập nhật số hiển thị
+                likes_count: res.likes_count,
                 isLiked: res.liked,
               }
             : b
@@ -249,10 +254,12 @@ const flattenComments = (comments: any[]): any[] => {
 const handleToggleCommentLike = async (commentId: string) => {
   try {
     const res = await axiosClient.post(`/comment-likes/toggle/${commentId}`, {});
+    console.log('API /comment-likes/toggle response:', res);
     const isLiked = res.liked;
 
     // 🔁 Reload lại count thực tế từ server
     const countRes = await axiosClient.get(`/comment-likes/count/${commentId}`);
+    console.log('API /comment-likes/count response:', countRes);
 
     setLikedComments(prev => {
       const newSet = new Set(prev);
@@ -464,6 +471,10 @@ const handleSave = async (blogId: string) => {
 
   useEffect(() => {
     loadBlogs();
+    // Lấy danh mục chủ đề
+    axiosClient.get('/categories')
+      .then(res => setCategories(res.data || []))
+      .catch(() => setCategories([]));
   }, []);
 
   useEffect(() => {
@@ -483,16 +494,16 @@ const handleSave = async (blogId: string) => {
       minute: '2-digit',
     });
 
-  const filteredBlogs = blogs.filter(blog => {
-    const matchesSearch = blog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         blog.content.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (filterType === 'trending') return matchesSearch && blog.likes > 10;
-    if (filterType === 'recent') return matchesSearch && new Date(blog.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    if (filterType === 'saved') return matchesSearch && savedBlogs.has(blog._id);
-    
-    return matchesSearch;
-  });
+  const filteredBlogs = blogs
+    .filter(blog => blog.status === 'approved')
+    .filter(blog => {
+      const matchesSearch = blog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           blog.content.toLowerCase().includes(searchTerm.toLowerCase());
+      if (filterType === 'trending') return matchesSearch && blog.likes > 10;
+      if (filterType === 'recent') return matchesSearch && new Date(blog.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      if (filterType === 'saved') return matchesSearch && savedBlogs.has(blog._id);
+      return matchesSearch;
+    });
 
   // Pagination logic
   const totalBlogs = filteredBlogs.length;
@@ -513,86 +524,67 @@ const extractFirstImageFromContent = (content: string): string | null => {
 };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-[#fafbfc]">
       {!selectedBlog ? (
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          {/* Header */}
-          <div className="text-center mb-14">
-            <h1 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600 drop-shadow-lg mb-4 tracking-tight">
-              Blog Community
-            </h1>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto font-medium">
-              Khám phá những câu chuyện thú vị, chia sẻ kiến thức và kết nối cộng đồng
-            </p>
-          </div>
-
-          {/* Search and Filter */}
-          <div className="flex flex-col md:flex-row gap-4 mb-10 bg-white/80 rounded-3xl p-8 shadow-2xl border border-gray-100 backdrop-blur-md">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-6 h-6" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm bài viết..."
-                className="w-full pl-14 pr-4 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg shadow-sm bg-white/70"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+        <div className="max-w-7xl mx-auto px-4 py-12 flex flex-col lg:flex-row gap-10">
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
+            {/* Header */}
+            <div className="mb-10">
+              <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-2 tracking-tight">Bài viết nổi bật</h1>
+              <p className="text-gray-500 text-lg max-w-2xl">Tổng hợp các bài viết chia sẻ về kinh nghiệm tự học lập trình online và các kỹ thuật lập trình web.</p>
             </div>
-            <div className="flex gap-2">
-              {[
-                { key: 'all', label: 'Tất cả', icon: Filter },
-                { key: 'trending', label: 'Thịnh hành', icon: TrendingUp },
-                { key: 'recent', label: 'Mới nhất', icon: Clock },
-                { key: 'saved', label: 'Đã lưu', icon: Bookmark }
-              ].map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setFilterType(key)}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold text-base transition-all shadow-sm border-0
-                    ${filterType === key
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg scale-105'
-                      : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'}
-                  `}
+
+            {/* Search and Filter */}
+            <div className="flex flex-col md:flex-row gap-4 mb-8">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-6 h-6" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm bài viết..."
+                  className="w-full pl-14 pr-4 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg shadow-sm bg-white"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                {[
+                  { key: 'all', label: 'Tất cả', icon: Filter },
+                  { key: 'trending', label: 'Thịnh hành', icon: TrendingUp },
+                  { key: 'recent', label: 'Mới nhất', icon: Clock },
+                  { key: 'saved', label: 'Đã lưu', icon: Bookmark }
+                ].map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setFilterType(key)}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold text-base transition-all shadow-sm border-0
+                      ${filterType === key
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg scale-105'
+                        : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-700'}
+                    `}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Blog List (F8 style) */}
+            <div className="flex flex-col gap-8">
+              {pagedBlogs.map((blog, idx) => (
+                <div
+                  key={blog._id}
+                  className="group flex flex-col md:flex-row bg-white rounded-3xl shadow-lg hover:shadow-2xl border border-gray-100 hover:border-blue-200 transition-all duration-300 overflow-hidden cursor-pointer"
+                  onClick={() => loadDetail(blog._id)}
+                  style={{ transitionDelay: `${idx * 40}ms` }}
                 >
-                  <Icon className="w-5 h-5" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Blog Grid */}
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-10">
-            {pagedBlogs.map((blog, idx) => (
-              <div
-                key={blog._id}
-                className="group bg-white/90 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-blue-200 cursor-pointer transform hover:-translate-y-2"
-                onClick={() => loadDetail(blog._id)}
-                style={{ transitionDelay: `${idx * 40}ms` }}
-              >
-                <div className="p-7">
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={blog.author?.avatar && blog.author.avatar.trim() !== '' ? blog.author.avatar : '/images/default-avatar.png'}
-                        alt="avatar"
-                        className="w-12 h-12 rounded-full object-cover border-2 border-blue-100 shadow"
-                        onError={handleImageError}
-                      />
-                      <div>
-                        <p className="font-semibold text-gray-800 text-lg">{blog.author?.fullname || 'Ẩn danh'}</p>
-                        <p className="text-sm text-gray-500 flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          {formatDate(blog.createdAt)}
-                        </p>
-                      </div>
-                    </div>
+                  {/* Left: Info */}
+                  <div className="flex-1 p-7 flex flex-col justify-between relative">
+                    {/* Nút lưu ở góc trên phải */}
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSave(blog._id);
-                      }}
-                      className="p-2 rounded-full hover:bg-blue-50 transition-colors border border-blue-100 shadow-sm"
+                      onClick={e => { e.stopPropagation(); handleSave(blog._id); }}
+                      className="absolute top-5 right-5 p-2 rounded-full bg-white border border-blue-100 shadow hover:bg-blue-50 transition-colors z-10"
                     >
                       {savedBlogs.has(blog._id) ? (
                         <BookmarkCheck className="w-6 h-6 text-blue-600" />
@@ -600,32 +592,36 @@ const extractFirstImageFromContent = (content: string): string | null => {
                         <Bookmark className="w-6 h-6 text-gray-400" />
                       )}
                     </button>
-                  </div>
-                  <h2 className="font-bold text-2xl mb-3 line-clamp-2 text-gray-800 group-hover:text-blue-600 transition-colors">
-                    {blog.title}
-                  </h2>
-                  {/* Blog Image */}
-                  {(() => {
-                    const fallbackImage =
-                      blog.image?.trim() !== ''
-                        ? blog.image
-                        : extractFirstImageFromContent(blog.content) || '/images/no-image.png';
-                    return (
-                      <img
-                        src={fallbackImage}
-                        alt={blog.title}
-                        className="w-full h-52 object-cover rounded-2xl mb-4 shadow-sm"
-                        onError={handleImageError}
-                      />
-                    );
-                  })()}
-                  <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed text-base">
-                    {parseMarkdownToText(blog.content)}
-                  </p>
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-5">
-                      <span className="flex items-center gap-1 text-red-500 font-semibold">
-                        <Heart className="w-5 h-5" />
+                    <div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <img
+                          src={blog.author?.avatar && blog.author.avatar.trim() !== '' ? blog.author.avatar : '/images/default-avatar.png'}
+                          alt="avatar"
+                          className="w-10 h-10 rounded-full object-cover border-2 border-blue-100 shadow"
+                          onError={handleImageError}
+                        />
+                        <span className="font-semibold text-gray-800 text-base">{blog.author?.fullname || 'Ẩn danh'}</span>
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          {formatDate(blog.createdAt)}
+                        </span>
+                        {/* Tag */}
+                        {blog.tags && blog.tags.length > 0 && (
+                          <span className="ml-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">{blog.tags[0]}</span>
+                        )}
+                      </div>
+                      <h2 className="font-bold text-2xl mb-2 line-clamp-2 text-gray-900 group-hover:text-blue-600 transition-colors">
+                        {blog.title}
+                      </h2>
+                      <p className="text-gray-600 line-clamp-2 mb-4 leading-relaxed text-base">
+                        {parseMarkdownToText(blog.content)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-6 mt-4">
+                      <span className={`flex items-center gap-1 font-semibold select-none cursor-pointer ${blog.isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                        onClick={e => { e.stopPropagation(); handleLike(blog._id); }}
+                      >
+                        <Heart className={`w-5 h-5 ${blog.isLiked ? 'fill-red-500 text-red-500' : ''}`} />
                         {blog.likes_count || 0}
                       </span>
                       <span className="flex items-center gap-1 text-blue-500 font-semibold">
@@ -641,39 +637,110 @@ const extractFirstImageFromContent = (content: string): string | null => {
                         {blog.saves?.length || 0}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-yellow-500" />
-                      <span className="text-sm text-gray-500 font-medium">Đọc thêm</span>
-                    </div>
+                  </div>
+                  {/* Right: Image */}
+                  <div className="md:w-64 flex-shrink-0 flex items-center justify-center bg-gray-50">
+                    {(() => {
+                      const fallbackImage =
+                        blog.image?.trim() !== ''
+                          ? blog.image
+                          : extractFirstImageFromContent(blog.content) || '/images/no-image.png';
+                      return (
+                        <img
+                          src={fallbackImage}
+                          alt={blog.title}
+                          className="w-full h-48 object-cover rounded-2xl m-4 shadow-sm border border-gray-100"
+                          onError={handleImageError}
+                        />
+                      );
+                    })()}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          {/* Pagination */}
-          {totalBlogs > blogsPerPage && (
-            <div className="flex justify-center mt-12">
-              <div className="inline-block px-8 py-5 bg-white/80 rounded-2xl shadow-xl border border-blue-200">
-                <Pagination
-                  current={currentPage}
-                  pageSize={blogsPerPage}
-                  total={totalBlogs}
-                  onChange={page => setCurrentPage(page)}
-                  showSizeChanger={false}
-                />
-              </div>
+              ))}
             </div>
-          )}
 
-          {filteredBlogs.length === 0 && (
-            <div className="text-center py-20">
-              <div className="w-28 h-28 bg-gradient-to-tr from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Search className="w-10 h-10 text-gray-400" />
+            {/* Pagination */}
+            {totalBlogs > blogsPerPage && (
+              <div className="flex justify-center mt-12">
+                <div className="inline-block px-8 py-5 bg-white rounded-2xl shadow-xl border border-blue-200">
+                  <Pagination
+                    current={currentPage}
+                    pageSize={blogsPerPage}
+                    total={totalBlogs}
+                    onChange={page => setCurrentPage(page)}
+                    showSizeChanger={false}
+                  />
+                </div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-600 mb-2">Không tìm thấy bài viết</h3>
-              <p className="text-gray-500 text-lg">Thử tìm kiếm với từ khóa khác hoặc thay đổi bộ lọc</p>
+            )}
+
+            {filteredBlogs.length === 0 && (
+              <div className="text-center py-20">
+                <div className="w-28 h-28 bg-gradient-to-tr from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Search className="w-10 h-10 text-gray-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-600 mb-2">Không tìm thấy bài viết</h3>
+                <p className="text-gray-500 text-lg">Thử tìm kiếm với từ khóa khác hoặc thay đổi bộ lọc</p>
+              </div>
+            )}
+          </div>
+          {/* Sidebar */}
+          <aside className="w-full lg:w-80 flex-shrink-0 flex flex-col gap-8">
+            {/* Chủ đề */}
+            <div className="bg-gradient-to-tr from-blue-50 via-white to-purple-50 rounded-3xl shadow-xl border border-blue-100 p-8 mb-4 flex flex-col items-start">
+              <div className="flex items-center gap-3 mb-5">
+                <Sparkles className="w-7 h-7 text-purple-500" />
+                <h3 className="font-extrabold text-xl text-gray-900 tracking-tight">XEM CÁC BÀI VIẾT THEO CHỦ ĐỀ</h3>
+              </div>
+              <p className="text-gray-500 text-sm mb-4 ml-1">Khám phá các chủ đề lập trình nổi bật, chọn chủ đề bạn quan tâm!</p>
+              <div className="flex flex-wrap gap-3 w-full">
+                {categories.length > 0 ? (
+                  categories.map((cat) => (
+                    <button
+                      key={cat._id || cat.id}
+                      className="px-5 py-2 rounded-full bg-white border border-blue-200 shadow hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 hover:border-purple-400 text-blue-700 font-semibold text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      {cat.name}
+                    </button>
+                  ))
+                ) : (
+                  <span className="text-gray-400 text-sm">Đang tải...</span>
+                )}
+              </div>
             </div>
-          )}
+
+            {/* Quảng cáo khóa học */}
+            <div
+              className="bg-gradient-to-tr from-blue-100 via-white to-purple-100 rounded-3xl shadow-xl border border-blue-100 p-8 flex flex-col items-start mb-2 cursor-pointer hover:shadow-2xl transition-all"
+              onClick={() => navigate('/courses')}
+            >
+              <h2 className="text-2xl font-extrabold text-purple-800 mb-2">🚀 ReactJS Pro - Khóa học chuyên sâu</h2>
+              <p className="text-gray-700 text-base mb-3">Nâng tầm sự nghiệp lập trình với khóa học ReactJS Pro: thực chiến dự án, mentor đồng hành, cập nhật công nghệ mới nhất!</p>
+              <ul className="text-base text-gray-700 mb-5 list-disc pl-5">
+                <li>Xây dựng 5+ dự án thực tế</li>
+                <li>Kiến thức chuyên sâu, cập nhật liên tục</li>
+                <li>Mentor hỗ trợ 1-1, giải đáp 24/7</li>
+                <li>Chứng chỉ hoàn thành, cơ hội việc làm</li>
+              </ul>
+              <button className="px-7 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-bold shadow hover:scale-105 transition-all text-lg mt-2">Xem tất cả khóa học →</button>
+            </div>
+
+            {/* Quảng cáo giảng viên */}
+            <div
+              className="bg-white rounded-3xl shadow-xl border border-gray-100 p-7 flex flex-col items-start cursor-pointer hover:shadow-2xl transition-all"
+              onClick={() => navigate('/instructors')}
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <img src="/images/default-avatar.png" alt="Giảng viên nổi bật" className="w-14 h-14 rounded-full border-2 border-blue-200 object-cover" />
+                <div>
+                  <div className="font-bold text-lg text-blue-700">Giảng viên nổi bật</div>
+                  <div className="text-sm text-gray-500">Hơn 10+ chuyên gia ReactJS, NodeJS, UI/UX...</div>
+                </div>
+              </div>
+              <p className="text-gray-600 text-base mb-4">Khám phá đội ngũ giảng viên giàu kinh nghiệm, tận tâm hỗ trợ học viên chinh phục mọi mục tiêu lập trình!</p>
+              <button className="px-7 py-3 bg-orange-500 text-white rounded-xl font-bold shadow hover:scale-105 transition-all text-lg mt-2">Xem danh sách giảng viên →</button>
+            </div>
+          </aside>
         </div>
       ) : (
         <div className="w-full max-w-full mx-auto px-0 md:px-12 py-12">
