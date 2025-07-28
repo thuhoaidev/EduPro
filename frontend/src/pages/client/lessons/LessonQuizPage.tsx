@@ -43,7 +43,8 @@ const LessonQuizPage: React.FC = () => {
         setLoading(true);
         const res = await config.get(`/quizzes/lesson/${lessonId}`);
         setQuiz(res.data.data);
-        setAnswers(new Array(res.data.data.questions.length).fill(-1));
+        // Đừng setAnswers ở đây, hãy để useEffect fetchProgress xử lý!
+        // setAnswers(new Array(res.data.data.questions.length).fill(-1));
       } catch {
         setError('Không tìm thấy quiz cho bài học này.');
       } finally {
@@ -68,14 +69,49 @@ const LessonQuizPage: React.FC = () => {
               wrongQuestions: lessonProgress.quizPassed ? [] : undefined,
             });
           }
+        } else if (quiz) {
+          setAnswers(new Array(quiz.questions.length).fill(-1));
+          setResult(null);
         }
       } catch {
         // Không có progress cũng không sao
+        if (quiz) {
+          setAnswers(new Array(quiz.questions.length).fill(-1));
+          setResult(null);
+        }
       }
     };
     fetchProgress();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId, lessonId, quiz]);
+
+  useEffect(() => {
+    if (
+      quiz &&
+      answers.length === quiz.questions.length &&
+      answers.every((a, idx) => a === quiz.questions[idx].correctIndex)
+    ) {
+      // Nếu đã trả lời đúng hết nhưng quizPassed chưa true, tự động lưu lại
+      if (courseId && lessonId && (!result || !result.success)) {
+        // Lấy watchedSeconds và videoDuration từ progress nếu có
+        getProgress(courseId).then(progress => {
+          const lessonProgress = progress[lessonId] || {};
+          updateProgress(courseId, lessonId, {
+            watchedSeconds: lessonProgress.watchedSeconds || 0,
+            videoDuration: lessonProgress.videoDuration || 0,
+            quizPassed: true,
+            quizAnswers: answers,
+          });
+          setResult({
+            success: true,
+            message: 'Tất cả đáp án đều đúng!',
+            wrongQuestions: [],
+          });
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quiz, answers, courseId, lessonId]);
 
   const handleChange = (qIdx: number, value: number) => {
     setAnswers(prev => prev.map((a, idx) => (idx === qIdx ? value : a)));

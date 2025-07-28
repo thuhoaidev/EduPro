@@ -15,6 +15,7 @@ interface CustomVideoPlayerProps {
       onPlay?: (e: React.SyntheticEvent<HTMLVideoElement, Event>) => void;
       onPause?: (e: React.SyntheticEvent<HTMLVideoElement, Event>) => void;
       initialTime?: number;
+      isLessonCompleted?: boolean;
 }
 
 export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
@@ -24,7 +25,8 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
       onLoadedMetadata,
       onPlay,
       onPause,
-      initialTime = 0
+      initialTime = 0,
+      isLessonCompleted = false
 }) => {
       const videoRef = useRef<HTMLVideoElement>(null);
       const containerRef = useRef<HTMLDivElement>(null);
@@ -100,8 +102,8 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
       const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
             const newTime = parseFloat(e.target.value);
 
-            // ✅ Nếu vượt quá thời gian đã xem, không cho tua
-            if (newTime > maxAllowedTime) {
+            // Nếu bài đã hoàn thành, cho phép tua tự do
+            if (!isLessonCompleted && newTime > maxAllowedTime) {
                   return;
             }
 

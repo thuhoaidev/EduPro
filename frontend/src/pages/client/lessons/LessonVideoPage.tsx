@@ -214,8 +214,16 @@ const LessonVideoPage: React.FC = () => {
   // Khi xem hết video
   const handleVideoEnded = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     const video = e.currentTarget;
+
+    // Nếu đã hoàn thành bài học thì không hiện thông báo nữa
+    const isLessonCompleted = !!progress && !!currentLessonId &&
+      (progress[currentLessonId]?.completed === true || progress[currentLessonId]?.videoCompleted === true);
+
     setVideoWatched(true);
-    message.info('Bạn đã xem hết video, hãy hoàn thành quiz để mở khóa bài tiếp theo.');
+
+    if (!isLessonCompleted) {
+      message.info('Bạn đã xem hết video, hãy hoàn thành quiz để mở khóa bài tiếp theo.');
+    }
 
     if (courseId && currentLessonId && video) {
       console.log('Video ended, updating final progress');
@@ -1210,7 +1218,7 @@ const LessonVideoPage: React.FC = () => {
                       onPlay={() => setIsVideoPlaying(true)}
                       onPause={() => setIsVideoPlaying(false)}
                       initialTime={savedVideoTime}
-
+                      isLessonCompleted={!!progress && !!currentLessonId && (progress[currentLessonId]?.completed === true || progress[currentLessonId]?.videoCompleted === true)}
                     />
 
 

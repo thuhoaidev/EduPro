@@ -226,6 +226,8 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                   }
 
                   const isCompleted = completedLessons.map(String).includes(lessonIdStr);
+
+                  // Nếu đã hoàn thành, luôn unlocked
                   if (isCompleted) unlocked = true;
 
                   const isCurrent = lessonIdStr === currentLessonId;
@@ -234,12 +236,34 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                     progressValue = currentVideoProgress;
                   }
 
+                  // Tìm index bài học đầu tiên được mở khóa trong section này
+                  let firstUnlockedIdx = section.lessons.findIndex((l, idx) => {
+                    let unlocked = false;
+                    if (idx === 0 && sIdx === 0) unlocked = true;
+                    else {
+                      let prevLesson = null;
+                      if (idx > 0) prevLesson = section.lessons[idx - 1];
+                      else if (sIdx > 0) {
+                        const prevSection = sections[sIdx - 1];
+                        if (prevSection.lessons.length > 0) prevLesson = prevSection.lessons[prevSection.lessons.length - 1];
+                      }
+                      if (prevLesson) {
+                        const prevProgress = progress && progress[prevLesson._id];
+                        if (prevProgress && prevProgress.videoCompleted && prevProgress.quizPassed) unlocked = true;
+                      }
+                    }
+                    const isCompleted = completedLessons.map(String).includes(String(l._id));
+                    if (isCompleted) unlocked = true;
+                    return unlocked;
+                  });
+                  const isBeforeFirstUnlocked = lIdx < firstUnlockedIdx && firstUnlockedIdx !== -1;
+
                   let progressColor = '#d9d9d9';
                   let showProgress = false;
 
-                  if (progressValue === 100 || isCompleted) {
+                  if (progressValue === 100 || isCompleted || isBeforeFirstUnlocked) {
                     progressValue = 100;
-                    progressColor = '#52c41a';
+                    progressColor = '#52c41a'; // xanh lá
                     showProgress = true;
                   } else if (isCurrent) {
                     progressColor = '#06b6d4';
@@ -255,16 +279,16 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                     <li
                       key={lessonIdStr}
                       className={`mb-2 flex items-center gap-2 px-2 py-2 rounded-xl transition-all duration-200 ${isCurrent ? 'bg-cyan-100 font-bold shadow-lg border-l-4 border-cyan-400' : 'hover:bg-cyan-50'
-                        } ${!unlocked ? 'opacity-60' : 'cursor-pointer'}`}
+                        } ${!(unlocked || isCompleted) ? 'opacity-60' : 'cursor-pointer'}`}
                       style={{
-                        pointerEvents: unlocked ? 'auto' : 'none',
+                        pointerEvents: (unlocked || isCompleted) ? 'auto' : 'none',
                         fontSize: 16,
                         fontWeight: isCurrent ? 800 : 500,
                         color: isCurrent ? '#06b6d4' : '#222',
                         background: isCurrent ? '#e0f2fe' : undefined,
                         boxShadow: isCurrent ? '0 2px 8px #bae6fd' : undefined,
                       }}
-                      onClick={() => unlocked && onSelectLesson(lesson._id)}
+                      onClick={() => (unlocked || isCompleted) && onSelectLesson(lesson._id)}
                     >
                       <span
                         style={{
@@ -323,7 +347,7 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                             <PlayCircleTwoTone twoToneColor="#06b6d4" className="mr-1" />
                           )}
                         </Tooltip>
-                      ) : !unlocked ? (
+                      ) : (!unlocked && !isCompleted) ? (
                         <Tooltip title="Chưa mở khóa">
                           <LockOutlined className="mr-1 text-gray-400" />
                         </Tooltip>

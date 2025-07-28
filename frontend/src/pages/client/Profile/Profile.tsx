@@ -493,18 +493,24 @@ const Profile = () => {
                   const course = enroll.course || {};
                   const courseId = course._id || course.id;
                   const progress = courseProgressMap[courseId] || {};
-                  console.log('Render progress:', courseId, JSON.stringify(progress));
-                  const total = courseLessonsMap[courseId] ?? 0;
+                  // Debug: log lessonIds và progress để kiểm tra key
                   const sections = courseSectionsMap[courseId] || [];
                   let lessonIds: string[] = [];
                   sections.forEach(section => {
                     if (Array.isArray(section.lessons)) {
-                      lessonIds = lessonIds.concat(section.lessons.map((lesson: any) => lesson._id));
+                      lessonIds = lessonIds.concat(section.lessons.map((lesson: any) => String(lesson._id)));
                     }
                   });
+                  console.log('lessonIds:', lessonIds);
+                  console.log('progress:', progress);
+                  // Đảm bảo so sánh lessonId dạng string
                   const completedCount = lessonIds.filter(
-                    id => progress[id]?.completed === true || progress[id]?.videoCompleted === true
+                    id => {
+                      const p = progress[id];
+                      return p && (p.completed === true || p.videoCompleted === true);
+                    }
                   ).length;
+                  const total = lessonIds.length;
                   const percent = total === 0 ? 0 : Math.round((completedCount / total) * 100);
 
                   // Lấy sections từ courseSectionsMap để xác định bài học tiếp tục
