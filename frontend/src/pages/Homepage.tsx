@@ -95,6 +95,7 @@ interface Instructor {
   courses?: unknown[];
   studentCount?: number;
   students?: number;
+  rating?: number; // Thêm rating cho carousel
 }
 
 interface Blog {
@@ -743,21 +744,34 @@ const Homepage = () => {
           <Title level={2} className="section-title">Đội ngũ giảng viên xuất sắc</Title>
           <Text className="section-subtitle">Học hỏi từ các chuyên gia hàng đầu</Text>
         </div>
-        <Row gutter={[24, 24]} className="instructors-grid">
-          {instructors.map((instructor, idx) => (
-            <Col xs={24} sm={12} md={8} lg={6} key={instructor._id || idx}>
-              <Card className="instructor-card" hoverable>
-                <Avatar src={instructor.avatar || instructor.profilePicture || '/images/default-avatar.png'} size={80} />
-                <Title level={4} style={{ marginTop: 12 }}>{instructor.fullname || instructor.name}</Title>
-                <Text>{instructor.specialty || instructor.bio || 'Chuyên gia đào tạo'}</Text>
-                <div style={{ marginTop: 8 }}>
-                  <Tag color="blue">Khóa học: {instructor.courseCount || instructor.courses?.length || 0}</Tag>
-                  <Tag color="green">Học viên: {instructor.studentCount || instructor.students || 0}</Tag>
+        {/* Banner carousel cho 5 giảng viên có tổng đánh giá cao nhất */}
+        <Carousel autoplay dots={true} className="instructor-banner-carousel">
+          {instructors
+            .slice()
+            .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+            .slice(0, 5)
+            .map((instructor, idx) => (
+              <div key={instructor._id || idx} className="instructor-banner-slide">
+                <div className="instructor-banner-content flex flex-col items-center justify-center text-center py-10">
+                  <div className="mb-6">
+                    <Avatar src={instructor.avatar || instructor.profilePicture || '/images/default-avatar.png'} size={120} className="instructor-banner-avatar shadow-lg transition-transform duration-300 hover:scale-105" style={{ background: 'white' }} />
+                  </div>
+                  <div className="instructor-banner-info">
+                    <Title level={3} className="instructor-banner-name gradient-text" style={{ marginBottom: 8, fontWeight: 800 }}>{instructor.fullname || instructor.name}</Title>
+                    <Text className="instructor-banner-specialty" style={{ display: 'block', marginBottom: 12, color: '#2563eb', fontWeight: 500 }}>{instructor.specialty || instructor.bio || 'Chuyên gia đào tạo'}</Text>
+                    <div className="instructor-banner-stats flex flex-wrap justify-center gap-8 mb-4">
+                      <span className="flex items-center gap-1 text-base font-medium text-blue-600"><BookOutlined className="text-lg" /> {instructor.courseCount || instructor.courses?.length || 0} khóa học</span>
+                      <span className="flex items-center gap-1 text-base font-medium text-emerald-600"><TeamOutlined className="text-lg" /> {instructor.studentCount || instructor.students || 0} học viên</span>
+                      <span className="flex items-center gap-1 text-base font-medium text-yellow-500"><StarOutlined className="text-lg" /> {instructor.rating || 0} lượt đánh giá</span>
+                    </div>
+                    <Paragraph className="instructor-banner-desc" style={{ marginTop: 8, fontSize: 15, color: '#555', maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
+                      {instructor.bio || 'Giảng viên xuất sắc với nhiều năm kinh nghiệm đào tạo và truyền cảm hứng cho hàng ngàn học viên.'}
+                    </Paragraph>
+                  </div>
                 </div>
-              </Card>
-            </Col>
-          ))}
-        </Row>
+              </div>
+            ))}
+        </Carousel>
       </SectionWrapper>
 
       {/* Blogs Section */}
@@ -770,26 +784,29 @@ const Homepage = () => {
           <Title level={2} className="section-title">Tin tức & Chia sẻ</Title>
           <Text className="section-subtitle">Cập nhật kiến thức, xu hướng mới nhất</Text>
         </div>
-        <Row gutter={[24, 24]} className="blogs-grid">
-          {blogs.map((blog, idx) => (
-            <Col xs={24} sm={12} md={8} lg={6} key={blog._id || idx}>
-              <Card
-                className="blog-card"
-                hoverable
-                cover={<img alt={blog.title} src={blog.thumbnail || '/images/no-image.png'} style={{ height: 160, objectFit: 'cover' }} />}
-                onClick={() => navigate(`/blogs/${blog._id}`)}
-              >
-                <Title level={4}>{blog.title}</Title>
-                <Paragraph ellipsis={{ rows: 2 }}>{blog.summary || blog.content?.slice(0, 80) || ''}</Paragraph>
-                <div style={{ display: 'flex', alignItems: 'center', marginTop: 8 }}>
-                  <Avatar src={blog.author?.avatar || '/images/default-avatar.png'} size={24} />
-                  <span style={{ marginLeft: 8 }}>{blog.author?.fullname || 'Tác giả'}</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 12, color: '#888' }}>{blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : ''}</span>
+        {/* Carousel banner cho blog */}
+        <Carousel autoplay dots={true} className="blog-banner-carousel">
+          {blogs.slice(0, 5).map((blog, idx) => (
+            <div key={blog._id || idx} className="blog-banner-slide">
+              <div className="blog-banner-wrapper relative flex flex-col items-center justify-center min-h-[340px] md:min-h-[420px]">
+                <img src={blog.thumbnail || '/images/no-image.png'} alt={blog.title} className="blog-banner-img absolute inset-0 w-full h-full object-cover rounded-xl" style={{ filter: 'brightness(0.65) blur(0px)' }} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent rounded-xl"></div>
+                <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 py-10 w-full">
+                  <Title level={2} className="blog-banner-title gradient-text mb-2" style={{ fontWeight: 800, color: '#fff', textShadow: '0 2px 16px rgba(0,0,0,0.25)' }}>{blog.title}</Title>
+                  <Paragraph className="blog-banner-summary" style={{ color: '#f3f4f6', fontSize: 18, maxWidth: 700, margin: '0 auto 18px', textShadow: '0 1px 8px rgba(0,0,0,0.18)' }}>{blog.summary || blog.content?.slice(0, 120) || ''}</Paragraph>
+                  <div className="flex items-center justify-center gap-4 mb-4">
+                    <Avatar src={blog.author?.avatar || '/images/default-avatar.png'} size={40} />
+                    <span className="text-white font-semibold text-base">{blog.author?.fullname || 'Tác giả'}</span>
+                    <span className="text-gray-200 text-sm">{blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : ''}</span>
+                  </div>
+                  <Button type="primary" size="large" className="blog-banner-btn" style={{ fontWeight: 600, fontSize: 16 }} onClick={() => navigate(`/blogs/${blog._id}`)}>
+                    Xem chi tiết
+                  </Button>
                 </div>
-              </Card>
-            </Col>
+              </div>
+            </div>
           ))}
-        </Row>
+        </Carousel>
       </SectionWrapper>
 
       {/* Testimonials Section */}
