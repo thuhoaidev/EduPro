@@ -19,8 +19,9 @@ import { courseService } from '../../../services/apiService';
 import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, toggleDislikeReview, reportReview } from '../../../services/courseReviewService';
 import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
 import { issueCertificate, getCertificate } from '../../../services/certificateService';
+import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
 dayjs.extend(relativeTime);
-import CustomVideoPlayer from '../../../components/CustomVideoPlayer';
+
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -91,6 +92,7 @@ const LessonVideoPage: React.FC = () => {
       clearTimeout(updateProgressTimeout.current);
     }
     updateProgressTimeout.current = setTimeout(() => {
+      console.log('Updating video progress:', { courseId, lessonId, time, duration });
       updateVideoProgress(courseId, lessonId, time, duration).catch(e => console.error("Failed to update progress", e));
     }, 1000); // Cập nhật 1 giây một lần
   }, []);
@@ -129,16 +131,27 @@ const LessonVideoPage: React.FC = () => {
   // Cập nhật tiến độ xem video
   const handleVideoTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     const video = e.currentTarget;
-    if (courseId && currentLessonId) {
+    if (courseId && currentLessonId && video.duration > 0) {
+      // Cập nhật tiến độ video
       debouncedUpdateProgress(courseId, currentLessonId, video.currentTime, video.duration);
-      if (video.duration > 0) {
-        const progressRatio = video.currentTime / video.duration;
-        setVideoProgress(progressRatio);
-        if (progressRatio >= 0.9 && !videoWatched) {
-          // Chỉ đánh dấu đã xem hết video, chưa unlock bài mới
-          updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration).catch(e => console.error("Failed to update progress", e));
-          setVideoWatched(true);
-        }
+
+      // Cập nhật local state
+      setSavedVideoTime(video.currentTime);
+
+      // Cập nhật progress ratio cho UI
+      const progressRatio = video.currentTime / video.duration;
+      setVideoProgress(progressRatio);
+
+      // Debug log
+      if (video.currentTime % 10 < 0.1) { // Log mỗi 10 giây
+        console.log('Video progress:', { currentTime: video.currentTime, duration: video.duration, ratio: progressRatio });
+      }
+
+      // Đánh dấu đã xem hết video khi đạt 90%
+      if (progressRatio >= 0.9 && !videoWatched) {
+        console.log('Video watched 90%, marking as completed');
+        updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration).catch(e => console.error("Failed to update progress", e));
+        setVideoWatched(true);
       }
     }
   };
@@ -149,42 +162,69 @@ const LessonVideoPage: React.FC = () => {
     if (courseId && lessonId) {
       getVideoProgress(courseId, lessonId)
         .then(progress => {
-          // Chỉ set nếu lessonId vẫn là bài học hiện tại
-          if (progress && 'videoCompleted' in progress && progress.videoCompleted === false && (!progress.watchedSeconds || progress.watchedSeconds < 5)) {
-            setSavedVideoTime(0);
-          } else {
+          console.log('Loaded video progress:', progress);
+          if (progress && progress.watchedSeconds && progress.watchedSeconds > 0) {
             setSavedVideoTime(progress.watchedSeconds);
+            // Cũng cập nhật videoProgress UI nếu có
+            const progressData = progress as any;
+            if (progressData.videoDuration && progressData.videoDuration > 0) {
+              const progressRatio = progress.watchedSeconds / progressData.videoDuration;
+              setVideoProgress(progressRatio);
+            } else {
+              // Nếu không có videoDuration, set progress dựa trên thời gian đã xem
+              setVideoProgress(progress.watchedSeconds > 0 ? 0.1 : 0);
+            }
+          } else {
+            setSavedVideoTime(0);
+            setVideoProgress(0);
           }
         })
-        .catch(err => console.error("Lỗi lấy tiến độ video", err));
+        .catch(err => {
+          console.error("Lỗi lấy tiến độ video", err);
+          setSavedVideoTime(0);
+          setVideoProgress(0);
+        });
     }
-  }, [courseId, lessonId, currentLessonId]);
-
-  // Đảm bảo khi savedVideoTime thay đổi và video đã load, sẽ tua lại đúng vị trí
-  useEffect(() => {
-    if (videoRef.current && savedVideoTime > 0) {
-      videoRef.current.currentTime = savedVideoTime;
-    }
-  }, [savedVideoTime]);
+  }, [courseId, lessonId]);
 
   // Khi video load xong, tua đến vị trí đã lưu
-  const handleVideoLoadedMetadata = () => {
-    if (videoRef.current && savedVideoTime > 0) {
-      videoRef.current.currentTime = savedVideoTime;
+  const handleVideoLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    const video = e.currentTarget;
+    if (video && savedVideoTime > 0) {
+      console.log('Setting video time to:', savedVideoTime);
+      video.currentTime = savedVideoTime;
     }
   };
 
+  // Đảm bảo video được tua đến đúng vị trí khi savedVideoTime thay đổi
+  useEffect(() => {
+    if (savedVideoTime > 0) {
+      // Delay một chút để đảm bảo video đã load
+      const timer = setTimeout(() => {
+        const videoElement = document.querySelector('video');
+        if (videoElement && videoElement.readyState >= 1) {
+          console.log('Setting video time from useEffect:', savedVideoTime);
+          videoElement.currentTime = savedVideoTime;
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [savedVideoTime]);
+
   // Khi xem hết video
-  const handleVideoEnded = () => {
+  const handleVideoEnded = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    const video = e.currentTarget;
     setVideoWatched(true);
     message.info('Bạn đã xem hết video, hãy hoàn thành quiz để mở khóa bài tiếp theo.');
-    if (courseId && currentLessonId && videoRef.current) {
-      updateVideoProgress(courseId, currentLessonId, videoRef.current.duration, videoRef.current.duration)
+
+    if (courseId && currentLessonId && video) {
+      console.log('Video ended, updating final progress');
+      updateVideoProgress(courseId, currentLessonId, video.duration, video.duration)
         .catch(e => console.error("Failed to update final progress", e));
       // Đảm bảo cập nhật videoCompleted: true vào progress
       updateProgress(courseId, currentLessonId, {
-        watchedSeconds: videoRef.current.duration,
-        videoDuration: videoRef.current.duration,
+        watchedSeconds: video.duration,
+        videoDuration: video.duration,
         videoCompleted: true
       } as any).catch(e => console.error("Failed to set videoCompleted", e));
     }
@@ -236,7 +276,7 @@ const LessonVideoPage: React.FC = () => {
     setQuizAnswers([]);
     setShowQuiz(false);
     setQuizUnlocked(false);
-    setVideoProgress(0); // Reset luôn tiến độ video
+    setVideoProgress(0); // Reset progress UI, nhưng không reset savedVideoTime
   }, [currentLessonId]);
 
   useEffect(() => {
@@ -330,10 +370,7 @@ const LessonVideoPage: React.FC = () => {
     }
   }, [quiz, currentLessonId]);
 
-  // Khi chuyển bài học, reset videoProgress
-  useEffect(() => {
-    setVideoProgress(0);
-  }, [currentLessonId]);
+
 
   // Bỏ logic unlock quiz theo videoProgress
 
@@ -1150,6 +1187,8 @@ const LessonVideoPage: React.FC = () => {
                       key={videoUrl}
                       src={videoUrl}
                       controls
+                      controlsList="nodownload noplaybackrate"
+                      onContextMenu={(e) => e.preventDefault()}
                       style={{ width: '100%', borderRadius: 0, background: '#000', display: 'block', maxHeight: 480 }}
                       onTimeUpdate={handleVideoTimeUpdate}
                       onEnded={handleVideoEnded}
@@ -1160,13 +1199,20 @@ const LessonVideoPage: React.FC = () => {
                       Trình duyệt không hỗ trợ video tag.
                     </video> */}
                     <CustomVideoPlayer
-                      videoSources={{
+                      sources={{
                         '360p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_640,h_360,c_limit/${publicId}.mp4`,
                         '720p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1280,h_720,c_limit/${publicId}.mp4`,
                         '1080p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1920,h_1080,c_limit/${publicId}.mp4`,
                       }}
-                      subtitlesUrl="https://res.cloudinary.com/.../subs.vtt"
+                      onTimeUpdate={handleVideoTimeUpdate}
+                      onEnded={handleVideoEnded}
+                      onLoadedMetadata={handleVideoLoadedMetadata}
+                      onPlay={() => setIsVideoPlaying(true)}
+                      onPause={() => setIsVideoPlaying(false)}
+                      initialTime={savedVideoTime}
+
                     />
+
 
                     {videoWatched && !quiz && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
