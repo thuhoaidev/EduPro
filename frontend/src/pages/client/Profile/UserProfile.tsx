@@ -284,38 +284,41 @@ const UserProfile: React.FC = () => {
           {isLoggedIn && currentUserId && currentUserId !== user._id && (
             isFollowing ? (
               <Dropdown
-                menu={
-                  <motion.ul
-                    initial={{ opacity: 0, y: -12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -12 }}
-                    transition={{ duration: 0.22, type: 'spring' }}
-                    className="rounded-2xl shadow-2xl bg-white/70 backdrop-blur-xl p-2 min-w-[220px] relative"
-                    style={{
-                      boxShadow: '0 8px 32px 0 rgba(80,80,180,0.13)',
-                    }}
-                  >
-                    <li
-                      className="flex items-center gap-4 px-5 py-4 rounded-xl font-semibold text-base cursor-pointer transition-all hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 group"
-                      onClick={() => navigate(`/messages/${user._id}`)}
-                    >
-                      <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-blue-100 to-purple-100 group-hover:from-blue-200 group-hover:to-purple-200 transition-all">
-                        <MessageOutlined className="text-2xl bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text" />
-                      </span>
-                      <span className="text-gray-900">Nhắn tin</span>
-                    </li>
-                    <div className="my-1 h-[1px] bg-gradient-to-r from-blue-100 via-purple-100 to-pink-100 opacity-60" />
-                    <li
-                      className="flex items-center gap-4 px-5 py-4 rounded-xl font-semibold text-base cursor-pointer transition-all hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 group"
-                      onClick={handleUnfollow}
-                    >
-                      <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-pink-100 to-purple-100 group-hover:from-pink-200 group-hover:to-purple-200 transition-all">
-                        <UserDeleteOutlined className="text-2xl bg-gradient-to-r from-pink-500 to-red-500 text-transparent bg-clip-text" />
-                      </span>
-                      <span className="text-red-600">Bỏ theo dõi</span>
-                    </li>
-                  </motion.ul>
-                }
+                menu={{
+                  items: [
+                    {
+                      key: 'message',
+                      label: (
+                        <div 
+                          className="flex items-center gap-4 px-2 py-2 rounded-xl font-semibold text-base cursor-pointer transition-all hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 group"
+                          onClick={() => navigate(`/messages/${user._id}`)}
+                        >
+                          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-blue-100 to-purple-100 group-hover:from-blue-200 group-hover:to-purple-200 transition-all">
+                            <MessageOutlined className="text-lg bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text" />
+                          </span>
+                          <span className="text-gray-900">Nhắn tin</span>
+                        </div>
+                      ),
+                    },
+                    {
+                      type: 'divider',
+                    },
+                    {
+                      key: 'unfollow',
+                      label: (
+                        <div 
+                          className="flex items-center gap-4 px-2 py-2 rounded-xl font-semibold text-base cursor-pointer transition-all hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 group"
+                          onClick={handleUnfollow}
+                        >
+                          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-pink-100 to-purple-100 group-hover:from-pink-200 group-hover:to-purple-200 transition-all">
+                            <UserDeleteOutlined className="text-lg bg-gradient-to-r from-pink-500 to-red-500 text-transparent bg-clip-text" />
+                          </span>
+                          <span className="text-red-600">Bỏ theo dõi</span>
+                        </div>
+                      ),
+                    },
+                  ],
+                }}
                 trigger={['click']}
                 overlayClassName="!p-0 !bg-transparent !border-0"
               >
