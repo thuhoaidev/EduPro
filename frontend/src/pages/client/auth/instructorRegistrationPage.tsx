@@ -17,7 +17,11 @@ import {
   UploadOutlined,
   ArrowLeftOutlined,
   StarOutlined,
-  BookOutlined
+  BookOutlined,
+  TeamOutlined,
+  TrophyOutlined,
+  EyeInvisibleOutlined,
+  EyeTwoTone
 } from "@ant-design/icons";
 import AuthNotification from "../../../components/common/AuthNotification";
 import dayjs from 'dayjs';
@@ -309,7 +313,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Họ và tên đầy đủ"
           prefix={<UserOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -324,7 +328,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Email"
           prefix={<MailOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -339,7 +343,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Số điện thoại"
           prefix={<PhoneOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -350,7 +354,7 @@ export function InstructorRegistrationPage() {
         <Select
           size="large"
           placeholder="Chọn giới tính"
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         >
           <Option value="Nam">Nam</Option>
           <Option value="Nữ">Nữ</Option>
@@ -365,7 +369,7 @@ export function InstructorRegistrationPage() {
         <DatePicker
           size="large"
           placeholder="Ngày sinh"
-          className="w-full h-12 rounded-lg"
+          className="w-full h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
           format="DD/MM/YYYY"
         />
       </Form.Item>
@@ -378,7 +382,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Địa chỉ"
           prefix={<EnvironmentOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -393,7 +397,8 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Mật khẩu"
           prefix={<LockOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -416,7 +421,8 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Xác nhận mật khẩu"
           prefix={<LockOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
     </>
@@ -436,7 +442,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Bằng cấp cao nhất (VD: Cử nhân, Thạc sĩ, Tiến sĩ)"
           prefix={<FileTextOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -448,7 +454,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Trường đại học/Cơ sở đào tạo"
           prefix={<BookOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -460,7 +466,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Chuyên ngành"
           prefix={<BookOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -472,7 +478,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Năm tốt nghiệp"
           prefix={<CalendarOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
           type="number"
         />
       </Form.Item>
@@ -485,7 +491,7 @@ export function InstructorRegistrationPage() {
           mode="tags"
           size="large"
           placeholder="Lĩnh vực chuyên môn (VD: JavaScript, React, Node.js)"
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -497,7 +503,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Số năm kinh nghiệm giảng dạy"
           prefix={<StarOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
           type="number"
         />
       </Form.Item>
@@ -509,7 +515,7 @@ export function InstructorRegistrationPage() {
         <TextArea
           rows={4}
           placeholder="Mô tả chi tiết kinh nghiệm giảng dạy, dự án đã thực hiện, thành tựu đạt được..."
-          className="rounded-lg"
+          className="rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
     </>
@@ -564,7 +570,7 @@ export function InstructorRegistrationPage() {
           <Button 
             icon={<UploadOutlined />} 
             size="large"
-            className="w-full h-12 rounded-lg"
+            className="w-full h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
           >
             Tải lên CV (PDF, DOC)
           </Button>
@@ -590,7 +596,7 @@ export function InstructorRegistrationPage() {
           <Button 
             icon={<SafetyCertificateOutlined />} 
             size="large"
-            className="w-full h-12 rounded-lg"
+            className="w-full h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
           >
             Tải lên chứng chỉ (PDF, DOC, JPG)
           </Button>
@@ -615,7 +621,7 @@ export function InstructorRegistrationPage() {
           <Button 
             icon={<VideoCameraOutlined />} 
             size="large"
-            className="w-full h-12 rounded-lg"
+            className="w-full h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
           >
             Tải lên video demo giảng dạy (Tùy chọn)
           </Button>
@@ -629,7 +635,7 @@ export function InstructorRegistrationPage() {
         <TextArea
           rows={4}
           placeholder="Giới thiệu về bản thân, phương pháp giảng dạy, mục tiêu..."
-          className="rounded-lg"
+          className="rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -638,7 +644,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="LinkedIn URL (Tùy chọn)"
           prefix={<GlobalOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -647,7 +653,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="GitHub URL (Tùy chọn)"
           prefix={<GlobalOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
 
@@ -656,7 +662,7 @@ export function InstructorRegistrationPage() {
           size="large"
           placeholder="Website cá nhân (Tùy chọn)"
           prefix={<GlobalOutlined className="text-gray-400" />}
-          className="h-12 rounded-lg"
+          className="h-12 rounded-lg border-gray-200 hover:border-cyan-400 focus:border-cyan-500 focus:shadow-lg transition-all duration-300 bg-white/50 backdrop-blur-sm"
         />
       </Form.Item>
     </>
@@ -673,6 +679,7 @@ export function InstructorRegistrationPage() {
       }
     }
   };
+
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -681,9 +688,17 @@ export function InstructorRegistrationPage() {
       transition: { duration: 0.5 }
     }
   };
+
   const buttonVariants = {
-    hover: { scale: 1.05, boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)", transition: { duration: 0.2 } },
-    tap: { scale: 0.95, transition: { duration: 0.1 } }
+    hover: { 
+      scale: 1.05,
+      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
+      transition: { duration: 0.2 }
+    },
+    tap: { 
+      scale: 0.95,
+      transition: { duration: 0.1 }
+    }
   };
 
   return (
@@ -718,34 +733,36 @@ export function InstructorRegistrationPage() {
           />
         </motion.button>
       </motion.div>
-      {/* Main Card */}
+      
       <motion.div 
-        className="flex bg-white/80 backdrop-blur-sm shadow-2xl rounded-2xl overflow-hidden w-full max-w-4xl min-h-[600px] border border-white/20"
+        className="flex bg-white/80 backdrop-blur-sm shadow-2xl rounded-2xl overflow-hidden w-full max-w-6xl min-h-[600px] border border-white/20"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
         {/* Left Side - Form */}
-        <div className="w-full p-8 lg:p-12 flex flex-col justify-center relative">
+        <div className="w-full lg:w-1/2 p-8 lg:p-12 flex flex-col justify-center relative">
           {/* Background decoration */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-cyan-400/10 to-purple-400/10 rounded-full -translate-y-16 translate-x-16"></div>
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-green-400/10 to-blue-400/10 rounded-full translate-y-12 -translate-x-12"></div>
+
           <motion.div
             variants={itemVariants}
             className="relative z-10"
           >
-            <motion.h2
+            <motion.h2 
               className="text-4xl font-bold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600"
               variants={itemVariants}
             >
-              Đăng ký Giảng viên
+              Đăng Ký Giảng Viên
             </motion.h2>
-            <motion.p
+            <motion.p 
               className="text-center text-gray-600 mb-8"
               variants={itemVariants}
             >
-              Chia sẻ kiến thức và kinh nghiệm của bạn với cộng đồng học viên. Hãy điền đầy đủ thông tin để chúng tôi có thể xét duyệt hồ sơ của bạn.
+              Chia sẻ kiến thức và kinh nghiệm của bạn với cộng đồng học viên
             </motion.p>
+
             {/* Progress Steps */}
             <motion.div className="mb-8" variants={itemVariants}>
               <div className="flex items-center justify-center space-x-4">
@@ -753,14 +770,14 @@ export function InstructorRegistrationPage() {
                   <div key={step} className="flex items-center">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
                       currentStep >= step 
-                        ? 'bg-cyan-500 text-white' 
+                        ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white' 
                         : 'bg-gray-200 text-gray-500'
                     }`}>
                       {step}
                     </div>
                     {step < 3 && (
                       <div className={`w-16 h-1 mx-2 ${
-                        currentStep > step ? 'bg-cyan-500' : 'bg-gray-200'
+                        currentStep > step ? 'bg-gradient-to-r from-cyan-500 to-purple-500' : 'bg-gray-200'
                       }`} />
                     )}
                   </div>
@@ -776,7 +793,7 @@ export function InstructorRegistrationPage() {
                 </p>
               </div>
             </motion.div>
-            {/* Form */}
+
             <Form
               form={form}
               layout="vertical"
@@ -794,6 +811,7 @@ export function InstructorRegistrationPage() {
                 {currentStep === 2 && renderStep2()}
                 {currentStep === 3 && renderStep3()}
               </motion.div>
+
               {/* Navigation Buttons */}
               <motion.div 
                 className="flex justify-between items-center pt-6 border-t border-gray-200"
@@ -826,7 +844,7 @@ export function InstructorRegistrationPage() {
                       type="primary"
                       size="large"
                       onClick={nextStep}
-                      className="h-12 px-8 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                      className="h-12 px-8 rounded-lg !bg-gradient-to-r !from-cyan-500 !to-purple-500 !text-white hover:opacity-90 border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                     >
                       Tiếp theo
                     </Button>
@@ -836,7 +854,7 @@ export function InstructorRegistrationPage() {
                       size="large"
                       htmlType="submit"
                       loading={loading}
-                      className="h-12 px-8 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                      className="h-12 px-8 rounded-lg !bg-gradient-to-r !from-green-500 !to-emerald-500 !text-white hover:opacity-90 border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                     >
                       {loading ? 'Đang xử lý...' : 'Hoàn tất đăng ký'}
                     </Button>
@@ -846,8 +864,121 @@ export function InstructorRegistrationPage() {
             </Form>
           </motion.div>
         </div>
-        {/* (Có thể bổ sung thêm phần phải cho hình ảnh/giới thiệu nếu muốn) */}
+
+        {/* Right Side - Benefits */}
+        <motion.div 
+          className="hidden lg:flex flex-col w-1/2 p-8 relative overflow-hidden"
+          variants={itemVariants}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-purple-500/10"></div>
+          
+          {/* Welcome Section */}
+          <motion.div 
+            className="relative z-10 flex-1 flex flex-col justify-center"
+            variants={itemVariants}
+          >
+            <motion.h3 
+              className="text-3xl font-bold text-gray-800 mb-8 text-center"
+              variants={itemVariants}
+            >
+              Bắt đầu hành trình giảng dạy!
+            </motion.h3>
+            
+            <div className="grid grid-cols-1 gap-6">
+              <motion.div
+                variants={itemVariants}
+                whileHover={{ scale: 1.02, x: 5 }}
+                className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="text-cyan-600 text-2xl flex-shrink-0">
+                    <BookOutlined />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-gray-800 font-semibold text-lg mb-2">
+                      Chia sẻ kiến thức chuyên môn
+                    </h4>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      Tạo khóa học chất lượng cao và chia sẻ kinh nghiệm của bạn với hàng nghìn học viên
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                variants={itemVariants}
+                whileHover={{ scale: 1.02, x: 5 }}
+                className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="text-purple-600 text-2xl flex-shrink-0">
+                    <TrophyOutlined />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-gray-800 font-semibold text-lg mb-2">
+                      Thu nhập ổn định
+                    </h4>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      Kiếm thu nhập từ việc giảng dạy với hệ thống thanh toán minh bạch và hỗ trợ tối ưu
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                variants={itemVariants}
+                whileHover={{ scale: 1.02, x: 5 }}
+                className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="text-green-600 text-2xl flex-shrink-0">
+                    <TeamOutlined />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-gray-800 font-semibold text-lg mb-2">
+                      Cộng đồng giảng viên
+                    </h4>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      Tham gia cộng đồng giảng viên chuyên nghiệp, chia sẻ kinh nghiệm và hỗ trợ lẫn nhau
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                variants={itemVariants}
+                whileHover={{ scale: 1.02, x: 5 }}
+                className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="text-orange-600 text-2xl flex-shrink-0">
+                    <SafetyCertificateOutlined />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-gray-800 font-semibold text-lg mb-2">
+                      Công cụ giảng dạy hiện đại
+                    </h4>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      Sử dụng các công cụ giảng dạy tiên tiến với giao diện thân thiện và dễ sử dụng
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Bottom Text */}
+            <motion.div 
+              className="relative z-10 text-center text-gray-700 mt-8"
+              variants={itemVariants}
+            >
+              <p className="text-base font-medium">
+                Đăng ký ngay để bắt đầu hành trình giảng dạy trực tuyến!
+              </p>
+            </motion.div>
+          </motion.div>
+        </motion.div>
       </motion.div>
+
       {/* Notification */}
       <AuthNotification
         isVisible={notification.isVisible}
