@@ -45,6 +45,7 @@ import type { Category } from '../../interfaces/Category.interface';
 import SearchBar from '../../components/common/SearchBar';
 import VoucherCard from '../../components/voucher/VoucherCard';
 import styles from '../../components/common/CategoryNav.module.css';
+import './VouchersPage.css';
 import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
@@ -276,7 +277,7 @@ const VouchersPage = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="vouchers-loading">
                 <div className="text-center">
                     <Spin size="large" />
                     <div className="mt-4 text-gray-600">Đang tải voucher...</div>
@@ -288,13 +289,13 @@ const VouchersPage = () => {
     return (
         <Content>
             {/* Hero Section */}
-            <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-inner py-16">
+            <div className="vouchers-hero py-16">
                 <div className="max-w-7xl mx-auto px-4 text-center">
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                        <div className="flex flex-col items-center gap-4">
-                            <GiftOutlined className="text-6xl text-yellow-400 drop-shadow-lg animate-bounce" />
-                            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">Mã giảm giá</h1>
-                            <Paragraph className="text-gray-700 text-lg md:text-xl max-w-3xl mx-auto mt-2">
+                        <div className="vouchers-hero-content flex flex-col items-center gap-4">
+                            <GiftOutlined className="hero-icon text-6xl text-yellow-400" />
+                            <h1 className="hero-title text-5xl font-extrabold">Mã giảm giá</h1>
+                            <Paragraph className="text-white text-lg md:text-xl max-w-3xl mx-auto mt-2">
                                 Khám phá ưu đãi hấp dẫn, tiết kiệm chi phí cho khóa học của bạn!
                             </Paragraph>
                             <div className="max-w-2xl w-full mx-auto mt-6">
@@ -323,25 +324,23 @@ const VouchersPage = () => {
                     </div>
                 )}
 
-                {/* Filters */}
-              
-
                 {error && <Alert message="Lỗi" description={error} type="error" showIcon className="mb-6" />}
                 
                 {!loading && !error && filteredVouchers.length === 0 && (
-                    <Empty
-                        description={
-                            <div className="flex flex-col items-center">
-                                <GiftOutlined className="text-5xl text-gray-300 mb-2" />
-                                <span className="text-gray-400 text-lg font-medium">
-                                    {searchTerm
-                                        ? `Không tìm thấy mã giảm giá nào cho "${searchTerm}"`
-                                        : "Không có mã giảm giá nào trong danh mục này."}
-                                </span>
-                            </div>
-                        }
-                        className="my-20"
-                    />
+                    <div className="vouchers-empty">
+                        <Empty
+                            description={
+                                <div className="flex flex-col items-center">
+                                    <GiftOutlined className="text-5xl text-gray-300 mb-2" />
+                                    <span className="text-gray-400 text-lg font-medium">
+                                        {searchTerm
+                                            ? `Không tìm thấy mã giảm giá nào cho "${searchTerm}"`
+                                            : "Không có mã giảm giá nào trong danh mục này."}
+                                    </span>
+                                </div>
+                            }
+                        />
+                    </div>
                 )}
 
                 {/* Vouchers Grid */}
@@ -350,34 +349,105 @@ const VouchersPage = () => {
                         {filteredVouchers.map((voucher, idx) => (
                             <Col xs={24} sm={12} md={8} lg={8} key={voucher.id}>
                                 <motion.div
-                                    className={`bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-4 border-2 ${voucher.type === 'vip' ? 'border-yellow-400 animate-pulse' : 'border-transparent'} group`}
+                                    className={`voucher-card ${voucher.type === 'vip' ? 'vip' : ''} ${voucher.type === 'flash-sale' ? 'flash-sale' : ''}`}
                                     initial={{ opacity: 0, y: 30 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: 30 }}
                                     transition={{ duration: 0.5, delay: idx * 0.08 }}
-                                    whileHover={{ scale: 1.04, boxShadow: "0 8px 32px rgba(59,130,246,0.12)" }}
+                                    whileHover={{ scale: 1.02 }}
                                     onClick={() => { setSelectedVoucher(voucher); setIsModalOpen(true); }}
-                                    style={{ cursor: 'pointer' }}
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <GiftOutlined className="text-3xl text-pink-500 drop-shadow" />
-                                        <span className="font-bold text-xl text-gray-900">{voucher.title}</span>
-                                        {voucher.type === 'vip' && <span className="vip-glow ml-2">VIP</span>}
-                                        {voucher.type === 'flash-sale' && <ThunderboltOutlined className="text-yellow-400 animate-bounce ml-2" />}
+                                    {/* Header */}
+                                    <div className="voucher-header">
+                                        <GiftOutlined className="voucher-icon" />
+                                        <span className="voucher-title">{voucher.title}</span>
+                                        {voucher.type === 'vip' && (
+                                            <span className="voucher-badge vip">
+                                                <CrownOutlined />
+                                                VIP
+                                            </span>
+                                        )}
+                                        {voucher.type === 'flash-sale' && (
+                                            <span className="voucher-badge flash-sale">
+                                                <ThunderboltOutlined />
+                                                FLASH
+                                            </span>
+                                        )}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-2xl font-extrabold text-gradient bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
+
+                                    {/* Discount */}
+                                    <div className="voucher-discount">
+                                        <span className="discount-amount">
                                             {voucher.discountType === 'percentage' ? `${voucher.discount}%` : `${voucher.discount.toLocaleString()}₫`}
                                         </span>
-                                        <span className="text-gray-500 text-sm">{voucher.discountType === 'percentage' ? 'Giảm' : 'Tiền mặt'}</span>
+                                        <span className="discount-type">
+                                            {voucher.discountType === 'percentage' ? 'Giảm giá' : 'Giảm tiền mặt'}
+                                        </span>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="bg-gray-100 px-3 py-1 rounded-full font-mono text-blue-600">{voucher.code}</span>
-                                        <Tooltip title="Sao chép mã">
-                                            <Button shape="circle" icon={<CopyOutlined />} onClick={() => navigator.clipboard.writeText(voucher.code)} />
-                                        </Tooltip>
+
+                                    {/* Code Section */}
+                                    <div className="voucher-code-section">
+                                        <div className="voucher-code">
+                                            <span>{voucher.code}</span>
+                                            <Tooltip title="Sao chép mã">
+                                                <button 
+                                                    className="copy-button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigator.clipboard.writeText(voucher.code);
+                                                        message.success('Đã sao chép mã!');
+                                                    }}
+                                                >
+                                                    <CopyOutlined />
+                                                </button>
+                                            </Tooltip>
+                                        </div>
                                     </div>
-                                    {/* ... các thông tin khác ... */}
+
+                                    {/* Details */}
+                                    <div className="voucher-details">
+                                        <div className="detail-item">
+                                            <DollarOutlined className="detail-icon" />
+                                            <span>Áp dụng cho đơn từ {voucher.minAmount.toLocaleString()}₫</span>
+                                        </div>
+                                        {voucher.maxDiscount && (
+                                            <div className="detail-item">
+                                                <PercentageOutlined className="detail-icon" />
+                                                <span>Tối đa {voucher.maxDiscount.toLocaleString()}₫</span>
+                                            </div>
+                                        )}
+                                        <div className="detail-item">
+                                            <ClockCircleOutlined className="detail-icon" />
+                                            <span>Còn {voucher.daysLeft} ngày</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Footer */}
+                                    <div className="voucher-footer">
+                                        <div className="usage-info">
+                                            <span>Sử dụng:</span>
+                                            <Progress 
+                                                percent={Math.round((voucher.usedCount / voucher.usageLimit) * 100)} 
+                                                size="small" 
+                                                className="usage-progress"
+                                                strokeColor={{
+                                                    '0%': '#667eea',
+                                                    '100%': '#764ba2',
+                                                }}
+                                            />
+                                            <span>{voucher.usedCount}/{voucher.usageLimit}</span>
+                                        </div>
+                                        <div className="expiry-info">
+                                            {voucher.daysLeft} ngày
+                                        </div>
+                                    </div>
+
+                                    {/* Status Badge */}
+                                    <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
+                                        <span className={`status-badge ${voucher.isExpired ? 'expired' : voucher.usedCount >= voucher.usageLimit ? 'out-of-stock' : 'available'}`}>
+                                            {voucher.isExpired ? 'Hết hạn' : voucher.usedCount >= voucher.usageLimit ? 'Hết lượt' : 'Khả dụng'}
+                                        </span>
+                                    </div>
                                 </motion.div>
                             </Col>
                         ))}
@@ -392,10 +462,10 @@ const VouchersPage = () => {
               footer={null}
               title={
                 <div className="flex items-center gap-3">
-                  <GiftOutlined className="text-2xl text-pink-500" />
-                  <span className="text-xl font-bold text-gradient bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
-                    {selectedVoucher?.title || 'Chi tiết mã giảm giá'}
-                  </span>
+                                     <GiftOutlined className="text-2xl text-blue-500" />
+                                     <span className="text-xl font-bold text-gradient bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                     {selectedVoucher?.title || 'Chi tiết mã giảm giá'}
+                   </span>
                 </div>
               }
               centered
@@ -477,25 +547,4 @@ const VouchersPage = () => {
 };
 
 export default VouchersPage;
-
-<style>
-{`
-  .vip-glow {
-    display: inline-block;
-    color: #fff700;
-    font-weight: bold;
-    font-size: 18px;
-    letter-spacing: 1px;
-    text-shadow:
-      0 0 6px #fff700,
-      0 0 12px #fff700,
-      0 0 18px #fff700,
-      0 0 24px #fff700;
-    background: linear-gradient(90deg, #fff700 60%, #fff 100%);
-    border-radius: 4px;
-    padding: 0 6px;
-    margin-left: 4px;
-  }
-`}
-</style>
 

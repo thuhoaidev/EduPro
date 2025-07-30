@@ -46,6 +46,12 @@ interface CartItem {
     discount?: number;
     instructor?: {
       name?: string;
+      avatar?: string;
+    };
+    author?: {
+      name?: string;
+      avatar?: string;
+      bio?: string;
     };
     slug: string;
     rating?: number;
@@ -89,25 +95,87 @@ const CartPage: React.FC = () => {
       }
       
       const res = await apiClient.get('/carts');
+      console.log('Cart API response:', res.data.items);
+      console.log('First course data structure:', res.data.items[0]?.course);
+      
       const items = res.data.items.map((item: { _id: string, course: any, addedAt: string }) => {
         const course = item.course;
         const discount = course.discount || 0;
         const finalPrice = Math.round(course.price * (1 - discount / 100));
 
+        // Debug instructor data
+        console.log('Course instructor data:', {
+          courseId: course._id,
+          author: course.author,
+          instructor: course.instructor,
+          instructor_name: course.instructor_name,
+          instructorName: course.instructorName,
+          instructor_avatar: course.instructor_avatar,
+          instructorAvatar: course.instructorAvatar
+        });
+        
+        // Debug toàn bộ cấu trúc course để tìm dữ liệu giảng viên
+        console.log('Full course structure:', JSON.stringify(course, null, 2));
+
+        // Mapping instructor data theo cấu trúc giống CourseDetailPage
+        let instructorName = 'EduPro';
+        let instructorAvatar = null;
+
+        // Ưu tiên sử dụng course.author (giống CourseDetailPage)
+        if (course.author) {
+          instructorName = course.author.name || 'EduPro';
+          instructorAvatar = course.author.avatar || null;
+        } else if (course.instructor) {
+          // Fallback cho các trường hợp khác
+          if (typeof course.instructor === 'string') {
+            instructorName = course.instructor;
+          } else if (typeof course.instructor === 'object') {
+            instructorName = course.instructor.name || course.instructor.fullname || course.instructor.displayName || 'EduPro';
+            instructorAvatar = course.instructor.avatar || course.instructor.profileImage || null;
+          }
+        } else if (course.instructor_name) {
+          instructorName = course.instructor_name;
+        } else if (course.instructorName) {
+          instructorName = course.instructorName;
+        }
+
+        // Fallback cho avatar nếu chưa có
+        if (!instructorAvatar) {
+          instructorAvatar = course.instructor_avatar || course.instructorAvatar || null;
+        }
+
+        // Tạo object course mới với dữ liệu đã xử lý
+        const processedCourse = {
+          ...course,
+          rating: course.rating || 4.5,
+          students: course.students || 1000,
+          duration: course.duration || '10 giờ',
+        };
+
+        // Xử lý author data
+        if (course.author) {
+          // Nếu có author gốc, sử dụng nó
+          processedCourse.author = course.author;
+          console.log('Using original author data:', course.author);
+        } else {
+          // Nếu không có, tạo author từ dữ liệu đã xử lý
+          processedCourse.author = {
+            name: instructorName,
+            avatar: instructorAvatar
+          };
+          console.log('Using processed author data:', processedCourse.author);
+        }
+
         return {
           id: item._id,
-          course: {
-            ...course,
-            rating: course.rating || 4.5,
-            students: course.students || 1000,
-            duration: course.duration || '10 giờ',
-            level: course.level || 'Trung cấp'
-          },
+          course: processedCourse,
           priceAtAddition: finalPrice,
           addedAt: item.addedAt,
           quantity: 1,
         };
       });
+      console.log('Mapped cart items:', items);
+      console.log('First mapped course author:', items[0]?.course?.author);
       setCartItems(items);
       setSelectedItems(items.map((item: { id: any; }) => item.id));
     } catch (error) {
@@ -343,14 +411,6 @@ const CartPage: React.FC = () => {
           className="space-y-8"
         >
           {/* Header Gradient */}
-          <div className="flex items-center justify-between bg-gradient-to-r from-cyan-500 to-purple-500 rounded-3xl shadow-2xl p-8 mb-10">
-            <div className="flex items-center gap-6">
-              <ShoppingCartOutlined className="text-5xl text-white drop-shadow-lg" />
-              <Title level={2} className="!mb-0 !text-white drop-shadow-lg text-3xl md:text-4xl font-extrabold tracking-tight">Giỏ hàng</Title>
-              <Badge count={cartItems.length} showZero style={{ background: 'white', color: '#7c3aed', fontWeight: 700, boxShadow: '0 2px 8px rgba(56,189,248,0.10)', fontSize: 18, padding: '0 10px', borderRadius: 16 }} />
-            </div>
-          </div>
-
           <Row gutter={32}>
             {/* Cart Items Column */}
             <Col xs={24} lg={16}>
@@ -380,7 +440,6 @@ const CartPage: React.FC = () => {
                         icon={<DeleteOutlined />} 
                         className="transition-all duration-300 rounded-full px-5 py-2 font-semibold text-base"
                       >
-                        Xóa mục đã chọn
                       </Button>
                     </Popconfirm>
                   </div>
@@ -395,64 +454,124 @@ const CartPage: React.FC = () => {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, x: -50, scale: 0.9 }}
                       transition={{ duration: 0.4, ease: "easeInOut" }}
-                      className="grid grid-cols-12 items-center gap-8 mb-8 p-5 rounded-2xl hover:shadow-2xl hover:bg-cyan-50 transition-all duration-300 border border-gray-100"
+                      className="relative group bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 overflow-hidden mb-6"
                     >
-                      {/* Checkbox & Image */}
-                      <div className="col-span-3 flex items-center gap-4">
-                        <Checkbox
-                          checked={selectedItems.includes(item.id)}
-                          onChange={(e) => handleSelectItem(item.id, e.target.checked)}
-                          className="self-start mt-2"
-                        />
-                        <img 
-                          src={item.course.thumbnail} 
-                          alt={item.course.title}
-                          className="w-36 h-24 object-cover rounded-2xl shadow-lg border-2 border-cyan-100"
-                        />
-                      </div>
-                      {/* Course Info */}
-                      <div className="col-span-5">
-                        <Link to={`/courses/${item.course.slug}`} className="hover:underline">
-                          <Title level={5} className="!mb-2 !text-gray-800 font-bold truncate text-lg">
-                            {item.course.title}
-                          </Title>
-                        </Link>
-                        <Text type="secondary" className="text-base">
-                          Bởi {item.course.instructor?.name || 'EduPro'}
-                        </Text>
-                        <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                          <Tag color="yellow" className="rounded-full px-3 py-1 text-base">⭐ {item.course.rating}</Tag>
-                          <Tag color="blue" className="rounded-full px-3 py-1 text-base">👥 {item.course.students?.toLocaleString()}</Tag>
-                          <Tag color="purple" className="rounded-full px-3 py-1 text-base">⏱️ {item.course.duration}</Tag>
+                      {/* Gradient overlay on hover */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-50/0 to-purple-50/0 group-hover:from-cyan-50/30 group-hover:to-purple-50/30 transition-all duration-500 pointer-events-none"></div>
+                      
+                      <div className="relative p-6">
+                        <div className="flex items-start gap-6">
+                          {/* Checkbox */}
+                          <div className="flex-shrink-0 pt-2">
+                            <Checkbox
+                              checked={selectedItems.includes(item.id)}
+                              onChange={(e) => handleSelectItem(item.id, e.target.checked)}
+                              className="scale-125"
+                            />
+                          </div>
+
+                          {/* Course Image */}
+                          <div className="flex-shrink-0">
+                            <div className="relative group">
+                              <img 
+                                src={item.course.thumbnail} 
+                                alt={item.course.title}
+                                className="w-40 h-28 object-cover rounded-2xl shadow-xl border-2 border-white group-hover:border-cyan-200 transition-all duration-300"
+                              />
+                              {/* Overlay on image hover */}
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-2xl transition-all duration-300 flex items-center justify-center">
+                                <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                                  <div className="bg-white/90 backdrop-blur-sm rounded-full p-2">
+                                    <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                    </svg>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Course Info */}
+                          <div className="flex-1 min-w-0">
+                            <Link to={`/courses/${item.course.slug}`} className="block group">
+                              <Title level={4} className="!mb-3 !text-gray-800 font-bold text-xl group-hover:text-cyan-600 transition-colors duration-300 line-clamp-2">
+                                {item.course.title}
+                              </Title>
+                            </Link>
+                            
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="flex items-center gap-2">
+                                {(() => {
+                                  console.log('Rendering author data for course:', item.course.title, 'Author:', item.course.author);
+                                  return null;
+                                })()}
+                                {item.course.author?.avatar ? (
+                                  <img 
+                                    src={item.course.author.avatar} 
+                                    alt={item.course.author.name}
+                                    className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-sm font-bold">
+                                      {item.course.author?.name?.charAt(0) || 'E'}
+                                    </span>
+                                  </div>
+                                )}
+                                <Text className="text-gray-600 font-medium">
+                                  {item.course.author?.name || 'EduPro'}
+                                </Text>
+                              </div>
+                            </div>
+
+                            {/* Course Stats */}
+                            <div className="flex items-center gap-4 flex-wrap">
+                              <div className="flex items-center gap-2 bg-yellow-50 px-3 py-1.5 rounded-full">
+                                <span className="text-yellow-600 text-lg">⭐</span>
+                                <span className="text-yellow-700 font-semibold text-sm">{item.course.rating}</span>
+                              </div>
+                              <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full">
+                                <span className="text-blue-600 text-lg">👥</span>
+                                <span className="text-blue-700 font-semibold text-sm">{item.course.students?.toLocaleString()}</span>
+                              </div>
+                              <div className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded-full">
+                                <span className="text-purple-600 text-lg">⏱️</span>
+                                <span className="text-purple-700 font-semibold text-sm">{item.course.duration}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right Side - Price and Actions */}
+                          <div className="flex-shrink-0 flex flex-col items-end gap-4">
+                            {/* Price Section */}
+                            <div className="text-right">
+                              <Text strong className="text-3xl text-red-600 block font-bold">
+                                {formatCurrency(item.priceAtAddition)}
+                              </Text>
+                            </div>
+
+                            {/* Delete Button */}
+                            <div>
+                              <Popconfirm
+                                title="Xóa khóa học này?"
+                                description="Bạn có chắc muốn xóa khóa học này khỏi giỏ hàng?"
+                                onConfirm={() => removeItem(item.id)}
+                                okText="Xóa"
+                                cancelText="Hủy"
+                                okButtonProps={{ danger: true }}
+                              >
+                                <Button 
+                                  type="text" 
+                                  danger 
+                                  shape="circle" 
+                                  size="large"
+                                  icon={<DeleteOutlined className="text-xl" />} 
+                                  className="hover:bg-red-50 hover:scale-110 transition-all duration-300 shadow-sm hover:shadow-md"
+                                />
+                              </Popconfirm>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      {/* Price */}
-                      <div className="col-span-3 text-right">
-                        <Text strong className="text-2xl text-red-600 block">
-                          {formatCurrency(item.priceAtAddition)}
-                        </Text>
-                        {item.course.discount && (
-                          <Text delete type="secondary" className="block text-base">
-                            {formatCurrency(item.course.price)}
-                          </Text>
-                        )}
-                      </div>
-                      {/* Actions */}
-                      <div className="col-span-1 text-center">
-                        <Popconfirm
-                          title="Xóa khóa học này?"
-                          onConfirm={() => removeItem(item.id)}
-                          okText="Xóa"
-                          cancelText="Không"
-                        >
-                          <Button 
-                            type="text" 
-                            danger 
-                            shape="circle" 
-                            icon={<DeleteOutlined className="text-2xl" />} 
-                            className="hover:bg-red-100 transition-colors"
-                          />
-                        </Popconfirm>
                       </div>
                     </motion.div>
                   ))}

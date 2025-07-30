@@ -1,0 +1,23 @@
+/* CheckoutPage.css - Background đồng bộ với website theme */
+
+.checkout-page-background {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  min-height: 100vh;
+}
+
+.checkout-page-background * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Đảm bảo background cho các trạng thái loading, error, success */
+.checkout-loading-container,
+.checkout-error-container,
+.checkout-success-container {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+} 
