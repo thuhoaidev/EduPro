@@ -14,6 +14,7 @@ import {
   EyeOutlined,
   MessageOutlined,
   FlagOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -29,28 +30,22 @@ import type { MenuProps } from "antd";
 import React, { useState, useEffect, useMemo } from "react";
 import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import styles from "../../styles/ModeratorLayout.module.css";
-import { config } from "../../api/axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 
 const { Header, Sider, Content } = Layout;
 
-interface User {
+// Simple interface for moderator layout
+interface ModeratorUser {
   avatar?: string;
-  fullname: string;
+  fullname?: string;
+  name?: string;
   email: string;
-  role?: {
-    name: string;
-    description: string;
-    permissions: string[];
-  };
-  role_id?: {
-    name: string;
-  };
+  role_id?: any;
   approval_status?: string;
 }
 
-const getRoleName = (user: User): string => {
+const getRoleName = (user: ModeratorUser): string => {
   if (!user) {
     return 'user';
   }
@@ -71,7 +66,7 @@ const getRoleName = (user: User): string => {
   return 'user';
 };
 
-const checkRole = (user: User, requiredRole: string): boolean => {
+const checkRole = (user: ModeratorUser, requiredRole: string): boolean => {
   if (!user) return false;
   
   // Lấy role name từ user
@@ -100,7 +95,8 @@ const ModeratorLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const { user: authUser, isAuthenticated } = useAuth();
+  const [forceUpdate, setForceUpdate] = useState(0);
+  const { user: authUser, isAuthenticated, forceReloadUser } = useAuth();
 
   // --- Check Authentication ---
   useEffect(() => {
@@ -121,12 +117,24 @@ const ModeratorLayout = () => {
     }
   }, [isAuthenticated, authUser, navigate]);
 
+  // --- Auto reload user data when component mounts (only once) ---
+  useEffect(() => {
+    if (isAuthenticated && authUser) {
+      // Force reload user data to get latest permissions (only on mount)
+      const timer = setTimeout(() => {
+        forceReloadUser();
+      }, 1000); // Delay 1 second to avoid infinite loop
+      
+      return () => clearTimeout(timer);
+    }
+  }, []); // Empty dependency array - only run once on mount
+
   // --- Role Check ---
   useEffect(() => {
     console.log('ModeratorLayout - isAuthenticated:', isAuthenticated);
     console.log('ModeratorLayout - authUser:', authUser);
     if (isAuthenticated && authUser) {
-      const hasRole = checkRole(authUser, 'moderator');
+      const hasRole = checkRole(authUser, 'moderator') || checkRole(authUser, 'admin');
       console.log('ModeratorLayout - hasRole:', hasRole);
       if (!hasRole) {
         message.error('Bạn không có quyền truy cập trang kiểm duyệt');
@@ -137,36 +145,82 @@ const ModeratorLayout = () => {
 
   // --- Menu Items ---
   const menuItems: MenuProps["items"] = useMemo(
-    () => [
-      {
-        key: "/moderator",
-        icon: <DashboardOutlined />,
-        label: collapsed ? "TQ" : "Tổng quan",
-      },
-      {
-        label: collapsed ? "KD" : "KIỂM DUYỆT NỘI DUNG",
-        type: "group",
-        children: [
-          { key: "/moderator/blogs", icon: <FileSearchOutlined />, label: collapsed ? "BL" : "Duyệt Blog" },
-          { key: "/moderator/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Duyệt Khóa học" },
-          { key: "/moderator/comments", icon: <CommentOutlined />, label: collapsed ? "BL" : "Danh sách Bình luận" },
-          { key: "/moderator/reports", icon: <WarningOutlined />, label: collapsed ? "BC" : "Báo cáo vi phạm" },
-        ],
-      },
-      {
-        label: collapsed ? "TK" : "THỐNG KÊ",
-        type: "group",
-        children: [
-          { key: "/moderator/statistics", icon: <BarChartOutlined />, label: collapsed ? "TK" : "Thống kê báo cáo" },
-        ],
-      },
-    ],
-    [collapsed]
+    () => {
+      console.log('ModeratorLayout - Rendering menu items');
+      console.log('ModeratorLayout - authUser:', authUser);
+      console.log('ModeratorLayout - permissions:', (authUser?.role_id as any)?.permissions);
+      console.log('ModeratorLayout - forceUpdate value:', forceUpdate);
+      
+      const permissions = (authUser?.role_id as any)?.permissions || [];
+      
+      // Import permission check functions
+      const canAccessRoute = (permission: string) => {
+        // Admin có toàn quyền
+        if (authUser?.role_id?.name === 'admin' || authUser?.role_id?.name === 'quản trị viên') {
+          return true;
+        }
+        return permissions.includes(permission);
+      };
+      
+      // Tạo menu items dựa trên permissions
+      const allMenuItems = [
+        {
+          key: "/moderator",
+          icon: <DashboardOutlined />,
+          label: collapsed ? "TQ" : "Bảng điều khiển",
+        },
+        {
+          label: collapsed ? "KD" : "KIỂM DUYỆT NỘI DUNG",
+          type: "group",
+          children: [
+            // Chỉ hiển thị nếu có quyền duyệt bài viết hoặc từ chối bài viết
+            ...(canAccessRoute('duyệt bài viết') || canAccessRoute('từ chối bài viết') ? [
+              { key: "/moderator/blogs", icon: <FileSearchOutlined />, label: collapsed ? "BL" : "Duyệt Blog" }
+            ] : []),
+            // Chỉ hiển thị nếu có quyền quản lý khóa học (admin có thể duyệt khóa học)
+            ...(canAccessRoute('quản lý khóa học') ? [
+              { key: "/moderator/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Duyệt Khóa học" }
+            ] : []),
+            // Chỉ hiển thị nếu có quyền duyệt bình luận hoặc xóa bình luận
+            ...(canAccessRoute('duyệt bình luận') || canAccessRoute('xóa bình luận') ? [
+              { key: "/moderator/comments", icon: <CommentOutlined />, label: collapsed ? "BL" : "Danh sách Bình luận" }
+            ] : []),
+            // Chỉ hiển thị nếu có quyền xem báo cáo hoặc xử lý báo cáo
+            ...(canAccessRoute('xem báo cáo') || canAccessRoute('xử lý báo cáo') ? [
+              { key: "/moderator/reports", icon: <WarningOutlined />, label: collapsed ? "BC" : "Báo cáo vi phạm" }
+            ] : []),
+          ].filter(Boolean),
+        },
+        {
+          label: collapsed ? "TK" : "THỐNG KÊ",
+          type: "group",
+          children: [
+            // Chỉ hiển thị nếu có quyền xem thống kê báo cáo
+            ...(canAccessRoute('xem thống kê báo cáo') ? [
+              { key: "/moderator/statistics", icon: <BarChartOutlined />, label: collapsed ? "TK" : "Thống kê báo cáo" }
+            ] : []),
+          ].filter(Boolean),
+        },
+      ];
+      
+      // Lọc bỏ các group không có children
+      const filteredMenuItems = allMenuItems.filter(item => {
+        if (item.children) {
+          return item.children.length > 0;
+        }
+        return true;
+      });
+      
+      console.log('ModeratorLayout - Final menu items:', filteredMenuItems);
+      console.log('ModeratorLayout - Available permissions:', permissions);
+      return filteredMenuItems;
+    },
+    [collapsed, authUser, forceUpdate]
   );
 
   // --- Breadcrumb ---
   const breadcrumbNameMap: { [key: string]: string } = {
-    '/moderator': 'Tổng quan',
+    '/moderator': 'Bảng điều khiển',
     '/moderator/blogs': 'Duyệt Blog',
     '/moderator/courses': 'Duyệt Khóa học',
     '/moderator/comments': 'Danh sách Bình luận',
@@ -220,7 +274,7 @@ const ModeratorLayout = () => {
   }
 
   // Check if user has moderator role
-  if (!authUser || !checkRole(authUser, 'moderator')) {
+  if (!authUser || (!checkRole(authUser, 'moderator') && !checkRole(authUser, 'admin'))) {
     return (
       <div className={styles.loadingScreen}>
         <div className={styles.loadingContent}>
@@ -301,14 +355,14 @@ const ModeratorLayout = () => {
             <Divider style={{ margin: '8px 0' }} />
             <div className={styles.userInfo}>
               <Avatar 
-                src={authUser.avatar} 
+                src={(authUser as any)?.avatar} 
                 size="small" 
                 className={styles.userAvatar}
               >
-                {authUser.fullname.charAt(0).toUpperCase()}
+                {(authUser as any)?.fullname?.charAt(0)?.toUpperCase() || 'U'}
               </Avatar>
               <div className={styles.userDetails}>
-                <div className={styles.userName}>{authUser.fullname}</div>
+                <div className={styles.userName}>{(authUser as any)?.fullname || 'User'}</div>
                 <div className={styles.userRole}>Kiểm duyệt viên</div>
               </div>
             </div>
@@ -332,14 +386,14 @@ const ModeratorLayout = () => {
             <Dropdown menu={{ items: userMenuItems }} trigger={["click"]} placement="bottomRight">
               <a onClick={(e) => e.preventDefault()} className={styles.profileDropdown}>
                 <Avatar 
-                  src={authUser.avatar} 
+                  src={(authUser as any)?.avatar} 
                   size="small" 
                   className={styles.headerAvatar}
                 >
-                  {authUser.fullname.charAt(0).toUpperCase()}
+                  {(authUser as any)?.fullname?.charAt(0)?.toUpperCase() || 'U'}
                 </Avatar>
                 {!collapsed && (
-                  <span className={styles.headerUserName}>{authUser.fullname}</span>
+                  <span className={styles.headerUserName}>{(authUser as any)?.fullname || 'User'}</span>
                 )}
               </a>
             </Dropdown>

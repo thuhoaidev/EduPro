@@ -171,16 +171,27 @@ export const MENU_PERMISSIONS = {
 
 // Permission checking functions
 export const hasPermission = (user: User | null, permission: string): boolean => {
+  console.log('hasPermission check:', {
+    user: user,
+    permission: permission,
+    role_id: user?.role_id,
+    permissions: user?.role_id?.permissions
+  });
+  
   if (!user || !user.role_id || !user.role_id.permissions) {
+    console.log('hasPermission: false - missing user/role/permissions');
     return false;
   }
   
   // Admin has all permissions
   if (user.role_id.name === 'admin' || user.role_id.name === 'quản trị viên') {
+    console.log('hasPermission: true - admin user');
     return true;
   }
   
-  return user.role_id.permissions.includes(permission);
+  const hasPerm = user.role_id.permissions.includes(permission);
+  console.log('hasPermission result:', hasPerm);
+  return hasPerm;
 };
 
 export const hasAnyPermission = (user: User | null, permissions: string[]): boolean => {
@@ -192,13 +203,29 @@ export const hasAllPermissions = (user: User | null, permissions: string[]): boo
 };
 
 export const canAccessRoute = (user: User | null, route: string): boolean => {
+  console.log('canAccessRoute check:', {
+    user: user,
+    route: route,
+    role_name: user?.role_id?.name
+  });
+  
+  // Nếu là admin thì luôn true
+  if (user?.role_id?.name === 'admin' || user?.role_id?.name === 'quản trị viên') {
+    console.log('canAccessRoute: true - admin user');
+    return true;
+  }
+  
   const requiredPermissions = MENU_PERMISSIONS[route as keyof typeof MENU_PERMISSIONS];
+  console.log('canAccessRoute required permissions:', requiredPermissions);
   
   if (!requiredPermissions) {
+    console.log('canAccessRoute: true - no permission required');
     return true; // No permission required for this route
   }
   
-  return hasAnyPermission(user, requiredPermissions);
+  const result = hasAnyPermission(user, requiredPermissions);
+  console.log('canAccessRoute result:', result);
+  return result;
 };
 
 export const canAccessMenu = (user: User | null, menuKey: string): boolean => {
@@ -211,7 +238,15 @@ export const hasRole = (user: User | null, roleName: string): boolean => {
 };
 
 export const hasAnyRole = (user: User | null, roleNames: string[]): boolean => {
-  return !!user && roleNames.includes(user.role_id?.name || '');
+  const userRoleName = user?.role_id?.name || '';
+  const result = !!user && roleNames.includes(userRoleName);
+  console.log('hasAnyRole debug:', {
+    user: user,
+    userRoleName: userRoleName,
+    roleNames: roleNames,
+    result: result
+  });
+  return result;
 };
 
 // Get user's permissions

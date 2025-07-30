@@ -318,16 +318,16 @@ const CourseDetailPage: React.FC = () => {
         checkCompleted();
     }, [course, isEnrolled, courseContent]);
 
-    // Force re-render when cart changes
-    useEffect(() => {
-        // This will trigger re-render when cart state changes
-        const interval = setInterval(() => {
-            // Force re-render by updating a state
-            setReviewValue(prev => prev);
-        }, 1000);
+    // Force re-render when cart changes (removed unnecessary interval)
+    // useEffect(() => {
+    //     // This will trigger re-render when cart state changes
+    //     const interval = setInterval(() => {
+    //         // Force re-render by updating a state
+    //         setReviewValue(prev => prev);
+    //     }, 1000);
         
-        return () => clearInterval(interval);
-    }, []);
+    //     return () => clearInterval(interval);
+    // }, []);
 
     // Tính toán dữ liệu tổng quan đánh giá
     const ratingStats = React.useMemo(() => {

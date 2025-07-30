@@ -16,6 +16,8 @@ import {
   FormOutlined,
   WalletOutlined,
   MessageOutlined,
+  ReloadOutlined,
+  GiftOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -33,6 +35,7 @@ import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import styles from "../../styles/InstructorLayout.module.css";
 import { config } from "../../api/axios";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "../../contexts/AuthContext";
 
 const { Header, Sider, Content } = Layout;
 
@@ -56,111 +59,207 @@ const getRoleName = (user: User | null): string => {
 };
 
 const checkRole = (user: User | null, requiredRole: string): boolean => {
-  return getRoleName(user) === requiredRole;
+  if (!user) return false;
+  
+  // Lấy role name từ user
+  let roleName = '';
+  if (typeof user.role_id === 'string') {
+    roleName = user.role_id;
+  } else if (user.role_id && user.role_id.name) {
+    roleName = user.role_id.name;
+  } else {
+    roleName = getRoleName(user);
+  }
+  
+  // Kiểm tra role với mapping
+  const roleMapping: { [key: string]: string[] } = {
+    'moderator': ['moderator', 'kiểm duyệt viên'],
+    'admin': ['admin', 'quản trị viên'],
+    'instructor': ['instructor', 'giảng viên'],
+    'student': ['student', 'học viên'],
+  };
+  
+  const allowedRoles = roleMapping[requiredRole] || [requiredRole];
+  return allowedRoles.includes(roleName);
 };
 
 const InstructorLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: authUser, isAuthenticated, forceReloadUser } = useAuth();
 
-  // --- Fetch User Data (FIXED) ---
+  // --- Check Authentication ---
   useEffect(() => {
-    const fetchUser = async () => {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        if (userData && typeof userData.role_id === 'string') {
-          userData.role_id = { name: userData.role_id };
-        }
-        setUser(userData);
-        setLoading(false);
-        return;
-      }
-
-      if (!token) {
-        setUser(null);
-        setLoading(false);
-        navigate('/login');
-        return;
-      }
-
-      try {
-        const response = await config.get('/auth/me');
-        const userData = response.data;
-        if (userData && typeof userData.role_id === 'string') {
-          userData.role_id = { name: userData.role_id };
-        }
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-      } catch (error) {
-        console.error('Lỗi lấy thông tin user:', error);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setUser(null);
-        navigate("/login");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUser();
-  }, [navigate]);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    
+    if (!isAuthenticated) {
+      // Nếu chưa authenticated, đợi AuthContext load xong
+      return;
+    }
+    
+    if (!authUser) {
+      // Nếu đã authenticated nhưng không có user, có thể token lỗi
+      navigate('/login');
+    }
+  }, [isAuthenticated, authUser, navigate]);
 
   // --- Role Check ---
   useEffect(() => {
-    if (!loading && !checkRole(user, "instructor") && !checkRole(user, "admin")) {
-      message.error("Bạn không có quyền truy cập trang giảng viên");
-      navigate("/");
+    console.log('InstructorLayout - isAuthenticated:', isAuthenticated);
+    console.log('InstructorLayout - authUser:', authUser);
+    if (isAuthenticated && authUser) {
+      const hasRole = checkRole(authUser, 'instructor') || checkRole(authUser, 'admin');
+      console.log('InstructorLayout - hasRole:', hasRole);
+      if (!hasRole) {
+        message.error('Bạn không có quyền truy cập trang giảng viên');
+        navigate('/');
+      }
     }
-  }, [user, loading, navigate]);
+  }, [authUser, isAuthenticated, navigate]);
+
+  // --- Auto reload user data when component mounts (only once) ---
+  useEffect(() => {
+    if (isAuthenticated && authUser) {
+      // Force reload user data to get latest permissions (only on mount)
+      const timer = setTimeout(() => {
+        forceReloadUser();
+      }, 1000); // Delay 1 second to avoid infinite loop
+      
+      return () => clearTimeout(timer);
+    }
+  }, []); // Empty dependency array - only run once on mount
 
   // --- Menu Items ---
   const menuItems: MenuProps["items"] = useMemo(
-    () => [
-      {
-        key: "/instructor",
-        icon: <DashboardOutlined />,
-        label: collapsed ? "TQ" : "Tổng quan",
-      },
-      {
-        label: collapsed ? "KH" : "KHÓA HỌC",
-        type: "group",
-        children: [
-          { key: "/instructor/courses", icon: <BookOutlined />, label: collapsed ? "DS" : "Khóa học của tôi" },
-          { key: "/instructor/courses/create", icon: <PlusCircleOutlined />, label: collapsed ? "TK" : "Tạo khóa học mới" },
-        ],
-      },
-      {
-        label: collapsed ? "ND" : "QUẢN LÝ NỘI DUNG",
-        type: "group",
-        children: [
-          { key: "/instructor/lessons", icon: <VideoCameraOutlined />, label: collapsed ? "BH" : "Quản lý bài học" },
-          { key: "/instructor/videos", icon: <PlayCircleOutlined />, label: collapsed ? "VD" : "Quản lý video" },
-          { key: "/instructor/quiz", icon: <FormOutlined />, label: collapsed ? "QZ" : "Quản lý quiz" },
-        ],
-      },
-      {
-        label: collapsed ? "HV" : "HỌC VIÊN",
-        type: "group",
-        children: [
-          { key: "/instructor/students", icon: <TeamOutlined />, label: collapsed ? "TK" : "Thống kê học viên" },
-          { key: "/instructor/community", icon: <MessageOutlined />, label: collapsed ? "GT" : "Giao tiếp học viên" },
-        ],
-      },
-      {
-        label: collapsed ? "TC" : "TÀI CHÍNH",
-        type: "group",
-        children: [
-          { key: "/instructor/income", icon: <WalletOutlined />, label: collapsed ? "TN" : "Thu nhập & giao dịch" },
-        ],
-      },
-    ],
-    [collapsed]
+    () => {
+      console.log('InstructorLayout - Rendering menu items');
+      console.log('InstructorLayout - authUser:', authUser);
+      console.log('InstructorLayout - permissions:', authUser?.role_id?.permissions);
+      
+             const permissions = authUser?.role_id?.permissions || [];
+       console.log('InstructorLayout - All permissions:', permissions);
+       console.log('InstructorLayout - Permissions length:', permissions.length);
+      
+             // Import permission check functions
+       const canAccessRoute = (permission: string) => {
+         // Admin có toàn quyền
+         if (authUser?.role_id?.name === 'admin' || authUser?.role_id?.name === 'quản trị viên') {
+           return true;
+         }
+         const hasPermission = permissions.includes(permission);
+         console.log(`InstructorLayout - canAccessRoute(${permission}): ${hasPermission}`);
+         return hasPermission;
+       };
+      
+             // Debug logs cho từng menu item
+       const coursesMenu = canAccessRoute('tạo khóa học') || canAccessRoute('chỉnh sửa khóa học') || canAccessRoute('xuất bản khóa học');
+       const createCourseMenu = canAccessRoute('tạo khóa học');
+       const lessonsMenu = canAccessRoute('tạo bài học') || canAccessRoute('chỉnh sửa bài học') || canAccessRoute('xóa bài học');
+       const videosMenu = canAccessRoute('upload video');
+       const quizMenu = canAccessRoute('tạo quiz') || canAccessRoute('chỉnh sửa quiz');
+       const studentsMenu = canAccessRoute('xem danh sách học viên') || canAccessRoute('xem tiến độ học viên');
+       const communicationMenu = canAccessRoute('gửi thông báo');
+       const financeMenu = canAccessRoute('xem thống kê thu nhập') || canAccessRoute('rút tiền') || canAccessRoute('xem lịch sử giao dịch');
+       const userManagementMenu = canAccessRoute('phân quyền người dùng');
+       const voucherMenu = canAccessRoute('quản lý voucher');
+       
+       console.log('InstructorLayout - Menu visibility:');
+       console.log('- Courses menu:', coursesMenu);
+       console.log('- Create course menu:', createCourseMenu);
+       console.log('- Lessons menu:', lessonsMenu);
+       console.log('- Videos menu:', videosMenu);
+       console.log('- Quiz menu:', quizMenu);
+       console.log('- Students menu:', studentsMenu);
+       console.log('- Communication menu:', communicationMenu);
+       console.log('- Finance menu:', financeMenu);
+       console.log('- User Management menu:', userManagementMenu);
+       console.log('- Voucher menu:', voucherMenu);
+       
+       return [
+         {
+           key: "/instructor",
+           icon: <DashboardOutlined />,
+           label: collapsed ? "TQ" : "Tổng quan",
+         },
+                 {
+           label: collapsed ? "KH" : "KHÓA HỌC",
+           type: "group",
+           children: [
+             // Chỉ hiển thị nếu có quyền tạo khóa học hoặc chỉnh sửa khóa học hoặc xuất bản khóa học
+             ...(coursesMenu ? [
+               { key: "/instructor/courses", icon: <BookOutlined />, label: collapsed ? "DS" : "Khóa học của tôi" }
+             ] : []),
+             // Chỉ hiển thị nếu có quyền tạo khóa học
+             ...(createCourseMenu ? [
+               { key: "/instructor/courses/create", icon: <PlusCircleOutlined />, label: collapsed ? "TK" : "Tạo khóa học mới" }
+             ] : []),
+           ].filter(Boolean),
+         },
+                 {
+           label: collapsed ? "ND" : "QUẢN LÝ NỘI DUNG",
+           type: "group",
+           children: [
+             // Chỉ hiển thị nếu có quyền tạo bài học hoặc chỉnh sửa bài học hoặc xóa bài học
+             ...(lessonsMenu ? [
+               { key: "/instructor/lessons", icon: <VideoCameraOutlined />, label: collapsed ? "BH" : "Quản lý bài học" }
+             ] : []),
+             // Chỉ hiển thị nếu có quyền upload video
+             ...(videosMenu ? [
+               { key: "/instructor/videos", icon: <PlayCircleOutlined />, label: collapsed ? "VD" : "Quản lý video" }
+             ] : []),
+             // Chỉ hiển thị nếu có quyền tạo quiz hoặc chỉnh sửa quiz
+             ...(quizMenu ? [
+               { key: "/instructor/quiz", icon: <FormOutlined />, label: collapsed ? "QZ" : "Quản lý quiz" }
+             ] : []),
+           ].filter(Boolean),
+         },
+                 {
+           label: collapsed ? "HV" : "HỌC VIÊN",
+           type: "group",
+           children: [
+             // Chỉ hiển thị nếu có quyền xem danh sách học viên hoặc xem tiến độ học viên
+             ...(studentsMenu ? [
+               { key: "/instructor/students", icon: <TeamOutlined />, label: collapsed ? "TK" : "Thống kê học viên" }
+             ] : []),
+             // Chỉ hiển thị nếu có quyền gửi thông báo
+             ...(communicationMenu ? [
+               { key: "/instructor/community", icon: <MessageOutlined />, label: collapsed ? "GT" : "Giao tiếp học viên" }
+             ] : []),
+             // Chỉ hiển thị nếu có quyền phân quyền người dùng
+             ...(userManagementMenu ? [
+               { key: "/instructor/user-management", icon: <UserOutlined />, label: collapsed ? "PQ" : "Phân quyền người dùng" }
+             ] : []),
+           ].filter(Boolean),
+         },
+                 {
+           label: collapsed ? "TC" : "TÀI CHÍNH",
+           type: "group",
+           children: [
+             // Chỉ hiển thị nếu có quyền xem thống kê thu nhập hoặc rút tiền hoặc xem lịch sử giao dịch
+             ...(financeMenu ? [
+               { key: "/instructor/income", icon: <WalletOutlined />, label: collapsed ? "TN" : "Thu nhập & giao dịch" }
+             ] : []),
+             // Chỉ hiển thị nếu có quyền quản lý voucher
+             ...(voucherMenu ? [
+               { key: "/instructor/vouchers", icon: <GiftOutlined />, label: collapsed ? "VG" : "Quản lý voucher" }
+             ] : []),
+           ].filter(Boolean),
+         },
+             ].filter(item => {
+         if (item.children) {
+           const shouldShow = item.children.length > 0;
+           console.log(`InstructorLayout - Menu group "${item.label}": ${shouldShow ? 'SHOW' : 'HIDE'} (${item.children.length} children)`);
+           return shouldShow;
+         }
+         return true;
+       });
+    },
+    [collapsed, authUser]
   );
 
   // --- Breadcrumb ---
@@ -174,6 +273,7 @@ const InstructorLayout = () => {
     '/instructor/students': 'Thống kê học viên',
     '/instructor/income': 'Thu nhập & giao dịch',
     '/instructor/community': 'Giao tiếp học viên',
+    '/instructor/vouchers': 'Quản lý voucher',
   };
 
   const pathSnippets = location.pathname.split("/").filter((i) => i);
@@ -200,6 +300,19 @@ const InstructorLayout = () => {
   // --- Dropdown Menu ---
   const userMenuItems: MenuProps["items"] = [
     {
+      key: "reload",
+      icon: <ReloadOutlined />,
+      label: "Reload User Data",
+      onClick: async () => {
+        try {
+          await forceReloadUser();
+          message.success('Đã reload user data!');
+        } catch (error) {
+          message.error('Không thể reload user data');
+        }
+      },
+    },
+    {
       key: "home",
       icon: <HomeOutlined />,
       label: "Quay lại trang chủ",
@@ -216,8 +329,8 @@ const InstructorLayout = () => {
     },
   ];
 
-  // --- Render ---
-  if (loading) {
+  // Show loading while AuthContext is initializing
+  if (!isAuthenticated && localStorage.getItem('token')) {
     return (
       <div className={styles.loadingScreen}>
         <div className={styles.loadingContent}>
@@ -227,8 +340,9 @@ const InstructorLayout = () => {
       </div>
     );
   }
-  
-  if (!user || (!checkRole(user, "instructor") && !checkRole(user, "admin"))) {
+
+  // Check if user has instructor role
+  if (!authUser || (!checkRole(authUser, 'instructor') && !checkRole(authUser, 'admin'))) {
     return (
       <div className={styles.loadingScreen}>
         <div className={styles.loadingContent}>
@@ -309,14 +423,14 @@ const InstructorLayout = () => {
             <Divider style={{ margin: '8px 0' }} />
             <div className={styles.userInfo}>
               <Avatar 
-                src={user.avatar} 
+                src={authUser.avatar} 
                 size="small" 
                 className={styles.userAvatar}
               >
-                {user.fullname.charAt(0).toUpperCase()}
+                {authUser.fullname.charAt(0).toUpperCase()}
               </Avatar>
               <div className={styles.userDetails}>
-                <div className={styles.userName}>{user.fullname}</div>
+                <div className={styles.userName}>{authUser.fullname}</div>
                 <div className={styles.userRole}>Giảng viên</div>
               </div>
             </div>
@@ -340,14 +454,14 @@ const InstructorLayout = () => {
             <Dropdown menu={{ items: userMenuItems }} trigger={["click"]} placement="bottomRight">
               <a onClick={(e) => e.preventDefault()} className={styles.profileDropdown}>
                 <Avatar 
-                  src={user.avatar} 
+                  src={authUser.avatar} 
                   size="small" 
                   className={styles.headerAvatar}
                 >
-                  {user.fullname.charAt(0).toUpperCase()}
+                  {authUser.fullname.charAt(0).toUpperCase()}
                 </Avatar>
                 {!collapsed && (
-                  <span className={styles.headerUserName}>{user.fullname}</span>
+                  <span className={styles.headerUserName}>{authUser.fullname}</span>
                 )}
               </a>
             </Dropdown>

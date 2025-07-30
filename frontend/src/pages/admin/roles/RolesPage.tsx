@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '../../../hooks/usePermissions';
 import PermissionGuard from '../../../components/common/PermissionGuard';
 import { useAuth } from '../../../contexts/AuthContext';
+import { getRoles, updateRole, createRole, deleteRole } from '../../../services/roleService';
+import type { Role as ApiRole } from '../../../services/roleService';
 import {
   Table,
   Card,
@@ -54,14 +56,14 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 interface Role {
-  id: string;
+  _id: string;
   name: string;
   description: string;
   permissions: string[];
-  userCount: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  userCount?: number;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Permission {
@@ -76,82 +78,8 @@ const RolesPage: React.FC = () => {
   const navigate = useNavigate();
   const { canManageRoles, isAdmin } = usePermissions();
   const { user } = useAuth();
-  const [roles, setRoles] = useState<Role[]>([
-    {
-      id: '1',
-      name: 'quản trị viên',
-      description: 'Quản trị viên hệ thống với toàn quyền',
-      permissions: [
-        'quản lý người dùng', 'phân quyền người dùng', 'khóa mở người dùng', 'duyệt giảng viên',
-        'quản lý khóa học', 'quản lý bài viết', 'quản lý bình luận', 'quản lý danh mục',
-        'quản lý vai trò', 'quản lý voucher', 'quản lý thanh toán', 'quản lý báo cáo',
-        'xem thống kê tổng quan', 'xem thống kê doanh thu', 'xem thống kê người dùng', 'xem thống kê khóa học'
-      ],
-      userCount: 3,
-      isActive: true,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-15',
-    },
-    {
-      id: '2',
-      name: 'giảng viên',
-      description: 'Giảng viên có thể tạo và quản lý khóa học',
-      permissions: [
-        'tạo khóa học', 'chỉnh sửa khóa học', 'xóa khóa học', 'xuất bản khóa học',
-        'tạo bài học', 'chỉnh sửa bài học', 'xóa bài học', 'upload video',
-        'tạo quiz', 'chỉnh sửa quiz',
-        'xem danh sách học viên', 'xem tiến độ học viên', 'gửi thông báo',
-        'xem thống kê thu nhập', 'rút tiền', 'xem lịch sử giao dịch'
-      ],
-      userCount: 25,
-      isActive: true,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-10',
-    },
-    {
-      id: '3',
-      name: 'học viên',
-      description: 'Học viên có thể đăng ký và học khóa học',
-      permissions: [
-        'xem khóa học', 'đăng ký khóa học', 'xem bài học', 'làm quiz',
-        'xem tiến độ', 'tạo ghi chú',
-        'bình luận bài học', 'đánh giá khóa học', 'báo cáo vấn đề',
-        'xem bài viết', 'bình luận bài viết', 'thích lưu bài viết',
-        'xem chứng chỉ', 'tải chứng chỉ'
-      ],
-      userCount: 150,
-      isActive: true,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-05',
-    },
-    {
-      id: '4',
-      name: 'kiểm duyệt viên',
-      description: 'Người kiểm duyệt nội dung',
-      permissions: [
-        'duyệt bài viết', 'từ chối bài viết', 'duyệt bình luận', 'xóa bình luận',
-        'xem báo cáo', 'xử lý báo cáo', 'cảnh cáo người dùng',
-        'quản lý từ khóa', 'xem thống kê báo cáo'
-      ],
-      userCount: 8,
-      isActive: true,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-12',
-    },
-    {
-      id: '5',
-      name: 'khách',
-      description: 'Người dùng chưa đăng nhập',
-      permissions: [
-        'xem khóa học công khai', 'xem bài viết công khai',
-        'tìm kiếm khóa học', 'xem giảng viên'
-      ],
-      userCount: 0,
-      isActive: true,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-01',
-    },
-  ]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [permissions] = useState<Permission[]>([
     {
@@ -573,6 +501,25 @@ const RolesPage: React.FC = () => {
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [form] = Form.useForm();
 
+  // Load roles from API
+  useEffect(() => {
+    loadRoles();
+  }, []);
+
+  const loadRoles = async () => {
+    try {
+      setLoading(true);
+      const response = await getRoles();
+      setRoles(response.data || []);
+      console.log('Roles loaded:', response.data);
+    } catch (error) {
+      console.error('Error loading roles:', error);
+      message.error('Không thể tải danh sách vai trò');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const permissionCategories = Array.from(new Set(permissions.map(p => p.category)));
 
   const handleAddRole = () => {
@@ -591,36 +538,47 @@ const RolesPage: React.FC = () => {
     setIsModalVisible(true);
   };
 
-  const handleDeleteRole = (roleId: string) => {
-    setRoles(roles.filter(role => role.id !== roleId));
-    message.success('Đã xóa vai trò thành công');
+  const handleDeleteRole = async (roleId: string) => {
+    try {
+      await deleteRole(roleId);
+      message.success('Đã xóa vai trò thành công');
+      await loadRoles(); // Reload roles after deletion
+    } catch (error) {
+      console.error('Error deleting role:', error);
+      message.error('Không thể xóa vai trò');
+    }
   };
 
-  const handleModalOk = () => {
-    form.validateFields().then(values => {
+  const handleModalOk = async () => {
+    try {
+      const values = await form.validateFields();
+      
       if (editingRole) {
         // Update existing role
-        setRoles(roles.map(role => 
-          role.id === editingRole.id 
-            ? { ...role, ...values, updatedAt: new Date().toISOString().split('T')[0] }
-            : role
-        ));
+        console.log('Updating role with data:', values);
+        await updateRole(editingRole._id, {
+          name: values.name,
+          description: values.description,
+          permissions: values.permissions
+        });
         message.success('Đã cập nhật vai trò thành công');
       } else {
         // Add new role
-        const newRole: Role = {
-          id: Date.now().toString(),
-          ...values,
-          userCount: 0,
-          isActive: true,
-          createdAt: new Date().toISOString().split('T')[0],
-          updatedAt: new Date().toISOString().split('T')[0],
-        };
-        setRoles([...roles, newRole]);
+        console.log('Creating new role with data:', values);
+        await createRole({
+          name: values.name,
+          description: values.description,
+          permissions: values.permissions
+        });
         message.success('Đã tạo vai trò mới thành công');
       }
+      
       setIsModalVisible(false);
-    });
+      await loadRoles(); // Reload roles after update/create
+    } catch (error) {
+      console.error('Error saving role:', error);
+      message.error('Không thể lưu vai trò');
+    }
   };
 
   const columns = [
@@ -681,11 +639,15 @@ const RolesPage: React.FC = () => {
       title: 'Trạng thái',
       dataIndex: 'isActive',
       key: 'isActive',
-      render: (isActive: boolean) => (
-        <Tag color={isActive ? 'green' : 'red'}>
-          {isActive ? 'Hoạt động' : 'Không hoạt động'}
-        </Tag>
-      ),
+      render: (isActive: boolean, record: Role) => {
+        // Mặc định là hoạt động nếu không có trường isActive hoặc isActive = true
+        const isRoleActive = isActive !== false; // Chỉ false mới là không hoạt động
+        return (
+          <Tag color={isRoleActive ? 'green' : 'red'}>
+            {isRoleActive ? 'Hoạt động' : 'Không hoạt động'}
+          </Tag>
+        );
+      },
     },
     {
       title: 'Cập nhật',
@@ -705,7 +667,7 @@ const RolesPage: React.FC = () => {
               type="text" 
               icon={<EyeOutlined />} 
               size="small"
-              onClick={() => navigate(`/admin/roles/${record.id}`)}
+              onClick={() => navigate(`/admin/roles/${record._id}`)}
             />
           </Tooltip>
           <Tooltip title="Chỉnh sửa">
@@ -718,7 +680,7 @@ const RolesPage: React.FC = () => {
           </Tooltip>
           <Popconfirm
             title="Bạn có chắc chắn muốn xóa vai trò này?"
-            onConfirm={() => handleDeleteRole(record.id)}
+                         onConfirm={() => handleDeleteRole(record._id)}
             okText="Có"
             cancelText="Không"
           >
@@ -728,7 +690,7 @@ const RolesPage: React.FC = () => {
                 danger 
                 icon={<DeleteOutlined />} 
                 size="small"
-                disabled={record.name === 'quản trị viên'}
+                disabled={record.name === 'admin' || record.name === 'quản trị viên'}
               />
             </Tooltip>
           </Popconfirm>
@@ -778,14 +740,14 @@ const RolesPage: React.FC = () => {
             </Card>
           </Col>
           <Col span={6}>
-            <Card>
-              <Statistic
-                title="Vai trò đang hoạt động"
-                value={roles.filter(r => r.isActive).length}
-                prefix={<UserSwitchOutlined />}
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
+                         <Card>
+               <Statistic
+                 title="Vai trò đang hoạt động"
+                 value={roles.filter(r => r.isActive !== false).length}
+                 prefix={<UserSwitchOutlined />}
+                 valueStyle={{ color: '#52c41a' }}
+               />
+             </Card>
           </Col>
           <Col span={6}>
             <Card>
@@ -834,7 +796,8 @@ const RolesPage: React.FC = () => {
               <Table
                 columns={columns}
                 dataSource={roles}
-                rowKey="id"
+                rowKey="_id"
+                loading={loading}
                 pagination={{
                   pageSize: 10,
                   showSizeChanger: true,
@@ -905,13 +868,13 @@ const RolesPage: React.FC = () => {
                 <Card title="Thống kê vai trò">
                   <Descriptions column={1}>
                     <Descriptions.Item label="Vai trò được sử dụng nhiều nhất">
-                      {roles.reduce((max, role) => role.userCount > max.userCount ? role : max).name}
+                      {roles.length > 0 ? roles.reduce((max, role) => (role.userCount || 0) > (max.userCount || 0) ? role : max).name : 'Không có dữ liệu'}
                     </Descriptions.Item>
                     <Descriptions.Item label="Vai trò có nhiều quyền nhất">
-                      {roles.reduce((max, role) => role.permissions.length > max.permissions.length ? role : max).name}
+                      {roles.length > 0 ? roles.reduce((max, role) => role.permissions.length > max.permissions.length ? role : max).name : 'Không có dữ liệu'}
                     </Descriptions.Item>
                     <Descriptions.Item label="Vai trò mới nhất">
-                      {roles.reduce((max, role) => new Date(role.createdAt) > new Date(max.createdAt) ? role : max).name}
+                      {roles.length > 0 ? roles.reduce((max, role) => new Date(role.createdAt || 0) > new Date(max.createdAt || 0) ? role : max).name : 'Không có dữ liệu'}
                     </Descriptions.Item>
                   </Descriptions>
                 </Card>

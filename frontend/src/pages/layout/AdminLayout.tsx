@@ -84,9 +84,21 @@ const AdminLayout = () => {
 
   // --- Permission Check ---
   useEffect(() => {
-    if (isAuthenticated && authUser && !hasAnyRole(authUser, ["admin", "instructor", "quản trị viên", "giảng viên"])) {
-      message.error("Bạn không có quyền truy cập trang quản trị");
-      navigate("/");
+    console.log('AdminLayout - Permission Check:', {
+      isAuthenticated: isAuthenticated,
+      authUser: authUser,
+      roleName: authUser?.role_id?.name
+    });
+    
+    if (isAuthenticated && authUser) {
+      const hasPermission = hasAnyRole(authUser, ["admin", "instructor", "quản trị viên", "giảng viên"]);
+      console.log('AdminLayout - hasPermission:', hasPermission);
+      
+      if (!hasPermission) {
+        console.log('AdminLayout - Permission denied!');
+        message.error("Bạn không có quyền truy cập trang quản trị");
+        navigate("/");
+      }
     }
   }, [authUser, isAuthenticated, navigate]);
 
@@ -94,6 +106,13 @@ const AdminLayout = () => {
   useEffect(() => {
     if (isAuthenticated && authUser && location.pathname !== '/admin') {
       const currentRoute = location.pathname;
+      const roleName = authUser?.role_id?.name;
+      
+      // Admin luôn có quyền truy cập tất cả routes
+      if (roleName === 'admin' || roleName === 'quản trị viên') {
+        return;
+      }
+      
       if (!canAccessRoute(authUser, currentRoute)) {
         message.error("Bạn không có quyền truy cập trang này");
         navigate("/admin");
@@ -263,7 +282,16 @@ const AdminLayout = () => {
     );
   }
 
-  if (!authUser || !hasAnyRole(authUser, ["admin", "instructor", "quản trị viên", "giảng viên"])) {
+  // Kiểm tra quyền truy cập
+  const hasAccess = authUser && hasAnyRole(authUser, ["admin", "instructor", "quản trị viên", "giảng viên"]);
+  console.log('AdminLayout - Final check:', {
+    authUser: authUser,
+    hasAccess: hasAccess,
+    roleName: authUser?.role_id?.name
+  });
+  
+  if (!hasAccess) {
+    console.log('AdminLayout - Access denied!');
     return (
       <div className={styles.loadingScreen}>
         <div className={styles.loadingContent}>

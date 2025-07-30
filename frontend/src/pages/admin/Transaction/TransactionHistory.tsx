@@ -329,10 +329,10 @@ const TransactionHistory = () => {
   useEffect(() => {
     fetchOrders();
     
-    // Set up realtime updates every 30 seconds
+    // Set up realtime updates every 2 minutes instead of 30 seconds
     const interval = setInterval(() => {
       fetchOrders();
-    }, 30000);
+    }, 120000);
 
     return () => clearInterval(interval);
   }, [fetchOrders]);

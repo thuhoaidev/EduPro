@@ -91,7 +91,7 @@ const AppHeader = () => {
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
-  // Fetch unread messages count
+  // Fetch unread messages count (only once when user changes)
   useEffect(() => {
     const fetchUnreadMessagesCount = async () => {
       try {
@@ -115,8 +115,8 @@ const AppHeader = () => {
 
     if (user) {
       fetchUnreadMessagesCount();
-      // Refresh count every 30 seconds
-      const interval = setInterval(fetchUnreadMessagesCount, 30000);
+      // Refresh count every 2 minutes instead of 30 seconds to reduce API calls
+      const interval = setInterval(fetchUnreadMessagesCount, 120000);
       return () => clearInterval(interval);
     }
   }, [user]);

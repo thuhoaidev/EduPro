@@ -124,10 +124,10 @@ export const usePermissions = () => {
         return true;
       }
       return hasAnyPermissionSimple(user, [
-        PERMISSIONS.MANAGE_COURSES,
-        PERMISSIONS.MANAGE_BLOGS,
-        PERMISSIONS.MANAGE_COMMENTS,
-        PERMISSIONS.MANAGE_CATEGORIES,
+      PERMISSIONS.MANAGE_COURSES,
+      PERMISSIONS.MANAGE_BLOGS,
+      PERMISSIONS.MANAGE_COMMENTS,
+      PERMISSIONS.MANAGE_CATEGORIES,
       ]);
     },
     canManageSystem: () => {
@@ -137,10 +137,10 @@ export const usePermissions = () => {
         return true;
       }
       return hasAnyPermissionSimple(user, [
-        PERMISSIONS.MANAGE_ROLES,
-        PERMISSIONS.MANAGE_VOUCHERS,
-        PERMISSIONS.MANAGE_PAYMENTS,
-        PERMISSIONS.MANAGE_REPORTS,
+      PERMISSIONS.MANAGE_ROLES,
+      PERMISSIONS.MANAGE_VOUCHERS,
+      PERMISSIONS.MANAGE_PAYMENTS,
+      PERMISSIONS.MANAGE_REPORTS,
       ]);
     },
     canViewStatistics: () => {
@@ -150,10 +150,10 @@ export const usePermissions = () => {
         return true;
       }
       return hasAnyPermissionSimple(user, [
-        PERMISSIONS.VIEW_OVERVIEW_STATS,
-        PERMISSIONS.VIEW_REVENUE_STATS,
-        PERMISSIONS.VIEW_USER_STATS,
-        PERMISSIONS.VIEW_COURSE_STATS,
+      PERMISSIONS.VIEW_OVERVIEW_STATS,
+      PERMISSIONS.VIEW_REVENUE_STATS,
+      PERMISSIONS.VIEW_USER_STATS,
+      PERMISSIONS.VIEW_COURSE_STATS,
       ]);
     },
     canModerateContent: () => {
@@ -163,10 +163,10 @@ export const usePermissions = () => {
         return true;
       }
       return hasAnyPermissionSimple(user, [
-        PERMISSIONS.APPROVE_BLOGS,
-        PERMISSIONS.REJECT_BLOGS,
-        PERMISSIONS.APPROVE_COMMENTS,
-        PERMISSIONS.DELETE_COMMENTS,
+      PERMISSIONS.APPROVE_BLOGS,
+      PERMISSIONS.REJECT_BLOGS,
+      PERMISSIONS.APPROVE_COMMENTS,
+      PERMISSIONS.DELETE_COMMENTS,
       ]);
     },
     canHandleReports: () => {
@@ -176,9 +176,9 @@ export const usePermissions = () => {
         return true;
       }
       return hasAnyPermissionSimple(user, [
-        PERMISSIONS.VIEW_REPORTS,
-        PERMISSIONS.HANDLE_REPORTS,
-        PERMISSIONS.WARN_USERS,
+      PERMISSIONS.VIEW_REPORTS,
+      PERMISSIONS.HANDLE_REPORTS,
+      PERMISSIONS.WARN_USERS,
       ]);
     },
     

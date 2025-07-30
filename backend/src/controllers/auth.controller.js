@@ -12,9 +12,17 @@ console.log('JWT_SECRET:', process.env.JWT_SECRET);
 
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).populate('role_id');
+    console.log('getMe - fetching user with ID:', req.user.id);
+    const user = await User.findById(req.user.id).populate({
+      path: 'role_id',
+      select: 'name description permissions'
+    });
+    console.log('getMe - user with role:', user);
+    console.log('getMe - role_id:', user?.role_id);
+    console.log('getMe - permissions:', user?.role_id?.permissions);
     res.json({ user });
   } catch (err) {
+    console.error('getMe error:', err);
     res.status(500).json({ message: 'Lỗi server khi lấy thông tin user' });
   }
 };
