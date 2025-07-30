@@ -189,7 +189,7 @@ const UserDetail = () => {
 
         <Descriptions title="Thông tin cơ bản" column={1} bordered>
           <Descriptions.Item label="Vai trò">
-            <Tag color={getRoleColor(user.role)}>{getRoleName(user.role)}</Tag>
+            <Tag color={getRoleColor(user.role_id)}>{getRoleName(user.role_id)}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="Trạng thái">
             <Tag color={getStatusColor(user.status)}>
@@ -217,7 +217,7 @@ const UserDetail = () => {
           </Descriptions.Item>
         </Descriptions>
 
-        {typeof user.role === 'object' && user.role.name === UserRole.INSTRUCTOR && (
+        {typeof user.role_id === 'object' && user.role_id.name === UserRole.INSTRUCTOR && (
           <>
             <Divider />
             <Descriptions title="Thông tin giảng viên" column={1} bordered>

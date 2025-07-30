@@ -78,16 +78,6 @@ const FilterSection = ({
   search,
 }: FilterSectionProps) => (
   <Card className={styles.filterCard} bordered={false}>
-    <div className={styles.filterHeader}>
-      <div className={styles.filterTitle}>
-        <FilterOutlined className={styles.filterIcon} />
-        <Text strong>Bộ lọc tìm kiếm</Text>
-      </div>
-      <div className={styles.realtimeIndicator}>
-        <ClockCircleOutlined className={styles.pulse} />
-        <Text type="secondary">Cập nhật tự động</Text>
-      </div>
-    </div>
     <div className={styles.filterGroup}>
       <Input
         placeholder="Tìm kiếm danh mục..."
@@ -116,47 +106,6 @@ const FilterSection = ({
         value={dateRange}
       />
     </div>
-    
-    {/* Active Filters Display */}
-    {(search || selectedStatus || dateRange) && (
-      <Card className={styles.activeFiltersCard} bordered={false}>
-        <div className={styles.activeFiltersHeader}>
-          <Text strong>Bộ lọc đang áp dụng:</Text>
-        </div>
-        <div className={styles.activeFiltersContent}>
-          {search && (
-            <Tag 
-              closable 
-              onClose={() => {
-                setSearchInput('');
-                setSearch('');
-              }}
-              color="blue"
-            >
-              Tìm kiếm: "{search}"
-            </Tag>
-          )}
-          {selectedStatus && (
-            <Tag 
-              closable 
-              onClose={() => setSelectedStatus(undefined)}
-              color="green"
-            >
-              Trạng thái: {selectedStatus === 'active' ? 'Hiển thị' : 'Ẩn'}
-            </Tag>
-          )}
-          {dateRange && (
-            <Tag 
-              closable 
-              onClose={() => setDateRange(null)}
-              color="orange"
-            >
-              Ngày: {dateRange[0]?.format('DD/MM/YYYY')} - {dateRange[1]?.format('DD/MM/YYYY')}
-            </Tag>
-          )}
-        </div>
-      </Card>
-    )}
   </Card>
 );
 
@@ -279,7 +228,7 @@ const CategoryPage = () => {
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 10,
+    pageSize: 15,
     total: 0,
   });
 
@@ -290,7 +239,7 @@ const CategoryPage = () => {
   });
 
   // Fetch categories with realtime updates
-  const fetchCategories = useCallback(async (page = 1, limit = 10) => {
+  const fetchCategories = useCallback(async (page = 1, limit = 15) => {
     try {
       setLoading(true);
       const params = {
@@ -389,7 +338,8 @@ const CategoryPage = () => {
       title: 'STT',
       dataIndex: 'number',
       key: 'number',
-      width: 80,
+      width: 70,
+      align: 'center',
       render: (number) => (
         <Badge count={number} showZero style={{ backgroundColor: '#1890ff' }} />
       ),
@@ -398,64 +348,92 @@ const CategoryPage = () => {
       title: 'Tên danh mục',
       dataIndex: 'name',
       key: 'name',
-      width: 300,
+      width: 250,
       render: (name, record) => (
-        <div className={styles.courseCell}>
-          <div className={styles.courseInfo}>
-            <Text strong style={{ fontSize: '16px' }}>{name}</Text>
-            <div className={styles.courseCategory}>
-              <TagsOutlined style={{ marginRight: '4px', color: '#1890ff' }} />
-              <Text type="secondary">Danh mục khóa học</Text>
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ 
+            width: '40px', 
+            height: '40px', 
+            borderRadius: '8px', 
+            backgroundColor: '#f0f8ff', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            border: '1px solid #e6f7ff'
+          }}>
+            <TagsOutlined style={{ color: '#1890ff', fontSize: '18px' }} />
+          </div>
+          <div>
+            <Text strong style={{ fontSize: '14px', display: 'block', marginBottom: '4px' }}>
+              {name}
+            </Text>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              {record.description ? 
+                (record.description.length > 50 ? 
+                  `${record.description.substring(0, 50)}...` : 
+                  record.description
+                ) : 
+                'Không có mô tả'
+              }
+            </Text>
           </div>
         </div>
       ),
     },
-
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
-      width: 120,
+      width: 100,
+      align: 'center',
       render: (status) => getStatusTag(status),
     },
     {
       title: 'Ngày tạo',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 180,
+      width: 150,
+      align: 'center',
       render: (createdAt) => (
-        <div className={styles.dateCell}>
-          <CalendarOutlined className={styles.dateIcon} />
-          <Text>{dayjs(createdAt).format('DD/MM/YYYY HH:mm')}</Text>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>
+            {dayjs(createdAt).format('DD/MM/YYYY')}
+          </div>
+          <div style={{ fontSize: '11px', color: '#999' }}>
+            {dayjs(createdAt).format('HH:mm')}
+          </div>
         </div>
       ),
     },
     {
       title: 'Thao tác',
       key: 'action',
+      width: 120,
+      align: 'center',
       render: (_, record) => (
-        <Space size="middle">
+        <Space size="small">
           <Tooltip title="Xem chi tiết">
             <Button
               type="text"
+              size="small"
               icon={<EyeOutlined />}
               onClick={(e) => {
                 e.stopPropagation();
                 handleViewCategory(record);
               }}
-              className={styles.actionBtn}
+              style={{ color: '#1890ff' }}
             />
           </Tooltip>
           <Tooltip title="Chỉnh sửa">
             <Button
               type="text"
+              size="small"
               icon={<EditOutlined />}
               onClick={(e) => {
                 e.stopPropagation();
                 handleEditCategory(record);
               }}
-              className={styles.actionBtn}
+              style={{ color: '#52c41a' }}
             />
           </Tooltip>
           <Tooltip title="Xóa">
@@ -473,9 +451,9 @@ const CategoryPage = () => {
             >
               <Button
                 type="text"
+                size="small"
                 danger
                 icon={<DeleteOutlined />}
-                className={styles.actionBtn}
                 onClick={e => e.stopPropagation()}
               />
             </Popconfirm>
@@ -641,11 +619,13 @@ const CategoryPage = () => {
             showQuickJumper: true,
             showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} danh mục`,
             pageSizeOptions: ['10', '20', '50', '100'],
+            size: 'small',
           }}
           onChange={(pagination) => fetchCategories(pagination.current, pagination.pageSize)}
           rowKey="_id"
           className={styles.userTable}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 800 }}
+          size="small"
           onRow={(record) => ({
             onClick: () => handleViewCategory(record),
             style: { cursor: 'pointer' },

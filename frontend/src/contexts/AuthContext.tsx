@@ -9,7 +9,11 @@ interface User {
   email: string;
   phone?: string;
   address?: string;
-  role: string;
+  role_id: {
+    _id: string;
+    name: string;
+    description?: string;
+  };
 }
 
 interface AuthContextType {
@@ -49,23 +53,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
         setIsAuthenticated(false);
         setAuthToken(null);
+        localStorage.removeItem('user'); // Xóa user khỏi localStorage nếu không có token
         return;
       }
 
       const response = await config.get('/auth/me');
       const userData = response.data.user;
+      console.log('AuthContext - userData from /auth/me:', userData);
       setUser(userData);
       setIsAuthenticated(true);
       setAuthToken(token);
+      localStorage.setItem('user', JSON.stringify(userData)); // Lưu user mới nhất vào localStorage
     } catch (error: any) {
       console.error('Error fetching user:', error);
-      
       if (error.response?.status === 401) {
         console.log('Token không hợp lệ, logout user');
         setUser(null);
         setIsAuthenticated(false);
         setAuthToken(null);
         localStorage.removeItem('token');
+        localStorage.removeItem('user'); // Xóa user khỏi localStorage nếu token lỗi
       }
     }
   };
@@ -75,6 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthToken(token);
     setUser(userData);
     setIsAuthenticated(true);
+    localStorage.setItem('user', JSON.stringify(userData)); // Lưu user vào localStorage khi login
   };
 
   const logout = () => {

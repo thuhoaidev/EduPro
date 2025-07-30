@@ -45,7 +45,7 @@ export interface User {
   name?: string;
   email: string;
   avatar?: string;
-  role: string | UserRole | Role;
+  role_id: string | UserRole | Role;
   status: UserStatus;
   createdAt: string;
   updatedAt: string;

@@ -9,6 +9,13 @@ import {
   VideoCameraOutlined,
   DollarOutlined,
   CommentOutlined,
+  LogoutOutlined,
+  DashboardOutlined,
+  TeamOutlined,
+  PlayCircleOutlined,
+  FormOutlined,
+  WalletOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -18,6 +25,7 @@ import {
   message,
   Avatar,
   Button,
+  Divider,
 } from "antd";
 import type { MenuProps } from "antd";
 import React, { useState, useEffect, useMemo } from "react";
@@ -67,8 +75,8 @@ const InstructorLayout = () => {
 
       if (storedUser) {
         const userData = JSON.parse(storedUser);
-        if (userData && typeof userData.role === 'string') {
-          userData.role = { name: userData.role };
+        if (userData && typeof userData.role_id === 'string') {
+          userData.role_id = { name: userData.role_id };
         }
         setUser(userData);
         setLoading(false);
@@ -85,8 +93,8 @@ const InstructorLayout = () => {
       try {
         const response = await config.get('/auth/me');
         const userData = response.data;
-        if (userData && typeof userData.role === 'string') {
-          userData.role = { name: userData.role };
+        if (userData && typeof userData.role_id === 'string') {
+          userData.role_id = { name: userData.role_id };
         }
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
@@ -116,51 +124,53 @@ const InstructorLayout = () => {
     () => [
       {
         key: "/instructor",
-        icon: <HomeOutlined />,
-        label: "Dashboard cá nhân",
+        icon: <DashboardOutlined />,
+        label: collapsed ? "TQ" : "Tổng quan",
       },
       {
-        label: "KHÓA HỌC",
+        label: collapsed ? "KH" : "KHÓA HỌC",
         type: "group",
         children: [
-          { key: "/instructor/courses", icon: <BookOutlined />, label: "Khóa học của tôi" },
-          { key: "/instructor/courses/create", icon: <PlusCircleOutlined />, label: "Tạo khóa học mới" },
+          { key: "/instructor/courses", icon: <BookOutlined />, label: collapsed ? "DS" : "Khóa học của tôi" },
+          { key: "/instructor/courses/create", icon: <PlusCircleOutlined />, label: collapsed ? "TK" : "Tạo khóa học mới" },
         ],
       },
       {
-        label: "QUẢN LÝ NỘI DUNG",
+        label: collapsed ? "ND" : "QUẢN LÝ NỘI DUNG",
         type: "group",
         children: [
-          { key: "/instructor/lessons", icon: <VideoCameraOutlined />, label: "Quản lý bài học" },
-          { key: "/instructor/videos", icon: <VideoCameraOutlined />, label: "Quản lý video" },
-          { key: "/instructor/quiz", icon: <BookOutlined />, label: "Quản lý quiz" },
+          { key: "/instructor/lessons", icon: <VideoCameraOutlined />, label: collapsed ? "BH" : "Quản lý bài học" },
+          { key: "/instructor/videos", icon: <PlayCircleOutlined />, label: collapsed ? "VD" : "Quản lý video" },
+          { key: "/instructor/quiz", icon: <FormOutlined />, label: collapsed ? "QZ" : "Quản lý quiz" },
         ],
       },
       {
-        label: "HỌC VIÊN",
+        label: collapsed ? "HV" : "HỌC VIÊN",
         type: "group",
         children: [
-          { key: "/instructor/students", icon: <UserOutlined />, label: "Thống kê học viên" },
-          { key: "/instructor/community", icon: <CommentOutlined />, label: "Giao tiếp học viên" },
+          { key: "/instructor/students", icon: <TeamOutlined />, label: collapsed ? "TK" : "Thống kê học viên" },
+          { key: "/instructor/community", icon: <MessageOutlined />, label: collapsed ? "GT" : "Giao tiếp học viên" },
         ],
       },
       {
-        label: "TÀI CHÍNH",
+        label: collapsed ? "TC" : "TÀI CHÍNH",
         type: "group",
         children: [
-          { key: "/instructor/income", icon: <DollarOutlined />, label: "Thu nhập & giao dịch" },
+          { key: "/instructor/income", icon: <WalletOutlined />, label: collapsed ? "TN" : "Thu nhập & giao dịch" },
         ],
       },
     ],
-    []
+    [collapsed]
   );
 
   // --- Breadcrumb ---
   const breadcrumbNameMap: { [key: string]: string } = {
-    '/instructor': 'Dashboard cá nhân',
+    '/instructor': 'Tổng quan',
     '/instructor/courses': 'Khóa học của tôi',
     '/instructor/courses/create': 'Tạo khóa học mới',
-    '/instructor/lessons': 'Quản lý bài học & video',
+    '/instructor/lessons': 'Quản lý bài học',
+    '/instructor/videos': 'Quản lý video',
+    '/instructor/quiz': 'Quản lý quiz',
     '/instructor/students': 'Thống kê học viên',
     '/instructor/income': 'Thu nhập & giao dịch',
     '/instructor/community': 'Giao tiếp học viên',
@@ -180,6 +190,13 @@ const InstructorLayout = () => {
     ...breadcrumbItems,
   ];
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    message.success('Đã đăng xuất!');
+    navigate('/login');
+  };
+
   // --- Dropdown Menu ---
   const userMenuItems: MenuProps["items"] = [
     {
@@ -188,77 +205,163 @@ const InstructorLayout = () => {
       label: "Quay lại trang chủ",
       onClick: () => navigate("/"),
     },
-    { type: "divider" },
+    {
+      type: 'divider',
+    },
+    {
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "Đăng xuất",
+      onClick: handleLogout,
+    },
   ];
 
   // --- Render ---
   if (loading) {
-    return <div className={styles.loadingScreen}>Loading...</div>;
+    return (
+      <div className={styles.loadingScreen}>
+        <div className={styles.loadingContent}>
+          <div className={styles.loadingSpinner}></div>
+          <div className={styles.loadingText}>Đang tải...</div>
+        </div>
+      </div>
+    );
   }
+  
   if (!user || (!checkRole(user, "instructor") && !checkRole(user, "admin"))) {
-    return null;
+    return (
+      <div className={styles.loadingScreen}>
+        <div className={styles.loadingContent}>
+          <div className={styles.errorIcon}>⚠️</div>
+          <div className={styles.loadingText}>Bạn không có quyền truy cập</div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <Layout className={styles.adminLayout}>
+    <Layout className={styles.instructorLayout}>
       <Sider
         trigger={null}
         collapsible
         collapsed={collapsed}
-        width={240}
+        width={280}
         className={styles.sider}
         theme="light"
+        style={{ position: 'fixed', height: '100vh', left: 0, top: 0, bottom: 0, zIndex: 1000 }}
       >
         <motion.div
           layout
           className={`${styles.logoArea} ${collapsed ? styles.collapsed : ""}`}
         >
           {!collapsed && (
-            <motion.span
+            <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2, duration: 0.3 }}
-              className={styles.logoText}
+              className={styles.logoContainer}
             >
-              Instructor
-            </motion.span>
+              <div className={styles.logoIcon}>👨‍🏫</div>
+              <div className={styles.logoTextContainer}>
+                <span className={styles.logoText}>Instructor</span>
+                <span className={styles.logoSubtitle}>Teaching Panel</span>
+              </div>
+            </motion.div>
+          )}
+          {collapsed && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1, duration: 0.2 }}
+              className={styles.logoIconCollapsed}
+            >
+              👨‍🏫
+            </motion.div>
           )}
         </motion.div>
-        <Menu
-          mode="inline"
-          theme="light"
-          className={styles.menu}
-          items={menuItems}
-          selectedKeys={[location.pathname]}
-          onClick={({ key }) => navigate(key)}
-        />
-      </Sider>
-      <Layout className={styles.siteLayout}>
-        <Header className={styles.header}>
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            className={styles.toggleButton}
+        
+        <div className={styles.menuContainer}>
+          <Menu
+            mode="inline"
+            theme="light"
+            className={styles.menu}
+            items={menuItems}
+            selectedKeys={[location.pathname]}
+            onClick={({ key }) => navigate(key)}
+            expandIcon={({ isOpen }) => (
+              <motion.div
+                animate={{ rotate: isOpen ? 90 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                ▶
+              </motion.div>
+            )}
           />
+        </div>
+        
+        {!collapsed && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.3 }}
+            className={styles.siderFooter}
+          >
+            <Divider style={{ margin: '8px 0' }} />
+            <div className={styles.userInfo}>
+              <Avatar 
+                src={user.avatar} 
+                size="small" 
+                className={styles.userAvatar}
+              >
+                {user.fullname.charAt(0).toUpperCase()}
+              </Avatar>
+              <div className={styles.userDetails}>
+                <div className={styles.userName}>{user.fullname}</div>
+                <div className={styles.userRole}>Giảng viên</div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </Sider>
+      
+      <Layout className={styles.siteLayout} style={{ marginLeft: collapsed ? 80 : 280, transition: 'margin-left 0.2s' }}>
+        <Header className={styles.header} style={{ position: 'sticky', top: 0, zIndex: 999 }}>
+          <div className={styles.headerLeft}>
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              className={styles.toggleButton}
+            />
+            <Breadcrumb items={finalBreadcrumbItems} className={styles.breadcrumb} />
+          </div>
+          
           <div className={styles.headerRight}>
-            <Dropdown menu={{ items: userMenuItems }} trigger={["click"]}>
+            <Dropdown menu={{ items: userMenuItems }} trigger={["click"]} placement="bottomRight">
               <a onClick={(e) => e.preventDefault()} className={styles.profileDropdown}>
-                <Avatar src={user.avatar} size="small">{user.fullname.charAt(0)}</Avatar>
-                <span>{user.fullname}</span>
+                <Avatar 
+                  src={user.avatar} 
+                  size="small" 
+                  className={styles.headerAvatar}
+                >
+                  {user.fullname.charAt(0).toUpperCase()}
+                </Avatar>
+                {!collapsed && (
+                  <span className={styles.headerUserName}>{user.fullname}</span>
+                )}
               </a>
             </Dropdown>
           </div>
         </Header>
-        <Content className={styles.content}>
-          <Breadcrumb items={finalBreadcrumbItems} className={styles.breadcrumb} />
+        
+        <Content className={styles.content} style={{ overflowY: 'auto', height: 'calc(100vh - 72px)' }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
               className={styles.pageContainer}
             >
               <Outlet />

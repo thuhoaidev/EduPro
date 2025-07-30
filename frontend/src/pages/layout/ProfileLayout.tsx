@@ -19,8 +19,8 @@ const ProfileLayout = () => {
     if (user) {
       try {
         user = JSON.parse(user);
-        if (user && typeof user.role === 'string') {
-          user.role = { name: user.role };
+        if (user && typeof user.role_id === 'string') {
+          user.role_id = { name: user.role_id };
           localStorage.setItem('user', JSON.stringify(user));
         }
       } catch (e) {

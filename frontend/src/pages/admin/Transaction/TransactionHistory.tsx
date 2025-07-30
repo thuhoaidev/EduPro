@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Table,
   Input,
@@ -8,15 +8,48 @@ import {
   Menu,
   Pagination,
   Modal,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Typography,
+  Badge,
+  Tooltip,
+  Divider,
+  Spin,
+  DatePicker,
+  Space,
+  Tag,
 } from 'antd';
 import {
   SearchOutlined,
   CaretDownOutlined,
+  TrophyOutlined,
+  RiseOutlined,
+  FallOutlined,
+  BookOutlined,
+  FilterOutlined,
+  EyeOutlined,
+  CalendarOutlined,
+  UserOutlined,
+  DollarOutlined,
+  ShoppingCartOutlined,
+  CreditCardOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
+import styles from '../Users/UserPage.module.css';
+import type { ColumnsType } from 'antd/es/table';
 
 const { Option } = Select;
+const { Title, Text, Paragraph } = Typography;
+const { RangePicker } = DatePicker;
+
+dayjs.locale('vi');
 
 interface Transaction {
   key: string;
@@ -31,10 +64,193 @@ interface Transaction {
   discountAmount?: number;
   finalAmount?: number;
   voucher?: string;
+  number?: number;
 }
+
+// FilterSection component
+interface FilterSectionProps {
+  searchText: string;
+  setSearchText: (value: string) => void;
+  minAmount: number | null;
+  setMinAmount: (value: number | null) => void;
+  maxAmount: number | null;
+  setMaxAmount: (value: number | null) => void;
+  sortOrder: 'asc' | 'desc' | null;
+  setSortOrder: (value: 'asc' | 'desc' | null) => void;
+  dateRange: any;
+  setDateRange: (dates: any) => void;
+}
+
+const FilterSection = ({
+  searchText,
+  setSearchText,
+  minAmount,
+  setMinAmount,
+  maxAmount,
+  setMaxAmount,
+  sortOrder,
+  setSortOrder,
+  dateRange,
+  setDateRange,
+}: FilterSectionProps) => {
+  const sortMenu = {
+    items: [
+      { key: 'asc', label: 'Giá tăng dần' },
+      { key: 'desc', label: 'Giá giảm dần' },
+    ],
+    onClick: ({ key }: { key: string }) => setSortOrder(key as 'asc' | 'desc'),
+  };
+
+  return (
+    <Card className={styles.filterCard} bordered={false}>
+      <div className={styles.filterGroup}>
+        <Input
+          placeholder="Tìm ID đơn hàng..."
+          prefix={<SearchOutlined />}
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          className={styles.filterInput}
+          allowClear
+        />
+        <Input
+          placeholder="Giá tối thiểu"
+          type="number"
+          value={minAmount ?? ''}
+          onChange={e => setMinAmount(e.target.value ? +e.target.value : null)}
+          className={styles.filterInput}
+          prefix={<DollarOutlined />}
+        />
+        <Input
+          placeholder="Giá tối đa"
+          type="number"
+          value={maxAmount ?? ''}
+          onChange={e => setMaxAmount(e.target.value ? +e.target.value : null)}
+          className={styles.filterInput}
+          prefix={<DollarOutlined />}
+        />
+        <RangePicker
+          placeholder={['Từ ngày', 'Đến ngày']}
+          onChange={(dates) => setDateRange(dates)}
+          className={styles.filterDateRange}
+          format="DD/MM/YYYY"
+          value={dateRange}
+        />
+        <Dropdown menu={sortMenu}>
+          <Button className={styles.filterButton}>
+            <FilterOutlined />
+            Sắp xếp: {sortOrder === 'asc' ? 'Tăng' : sortOrder === 'desc' ? 'Giảm' : 'Không'}
+            <CaretDownOutlined />
+          </Button>
+        </Dropdown>
+      </div>
+    </Card>
+  );
+};
+
+// StatCards component
+interface StatCardsProps {
+  transactionStats: {
+    total: number;
+    totalAmount: number;
+    paidCount: number;
+    pendingCount: number;
+  };
+}
+
+const StatCards = ({ transactionStats }: StatCardsProps) => {
+  const paidPercentage = transactionStats.total > 0 ? (transactionStats.paidCount / transactionStats.total) * 100 : 0;
+  const pendingPercentage = transactionStats.total > 0 ? (transactionStats.pendingCount / transactionStats.total) * 100 : 0;
+
+  return (
+    <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#1890ff' }}>
+              <ShoppingCartOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Tổng giao dịch" 
+                value={transactionStats.total} 
+                valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary">Tất cả đơn hàng</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#52c41a' }}>
+              <DollarOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Tổng doanh thu" 
+                value={transactionStats.totalAmount} 
+                suffix="đ"
+                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary">Tổng tiền</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#52c41a' }}>
+              <CheckCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Đã thanh toán" 
+                value={transactionStats.paidCount} 
+                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary">{paidPercentage.toFixed(1)}%</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#faad14' }}>
+              <ClockCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Chờ thanh toán" 
+                value={transactionStats.pendingCount} 
+                valueStyle={{ color: '#faad14', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#faad14' }} />
+                <Text type="secondary">{pendingPercentage.toFixed(1)}%</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+    </Row>
+  );
+};
 
 const TransactionHistory = () => {
   const [data, setData] = useState<Transaction[]>([]);
+  const [allData, setAllData] = useState<Transaction[]>([]);
   const [ordersRaw, setOrdersRaw] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,21 +258,26 @@ const TransactionHistory = () => {
   const [minAmount, setMinAmount] = useState<number | null>(null);
   const [maxAmount, setMaxAmount] = useState<number | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
+  const [dateRange, setDateRange] = useState<any>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [pageSize, setPageSize] = useState(15);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
-  useEffect(() => {
-    const fetchOrders = async () => {
+  const [transactionStats, setTransactionStats] = useState({
+    total: 0,
+    totalAmount: 0,
+    paidCount: 0,
+    pendingCount: 0,
+  });
+
+  const fetchOrders = useCallback(async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
-        // Lấy role mới nhất từ localStorage mỗi lần fetch
         const userRole = localStorage.getItem('role');
-        // Debug log
         console.log('TransactionHistory userRole:', userRole);
         const endpoint = userRole === 'admin'
           ? 'http://localhost:5000/api/orders/all?page=1&pageSize=100'
@@ -82,33 +303,63 @@ const TransactionHistory = () => {
           discountAmount: order.discountAmount ?? 0,
           finalAmount: order.finalAmount ?? order.totalAmount ?? 0,
           voucher: order.voucherId?.title || order.voucherId?.code || order.voucherId || '',
+        number: idx + 1,
         }));
 
+      setAllData(formatted);
         setData(formatted);
+
+      // Calculate stats
+      const stats = {
+        total: formatted.length,
+        totalAmount: formatted.reduce((sum, item) => sum + item.totalAmount, 0),
+        paidCount: formatted.filter(item => item.status === 'Đã thanh toán').length,
+        pendingCount: formatted.filter(item => item.status === 'Chưa thanh toán').length,
+      };
+      setTransactionStats(stats);
       } catch (err) {
         setData([]);
+      setAllData([]);
       } finally {
         setLoading(false);
       }
-    };
+  }, []);
 
+  // Initial fetch and realtime updates
+  useEffect(() => {
     fetchOrders();
-  }, [/* không có dependency để luôn lấy role mới nhất mỗi lần render */]);
+    
+    // Set up realtime updates every 30 seconds
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 30000);
 
-  const filteredData = data
-    .filter(item => item.orderId.toLowerCase().includes(searchText.toLowerCase()))
-    .filter(item => (minAmount === null || item.totalAmount >= minAmount))
-    .filter(item => (maxAmount === null || item.totalAmount <= maxAmount));
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
 
-  const sortedData = [...filteredData].sort((a, b) => {
-    if (sortOrder === 'asc') return a.totalAmount - b.totalAmount;
-    if (sortOrder === 'desc') return b.totalAmount - a.totalAmount;
-    return 0;
-  });
+  // Filter data when search or filters change
+  useEffect(() => {
+    let filtered = allData.filter(item => 
+      item.orderId.toLowerCase().includes(searchText.toLowerCase())
+    );
 
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const currentData = sortedData.slice(startIndex, endIndex);
+    if (minAmount !== null) {
+      filtered = filtered.filter(item => item.totalAmount >= minAmount);
+    }
+
+    if (maxAmount !== null) {
+      filtered = filtered.filter(item => item.totalAmount <= maxAmount);
+    }
+
+    // Sort data
+    if (sortOrder === 'asc') {
+      filtered = [...filtered].sort((a, b) => a.totalAmount - b.totalAmount);
+    } else if (sortOrder === 'desc') {
+      filtered = [...filtered].sort((a, b) => b.totalAmount - a.totalAmount);
+    }
+
+    setData(filtered);
+  }, [searchText, minAmount, maxAmount, sortOrder, allData]);
 
   const handleShowDetail = (id: string) => {
     const order = ordersRaw.find(o => o._id === id || o.id === id);
@@ -116,185 +367,351 @@ const TransactionHistory = () => {
     setModalVisible(true);
   };
 
-  const sortMenu = (
-    <Menu onClick={({ key }) => setSortOrder(key as 'asc' | 'desc')}>
-      <Menu.Item key="asc">Giá tăng dần</Menu.Item>
-      <Menu.Item key="desc">Giá giảm dần</Menu.Item>
-    </Menu>
-  );
+  const getStatusTag = (status: string) => {
+    return status === 'Đã thanh toán' ? (
+      <Tag color="green" icon={<CheckCircleOutlined />}>
+        Đã thanh toán
+      </Tag>
+    ) : (
+      <Tag color="orange" icon={<ClockCircleOutlined />}>
+        Chưa thanh toán
+      </Tag>
+    );
+  };
 
-  const columns = [
+  const getPaymentMethodIcon = (method: string) => {
+    switch (method.toLowerCase()) {
+      case 'vnpay':
+        return <CreditCardOutlined style={{ color: '#1890ff' }} />;
+      case 'momo':
+        return <CreditCardOutlined style={{ color: '#eb2f96' }} />;
+      case 'zalopay':
+        return <CreditCardOutlined style={{ color: '#52c41a' }} />;
+      default:
+        return <CreditCardOutlined style={{ color: '#666' }} />;
+    }
+  };
+
+    const columns: ColumnsType<Transaction> = [
     {
-      title: 'ID Đơn Hàng',
-      dataIndex: 'orderId',
-      key: 'orderId',
-      className: 'tw-font-medium',
+      title: 'STT',
+      dataIndex: 'number',
+      key: 'number',
+      width: 60,
+      align: 'center' as const,
+      render: (number: number) => (
+        <Badge count={number} showZero style={{ backgroundColor: '#1890ff' }} />
+      ),
     },
     {
-      title: 'Người Mua',
-      key: 'buyer',
-      render: (_: any, record: Transaction) => (
+      title: 'Giao dịch',
+      key: 'transaction',
+      width: 280,
+      render: (_, record: Transaction) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ 
+            width: '40px', 
+            height: '40px', 
+            borderRadius: '8px', 
+            backgroundColor: '#f6ffed', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            border: '1px solid #b7eb8f'
+          }}>
+            <ShoppingCartOutlined style={{ color: '#52c41a', fontSize: '18px' }} />
+          </div>
         <div>
-          <div className="tw-font-medium">{record.buyerName}</div>
-          <div className="tw-text-sm tw-text-gray-500">{record.buyerEmail}</div>
+            <Text strong style={{ fontSize: '14px', display: 'block', marginBottom: '4px' }}>
+              {record.orderId}
+            </Text>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              {record.buyerName} • {record.buyerEmail}
+            </Text>
+          </div>
         </div>
       ),
     },
     {
-      title: 'Ngày Mua',
-      dataIndex: 'transactionDate',
-      key: 'transactionDate',
-      align: 'center' as const,
-    },
-    {
-      title: 'Phương Thức',
+      title: 'Phương thức',
       dataIndex: 'paymentMethod',
       key: 'paymentMethod',
+      width: 100,
       align: 'center' as const,
-    },
-    {
-      title: 'Tổng Tiền (gốc)',
-      dataIndex: 'totalAmount',
-      key: 'totalAmount',
-      align: 'right' as const,
-      render: (amount: number) => (
-        <span className="tw-font-semibold">{amount.toLocaleString('vi-VN')} đ</span>
+      render: (method: string) => (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+          {getPaymentMethodIcon(method)}
+          <Text style={{ fontSize: '12px' }}>{method.toUpperCase()}</Text>
+        </div>
       ),
     },
     {
-      title: 'Giảm giá',
-      dataIndex: 'discountAmount',
-      key: 'discountAmount',
-      align: 'right' as const,
-      render: (amount?: number) => amount ? <span>-{amount.toLocaleString('vi-VN')} đ</span> : null,
-    },
-    {
-      title: 'Voucher',
-      dataIndex: 'voucher',
-      key: 'voucher',
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      width: 110,
       align: 'center' as const,
-      render: (v?: string) => v ? <span>{v}</span> : null,
+      render: (status: string) => getStatusTag(status),
     },
     {
-      title: 'Thực trả',
+      title: 'Thanh toán',
       dataIndex: 'finalAmount',
       key: 'finalAmount',
+      width: 110,
       align: 'right' as const,
-      render: (amount?: number) => <span className="tw-font-bold tw-text-blue-600">{amount?.toLocaleString('vi-VN')} đ</span>,
+      render: (amount?: number) => (
+        <span style={{ fontWeight: 'bold', color: '#52c41a' }}>
+          {amount?.toLocaleString('vi-VN')} đ
+        </span>
+      ),
     },
     {
-      title: '',
+      title: 'Thao tác',
       key: 'action',
-      render: (_: any, record: Transaction) => (
-        <Button type="link" onClick={() => handleShowDetail(record.orderId)}>
+      width: 90,
+      align: 'center' as const,
+      render: (_, record: Transaction) => (
+        <Tooltip title="Xem chi tiết">
+          <Button
+            type="primary"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleShowDetail(record.orderId);
+            }}
+          >
           Chi tiết
         </Button>
+        </Tooltip>
       ),
     },
   ];
 
-  return (
-    <div className="tw-p-6 tw-bg-white tw-rounded-xl tw-shadow-sm">
-      <h2 className="tw-text-2xl tw-font-bold tw-mb-4">Lịch sử giao dịch</h2>
+  if (loading && data.length === 0) {
+    return (
+      <div className={styles.userPageContainer}>
+        <div className={styles.loadingContainer}>
+          <Spin size="large" />
+          <Text style={{ marginTop: 16 }}>Đang tải dữ liệu...</Text>
+        </div>
+      </div>
+    );
+  }
 
-      <div className="tw-flex tw-flex-wrap tw-items-center tw-gap-4 tw-mb-6">
-        <Input
-          placeholder="Tìm ID đơn hàng"
-          prefix={<SearchOutlined />}
-          value={searchText}
-          onChange={e => setSearchText(e.target.value)}
-          className="tw-w-60"
-        />
-        <Input
-          placeholder="Giá tối thiểu"
-          type="number"
-          value={minAmount ?? ''}
-          onChange={e => setMinAmount(e.target.value ? +e.target.value : null)}
-          className="tw-w-40"
-        />
-        <Input
-          placeholder="Giá tối đa"
-          type="number"
-          value={maxAmount ?? ''}
-          onChange={e => setMaxAmount(e.target.value ? +e.target.value : null)}
-          className="tw-w-40"
-        />
-        <Dropdown menu={sortMenu}>
-          <Button>
-            Sắp xếp giá: {sortOrder === 'asc' ? 'Tăng' : sortOrder === 'desc' ? 'Giảm' : 'Không'}{' '}
-            <CaretDownOutlined />
-          </Button>
-        </Dropdown>
+  return (
+    <div className={styles.userPageContainer}>
+      {/* Page Header */}
+      <div className={styles.pageHeader}>
+        <div className={styles.headerLeft}>
+          <Title level={2} className={styles.pageTitle}>
+            <TrophyOutlined className={styles.titleIcon} />
+            Lịch sử giao dịch
+          </Title>
+          <Paragraph className={styles.pageSubtitle}>
+            Quản lý và theo dõi tất cả giao dịch trong hệ thống
+          </Paragraph>
+        </div>
+      </div>
+
+      {/* Statistics Cards */}
+      <StatCards transactionStats={transactionStats} />
+
+      {/* Filter Section */}
+      <FilterSection
+        searchText={searchText}
+        setSearchText={setSearchText}
+        minAmount={minAmount}
+        setMinAmount={setMinAmount}
+        maxAmount={maxAmount}
+        setMaxAmount={setMaxAmount}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+        dateRange={dateRange}
+        setDateRange={setDateRange}
+      />
+
+      {/* Transactions Table */}
+      <Card className={styles.userTableCard} bordered={false}>
+        <div className={styles.tableHeader}>
+          <div className={styles.tableTitleSection}>
+            <BookOutlined className={styles.tableIcon} />
+            <Title level={4} className={styles.tableTitle}>
+              Danh sách giao dịch
+            </Title>
+            <Badge count={data.length} className={styles.userCountBadge} />
+          </div>
+          <div className={styles.tableActions}>
+            <Text type="secondary">
+              Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, data.length)} của {data.length} giao dịch
+            </Text>
+          </div>
       </div>
 
       <Table
         columns={columns}
-        dataSource={currentData}
+          dataSource={data}
         loading={loading}
-        pagination={false}
-        rowClassName="tw-h-16"
-        locale={{ emptyText: 'Không có giao dịch phù hợp.' }}
-      />
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: data.length,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} giao dịch`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            size: 'small',
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              setPageSize(size || 15);
+            },
+          }}
+          rowKey="key"
+          className={styles.userTable}
+          scroll={{ x: 1200 }}
+          size="small"
+        />
+      </Card>
 
-      <div className="tw-flex tw-justify-end tw-items-center tw-mt-4 tw-gap-4">
-        <span>Rows:</span>
-        <Select value={rowsPerPage} onChange={setRowsPerPage} size="small" style={{ width: 80 }}>
-            <Option value={5}>5</Option>
-            <Option value={10}>10</Option>
-            <Option value={20}>20</Option>
-          </Select>
-          <Pagination
-            current={currentPage}
-            pageSize={rowsPerPage}
-            total={filteredData.length}
-          onChange={setCurrentPage}
-            showSizeChanger={false}
-            simple
-          />
-      </div>
-
+      {/* Detail Modal */}
       <Modal
+        title={
+          <div className={styles.modalTitle}>
+            <EyeOutlined className={styles.modalIcon} />
+            Chi tiết đơn hàng
+          </div>
+        }
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         footer={null}
-        title="Chi tiết đơn hàng"
         width={800}
+        className={styles.userModal}
       >
         {selectedOrder && (
           <div>
-            <div className="tw-mb-4">
-              <b>Mã đơn:</b> {selectedOrder._id || selectedOrder.id} <br />
-              <b>Phương thức:</b> {selectedOrder.paymentMethod?.toUpperCase()} <br />
-              <b>Ngày đặt:</b> {dayjs(selectedOrder.createdAt).format('HH:mm DD/MM/YYYY')}
+            <div className={styles.userDetailHeaderBox}>
+              <Title level={3} style={{ margin: 0 }}>
+                Đơn hàng #{selectedOrder._id || selectedOrder.id}
+              </Title>
+              {getStatusTag(selectedOrder.paymentStatus === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán')}
             </div>
-            <b>Thông tin người mua:</b>
-            <div>Họ tên: {selectedOrder.fullName}</div>
-            <div>SĐT: {selectedOrder.phone}</div>
-            <div>Email: {selectedOrder.email}</div>
-
-            <hr className="tw-my-4" />
-            <b>Chi tiết sản phẩm:</b>
-            {(selectedOrder.items || []).map((item: any) => (
-              <div
-                key={item._id}
-                className="tw-flex tw-items-center tw-my-2 tw-bg-gray-50 tw-p-2 tw-rounded"
+            
+            <Divider />
+            
+            <Card className={styles.userDetailCard} bordered={false}>
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <CreditCardOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                  <Text strong>Phương thức thanh toán:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">
+                    {selectedOrder.paymentMethod?.toUpperCase() || 'Không xác định'}
+                  </Text>
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <CalendarOutlined style={{ marginRight: '8px', color: '#52c41a' }} />
+                  <Text strong>Ngày đặt hàng:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">
+                    {dayjs(selectedOrder.createdAt).format('HH:mm DD/MM/YYYY')}
+                  </Text>
+                </div>
+              </div>
+            </Card>
+            
+            <Divider />
+            
+            <div className={styles.userDetailRow}>
+              <div className={styles.userDetailLabel}>
+                <UserOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                <Text strong>Thông tin người mua:</Text>
+              </div>
+              <div>
+                <Text type="secondary">
+                  {selectedOrder.fullName} • {selectedOrder.phone} • {selectedOrder.email}
+                </Text>
+              </div>
+            </div>
+            
+            <Divider />
+            
+            <div className={styles.userDetailRow}>
+              <div className={styles.userDetailLabel}>
+                <ShoppingCartOutlined style={{ marginRight: '8px', color: '#52c41a' }} />
+                <Text strong>Chi tiết sản phẩm:</Text>
+              </div>
+            </div>
+            
+            <div style={{ marginTop: '12px' }}>
+              {(selectedOrder.items || []).map((item: any, index: number) => (
+                <div
+                  key={item._id || index}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '12px',
+                    padding: '12px',
+                    backgroundColor: '#fafafa',
+                    borderRadius: '8px',
+                    border: '1px solid #f0f0f0'
+                  }}
               >
                 <img
                   src={item.courseId?.thumbnail || '/default-course.png'}
                   alt={item.courseId?.title}
-                  className="tw-w-14 tw-h-14 tw-rounded tw-object-cover tw-mr-4"
-                />
-                <div className="tw-flex-1">
-                  <div className="tw-font-medium">{item.courseId?.title}</div>
-                  <div className="tw-text-gray-500 tw-text-sm">Số lượng: {item.quantity || 1}</div>
+                    style={{
+                      width: '56px',
+                      height: '56px',
+                      borderRadius: '8px',
+                      objectFit: 'cover',
+                      marginRight: '16px'
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <Text strong style={{ fontSize: '14px', display: 'block', marginBottom: '4px' }}>
+                      {item.courseId?.title || 'Không xác định'}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      Số lượng: {item.quantity || 1}
+                    </Text>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <Text strong style={{ fontSize: '16px', color: '#1890ff' }}>
+                      {item.price?.toLocaleString('vi-VN')} đ
+                    </Text>
+                  </div>
                 </div>
-                <div className="tw-font-semibold tw-min-w-[100px] tw-text-right">
-                  {item.price?.toLocaleString('vi-VN')} đ
-                </div>
+              ))}
+            </div>
+            
+            <Divider />
+            
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ marginBottom: '8px' }}>
+                <Text>Tổng tiền: </Text>
+                <Text strong style={{ fontSize: '18px', color: '#1890ff' }}>
+                  {selectedOrder.totalAmount?.toLocaleString('vi-VN')} đ
+                </Text>
               </div>
-            ))}
-            <div className="tw-text-right tw-font-bold tw-text-lg tw-mt-4">
-              Tổng tiền: {selectedOrder.totalAmount?.toLocaleString('vi-VN')} đ
+              {selectedOrder.discountAmount > 0 && (
+                <div style={{ marginBottom: '8px' }}>
+                  <Text>Giảm giá: </Text>
+                  <Text strong style={{ fontSize: '16px', color: '#ff4d4f' }}>
+                    -{selectedOrder.discountAmount?.toLocaleString('vi-VN')} đ
+                  </Text>
+                </div>
+              )}
+              <div>
+                <Text strong>Thực trả: </Text>
+                <Text strong style={{ fontSize: '20px', color: '#52c41a' }}>
+                  {(selectedOrder.finalAmount || selectedOrder.totalAmount)?.toLocaleString('vi-VN')} đ
+                </Text>
+              </div>
             </div>
           </div>
         )}

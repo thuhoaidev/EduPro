@@ -9,6 +9,7 @@ import AuthNotification from "../../../components/common/AuthNotification";
 import ToastNotification from "../../../components/common/ToastNotification";
 import AccountTypeModal from "../../../components/common/AccountTypeModal";
 import { useNotification } from "../../../hooks/useNotification";
+import { useAuth } from "../../../contexts/AuthContext";
 import socket from '../../../services/socket';
 
 export default function LoginPage(): React.ReactElement {
@@ -17,6 +18,7 @@ export default function LoginPage(): React.ReactElement {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const { mutate } = useLogin({ resource: "login" });
+  const { login: authLogin } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
@@ -59,26 +61,53 @@ export default function LoginPage(): React.ReactElement {
           console.log('Token after login:', localStorage.getItem('token'));
           
           // Lưu user info nếu có
-          if (data?.user) {
-            localStorage.setItem('user', JSON.stringify(data.user));
+          const userData = data?.user || data?.data?.user;
+          if (userData) {
+            // Chuyển đổi format để phù hợp với frontend
+            const formattedUserData = {
+              ...userData,
+              role_id: {
+                name: userData.role || userData.role_id?.name || 'student'
+              }
+            };
+            localStorage.setItem('user', JSON.stringify(formattedUserData));
+            // Cập nhật AuthContext
+            authLogin(token, formattedUserData);
             // Emit realtime event
             socket.connect();
-            socket.emit('auth-event', { type: 'login', user: data.user });
-          } else if (data?.data?.user) {
-            localStorage.setItem('user', JSON.stringify(data.data.user));
-            // Emit realtime event
-            socket.connect();
-            socket.emit('auth-event', { type: 'login', user: data.data.user });
+            socket.emit('auth-event', { type: 'login', user: formattedUserData });
           }
           
           // Hiển thị thông báo thành công với giao diện mới
           showLoginSuccess();
           
-          // Không chuyển hướng ngay, để thông báo tự động chuyển hướng
+          // Chuyển hướng dựa trên role
+          console.log('Full response data:', data);
+          console.log('User data extracted:', userData);
+          if (userData) {
+            // Backend trả về role là string, không phải object
+            const roleName = userData.role || userData.role_id?.name || userData.role?.name;
+            console.log('User role after login:', roleName);
+            
+            // Chuyển hướng dựa trên role
+            if (roleName === 'admin' || roleName === 'quản trị viên') {
+              setTimeout(() => navigate('/admin'), 1500);
+            } else if (roleName === 'moderator' || roleName === 'kiểm duyệt viên') {
+              setTimeout(() => navigate('/moderator'), 1500);
+            } else {
+              // Instructor, Student hoặc role khác - chuyển về trang chủ
+              setTimeout(() => navigate('/'), 1500);
+            }
+          } else {
+            // Không có user data - chuyển về trang chủ
+            setTimeout(() => navigate('/'), 1500);
+          }
         } else {
           console.warn('Không tìm thấy token trong response!', data);
           // Nếu không có token, vẫn hiển thị thông báo thành công
           showLoginSuccess();
+          // Chuyển về trang chủ nếu không có token
+          setTimeout(() => navigate('/'), 1500);
         }
         
         // Kiểm tra email verification nếu cần
@@ -93,6 +122,7 @@ export default function LoginPage(): React.ReactElement {
         // Luôn hiển thị thông báo chung khi đăng nhập sai
         showLoginError();
         setIsLoading(false);
+        // Không chuyển hướng khi lỗi, để user có thể thử lại
       }
     });
   };
@@ -174,7 +204,7 @@ export default function LoginPage(): React.ReactElement {
       if (role === 'admin') {
         redirectPath = '/admin';
       } else if (role === 'moderator') {
-        redirectPath = '/moderator/courses';
+        redirectPath = '/moderator';
       }
       const timer = setTimeout(() => {
         navigate(redirectPath);

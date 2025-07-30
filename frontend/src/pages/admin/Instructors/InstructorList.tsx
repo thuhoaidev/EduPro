@@ -191,16 +191,6 @@ const FilterSection = ({
   setDateRange: (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => void;
 }) => (
   <Card className={styles.filterCard} bordered={false}>
-    <div className={styles.filterHeader}>
-      <div className={styles.filterTitle}>
-        <FilterOutlined className={styles.filterIcon} />
-        <Text strong>Bộ lọc tìm kiếm</Text>
-      </div>
-      <div className={styles.realtimeIndicator}>
-        <ClockCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-        <Text type="secondary">Cập nhật tự động</Text>
-      </div>
-    </div>
     <div className={styles.filterGroup}>
       <Input
         placeholder="Tìm kiếm theo tên, email..."
@@ -243,7 +233,7 @@ const InstructorList = () => {
   const [viewingInstructor, setViewingInstructor] = useState<Instructor | null>(null);
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 10,
+    pageSize: 15,
     total: 0,
   });
 
@@ -432,32 +422,6 @@ const InstructorList = () => {
         setDateRange={setDateRange}
       />
 
-      {/* Hiển thị thông tin filter đang hoạt động */}
-      {(search || selectedApprovalStatus || dateRange) && (
-        <Card className={styles.activeFiltersCard} bordered={false}>
-          <div className={styles.activeFiltersHeader}>
-            <Text strong>Bộ lọc đang hoạt động:</Text>
-          </div>
-          <div className={styles.activeFiltersContent}>
-            {search && (
-              <Tag color="blue" closable onClose={() => setSearch("")}>
-                Tìm kiếm: "{search}"
-              </Tag>
-            )}
-            {selectedApprovalStatus && (
-              <Tag color="green" closable onClose={() => setSelectedApprovalStatus(undefined)}>
-                Trạng thái: {selectedApprovalStatus === 'pending' ? 'Chờ duyệt' : selectedApprovalStatus === 'approved' ? 'Đã duyệt' : 'Từ chối'}
-              </Tag>
-            )}
-            {dateRange && dateRange[0] && dateRange[1] && (
-              <Tag color="orange" closable onClose={() => setDateRange(null)}>
-                Từ {dateRange[0].format('DD/MM/YYYY')} đến {dateRange[1].format('DD/MM/YYYY')}
-              </Tag>
-            )}
-          </div>
-        </Card>
-      )}
-
       <Card className={styles.userTableCard} bordered={false}>
         <div className={styles.tableHeader}>
           <div className={styles.tableTitleSection}>
@@ -483,10 +447,13 @@ const InstructorList = () => {
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} giảng viên`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            size: 'small',
           }}
           onChange={handleTableChange}
           className={styles.userTable}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 900 }}
+          size="small"
           onRow={(record) => {
             return {
               onClick: () => {
@@ -499,7 +466,7 @@ const InstructorList = () => {
             {
               title: "STT",
               dataIndex: "number",
-              width: 80,
+              width: 70,
               align: 'center' as const,
               render: (_, __, index) => (
                 <Badge count={index + 1} showZero style={{ backgroundColor: '#1890ff' }} />
@@ -508,20 +475,22 @@ const InstructorList = () => {
             {
               title: "Giảng viên",
               dataIndex: "fullname",
-              width: 300,
+              width: 250,
               align: 'left' as const,
               render: (_: unknown, record: Instructor) => (
-                <div className={styles.avatarCell}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <Avatar 
                     src={record.avatar} 
                     icon={<UserOutlined />} 
-                    size="large"
-                    className={styles.userAvatar}
+                    size={40}
+                    style={{ border: '2px solid #f0f0f0' }}
                   />
-                  <div className={styles.userInfo}>
-                    <div className={styles.userName}>{record.fullname}</div>
-                    <div className={styles.userEmail}>
-                      <MailOutlined className={styles.emailIcon} />
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>
+                      {record.fullname}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <MailOutlined style={{ fontSize: '12px' }} />
                       {record.email}
                     </div>
                   </div>
@@ -532,50 +501,55 @@ const InstructorList = () => {
               title: "Trạng thái duyệt",
               dataIndex: "approvalStatus",
               align: 'center' as const,
-              width: 150,
+              width: 120,
               render: (_: any, record: Instructor) => getApprovalStatusTag(record.approvalStatus),
             },
             {
               title: "Ngày nộp hồ sơ",
               dataIndex: "applicationDate",
-              width: 180,
+              width: 150,
               align: 'center' as const,
               render: (date: string) => (
-                <div className={styles.dateCell}>
-                  <CalendarOutlined className={styles.dateIcon} />
-                  <Text>{dayjs(date).format("DD/MM/YYYY HH:mm")}</Text>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>
+                    {dayjs(date).format("DD/MM/YYYY")}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#999' }}>
+                    {dayjs(date).format("HH:mm")}
+                  </div>
                 </div>
               ),
             },
             {
               title: "Thao tác",
               key: "action",
-              width: 200,
+              width: 150,
               align: "center" as const,
               render: (_: unknown, record: Instructor) => {
                 if (record.approvalStatus === "pending") {
                   return (
-                    <Space className={styles.actionBtns}>
+                    <Space size="small">
                       <Tooltip title="Xem chi tiết">
                         <Button
                           type="text"
+                          size="small"
                           icon={<EyeOutlined />}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewDetails(record);
                           }}
-                          className={styles.actionBtn}
+                          style={{ color: '#1890ff' }}
                         />
                       </Tooltip>
                       <Tooltip title="Duyệt giảng viên">
                         <Button
                           type="primary"
+                          size="small"
                           icon={<CheckCircleOutlined />}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleApprove(record);
                           }}
-                          className={styles.actionBtn}
                         >
                           Duyệt
                         </Button>
@@ -583,12 +557,12 @@ const InstructorList = () => {
                       <Tooltip title="Từ chối">
                         <Button
                           danger
+                          size="small"
                           icon={<CloseCircleOutlined />}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleReject(record);
                           }}
-                          className={styles.actionBtn}
                         >
                           Từ chối
                         </Button>
@@ -598,16 +572,17 @@ const InstructorList = () => {
                 }
 
                 return (
-                  <Space className={styles.actionBtns}>
+                  <Space size="small">
                     <Tooltip title="Xem chi tiết">
                       <Button
                         type="text"
+                        size="small"
                         icon={<EyeOutlined />}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleViewDetails(record);
                         }}
-                        className={styles.actionBtn}
+                        style={{ color: '#1890ff' }}
                       />
                     </Tooltip>
                   </Space>
@@ -705,8 +680,8 @@ const InstructorList = () => {
                   <ul style={{ paddingLeft: 16, margin: 0 }}>
                     {viewingInstructor.certificates.map((cert, index) => (
                       <li key={index}>
-                        <AntdLink href={cert.file || cert.url} target="_blank" rel="noopener noreferrer">
-                          {cert.name || cert.original_name || `Chứng chỉ ${index + 1}`}
+                        <AntdLink href={cert.url} target="_blank" rel="noopener noreferrer">
+                          {cert.name || `Chứng chỉ ${index + 1}`}
                         </AntdLink>
                       </li>
                     ))}

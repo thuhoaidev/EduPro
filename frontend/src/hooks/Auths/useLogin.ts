@@ -27,15 +27,17 @@ const useLogin = ({ resource }: useLoginParams) => {
             
             // Lưu thông tin user nếu có
             if (data?.user) {
-                localStorage.setItem('user', JSON.stringify(data.user));
+                // Chuyển đổi format để phù hợp với frontend
+                const userData = {
+                    ...data.user,
+                    role_id: {
+                        name: data.user.role || data.user.role_id?.name || 'student'
+                    }
+                };
+                localStorage.setItem('user', JSON.stringify(userData));
                 // Lưu role vào localStorage để phân quyền admin
-                if (data.user.role && typeof data.user.role === 'object' && data.user.role.name) {
-                    localStorage.setItem('role', data.user.role.name);
-                } else if (typeof data.user.role === 'string') {
-                    localStorage.setItem('role', data.user.role);
-                } else if (data.user.role_id && data.user.role_id.name) {
-                    localStorage.setItem('role', data.user.role_id.name);
-                }
+                const roleName = data.user.role || data.user.role_id?.name || 'student';
+                localStorage.setItem('role', roleName);
             }
 
             // Invalidate queries để refresh data

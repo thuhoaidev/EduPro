@@ -30,10 +30,14 @@ exports.getCurrentUser = async (req, res) => {
     let userObj = user.toJSON();
     // Đảm bảo trả về role (object) và roles (mảng tên role)
     if (user.role_id && user.role_id.name) {
-      userObj.role = { name: user.role_id.name };
+      userObj.role = { 
+        name: user.role_id.name,
+        description: user.role_id.description,
+        permissions: user.role_id.permissions || []
+      };
       userObj.roles = [user.role_id.name];
     } else {
-      userObj.role = { name: 'guest' };
+      userObj.role = { name: 'guest', description: 'Khách', permissions: [] };
       userObj.roles = ['guest'];
     }
     console.log('DEBUG userObj trả về:', userObj);

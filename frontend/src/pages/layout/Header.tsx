@@ -49,7 +49,7 @@ interface User {
   avatar?: string;
   fullname: string;
   email: string;
-  role?: { name: string };
+  role_id?: { name: string };
   isVerified?: boolean;
   nickname?: string;
 }
@@ -65,7 +65,11 @@ interface Notification {
 }
 
 const AppHeader = () => {
-  const getRoleName = (user: User): string => user?.role?.name || 'student';
+  const getRoleName = (user: User): string => {
+    const roleName = user?.role_id?.name || 'student';
+    console.log('Header - getRoleName:', roleName, 'for user:', user);
+    return roleName;
+  };
   const { cartCount } = useCart();
 
   const [user, setUser] = useState<User | null | false>(null);
@@ -306,19 +310,19 @@ const AppHeader = () => {
           style: { height: 'auto', padding: '16px', cursor: 'pointer' },
         },
         { type: 'divider' as const },
-        ...(getRoleName(user) === 'admin'
+        ...(getRoleName(user) === 'admin' || getRoleName(user) === 'quản trị viên'
           ? [
             { key: '/admin', icon: <DashboardOutlined />, label: 'Trang quản trị' },
             { type: 'divider' as const },
           ]
           : []),
-        ...(getRoleName(user) === 'moderator'
+        ...(getRoleName(user) === 'moderator' || getRoleName(user) === 'kiểm duyệt viên'
           ? [
             { key: '/moderator', icon: <DashboardOutlined />, label: 'Khu vực kiểm duyệt' },
             { type: 'divider' as const },
           ]
           : []),
-        ...(getRoleName(user) === 'instructor'
+        ...(getRoleName(user) === 'instructor' || getRoleName(user) === 'giảng viên'
           ? [
             { key: '/instructor', icon: <DashboardOutlined />, label: 'Khu vực giảng viên' },
             { type: 'divider' as const },
@@ -347,7 +351,7 @@ const AppHeader = () => {
             { key: '/report', icon: <BarChartOutlined />, label: 'Báo cáo!' }
           ],
         },
-        ...(!['admin', 'instructor', 'moderator'].includes(getRoleName(user) || '') ? [{
+        ...(!['admin', 'quản trị viên', 'instructor', 'giảng viên', 'moderator', 'kiểm duyệt viên'].includes(getRoleName(user) || '') ? [{
           type: 'group' as const,
           label: 'Ví',
           children: [

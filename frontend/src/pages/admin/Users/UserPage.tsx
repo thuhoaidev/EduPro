@@ -266,7 +266,7 @@ const UserPage = () => {
   const [viewingUser, setViewingUser] = useState<User | null>(null);
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 10,
+    pageSize: 15,
     total: 0,
   });
 
@@ -306,7 +306,7 @@ const UserPage = () => {
   };
 
   // Fetch users
-  const fetchUsers = async (page = 1, limit = 10) => {
+  const fetchUsers = async (page = 1, limit = 15) => {
     try {
       setLoading(true);
       const params = {
@@ -433,11 +433,11 @@ const UserPage = () => {
     }] : []);
 
     let roleName: string;
-    if (typeof user.role === 'string') {
-        const foundRole = roles.find(r => r._id === user.role);
+    if (typeof user.role_id === 'string') {
+        const foundRole = roles.find(r => r._id === user.role_id);
         roleName = foundRole ? foundRole.name : '';
-    } else if (typeof user.role === 'object' && user.role !== null) {
-        roleName = user.role.name;
+    } else if (typeof user.role_id === 'object' && user.role_id !== null) {
+        roleName = user.role_id.name;
     } else {
         roleName = '';
     }
@@ -648,10 +648,13 @@ const UserPage = () => {
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} người dùng`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            size: 'small',
           }}
           onChange={handleTableChange}
           className={styles.userTable}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 900 }}
+          size="small"
           onRow={(record) => {
             return {
               onClick: () => {
@@ -663,7 +666,7 @@ const UserPage = () => {
             {
               title: 'STT',
               dataIndex: 'number',
-              width: 80,
+              width: 70,
               align: 'center' as const,
               render: (_, __, index) => (
                 <Badge count={index + 1} showZero style={{ backgroundColor: '#1890ff' }} />
@@ -672,19 +675,21 @@ const UserPage = () => {
             {
               title: 'Người dùng',
               dataIndex: 'fullname',
-              width: 300,
+              width: 250,
               render: (_, record) => (
-                <div className={styles.avatarCell}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <Avatar 
                     src={record.avatar} 
                     icon={<UserOutlined />} 
-                    size="large"
-                    className={styles.userAvatar}
+                    size={40}
+                    style={{ border: '2px solid #f0f0f0' }}
                   />
-                  <div className={styles.userInfo}>
-                    <div className={styles.userName}>{record.fullname}</div>
-                    <div className={styles.userEmail}>
-                      <MailOutlined className={styles.emailIcon} />
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>
+                      {record.fullname}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <MailOutlined style={{ fontSize: '12px' }} />
                       {record.email}
                     </div>
                   </div>
@@ -694,56 +699,62 @@ const UserPage = () => {
             {
               title: 'Vai trò',
               dataIndex: 'role',
-              width: 150,
+              width: 120,
               align: 'center' as const,
               render: (role) => getRoleTag(role),
             },
             {
               title: 'Trạng thái',
               dataIndex: 'status',
-              width: 150,
+              width: 100,
               align: 'center' as const,
               render: (status) => getStatusTag(status),
             },
             {
               title: 'Ngày tạo',
               dataIndex: 'createdAt',
-              width: 180,
+              width: 150,
               align: 'center' as const,
               render: (date) => (
-                <div className={styles.dateCell}>
-                  <CalendarOutlined className={styles.dateIcon} />
-                  <Text>{dayjs(date).format('DD/MM/YYYY HH:mm')}</Text>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>
+                    {dayjs(date).format('DD/MM/YYYY')}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#999' }}>
+                    {dayjs(date).format('HH:mm')}
+                  </div>
                 </div>
               ),
             },
             {
               title: 'Thao tác',
               key: 'action',
-              width: 150,
+              width: 120,
               align: 'center' as const,
               render: (_, record) => (
-                <Space className={styles.actionBtns}>
+                <Space size="small">
                   <Tooltip title="Xem chi tiết">
                     <Button
                       type="text"
+                      size="small"
                       icon={<EyeOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleViewDetails(record);
                       }}
-                      className={styles.actionBtn}
+                      style={{ color: '#1890ff' }}
                     />
                   </Tooltip>
                   <Tooltip title="Chỉnh sửa">
                     <Button
                       type="text"
+                      size="small"
                       icon={<EditOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleEditUser(record);
                       }}
-                      className={styles.actionBtn}
+                      style={{ color: '#52c41a' }}
                     />
                   </Tooltip>
                   <Tooltip title="Xóa">
@@ -759,10 +770,10 @@ const UserPage = () => {
                     >
                       <Button
                         type="text"
+                        size="small"
                         danger
                         icon={<DeleteOutlined />}
                         onClick={(e) => e.stopPropagation()}
-                        className={styles.actionBtn}
                       />
                     </Popconfirm>
                   </Tooltip>
@@ -924,7 +935,7 @@ const UserPage = () => {
                   <MailOutlined className={styles.emailIcon} />
                   {viewingUser.email}
                 </div>
-                <div className={styles.userDetailRoleTag}>{getRoleTag(viewingUser.role)}</div>
+                <div className={styles.userDetailRoleTag}>{getRoleTag(viewingUser.role_id)}</div>
               </div>
             </div>
             <div className={styles.userDetailCard}>
