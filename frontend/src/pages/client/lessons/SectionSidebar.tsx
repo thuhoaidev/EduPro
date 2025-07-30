@@ -133,14 +133,21 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
         },
       });
       if (!res.ok) {
-        alert('Không thể xem trước chứng chỉ!');
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Certificate preview error:', res.status, errorData);
+        alert(`Không thể xem trước chứng chỉ! Lỗi: ${errorData.message || res.statusText}`);
         return;
       }
       const blob = await res.blob();
+      if (blob.size === 0) {
+        alert('File chứng chỉ trống hoặc không hợp lệ!');
+        return;
+      }
       const url = window.URL.createObjectURL(blob);
       setPreviewUrl(url);
     } catch (err) {
-      alert('Có lỗi khi xem trước chứng chỉ!');
+      console.error('Certificate preview error:', err);
+      alert('Có lỗi khi xem trước chứng chỉ! Vui lòng thử lại sau.');
     }
   };
 
