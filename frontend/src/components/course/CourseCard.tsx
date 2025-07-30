@@ -61,10 +61,13 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgres
 
     const handleEnroll = async (e: React.MouseEvent, course: Course) => {
         e.preventDefault();
-        console.log('🔍 Enroll function called - this should not happen when clicking card');
         const token = localStorage.getItem('token');
         if (!token) {
-            console.log('⚠️ No token found, but not redirecting for testing');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('refresh_token');
+            message.warning('Vui lòng đăng nhập!');
+            setTimeout(() => navigate('/login'), 800);
             return;
         }
         try {
@@ -79,10 +82,13 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgres
     const handleAddToCart = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log('🔍 Add to cart function called - this should not happen when clicking card');
         const token = localStorage.getItem('token');
         if (!token) {
-            console.log('⚠️ No token found, but not redirecting for testing');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('refresh_token');
+            message.warning('Vui lòng đăng nhập!');
+            setTimeout(() => navigate('/login'), 800);
             return;
         }
         if (courseInCart) {

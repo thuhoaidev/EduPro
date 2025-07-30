@@ -68,11 +68,6 @@ config.interceptors.response.use(
         return response;
     },
     async (error) => {
-        // Tạm thời disable interceptor để test
-        console.log('🔍 Response error:', error.response?.status, error.response?.data?.message);
-        return Promise.reject(error);
-        
-        /*
         const originalRequest = error.config;
         
         // Danh sách các route public không cần authentication
@@ -135,7 +130,6 @@ config.interceptors.response.use(
             }
         }
         return Promise.reject(error);
-        */
     }
 );
 
