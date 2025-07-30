@@ -110,10 +110,7 @@ class ErrorBoundary extends React.Component<
       return (
         <div style={{ padding: '20px', textAlign: 'center' }}>
           <h1>Đã xảy ra lỗi!</h1>
-          <p>Lỗi: {this.state.error?.message}</p>
-          <button onClick={() => window.location.reload()}>
-            Tải lại trang
-          </button>
+          <p>Vui lòng tải lại trang hoặc liên hệ hỗ trợ.</p>
         </div>
       );
     }
@@ -140,6 +137,7 @@ function App() {
         { path: "courses", element: <CoursesPage /> },
         { path: "courses/:slug", element: <CourseDetailPage /> },
         { path: "courses/slug/:slug", element: <CourseDetailPage /> },
+        { path: "courses/id/:id", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
         {path:  "/blog/:id", element: <BlogPage />},

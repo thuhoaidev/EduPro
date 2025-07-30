@@ -36,7 +36,26 @@ config.interceptors.request.use(
     (request) => {
         const token = localStorage.getItem('token');
         if (token) {
-            request.headers['Authorization'] = `Bearer ${token}`;
+            // Kiểm tra token có hợp lệ không
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const currentTime = Date.now() / 1000;
+                if (payload.exp < currentTime) {
+                    // Token đã hết hạn, xóa khỏi localStorage
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('refresh_token');
+                    console.log('⚠️ Token expired, removed from localStorage');
+                } else {
+                    request.headers['Authorization'] = `Bearer ${token}`;
+                }
+            } catch (error) {
+                // Token không hợp lệ, xóa khỏi localStorage
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                localStorage.removeItem('refresh_token');
+                console.log('⚠️ Invalid token, removed from localStorage');
+            }
         }
         return request;
     },
@@ -49,7 +68,34 @@ config.interceptors.response.use(
         return response;
     },
     async (error) => {
+        // Tạm thời disable interceptor để test
+        console.log('🔍 Response error:', error.response?.status, error.response?.data?.message);
+        return Promise.reject(error);
+        
+        /*
         const originalRequest = error.config;
+        
+        // Danh sách các route public không cần authentication
+        const publicRoutes = [
+            '/courses',
+            '/courses/slug/',
+            '/categories',
+            '/blogs',
+            '/users/verify-instructor-email/',
+            '/auth/verify-email/'
+        ];
+        
+        // Kiểm tra xem request có phải là route public không
+        const requestUrl = originalRequest.url || '';
+        const isPublicRoute = publicRoutes.some(route => 
+            requestUrl.includes(route) || 
+            (requestUrl.includes('/courses/') && !requestUrl.includes('/courses/instructor'))
+        );
+        
+        console.log('🔍 Request URL:', requestUrl);
+        console.log('🔍 Is public route:', isPublicRoute);
+        console.log('🔍 Error status:', error.response?.status);
+        
         if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
             // Nếu đang ở trang login thì chỉ xóa token, không redirect
             if (window.location.pathname === '/login') {
@@ -58,6 +104,14 @@ config.interceptors.response.use(
                 localStorage.removeItem('refresh_token');
                 return Promise.reject(error);
             }
+            
+            // Nếu là route public, không redirect, chỉ reject error
+            if (isPublicRoute) {
+                console.log('✅ Public route detected, not redirecting to login');
+                return Promise.reject(error);
+            }
+            
+            console.log('🔒 Protected route detected, attempting refresh token');
             originalRequest._retry = true;
             isRefreshing = true;
             try {
@@ -81,6 +135,7 @@ config.interceptors.response.use(
             }
         }
         return Promise.reject(error);
+        */
     }
 );
 

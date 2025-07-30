@@ -236,6 +236,24 @@ exports.verifyEmail = async (req, res, next) => {
 
     await user.save();
 
+    // Emit realtime event cho email verification
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('email-verified', {
+          token: token,
+          userId: user._id,
+          email: user.email,
+          fullname: user.fullname,
+          isInstructor: false,
+          timestamp: new Date()
+        });
+        console.log('Realtime email-verified event emitted');
+      }
+    } catch (socketError) {
+      console.error('Failed to emit realtime event:', socketError);
+    }
+
     // Tạo token đăng nhập mới
     const loginToken = jwt.sign(
       { id: user._id },

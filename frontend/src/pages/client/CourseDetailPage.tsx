@@ -34,6 +34,11 @@ const sectionVariants: Variants = {
 
 const CourseDetailPage: React.FC = () => {
     const { slug, id } = useParams<{ slug?: string; id?: string }>();
+    
+    // Debug: log thông tin params
+    console.log('CourseDetailPage - Received slug:', slug);
+    console.log('CourseDetailPage - Received id:', id);
+    console.log('CourseDetailPage - URL params:', useParams());
     const [course, setCourse] = useState<Course | null>(null);
     const [courseContent, setCourseContent] = useState<Section[]>([]);
     const [loading, setLoading] = useState(true);
@@ -145,26 +150,22 @@ const CourseDetailPage: React.FC = () => {
                 setLoading(true);
                 let courseObj: Course | null = null;
                 let contentData: Section[] = [];
-                if (id) {
-                    // Lấy chi tiết bằng id
+                
+                // Thử lấy bằng slug trước
+                if (slug) {
+                    courseObj = await courseService.getCourseBySlug(slug);
+                }
+                
+                // Nếu không tìm thấy bằng slug, thử lấy bằng ID
+                if (!courseObj && id) {
                     const apiRes = await courseService.getCourseById(id);
                     if (apiRes) {
-                        // Map sang type Course
                         courseObj = courseService.mapApiCourseToAppCourse(apiRes);
-                        // Nếu backend trả về sections kèm theo
-                        if (apiRes.sections) {
-                            contentData = apiRes.sections;
-                        } else {
-                            contentData = await courseService.getCourseContent(apiRes._id || id);
-                        }
-                    }
-                } else if (slug) {
-                    courseObj = await courseService.getCourseBySlug(slug);
-                    if (courseObj) {
-                        contentData = await courseService.getCourseContent(courseObj.id);
                     }
                 }
+                
                 if (courseObj) {
+                    contentData = await courseService.getCourseContent(courseObj.id);
                     setCourse(courseObj);
                     setCourseContent(contentData);
                     console.log('📚 Course content loaded:', contentData);

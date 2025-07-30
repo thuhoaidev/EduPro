@@ -3,7 +3,7 @@ const router = express.Router();
 const courseController = require('../controllers/course.controller');
 const sectionController = require('../controllers/section.controller');
 const { uploadCourseAvatar, handleUploadError } = require('../middlewares/upload.middleware');
-const { auth, requireAuth } = require('../middlewares/auth');
+const { auth, requireAuth, optionalAuth } = require('../middlewares/auth');
 const { enrollCourse } = require('../controllers/course.controller');
 
 // Routes
@@ -13,9 +13,11 @@ router.get('/', courseController.getCourses);
 // Lấy danh sách khóa học của instructor hiện tại (phải đặt trước /:id để tránh conflict)
 router.get('/instructor', auth, requireAuth(['instructor', 'admin']), courseController.getInstructorCourses);
 
-// Lấy chi tiết khóa học
-router.get('/:id', courseController.getCourseById);
-router.get('/slug/:slug', courseController.getCourseBySlug);
+// Lấy chi tiết khóa học theo slug - phải đặt trước /:id
+router.get('/slug/:slug', optionalAuth, courseController.getCourseBySlug);
+
+// Lấy chi tiết khóa học theo ID
+router.get('/:id', optionalAuth, courseController.getCourseById);
 
 // Public GET route for course sections
 router.get('/:course_id/sections', sectionController.getSectionsByCourse);

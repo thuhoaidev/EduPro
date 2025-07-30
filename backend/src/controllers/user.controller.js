@@ -844,6 +844,25 @@ exports.updateInstructorApproval = async (req, res) => {
       console.error('Lỗi gửi email kết quả duyệt hồ sơ:', emailError);
     }
 
+    // Emit realtime event cho instructor approval
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('instructor-approved', {
+          userId: instructor._id,
+          email: instructor.email,
+          fullname: instructor.fullname,
+          status: status,
+          rejection_reason: rejection_reason,
+          approvedBy: req.user._id,
+          timestamp: new Date()
+        });
+        console.log('Realtime instructor-approved event emitted');
+      }
+    } catch (socketError) {
+      console.error('Failed to emit realtime event:', socketError);
+    }
+
     res.status(200).json({
       success: true,
       message: status === 'approved'
@@ -1312,6 +1331,24 @@ exports.verifyInstructorEmail = async (req, res) => {
       console.log('Profile submitted email sent successfully to:', user.email);
     } catch (emailError) {
       console.error('Failed to send profile submitted email:', emailError);
+    }
+
+    // Emit realtime event cho email verification
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('email-verified', {
+          token: token,
+          userId: user._id,
+          email: user.email,
+          fullname: user.fullname,
+          isInstructor: true,
+          timestamp: new Date()
+        });
+        console.log('Realtime email-verified event emitted');
+      }
+    } catch (socketError) {
+      console.error('Failed to emit realtime event:', socketError);
     }
 
     console.log('Email verification successful:', {
