@@ -7,6 +7,7 @@ import SearchBar from '../../components/common/SearchBar';
 import CourseCard from '../../components/course/CourseCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { config } from '../../api/axios';
+import { getProgress } from '../../services/progressService';
 
 const { Content } = Layout;
 const { Text, Paragraph } = Typography;
@@ -23,6 +24,9 @@ const CoursesPage: React.FC = () => {
     const categoryId = searchParams.get('category');
     const searchTerm = searchParams.get('search') || '';
     const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+    const [courseProgress, setCourseProgress] = useState<{ [courseId: string]: boolean }>({});
+    const [courseContinueLesson, setCourseContinueLesson] = useState<{ [courseId: string]: string | null }>({});
+    const [courseCompletedStatus, setCourseCompletedStatus] = useState<{ [courseId: string]: boolean }>({});
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -36,7 +40,17 @@ const CoursesPage: React.FC = () => {
                 } else {
                     fetchedCourses = await courseService.getAllCourses();
                 }
-                setCourses(fetchedCourses);
+                // Bổ sung trường lessonsCount cho từng course
+                const coursesWithLessons = await Promise.all(fetchedCourses.map(async (course) => {
+                    try {
+                        const sections = await courseService.getCourseContent(course.id);
+                        const lessonsCount = sections.reduce((sum: number, section: any) => sum + (section.lessons?.length || 0), 0);
+                        return { ...course, lessonsCount };
+                    } catch {
+                        return { ...course, lessonsCount: 0 };
+                    }
+                }));
+                setCourses(coursesWithLessons);
             } catch (err) {
                 setError('Không thể tải danh sách khóa học. Vui lòng thử lại sau.');
                 console.error(err);
@@ -53,14 +67,61 @@ const CoursesPage: React.FC = () => {
             const token = localStorage.getItem('token');
             if (!token) {
                 setEnrolledCourseIds([]);
+                setCourseProgress({});
+                setCourseContinueLesson({});
+                setCourseCompletedStatus({});
                 return;
             }
             try {
                 const response = await config.get('/users/me/enrollments');
                 const ids = (response.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
                 setEnrolledCourseIds(ids);
+                // Lấy progress từng khóa học và lesson tiếp tục học
+                const progressObj: { [courseId: string]: boolean } = {};
+                const continueLessonObj: { [courseId: string]: string | null } = {};
+                const completedObj: { [courseId: string]: boolean } = {};
+                await Promise.all((response.data.data || []).map(async (enroll: any) => {
+                    const courseId = enroll.course?._id || enroll.course?.id;
+                    completedObj[courseId] = !!enroll.completed;
+                    try {
+                        const progress = await getProgress(courseId);
+                        if (!progress || Object.keys(progress).length === 0) {
+                            progressObj[courseId] = false;
+                            continueLessonObj[courseId] = null;
+                            return;
+                        }
+                        const allCompleted = Object.values(progress).every((p: any) => p.completed === true);
+                        progressObj[courseId] = allCompleted;
+                        let continueLessonId = null;
+                        if (progress.lastWatchedLessonId) {
+                            continueLessonId = progress.lastWatchedLessonId;
+                        } else {
+                            const sections = await courseService.getCourseContent(courseId);
+                            outer: for (const section of sections) {
+                                for (const lesson of section.lessons) {
+                                    if (!progress[lesson._id]?.completed && !progress[lesson._id]?.videoCompleted) {
+                                        continueLessonId = lesson._id;
+                                        break outer;
+                                    }
+                                }
+                            }
+                            if (!continueLessonId && sections[0]?.lessons?.[0]?._id) {
+                                continueLessonId = sections[0].lessons[0]._id;
+                            }
+                        }
+                        continueLessonObj[courseId] = continueLessonId;
+                    } catch {
+                        progressObj[courseId] = false;
+                        continueLessonObj[courseId] = null;
+                    }
+                }));
+                setCourseProgress(progressObj);
+                setCourseContinueLesson(continueLessonObj);
+                setCourseCompletedStatus(completedObj);
             } catch {
-                // Không cần xử lý lỗi ở đây
+                setCourseProgress({});
+                setCourseContinueLesson({});
+                setCourseCompletedStatus({});
             }
         };
         fetchEnrollments();
@@ -156,7 +217,16 @@ const CoursesPage: React.FC = () => {
                                     whileHover={{ scale: 1.035, boxShadow: '0 8px 32px 0 rgba(80,80,180,0.10)' }}
                                     className="h-full"
                                 >
-                                    <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id)} />
+                                    <CourseCard 
+                                        course={course} 
+                                        isEnrolled={enrolledCourseIds.includes(course.id)}
+                                        isInProgress={enrolledCourseIds.includes(course.id) && !courseProgress[course.id]}
+                                        continueLessonId={courseContinueLesson[course.id] || undefined}
+                                        isCompleted={courseCompletedStatus[course.id]}
+                                        lessons={course.lessons}
+                                        rating={course.rating}
+                                        reviews={course.reviews}
+                                    />
                                 </motion.div>
                             </Col>
                         ))}

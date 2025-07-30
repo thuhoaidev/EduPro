@@ -8,12 +8,21 @@ const { validateSchema } = require('../utils/validateSchema');
 const { loginSchema, registerSchema } = require('../validations/auth.validation');
 const slugify = require('slugify');
 
+console.log('JWT_SECRET:', process.env.JWT_SECRET);
 
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    console.log('getMe - fetching user with ID:', req.user.id);
+    const user = await User.findById(req.user.id).populate({
+      path: 'role_id',
+      select: 'name description permissions'
+    });
+    console.log('getMe - user with role:', user);
+    console.log('getMe - role_id:', user?.role_id);
+    console.log('getMe - permissions:', user?.role_id?.permissions);
     res.json({ user });
   } catch (err) {
+    console.error('getMe error:', err);
     res.status(500).json({ message: 'Lỗi server khi lấy thông tin user' });
   }
 };
@@ -28,8 +37,8 @@ const createToken = (userId) => {
   console.log('Token ID:', id);
   
   try {
-    // Sử dụng Buffer và string literal cho secret
-    const token = jwt.sign({ id }, Buffer.from('your-secret-key'), {
+    // Sử dụng process.env.JWT_SECRET cho secret
+    const token = jwt.sign({ id }, process.env.JWT_SECRET, {
       expiresIn: '24h'
     });
     console.log('Token created:', token);
@@ -234,6 +243,24 @@ exports.verifyEmail = async (req, res, next) => {
     user.email_verification_expires = undefined;
 
     await user.save();
+
+    // Emit realtime event cho email verification
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('email-verified', {
+          token: token,
+          userId: user._id,
+          email: user.email,
+          fullname: user.fullname,
+          isInstructor: false,
+          timestamp: new Date()
+        });
+        console.log('Realtime email-verified event emitted');
+      }
+    } catch (socketError) {
+      console.error('Failed to emit realtime event:', socketError);
+    }
 
     // Tạo token đăng nhập mới
     const loginToken = jwt.sign(
@@ -580,3 +607,5 @@ exports.changePassword = async (req, res) => {
     });
   }
 };
+
+exports.createToken = createToken;

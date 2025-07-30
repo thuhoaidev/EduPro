@@ -1,24 +1,41 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, Row, Col, Radio, Avatar } from 'antd';
+import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, Row, Col, Radio, Avatar, Tabs, Rate, Select, Modal } from 'antd';
 import { config } from '../../../api/axios';
-import { LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined } from '@ant-design/icons';
-import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress } from '../../../services/progressService';
+import {
+  LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined, PauseCircleOutlined,
+  EditOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, CloseOutlined
+} from '@ant-design/icons';
+import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress, markCourseCompleted } from '../../../services/progressService';
 import { getComments, addComment, replyComment } from '../../../services/lessonCommentService';
+import { getNotesByLesson, createNote, deleteNote, updateNote, type Note } from '../../../services/noteService';
 import SectionSidebar from './SectionSidebar';
 import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import useAuth from '../../../hooks/Auths/useAuth';
 import leoProfanity from 'leo-profanity';
+import { courseService } from '../../../services/apiService';
+import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, toggleDislikeReview, reportReview } from '../../../services/courseReviewService';
+import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
+import { issueCertificate, getCertificate } from '../../../services/certificateService';
+import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
 dayjs.extend(relativeTime);
+
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
 
 type Lesson = { _id: string; title: string };
 type Section = { _id: string; title: string; lessons: Lesson[] };
-type Comment = { user?: { name?: string }; content: string; createdAt?: string };
+type Comment = {
+  _id: string;
+  content: string;
+  createdAt?: string;
+  user?: { name?: string; fullname?: string; avatar?: string };
+  replies?: Comment[];
+  likes?: string[];
+};
 
 const LessonVideoPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
@@ -32,7 +49,7 @@ const LessonVideoPage: React.FC = () => {
   const [courseSections, setCourseSections] = useState<Section[]>([]);
   const [currentLessonId, setCurrentLessonId] = useState<string | null>(null);
   const [sidebarLoading, setSidebarLoading] = useState(false);
-  const [progress, setProgress] = useState<{ completedLessons: string[]; lastWatched?: string; [lessonId: string]: any }>({ completedLessons: [] });
+  const [progress, setProgress] = useState<{ completedLessons: string[]; lastWatched?: string;[lessonId: string]: any }>({ completedLessons: [] });
   const [quiz, setQuiz] = useState<{ _id: string; questions: { question: string; options: string[]; correctIndex?: number }[] } | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizError, setQuizError] = useState<string | null>(null);
@@ -58,6 +75,16 @@ const LessonVideoPage: React.FC = () => {
   const [commentWarning, setCommentWarning] = useState('');
   const [isEnrolled, setIsEnrolled] = useState<boolean | null>(null);
   const [isFree, setIsFree] = useState<boolean | null>(null);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [courseOverview, setCourseOverview] = useState<{ title: string; subtitle: string; requirements: string[] }>({ title: '', subtitle: '', requirements: [] });
+
+  // Thêm các state cho like/reply comment
+  const [likeStates, setLikeStates] = useState<{ [commentId: string]: { liked: boolean; count: number } }>({});
+  const [replyInput, setReplyInput] = useState<{ [commentId: string]: string }>({});
+  const [showReplyBox, setShowReplyBox] = useState<{ [commentId: string]: boolean }>({});
+  const [replyLoading, setReplyLoading] = useState<{ [commentId: string]: boolean }>({});
+  // Thêm loading cho like comment
+  const [likeLoading, setLikeLoading] = useState<{ [commentId: string]: boolean }>({});
 
   // Debounce function để tránh gọi API liên tục
   const debouncedUpdateProgress = useCallback((courseId: string, lessonId: string, time: number, duration: number) => {
@@ -65,6 +92,7 @@ const LessonVideoPage: React.FC = () => {
       clearTimeout(updateProgressTimeout.current);
     }
     updateProgressTimeout.current = setTimeout(() => {
+      console.log('Updating video progress:', { courseId, lessonId, time, duration });
       updateVideoProgress(courseId, lessonId, time, duration).catch(e => console.error("Failed to update progress", e));
     }, 1000); // Cập nhật 1 giây một lần
   }, []);
@@ -103,16 +131,27 @@ const LessonVideoPage: React.FC = () => {
   // Cập nhật tiến độ xem video
   const handleVideoTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     const video = e.currentTarget;
-    if (courseId && currentLessonId) {
+    if (courseId && currentLessonId && video.duration > 0) {
+      // Cập nhật tiến độ video
       debouncedUpdateProgress(courseId, currentLessonId, video.currentTime, video.duration);
-      if (video.duration > 0) {
-        const progressRatio = video.currentTime / video.duration;
-        setVideoProgress(progressRatio);
-        if (progressRatio >= 0.9 && !videoWatched) {
-          // Chỉ đánh dấu đã xem hết video, chưa unlock bài mới
-          updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration).catch(e => console.error("Failed to update progress", e));
-          setVideoWatched(true);
-        }
+
+      // Cập nhật local state
+      setSavedVideoTime(video.currentTime);
+
+      // Cập nhật progress ratio cho UI
+      const progressRatio = video.currentTime / video.duration;
+      setVideoProgress(progressRatio);
+
+      // Debug log
+      if (video.currentTime % 10 < 0.1) { // Log mỗi 10 giây
+        console.log('Video progress:', { currentTime: video.currentTime, duration: video.duration, ratio: progressRatio });
+      }
+
+      // Đánh dấu đã xem hết video khi đạt 90%
+      if (progressRatio >= 0.9 && !videoWatched) {
+        console.log('Video watched 90%, marking as completed');
+        updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration).catch(e => console.error("Failed to update progress", e));
+        setVideoWatched(true);
       }
     }
   };
@@ -123,38 +162,85 @@ const LessonVideoPage: React.FC = () => {
     if (courseId && lessonId) {
       getVideoProgress(courseId, lessonId)
         .then(progress => {
-          // Chỉ set nếu lessonId vẫn là bài học hiện tại
-          if (progress && 'videoCompleted' in progress && progress.videoCompleted === false && (!progress.watchedSeconds || progress.watchedSeconds < 5)) {
-            setSavedVideoTime(0);
-          } else {
+          console.log('Loaded video progress:', progress);
+          if (progress && progress.watchedSeconds && progress.watchedSeconds > 0) {
             setSavedVideoTime(progress.watchedSeconds);
+            // Cũng cập nhật videoProgress UI nếu có
+            const progressData = progress as any;
+            if (progressData.videoDuration && progressData.videoDuration > 0) {
+              const progressRatio = progress.watchedSeconds / progressData.videoDuration;
+              setVideoProgress(progressRatio);
+            } else {
+              // Nếu không có videoDuration, set progress dựa trên thời gian đã xem
+              setVideoProgress(progress.watchedSeconds > 0 ? 0.1 : 0);
+            }
+          } else {
+            setSavedVideoTime(0);
+            setVideoProgress(0);
           }
         })
-        .catch(err => console.error("Lỗi lấy tiến độ video", err));
+        .catch(err => {
+          console.error("Lỗi lấy tiến độ video", err);
+          setSavedVideoTime(0);
+          setVideoProgress(0);
+        });
     }
-  }, [courseId, lessonId, currentLessonId]);
-
-  // Đảm bảo khi savedVideoTime thay đổi và video đã load, sẽ tua lại đúng vị trí
-  useEffect(() => {
-    if (videoRef.current && savedVideoTime > 0) {
-      videoRef.current.currentTime = savedVideoTime;
-    }
-  }, [savedVideoTime]);
+  }, [courseId, lessonId]);
 
   // Khi video load xong, tua đến vị trí đã lưu
-  const handleVideoLoadedMetadata = () => {
-    if (videoRef.current && savedVideoTime > 0) {
-      videoRef.current.currentTime = savedVideoTime;
+  const handleVideoLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    const video = e.currentTarget;
+    if (video && savedVideoTime > 0) {
+      console.log('Setting video time to:', savedVideoTime);
+      video.currentTime = savedVideoTime;
     }
   };
 
+  // Đảm bảo video được tua đến đúng vị trí khi savedVideoTime thay đổi
+  useEffect(() => {
+    if (savedVideoTime > 0) {
+      // Delay một chút để đảm bảo video đã load
+      const timer = setTimeout(() => {
+        const videoElement = document.querySelector('video');
+        if (videoElement && videoElement.readyState >= 1) {
+          console.log('Setting video time from useEffect:', savedVideoTime);
+          videoElement.currentTime = savedVideoTime;
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [savedVideoTime]);
+
   // Khi xem hết video
-  const handleVideoEnded = () => {
+  const handleVideoEnded = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    const video = e.currentTarget;
+
+    // Nếu đã hoàn thành bài học thì không hiện thông báo nữa
+    const isLessonCompleted = !!progress && !!currentLessonId &&
+      (progress[currentLessonId]?.completed === true || progress[currentLessonId]?.videoCompleted === true);
+
     setVideoWatched(true);
-    message.info('Bạn đã xem hết video, hãy hoàn thành quiz để mở khóa bài tiếp theo.');
-    if (courseId && currentLessonId && videoRef.current) {
-      updateVideoProgress(courseId, currentLessonId, videoRef.current.duration, videoRef.current.duration)
+
+    if (!isLessonCompleted) {
+      message.info('Bạn đã xem hết video, hãy hoàn thành quiz để mở khóa bài tiếp theo.');
+    }
+
+    if (courseId && currentLessonId && video) {
+      console.log('Video ended, updating final progress');
+      updateVideoProgress(courseId, currentLessonId, video.duration, video.duration)
         .catch(e => console.error("Failed to update final progress", e));
+      // Đảm bảo cập nhật videoCompleted: true vào progress
+      updateProgress(courseId, currentLessonId, {
+        watchedSeconds: video.duration,
+        videoDuration: video.duration,
+        videoCompleted: true
+      } as any).catch(e => console.error("Failed to set videoCompleted", e));
+    }
+    // Nếu có quiz thì tự động chuyển sang tab quiz
+    if (quiz) {
+      setActiveTab('quiz');
+    } else {
+      goToNextLesson(); // <-- Tự động chuyển nếu không có quiz
     }
   };
 
@@ -198,7 +284,7 @@ const LessonVideoPage: React.FC = () => {
     setQuizAnswers([]);
     setShowQuiz(false);
     setQuizUnlocked(false);
-    setVideoProgress(0); // Reset luôn tiến độ video
+    setVideoProgress(0); // Reset progress UI, nhưng không reset savedVideoTime
   }, [currentLessonId]);
 
   useEffect(() => {
@@ -292,22 +378,14 @@ const LessonVideoPage: React.FC = () => {
     }
   }, [quiz, currentLessonId]);
 
-  // Khi chuyển bài học, reset videoProgress
-  useEffect(() => {
-    setVideoProgress(0);
-  }, [currentLessonId]);
 
-  // Unlock quiz duy nhất 1 lần khi đạt 90%
-  useEffect(() => {
-    if (!quizUnlocked && videoProgress >= 0.9 && quiz) {
-      setQuizUnlocked(true);
-    }
-  }, [videoProgress, quiz, quizUnlocked]);
 
-  // Quiz chỉ hiển thị nếu đã unlock
+  // Bỏ logic unlock quiz theo videoProgress
+
+  // Quiz hiển thị ngay từ đầu nếu có quiz
   useEffect(() => {
-    setShowQuiz(quizUnlocked && !!quiz);
-  }, [quizUnlocked, quiz]);
+    setShowQuiz(!!quiz);
+  }, [quiz]);
 
   // Khi load quiz mới, reset quizAnswers đúng số lượng câu hỏi
   useEffect(() => {
@@ -392,7 +470,8 @@ const LessonVideoPage: React.FC = () => {
         if (res.data.success) {
           const unlocked = await getUnlockedLessons(courseId);
           setUnlockedLessons(unlocked || []);
-          message.success('Bạn đã hoàn thành bài học, bài tiếp theo đã được mở khóa!');
+          message.success('Bạn đã hoàn thành bài học, bài tiếp theo sẽ được mở...');
+          goToNextLesson(); // <-- Tự động chuyển sang bài tiếp theo khi quiz đạt
         } else {
           message.warning('Quiz chưa đạt, hãy thử lại.');
         }
@@ -455,159 +534,1361 @@ const LessonVideoPage: React.FC = () => {
     checkEnrolled();
   }, [courseId, lessonId]);
 
+  // Kiểm tra hoàn thành 100% khóa học
+  useEffect(() => {
+    const checkCompleted = async () => {
+      if (!courseId) {
+        setIsCompleted(false);
+        return;
+      }
+
+      try {
+        const progress = await getProgress(courseId);
+        console.log('Progress data:', progress);
+
+        // Tính tổng số bài học từ courseContent
+        const totalLessons = courseSections.reduce((total, section) => total + section.lessons.length, 0);
+        console.log('Total lessons:', totalLessons);
+
+        // Đếm số bài học đã hoàn thành
+        const completedLessons = Object.values(progress || {}).filter((p: any) =>
+          p.completed === true && p.videoCompleted === true && p.quizPassed === true
+        ).length;
+        console.log('Completed lessons:', completedLessons);
+
+        // Kiểm tra hoàn thành
+        const allCompleted = totalLessons > 0 && completedLessons === totalLessons;
+        console.log('All completed:', allCompleted);
+
+        setIsCompleted(allCompleted);
+
+        // Tìm bài học tiếp theo chưa hoàn thành (nếu có)
+        if (!allCompleted) {
+          let nextLessonId = null;
+          outer: for (const section of courseSections) {
+            for (const lesson of section.lessons) {
+              const lessonProgress = progress[lesson._id];
+              if (!lessonProgress?.completed) {
+                nextLessonId = lesson._id;
+                break outer;
+              }
+            }
+          }
+          // setContinueLessonId(nextLessonId); // This state is not defined in the original file
+        }
+
+      } catch (error) {
+        console.error('Error checking completion:', error);
+        setIsCompleted(false);
+        // setContinueLessonId(null); // This state is not defined in the original file
+      }
+    };
+
+    checkCompleted();
+  }, [courseSections, courseId]);
+
   // Nếu chưa enroll và không phải khóa học free
   if (isEnrolled === false && !isFree) {
     return <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />;
   }
 
-  if (loading) return <div className="flex justify-center items-center min-h-screen"><Spin size="large" /></div>;
-  if (error) return <Alert message="Lỗi" description={error} type="error" showIcon />;
+  // Hàm load like state cho tất cả comment và reply
+  const loadLikeStates = async (comments: any[]) => {
+    const allComments: any[] = [];
+    const collect = (arr: any[]) => {
+      arr.forEach(c => {
+        allComments.push(c);
+        if (c.replies && c.replies.length) collect(c.replies);
+      });
+    };
+    collect(comments);
+    const states: { [id: string]: { liked: boolean; count: number } } = {};
+    allComments.forEach(c => {
+      const likesArr = Array.isArray(c.likes) ? c.likes : [];
+      states[c._id] = {
+        liked: user && likesArr.some((id: any) => id === user._id || id?._id === user._id),
+        count: likesArr.length
+      };
+    });
+    setLikeStates(states);
+  };
 
+  // Khi load comments, load luôn like state
+  useEffect(() => {
+    if (comments && comments.length) loadLikeStates(comments);
+  }, [comments]);
+
+  // Hàm xử lý like comment
+  const handleLikeComment = async (commentId: string) => {
+    setLikeLoading(prev => ({ ...prev, [commentId]: true }));
+    try {
+      await fetch(`/api/lesson-comments/comment/${commentId}/toggle-like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      // reload comments để cập nhật số like và trạng thái like
+      const commentsData = await getComments(lessonId!);
+      setComments(commentsData || []);
+    } finally {
+      setLikeLoading(prev => ({ ...prev, [commentId]: false }));
+    }
+  };
+
+  // Hàm xử lý reply
+  const handleReply = async (parentId: string) => {
+    if (!replyInput[parentId]?.trim()) return;
+    setReplyLoading(prev => ({ ...prev, [parentId]: true }));
+    try {
+      const res = await replyComment(parentId, replyInput[parentId]);
+      if (!res || res.success === false) {
+        message.error(res?.message || 'Không thể gửi phản hồi');
+        return;
+      }
+      setReplyInput(prev => ({ ...prev, [parentId]: '' }));
+      setShowReplyBox(prev => ({ ...prev, [parentId]: false }));
+      // reload comments
+      const commentsData = await getComments(lessonId!);
+      setComments(commentsData || []);
+      message.success('Đã gửi phản hồi!');
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Không gửi được phản hồi.');
+    } finally {
+      setReplyLoading(prev => ({ ...prev, [parentId]: false }));
+    }
+  };
+
+  // State để quản lý số lượng reply hiển thị cho từng comment/reply
+  const [visibleReplies, setVisibleReplies] = useState<{ [commentId: string]: number }>({});
+
+  // Hàm xử lý xem thêm reply
+  const handleShowMoreReplies = (parentId: string, total: number) => {
+    setVisibleReplies(prev => ({
+      ...prev,
+      [parentId]: Math.min((prev[parentId] || 1) + 2, total)
+    }));
+  };
+
+  // Hàm xử lý ẩn bớt reply
+  const handleHideReplies = (parentId: string) => {
+    setVisibleReplies(prev => ({
+      ...prev,
+      [parentId]: 1
+    }));
+  };
+
+  // Hàm render replies lồng nhau (thụt lề tối giản cho reply, chỉ hiện 1 reply đầu, có nút xem thêm)
+  const renderReplies = (replies: any[] = [], parentId?: string, level = 1) => (
+    (() => {
+      if (!replies || replies.length === 0) return null;
+      const visibleCount = visibleReplies[parentId || 'root'] || 1;
+      const showReplies = replies.slice(0, visibleCount);
+      return (
+        <div style={{
+          marginLeft: 8,
+          marginTop: 8,
+          borderLeft: level === 1 ? '2px solid #a5b4fc' : undefined,
+          paddingLeft: 12,
+          background: level === 1 ? '#f8faff' : 'transparent',
+          borderRadius: level === 1 ? 8 : undefined
+        }}>
+          {showReplies.map(reply => (
+            <div key={reply._id} style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              marginBottom: 10,
+              padding: '8px 0',
+              borderBottom: '1px solid #f0f0f0',
+              background: 'transparent'
+            }}>
+              <Avatar src={reply.user?.avatar} size={24} style={{ marginRight: 8, marginTop: 2, background: '#e6f7ff', color: '#1890ff' }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{reply.user?.fullname || reply.user?.name || 'Anonymous'}</div>
+                <div style={{ fontSize: 14, color: '#444', margin: '2px 0 4px 0' }}>{reply.content}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 }}>
+                  <Button
+                    type={likeStates[reply._id]?.liked ? 'primary' : 'default'}
+                    size="small"
+                    icon={<span style={{ color: likeStates[reply._id]?.liked ? '#f5222d' : '#888', fontSize: 13 }}>♥</span>}
+                    style={{ border: 'none', background: 'none', boxShadow: 'none', padding: 0, fontSize: 13, display: 'flex', alignItems: 'center' }}
+                    onClick={() => handleLikeComment(reply._id)}
+                    loading={likeLoading[reply._id]}
+                  >
+                    <span style={{ color: '#888', fontSize: 13, fontWeight: 600, minWidth: 14, textAlign: 'left', marginLeft: 4 }}>
+                      {typeof likeStates[reply._id]?.count === 'number' ? likeStates[reply._id]?.count : (Array.isArray(reply.likes) ? reply.likes.length : 0)}
+                    </span>
+                  </Button>
+                  <Button type="link" size="small" style={{ fontSize: 13, color: '#6366f1', padding: 0 }} onClick={() => setShowReplyBox(prev => ({ ...prev, [reply._id]: !prev[reply._id] }))}>Trả lời</Button>
+                </div>
+                {showReplyBox[reply._id] && (
+                  <div style={{ marginTop: 6 }}>
+                    <Input.TextArea
+                      rows={2}
+                      value={replyInput[reply._id] || ''}
+                      onChange={e => setReplyInput(prev => ({ ...prev, [reply._id]: e.target.value }))}
+                      placeholder="Nhập phản hồi..."
+                      style={{ borderRadius: 8, fontSize: 14, marginBottom: 4 }}
+                    />
+                    <Button
+                      type="primary"
+                      size="small"
+                      loading={replyLoading[reply._id]}
+                      onClick={() => handleReply(reply._id)}
+                      disabled={!replyInput[reply._id]?.trim()}
+                    >Gửi</Button>
+                  </div>
+                )}
+                {/* Reply lồng nhau */}
+                {reply.replies && reply.replies.length > 0 && renderReplies(reply.replies, reply._id, level + 1)}
+              </div>
+            </div>
+          ))}
+          {replies.length > visibleCount && (
+            <Button type="link" size="small" style={{ color: '#6366f1', fontWeight: 500, marginLeft: 8 }} onClick={() => handleShowMoreReplies(parentId || 'root', replies.length)}>
+              Xem thêm {Math.min(2, replies.length - visibleCount)} phản hồi...
+            </Button>
+          )}
+          {visibleCount > 1 && replies.length > 1 && (
+            <Button type="link" size="small" style={{ color: '#888', fontWeight: 500, marginLeft: 8 }} onClick={() => handleHideReplies(parentId || 'root')}>
+              Ẩn bớt phản hồi
+            </Button>
+          )}
+        </div>
+      );
+    })()
+  );
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'quiz' | 'comment' | 'note' | 'review'>('overview');
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [noteLoading, setNoteLoading] = useState(false);
+  const [note, setNote] = useState('');
+  const [noteSaved, setNoteSaved] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
+
+  // Lấy ghi chú của user cho bài học
+  useEffect(() => {
+    const fetchNotes = async () => {
+      if (!lessonId) return;
+      setNoteLoading(true);
+      try {
+        const userNotes = await getNotesByLesson(lessonId);
+        setNotes(userNotes);
+      } catch (error) {
+        console.error('Lỗi lấy ghi chú:', error);
+      }
+      setNoteLoading(false);
+    };
+    fetchNotes();
+  }, [lessonId]);
+
+  // Hàm tạo ghi chú mới
+  const handleAddNote = async () => {
+    if (!newNoteContent.trim() || !lessonId || !courseId || !videoRef.current) return;
+
+    const timestamp = Math.floor(videoRef.current.currentTime);
+    const newNote = await createNote({
+      content: newNoteContent,
+      timestamp,
+      lessonId,
+      courseId,
+    });
+
+    if (newNote) {
+      setNotes(prev => [...prev, newNote].sort((a, b) => a.timestamp - b.timestamp));
+      setNewNoteContent('');
+      message.success('Đã thêm ghi chú!');
+    } else {
+      message.error('Không thể thêm ghi chú.');
+    }
+  };
+
+  // Hàm xóa ghi chú
+  const handleDeleteNote = async (noteId: string) => {
+    const success = await deleteNote(noteId);
+    if (success) {
+      setNotes(prev => prev.filter(n => n._id !== noteId));
+      message.success('Đã xóa ghi chú!');
+    } else {
+      message.error('Không thể xóa ghi chú.');
+    }
+  };
+
+  // Hàm bắt đầu sửa ghi chú
+  const startEditNote = (note: Note) => {
+    setEditingNoteId(note._id);
+    setEditingContent(note.content);
+  };
+
+  // Hàm hủy sửa ghi chú
+  const cancelEditNote = () => {
+    setEditingNoteId(null);
+    setEditingContent('');
+  };
+
+  // Hàm lưu ghi chú đã sửa
+  const handleUpdateNote = async (noteId: string) => {
+    if (!editingContent.trim()) {
+      message.warning('Nội dung không được để trống!');
+      return;
+    }
+    const updated = await updateNote(noteId, editingContent);
+    if (updated) {
+      setNotes(prev => prev.map(n => n._id === noteId ? { ...n, content: updated.content } : n));
+      setEditingNoteId(null);
+      setEditingContent('');
+      message.success('Đã cập nhật ghi chú!');
+    } else {
+      message.error('Không thể cập nhật ghi chú.');
+    }
+  };
+
+  // Hàm tua video đến mốc thời gian
+  const seekToTimestamp = (time: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+      videoRef.current.play();
+    }
+  };
+
+  const formatTimestamp = (seconds: number) => {
+    const min = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const sec = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${min}:${sec}`;
+  };
+
+  // Đặt tab mặc định là Tổng quan
+  useEffect(() => {
+    setActiveTab('overview');
+  }, [lessonId]);
+
+  // Lấy thông tin mô tả và yêu cầu khóa học
+  useEffect(() => {
+    const fetchCourseOverview = async () => {
+      if (!courseId) return;
+      try {
+        const apiRes = await courseService.getCourseById(courseId);
+        if (apiRes) {
+          const mapped = courseService.mapApiCourseToAppCourse(apiRes);
+          setCourseOverview({ title: mapped.title, subtitle: mapped.subtitle, requirements: mapped.requirements || [] });
+        }
+      } catch {
+        setCourseOverview({ title: '', subtitle: '', requirements: [] });
+      }
+    };
+    fetchCourseOverview();
+  }, [courseId]);
+
+  const [reviews, setReviews] = useState<Array<{
+    _id: string;
+    user: { fullname?: string; avatar?: string };
+    rating: number;
+    comment: string;
+    createdAt?: string;
+    likes?: string[];
+    dislikes?: string[];
+  }>>([]);
+  const [myReview, setMyReview] = useState<{ rating: number; comment: string } | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewValue, setReviewValue] = useState<number>(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState<number | 'all'>('all');
+  const [reviewSearch, setReviewSearch] = useState('');
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+
+  // Tính toán dữ liệu tổng quan đánh giá
+  const ratingStats = React.useMemo(() => {
+    const stats = [0, 0, 0, 0, 0]; // 5 -> 1 sao
+    reviews.forEach(r => {
+      if (r.rating >= 1 && r.rating <= 5) stats[5 - r.rating]++;
+    });
+    const total = reviews.length;
+    return {
+      stats,
+      total,
+      avg: total ? (reviews.reduce((sum, r) => sum + r.rating, 0) / total) : 0,
+      percent: stats.map(count => total ? Math.round((count / total) * 100) : 0)
+    };
+  }, [reviews]);
+
+  // Lọc và tìm kiếm review
+  const filteredReviews = React.useMemo(() => {
+    let list = reviews;
+    if (reviewFilter !== 'all') list = list.filter(r => r.rating === reviewFilter);
+    if (reviewSearch.trim()) list = list.filter(r => r.comment.toLowerCase().includes(reviewSearch.trim().toLowerCase()));
+    return list;
+  }, [reviews, reviewFilter, reviewSearch]);
+
+  // Lấy đánh giá của khóa học
+  useEffect(() => {
+    if (!courseId) return;
+    (async () => {
+      setReviewLoading(true);
+      setReviewError(null);
+      try {
+        const reviewsData = await getCourseReviews(courseId);
+        setReviews(reviewsData || []);
+        if (isEnrolled) {
+          try {
+            const my = await getMyReview(courseId);
+            setMyReview(my);
+            setReviewValue(my?.rating || 0);
+            setReviewComment(my?.comment || '');
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        setReviewError('Không thể tải đánh giá.');
+      }
+      setReviewLoading(false);
+    })();
+  }, [courseId, isEnrolled]);
+
+  // Hàm gửi đánh giá
+  const handleSubmitReview = async () => {
+    if (!courseId) return;
+    setReviewLoading(true);
+    setReviewError(null);
+    try {
+      await addOrUpdateReview(courseId, reviewValue, reviewComment);
+      message.success('Đã gửi đánh giá!');
+      // Reload reviews
+      const reviewsData = await getCourseReviews(courseId);
+      setReviews(reviewsData || []);
+      setMyReview({ rating: reviewValue, comment: reviewComment });
+    } catch {
+      setReviewError('Không thể gửi đánh giá.');
+    }
+    setReviewLoading(false);
+  };
+
+  // Handler cho like/dislike/report
+  const handleLike = async (reviewId: string) => {
+    try {
+      await toggleLikeReview(reviewId);
+      // Reload reviews
+      if (courseId) {
+        const reviewsData = await getCourseReviews(courseId);
+        setReviews(reviewsData || []);
+      }
+    } catch (error) {
+      message.error('Có lỗi xảy ra');
+    }
+  };
+
+  const handleDislike = async (reviewId: string) => {
+    try {
+      await toggleDislikeReview(reviewId);
+      if (courseId) {
+        const reviewsData = await getCourseReviews(courseId);
+        setReviews(reviewsData || []);
+      }
+    } catch (error) {
+      message.error('Có lỗi xảy ra');
+    }
+  };
+
+  const handleReport = async () => {
+    if (!selectedReviewId || !reportReason.trim()) {
+      message.warning('Vui lòng nhập lý do');
+      return;
+    }
+    try {
+      await reportReview(selectedReviewId, reportReason);
+      message.success('Đã gửi báo cáo');
+      setReportModalVisible(false);
+      setReportReason('');
+      setSelectedReviewId(null);
+    } catch (error) {
+      message.error('Có lỗi xảy ra');
+    }
+  };
+
+  // Khi hoàn thành 100% khóa học, đánh dấu completed vào backend
+  useEffect(() => {
+    if (isCompleted && courseId) {
+      markCourseCompleted(courseId)
+        .then(res => {
+          if (res.success) {
+            message.success('Khóa học đã được đánh dấu hoàn thành!');
+          }
+        })
+        .catch(() => {
+          message.error('Không thể đánh dấu hoàn thành khóa học!');
+        });
+    }
+  }, [isCompleted, courseId]);
+
+  // Khi hoàn thành khóa học, tự động lấy certificate nếu có
+  useEffect(() => {
+    if (isCompleted && courseId) {
+      setIsLoadingCertificate(true);
+      getCertificate(courseId)
+        .then(cert => setCertificate(cert))
+        .catch(() => setCertificate(null))
+        .finally(() => setIsLoadingCertificate(false));
+    }
+  }, [isCompleted, courseId]);
+
+  // Hàm nhận chứng chỉ
+  const handleIssueCertificate = async () => {
+    if (!courseId) return;
+    setIsLoadingCertificate(true);
+    try {
+      const cert = await issueCertificate(courseId);
+      setCertificate(cert);
+      message.success('Đã nhận chứng chỉ!');
+    } catch (e: any) {
+      // Nếu có danh sách bài học chưa hoàn thành, hiển thị chi tiết
+      if (e?.response?.data?.incompleteLessons && Array.isArray(e.response.data.incompleteLessons)) {
+        const ids = e.response.data.incompleteLessons;
+        message.error(
+          <span>
+            Không thể nhận chứng chỉ. Bạn còn <b>{ids.length}</b> bài học chưa hoàn thành.<br/>
+            Mã bài học: <span style={{color: '#1890ff'}}>{ids.join(', ')}</span>
+          </span>
+        );
+      } else {
+        message.error('Không thể nhận chứng chỉ. Hãy đảm bảo bạn đã hoàn thành tất cả bài học!');
+      }
+    }
+    setIsLoadingCertificate(false);
+  };
+
+  // Render danh sách bình luận chuyên nghiệp hơn
+  const renderCommentItem = (item: any) => (
+    <div style={{
+      display: 'flex',
+      alignItems: 'flex-start',
+      padding: '20px 0',
+      borderBottom: '1px solid #f0f0f0',
+      marginBottom: 4,
+      background: '#fff',
+      borderRadius: 12
+    }}>
+      <Avatar src={item.user?.avatar} icon={<UserOutlined />} size={44} style={{ background: '#e6f7ff', color: '#1890ff', marginRight: 18, marginTop: 2 }} />
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
+          <span style={{ fontWeight: 700, fontSize: 17, color: '#222' }}>{item.user?.fullname || item.user?.name || 'Anonymous'}</span>
+          <span style={{ color: '#888', fontSize: 13, fontWeight: 400 }}>{dayjs(item.createdAt).fromNow()}</span>
+        </div>
+        <div style={{ fontSize: 16, color: '#444', marginBottom: 8 }}>{item.content}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 2 }}>
+          <Button
+            type={likeStates[item._id]?.liked ? 'primary' : 'default'}
+            size="small"
+            icon={<span style={{ color: likeStates[item._id]?.liked ? '#f5222d' : '#888', fontSize: 16 }}>♥</span>}
+            style={{ border: 'none', background: 'none', boxShadow: 'none', padding: 0, fontSize: 16, fontWeight: 600, display: 'flex', alignItems: 'center' }}
+            onClick={() => handleLikeComment(item._id)}
+            loading={likeLoading[item._id]}
+            onMouseOver={e => (e.currentTarget.style.color = '#f5222d')}
+            onMouseOut={e => (e.currentTarget.style.color = '')}
+          >
+            <span style={{ color: '#888', fontSize: 15, fontWeight: 600, minWidth: 18, textAlign: 'left', marginLeft: 4 }}>
+              {typeof likeStates[item._id]?.count === 'number' ? likeStates[item._id]?.count : (Array.isArray(item.likes) ? item.likes.length : 0)}
+            </span>
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            style={{ fontSize: 15, color: '#6366f1', padding: 0, fontWeight: 600 }}
+            onClick={() => setShowReplyBox(prev => ({ ...prev, [item._id]: !prev[item._id] }))}
+          >Trả lời</Button>
+        </div>
+        {showReplyBox[item._id] && (
+          <div style={{ marginTop: 8 }}>
+            <Input.TextArea
+              rows={2}
+              value={replyInput[item._id] || ''}
+              onChange={e => setReplyInput(prev => ({ ...prev, [item._id]: e.target.value }))}
+              placeholder="Nhập phản hồi..."
+              style={{ borderRadius: 8, fontSize: 15, marginBottom: 4 }}
+            />
+            <Button
+              type="primary"
+              size="small"
+              loading={replyLoading[item._id]}
+              onClick={() => handleReply(item._id)}
+              disabled={!replyInput[item._id]?.trim()}
+            >Gửi</Button>
+          </div>
+        )}
+        {/* Render replies */}
+        {renderReplies(item.replies || [], item._id, 1)}
+      </div>
+    </div>
+  );
+  const [certificate, setCertificate] = useState<any>(null);
+  const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
+  const cloudName = 'dxsilzscb';
+  const publicId = 'edupor/videos/ovyuqhtkjutcgcdrfage';
   return (
-    <div style={{ display: 'flex' }}>
-      <SectionSidebar
-        sections={courseSections}
-        unlockedLessons={unlockedLessons}
-        currentLessonId={currentLessonId}
-        progress={progress}
-        onSelectLesson={(lessonId) => {
-          navigate(`/lessons/${lessonId}/video`);
-        }}
-      />
+    <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
+      <div style={{
+        width: '30%',
+        minWidth: 280,
+        maxWidth: 400,
+        background: '#fff',
+        boxShadow: '0 2px 16px #e6e6e6',
+        borderRadius: 16,
+        margin: 16,
+        height: 'calc(100vh - 32px)',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        position: 'relative',
+        scrollbarWidth: 'none', // Firefox
+        msOverflowStyle: 'none', // IE/Edge
+      }}
+        className="hide-scrollbar"
+      >
+        <SectionSidebar
+          sections={courseSections}
+          unlockedLessons={unlockedLessons}
+          currentLessonId={currentLessonId}
+          progress={progress}
+          currentVideoProgress={Math.round(videoProgress * 100)}
+          isVideoPlaying={isVideoPlaying}
+          onSelectLesson={(lessonId) => {
+            navigate(`/lessons/${lessonId}/video`);
+          }}
+          isCompleted={isCompleted}
+          onIssueCertificate={handleIssueCertificate}
+          certificate={certificate}
+          isLoadingCertificate={isLoadingCertificate}
+        />
+      </div>
       <motion.div
         initial={{ x: 300, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: -300, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-        style={{ flex: 1, padding: '20px', overflowY: 'auto', height: '100vh' }}
+        style={{
+          flex: '0 0 70%',
+          padding: '32px 40px',
+          overflowY: 'auto', // Chỉ cuộn nội dung chính nếu cần
+          height: '100vh',
+          background: 'transparent',
+          overflowX: 'hidden'
+        }}
       >
         {loading ? (
-          <Spin size="large" />
+          <div className="flex justify-center items-center min-h-screen"><Spin size="large" /></div>
         ) : error ? (
-          <Alert message={error} type="error" />
+          <Alert message="Lỗi" description={error} type="error" showIcon style={{ margin: 32 }} />
         ) : (
           <>
-            <Title level={2}>{lessonTitle}</Title>
-            <div className="relative">
-              <Card>
+            <Divider style={{ margin: '12px 0 24px 0' }} />
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, width: '100%', maxWidth: 'none', background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)', border: 'none', padding: 0 }} styles={{ body: { padding: 0 } }}>
                 {videoUrl ? (
-                  <video
-                    ref={videoRef}
-                    key={videoUrl}
-                    src={videoUrl}
-                    controls
-                    style={{ width: '100%' }}
-                    onTimeUpdate={handleVideoTimeUpdate}
-                    onEnded={handleVideoEnded}
-                    onLoadedMetadata={handleVideoLoadedMetadata}
-                  >
-                    Trình duyệt không hỗ trợ video tag.
-                  </video>
+                  <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden' }}>
+                    {/* <video
+                      ref={videoRef}
+                      key={videoUrl}
+                      src={videoUrl}
+                      controls
+                      controlsList="nodownload noplaybackrate"
+                      onContextMenu={(e) => e.preventDefault()}
+                      style={{ width: '100%', borderRadius: 0, background: '#000', display: 'block', maxHeight: 480 }}
+                      onTimeUpdate={handleVideoTimeUpdate}
+                      onEnded={handleVideoEnded}
+                      onLoadedMetadata={handleVideoLoadedMetadata}
+                      onPlay={() => setIsVideoPlaying(true)}
+                      onPause={() => setIsVideoPlaying(false)}
+                    >
+                      Trình duyệt không hỗ trợ video tag.
+                    </video> */}
+                    <CustomVideoPlayer
+                      sources={{
+                        '360p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_640,h_360,c_limit/${publicId}.mp4`,
+                        '720p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1280,h_720,c_limit/${publicId}.mp4`,
+                        '1080p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1920,h_1080,c_limit/${publicId}.mp4`,
+                      }}
+                      onTimeUpdate={handleVideoTimeUpdate}
+                      onEnded={handleVideoEnded}
+                      onLoadedMetadata={handleVideoLoadedMetadata}
+                      onPlay={() => setIsVideoPlaying(true)}
+                      onPause={() => setIsVideoPlaying(false)}
+                      initialTime={savedVideoTime}
+                      isLessonCompleted={!!progress && !!currentLessonId && (progress[currentLessonId]?.completed === true || progress[currentLessonId]?.videoCompleted === true)}
+                    />
+
+
+                    {videoWatched && !quiz && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
+                        <span style={{ background: '#52c41a', color: '#fff', padding: '10px 24px', borderRadius: 32, boxShadow: '0 2px 8px #b7eb8f', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 18 }}>
+                          <CheckCircleOutlined style={{ fontSize: 22 }} /> Đã hoàn thành bài học
+                        </span>
+                      </motion.div>
+                    )}
+                  </div>
                 ) : (
-                  <Alert message="Không có video" type="warning" />
+                  <Alert message="Không có video" type="warning" style={{ borderRadius: 12, margin: 24 }} />
                 )}
               </Card>
-
-              {videoWatched && !quiz && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
-                  <span className="bg-green-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-                    <CheckCircleOutlined className="text-xl" /> Đã hoàn thành bài học
-                  </span>
-                </motion.div>
-              )}
-            </div>
-
-            <Divider />
-
-            {/* Quiz Section */}
-            {showQuiz && quiz && (
-              <div className="mt-8">
-                <Card variant="outlined" className="shadow-lg rounded-xl">
-                  <Title level={3}>Quiz: {quiz.questions.length} câu hỏi</Title>
-                  {quiz.questions.map((q, idx) => (
-                    <div key={idx} className="mb-6">
-                      <div className="font-semibold mb-2">Câu {idx + 1}: {q.question}</div>
-                      <Radio.Group
-                        onChange={e => setQuizAnswers(prev => prev.map((a, i) => (i === idx ? e.target.value : a)))}
-                        value={quizAnswers[idx]}
-                        disabled={false}
-                      >
-                        {q.options.map((opt, oIdx) => (
-                          <Radio key={oIdx} value={oIdx} className="block mb-1">
-                            {opt}
-                            {quizResult && quizResult.success && q.correctIndex === oIdx && (
-                              <span style={{ color: '#52c41a', marginLeft: 8 }}>(Đáp án đúng)</span>
-                            )}
-                          </Radio>
-                        ))}
-                      </Radio.Group>
-                      {quizResult && quizResult.wrongQuestions?.includes(idx) && (
-                        <div className="text-red-600 mt-1">Đáp án chưa đúng</div>
-                      )}
-                    </div>
-                  ))}
-                  <Button type="primary" size="large" onClick={handleQuizSubmit} disabled={!!quizResult && quizResult.success}>Nộp bài</Button>
-                  {quizResult && !quizResult.success && (
-                    <Button className="ml-4" onClick={handleQuizRetry}>Làm lại</Button>
-                  )}
-                  {quizResult && (
-                    <div style={{ marginTop: 20 }}>
-                      <Alert
-                        message={quizResult.success ? '🎉 Chúc mừng!' : 'Kết quả'}
-                        description={quizResult.message}
-                        type={quizResult.success ? 'success' : 'error'}
-                        showIcon
-                      />
-                    </div>
-                  )}
-                </Card>
-              </div>
-            )}
-
-            <Divider />
+            </motion.div>
 
             {/* Comments Section */}
-            <Card title="Bình luận">
-              <List
-                loading={commentLoading}
-                dataSource={comments}
-                renderItem={(item) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      avatar={<Avatar icon={<UserOutlined />} />}
-                      title={item.user?.name || 'Anonymous'}
-                      description={item.content}
-                    />
-                    <div>{dayjs(item.createdAt).fromNow()}</div>
-                  </List.Item>
-                )}
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <Tabs
+                activeKey={activeTab}
+                onChange={key => setActiveTab(key as 'overview' | 'quiz' | 'comment' | 'note' | 'review')}
+                items={[
+                  {
+                    key: 'overview',
+                    label: 'Tổng quan',
+                    children: (
+                      <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, width: '100%', maxWidth: 'none', background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)', border: 'none', padding: 0 }}>
+                        <div style={{ padding: '32px 28px 24px 28px' }}>
+                          <Title level={2} style={{ marginBottom: 8, color: '#3b82f6', fontWeight: 800, letterSpacing: 0.5, background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{courseOverview.title || 'Khóa học'}</Title>
+                          <Paragraph style={{ color: '#444', fontSize: 18, marginBottom: 24, lineHeight: 1.7, fontWeight: 500, background: '#fff', borderRadius: 12, padding: '18px 20px', boxShadow: '0 2px 12px #e0e7ef' }}>{courseOverview.subtitle || 'Chưa có mô tả cho khóa học này.'}</Paragraph>
+                          <Title level={4} style={{ marginTop: 24, marginBottom: 12, color: '#6366f1', fontWeight: 700, letterSpacing: 0.2 }}>Yêu cầu khóa học</Title>
+                          {courseOverview.requirements && courseOverview.requirements.length > 0 ? (
+                            <ul style={{ paddingLeft: 0, listStyle: 'none', marginBottom: 0 }}>
+                              {courseOverview.requirements.map((req, idx) => (
+                                <li key={idx} style={{ fontSize: 16, color: '#374151', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg, #a5b4fc 0%, #67e8f9 100%)', color: '#fff', fontWeight: 700, fontSize: 16, marginRight: 8 }}>
+                                    ✓
+                                  </span>
+                                  {req}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <Paragraph style={{ color: '#888', fontSize: 16, marginTop: 8 }}>Không có yêu cầu đặc biệt.</Paragraph>
+                          )}
+                        </div>
+                      </Card>
+                    )
+                  },
+                  ...((quiz && showQuiz) ? [
+                    {
+                      key: 'quiz',
+                      label: 'Quiz',
+                      children: (
+                        <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, width: '100%', maxWidth: 'none' }}>
+                          <div
+                            style={{
+                              fontWeight: 800,
+                              fontSize: 26,
+                              background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                              WebkitBackgroundClip: 'text',
+                              WebkitTextFillColor: 'transparent',
+                              borderRadius: 12,
+                              boxShadow: '0 2px 12px #e0e7ef',
+                              padding: '18px 0 10px 0',
+                              marginBottom: 18,
+                              textAlign: 'center',
+                              letterSpacing: 0.5,
+                              lineHeight: 1.2
+                            }}
+                          >
+                            {lessonTitle}
+                          </div>
+                          {quiz.questions.map((q, idx) => (
+                            <div key={idx} style={{ marginBottom: 32, background: '#f8fafc', borderRadius: 12, padding: 18, boxShadow: '0 1px 6px #f0f0f0' }}>
+                              <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 17 }}>Câu {idx + 1}: {q.question}</div>
+                              <Radio.Group
+                                onChange={e => setQuizAnswers(prev => prev.map((a, i) => (i === idx ? e.target.value : a)))}
+                                value={quizAnswers[idx]}
+                                disabled={!!quizResult && quizResult.success}
+                                style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                              >
+                                {q.options.map((opt, oIdx) => (
+                                  <Radio key={oIdx} value={oIdx} style={{
+                                    background: quizResult && quizResult.success && q.correctIndex === oIdx ? '#e6fffb' : undefined,
+                                    color: quizResult && quizResult.success && q.correctIndex === oIdx ? '#389e8a' : undefined,
+                                    borderRadius: 8,
+                                    padding: '6px 12px',
+                                    marginBottom: 4,
+                                    fontWeight: 500,
+                                    fontSize: 16,
+                                    border: quizResult && quizResult.success && q.correctIndex === oIdx ? '1.5px solid #52c41a' : '1px solid #e0e0e0',
+                                    boxShadow: quizResult && quizResult.success && q.correctIndex === oIdx ? '0 2px 8px #b7eb8f' : undefined
+                                  }}>
+                                    {opt}
+                                    {quizResult && quizResult.success && q.correctIndex === oIdx && (
+                                      <span style={{ color: '#52c41a', marginLeft: 8, fontWeight: 600 }}>(Đáp án đúng)</span>
+                                    )}
+                                  </Radio>
+                                ))}
+                              </Radio.Group>
+                              {quizResult && quizResult.wrongQuestions?.includes(idx) && (
+                                <div style={{ color: '#ff4d4f', marginTop: 8, fontWeight: 500 }}>Đáp án chưa đúng</div>
+                              )}
+                            </div>
+                          ))}
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12 }}>
+                            <Button
+                              type="primary"
+                              size="large"
+                              onClick={handleQuizSubmit}
+                              disabled={!!quizResult && quizResult.success}
+                              style={{
+                                minWidth: 160,
+                                fontWeight: 700,
+                                fontSize: 18,
+                                borderRadius: 24,
+                                padding: '12px 32px',
+                                background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                                color: '#fff',
+                                boxShadow: '0 4px 16px #bae6fd',
+                                border: 'none',
+                                transition: 'background 0.2s, box-shadow 0.2s',
+                              }}
+                              onMouseOver={e => {
+                                e.currentTarget.style.background = 'linear-gradient(90deg, #8b5cf6 0%, #06b6d4 100%)';
+                                e.currentTarget.style.boxShadow = '0 8px 32px #a5b4fc';
+                              }}
+                              onMouseOut={e => {
+                                e.currentTarget.style.background = 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)';
+                                e.currentTarget.style.boxShadow = '0 4px 16px #bae6fd';
+                              }}
+                            >
+                              Nộp bài
+                            </Button>
+                            {quizResult && !quizResult.success && (
+                              <Button onClick={handleQuizRetry} style={{ minWidth: 100 }}>Làm lại</Button>
+                            )}
+                          </div>
+                          {quizResult && (
+                            <div style={{ marginTop: 24 }}>
+                              <Alert
+                                message={quizResult.success ? '🎉 Chúc mừng!' : 'Kết quả'}
+                                description={quizResult.message}
+                                type={quizResult.success ? 'success' : 'error'}
+                                showIcon
+                                style={{ borderRadius: 10, fontWeight: 500, fontSize: 16 }}
+                              />
+                            </div>
+                          )}
+                        </Card>
+                      )
+                    }
+                  ] : []),
+                  {
+                    key: 'comment',
+                    label: 'Bình luận',
+                    children: (
+                      <Card title={<span style={{ fontWeight: 700, fontSize: 20 }}>Bình luận</span>} style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', width: '100%', maxWidth: 'none', marginBottom: 32 }}>
+                        <List
+                          loading={commentLoading}
+                          dataSource={comments}
+                          locale={{ emptyText: 'Chưa có bình luận nào.' }}
+                          renderItem={renderCommentItem}
+                        />
+                        <Row style={{ marginTop: 24, alignItems: 'flex-end' }} gutter={12}>
+                          <Col flex="auto">
+                            <TextArea
+                              rows={3}
+                              value={newComment}
+                              onChange={(e) => {
+                                setNewComment(e.target.value);
+                                if (leoProfanity.check(e.target.value)) setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
+                                else setCommentWarning('');
+                              }}
+                              placeholder="Viết bình luận của bạn..."
+                              style={{ borderRadius: 10, fontSize: 16, padding: 12, boxShadow: '0 1px 4px #f0f0f0' }}
+                            />
+                            {commentWarning && <div style={{ color: '#ff4d4f', margin: '8px 0', fontWeight: 500 }}>{commentWarning}</div>}
+                          </Col>
+                          <Col>
+                            <Button
+                              type="primary"
+                              onClick={handleComment}
+                              disabled={!newComment.trim() || !!commentWarning}
+                              style={{
+                                height: 48,
+                                minWidth: 140,
+                                borderRadius: 24,
+                                fontSize: 18,
+                                fontWeight: 700,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                                color: '#fff',
+                                boxShadow: '0 4px 16px #bae6fd',
+                                border: 'none',
+                                marginLeft: 8,
+                                transition: 'background 0.2s, box-shadow 0.2s',
+                                gap: 8,
+                              }}
+                              onMouseOver={e => {
+                                (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #8b5cf6 0%, #06b6d4 100%)';
+                                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px #a5b4fc';
+                              }}
+                              onMouseOut={e => {
+                                (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)';
+                                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px #bae6fd';
+                              }}
+                            >
+                              <SendOutlined style={{ fontSize: 20 }} />
+                              Gửi
+                            </Button>
+                          </Col>
+                        </Row>
+                      </Card>
+                    )
+                  },
+                  {
+                    key: 'note',
+                    label: 'Ghi chú',
+                    children: (
+                      <Card title={<span style={{ fontWeight: 700, fontSize: 20 }}>Ghi chú theo video</span>} style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', width: '100%', maxWidth: 'none', marginBottom: 32 }}>
+                        <div style={{ marginBottom: 24 }}>
+                          <Input.TextArea
+                            rows={3}
+                            value={newNoteContent}
+                            onChange={e => setNewNoteContent(e.target.value)}
+                            placeholder="Nhập ghi chú của bạn..."
+                            style={{ borderRadius: 8, fontSize: 15, marginBottom: 8 }}
+                          />
+                          <Button type="primary" onClick={handleAddNote} disabled={!newNoteContent.trim()}
+                            style={{
+                              minWidth: 160,
+                              fontWeight: 700,
+                              fontSize: 17,
+                              borderRadius: 24,
+                              padding: '10px 28px',
+                              background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                              color: '#fff',
+                              boxShadow: '0 4px 16px #bae6fd',
+                              border: 'none',
+                              transition: 'background 0.2s, box-shadow 0.2s',
+                              marginTop: 6
+                            }}
+                            onMouseOver={e => {
+                              (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #8b5cf6 0%, #06b6d4 100%)';
+                              (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 32px #a5b4fc';
+                            }}
+                            onMouseOut={e => {
+                              (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)';
+                              (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px #bae6fd';
+                            }}
+                          >
+                            Thêm ghi chú tại {videoRef.current ? formatTimestamp(videoRef.current.currentTime) : '00:00'}
+                          </Button>
+                        </div>
+
+                        <List
+                          loading={noteLoading}
+                          dataSource={notes}
+                          locale={{ emptyText: 'Chưa có ghi chú nào.' }}
+                          style={{
+                            background: '#fff',
+                            borderRadius: 12,
+                            padding: '8px 0'
+                          }}
+                          renderItem={(note) => (
+                            <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <List.Item
+                                style={{
+                                  padding: '16px 24px',
+                                  borderBottom: '1px solid #f0f0f0',
+                                  transition: 'all 0.3s ease',
+                                  background: editingNoteId === note._id ? '#f8faff' : 'transparent',
+                                  cursor: 'default'
+                                }}
+                                className="note-item-hover"
+                                actions={[
+                                  <Button
+                                    type="link"
+                                    icon={<PlayCircleOutlined />}
+                                    onClick={() => seekToTimestamp(note.timestamp)}
+                                    style={{
+                                      color: '#1890ff',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 4
+                                    }}
+                                  >
+                                    Tua đến
+                                  </Button>,
+                                  editingNoteId === note._id ? null : (
+                                    <Button
+                                      type="link"
+                                      icon={<EditOutlined />}
+                                      onClick={() => startEditNote(note)}
+                                      style={{
+                                        color: '#52c41a',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 4
+                                      }}
+                                    >
+                                      Sửa
+                                    </Button>
+                                  ),
+                                  <Button
+                                    type="link"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => handleDeleteNote(note._id)}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 4
+                                    }}
+                                  >
+                                    Xóa
+                                  </Button>
+                                ].filter(Boolean)}
+                              >
+                                <List.Item.Meta
+                                  avatar={
+                                    <div
+                                      style={{
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: '50%',
+                                        background: 'linear-gradient(135deg, #e6f7ff 0%, #e6fffb 100%)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 16,
+                                        fontWeight: 600,
+                                        color: '#1890ff',
+                                        border: '2px solid #91d5ff'
+                                      }}
+                                    >
+                                      {formatTimestamp(note.timestamp)}
+                                    </div>
+                                  }
+                                  title={
+                                    <span style={{
+                                      color: '#1890ff',
+                                      fontWeight: 600,
+                                      fontSize: 14,
+                                      background: 'linear-gradient(90deg, #1890ff 0%, #69c0ff 100%)',
+                                      WebkitBackgroundClip: 'text',
+                                      WebkitTextFillColor: 'transparent'
+                                    }}>
+                                      Ghi chú tại {formatTimestamp(note.timestamp)}
+                                    </span>
+                                  }
+                                  description={
+                                    editingNoteId === note._id ? (
+                                      <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        style={{ marginTop: 12 }}
+                                      >
+                                        <Card
+                                          style={{
+                                            background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)',
+                                            border: '1px solid #d6e4ff',
+                                            borderRadius: 12,
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                            marginBottom: 8
+                                          }}
+                                          styles={{ body: { padding: '16px' } }}
+                                        >
+                                          <div style={{ marginBottom: 12 }}>
+                                            <Text style={{
+                                              fontSize: 14,
+                                              fontWeight: 600,
+                                              color: '#1890ff',
+                                              marginBottom: 8,
+                                              display: 'block'
+                                            }}>
+                                              Chỉnh sửa ghi chú tại {formatTimestamp(note.timestamp)}
+                                            </Text>
+                                            <Input.TextArea
+                                              rows={3}
+                                              value={editingContent}
+                                              onChange={e => setEditingContent(e.target.value)}
+                                              placeholder="Nhập nội dung ghi chú..."
+                                              style={{
+                                                borderRadius: 8,
+                                                fontSize: 15,
+                                                border: '1px solid #d9d9d9',
+                                                transition: 'all 0.3s ease',
+                                                resize: 'vertical',
+                                                minHeight: 80
+                                              }}
+                                              autoFocus
+                                            />
+                                          </div>
+                                          <div style={{
+                                            display: 'flex',
+                                            gap: 8,
+                                            justifyContent: 'flex-end',
+                                            borderTop: '1px solid #e6f4ff',
+                                            paddingTop: 12
+                                          }}>
+                                            <Button
+                                              onClick={cancelEditNote}
+                                              style={{
+                                                borderRadius: 6,
+                                                border: '1px solid #d9d9d9',
+                                                color: '#666'
+                                              }}
+                                            >
+                                              <CloseOutlined style={{ marginRight: 4 }} />
+                                              Hủy
+                                            </Button>
+                                            <Button
+                                              type="primary"
+                                              onClick={() => handleUpdateNote(note._id)}
+                                              disabled={!editingContent.trim()}
+                                              style={{
+                                                borderRadius: 6,
+                                                background: 'linear-gradient(90deg, #1890ff 0%, #40a9ff 100%)',
+                                                border: 'none',
+                                                boxShadow: '0 2px 4px rgba(24,144,255,0.3)'
+                                              }}
+                                            >
+                                              <SaveOutlined style={{ marginRight: 4 }} />
+                                              Lưu thay đổi
+                                            </Button>
+                                          </div>
+                                        </Card>
+                                      </motion.div>
+                                    ) : (
+                                      <p style={{
+                                        fontSize: 15,
+                                        margin: '8px 0 0 0',
+                                        color: '#262626',
+                                        lineHeight: 1.6,
+                                        padding: '12px 16px',
+                                        background: '#fafafa',
+                                        borderRadius: 8,
+                                        border: '1px solid #f0f0f0'
+                                      }}>
+                                        {note.content}
+                                      </p>
+                                    )
+                                  }
+                                />
+                              </List.Item>
+                            </motion.div>
+                          )}
+                        />
+                      </Card>
+                    )
+                  },
+                  {
+                    key: 'review',
+                    label: 'Đánh giá',
+                    children: (
+                      <Card title={<span style={{ fontWeight: 700, fontSize: 20 }}>Đánh giá khóa học</span>} style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', width: '100%', maxWidth: 'none', marginBottom: 32 }}>
+                        {/* Tổng quan đánh giá */}
+                        <div style={{ display: 'flex', gap: 40, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 32 }}>
+                          <div style={{ minWidth: 180, textAlign: 'center' }}>
+                            <div style={{ fontSize: 54, fontWeight: 800, color: '#06b6d4', lineHeight: 1 }}>{ratingStats.avg.toFixed(1)}</div>
+                            <Rate disabled allowHalf value={ratingStats.avg} style={{ fontSize: 28, color: '#06b6d4', margin: '8px 0' }} />
+                            <div style={{ color: '#06b6d4', fontWeight: 600, fontSize: 18, marginTop: 4 }}>Điểm trung bình</div>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 220, marginTop: 8 }}>
+                            {ratingStats.stats.map((count, idx) => (
+                              <div key={5 - idx} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                                <span style={{ fontWeight: 600, color: '#06b6d4', minWidth: 24 }}>{5 - idx}</span>
+                                <Rate disabled value={5 - idx} style={{ fontSize: 16, color: '#06b6d4' }} />
+                                <div style={{ flex: 1, background: '#e0f2fe', borderRadius: 6, height: 10, margin: '0 8px', overflow: 'hidden' }}>
+                                  <div style={{ width: ratingStats.percent[idx] + '%', background: '#8b5cf6', height: '100%', borderRadius: 6, transition: 'width 0.3s' }} />
+                                </div>
+                                <span style={{ color: '#8b5cf6', fontWeight: 600, minWidth: 36 }}>{ratingStats.percent[idx]}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {/* Search & Filter */}
+                        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', padding: '16px 20px', background: '#f8fafc', borderRadius: 12, border: '1px solid #f0f0f0' }}>
+                          <Input
+                            placeholder="Tìm kiếm theo nội dung..."
+                            prefix={<SearchOutlined style={{ color: '#aaa' }} />}
+                            value={reviewSearch}
+                            onChange={e => setReviewSearch(e.target.value)}
+                            style={{ width: 280, borderRadius: 8, height: 40 }}
+                          />
+                          <div style={{ flex: 1 }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontWeight: 600, color: '#444' }}>Lọc theo số sao:</span>
+                            <Select
+                              value={reviewFilter}
+                              onChange={value => setReviewFilter(value)}
+                              style={{ width: 140, borderRadius: 8 }}
+                            >
+                              <Select.Option value="all">Tất cả</Select.Option>
+                              <Select.Option value={5}>5 sao</Select.Option>
+                              <Select.Option value={4}>4 sao</Select.Option>
+                              <Select.Option value={3}>3 sao</Select.Option>
+                              <Select.Option value={2}>2 sao</Select.Option>
+                              <Select.Option value={1}>1 sao</Select.Option>
+                            </Select>
+                          </div>
+                        </div>
+                        {/* Danh sách review */}
+                        <List
+                          loading={reviewLoading}
+                          dataSource={filteredReviews}
+                          locale={{ emptyText: 'Chưa có đánh giá nào.' }}
+                          renderItem={item => {
+                            const liked = Array.isArray(item.likes) && user && item.likes.some((id: any) => id === user._id || id?._id === user._id);
+                            const disliked = Array.isArray(item.dislikes) && user && item.dislikes.some((id: any) => id === user._id || id?._id === user._id);
+                            return (
+                              <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                <List.Item style={{ padding: '20px 0', borderBottom: '1px solid #f0f0f0', alignItems: 'flex-start' }}>
+                                  <List.Item.Meta
+                                    avatar={
+                                      <Avatar
+                                        src={item.user?.avatar}
+                                        icon={<UserOutlined />}
+                                        size={48}
+                                        style={{
+                                          background: '#e0f2fe',
+                                          color: '#8b5cf6',
+                                          fontWeight: 700,
+                                          fontSize: 20
+                                        }}
+                                      >
+                                        {!item.user?.avatar && (item.user?.fullname ? item.user.fullname[0] : 'U')}
+                                      </Avatar>
+                                    }
+                                    title={
+                                      <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <Text strong style={{ fontSize: 16, marginRight: 8 }}>
+                                          {item.user?.fullname || 'Người dùng'}
+                                        </Text>
+                                        <Rate disabled value={item.rating} style={{ fontSize: 14, color: '#f59e42' }} />
+                                        <span style={{ color: '#888', fontSize: 13, marginLeft: 8 }}>{item.createdAt ? dayjs(item.createdAt).fromNow() : ''}</span>
+                                      </div>
+                                    }
+                                    description={
+                                      <div style={{ marginBottom: 8 }}>
+                                        <Text style={{ fontSize: 15, color: '#262626', display: 'block', marginBottom: 4 }}>
+                                          {item.comment}
+                                        </Text>
+                                        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 4 }}>
+                                          <Button type="text" icon={<LikeOutlined />} style={{ color: liked ? '#06b6d4' : '#bdbdbd', fontWeight: liked ? 700 : 400 }} onClick={() => handleLike(item._id)}>Hữu ích</Button>
+                                          <Button type="text" icon={<DislikeOutlined />} style={{ color: disliked ? '#6366f1' : '#aaa', fontWeight: disliked ? 700 : 400 }} onClick={() => handleDislike(item._id)} />
+                                          <Button type="link" icon={<FlagOutlined />} style={{ color: '#f87171', fontWeight: 600 }} onClick={() => { setSelectedReviewId(item._id); setReportModalVisible(true); }}>Báo xấu</Button>
+                                        </div>
+                                      </div>
+                                    }
+                                  />
+                                </List.Item>
+                              </motion.div>
+                            );
+                          }}
+                        />
+                        {/* Form đánh giá của bạn (đưa xuống dưới cùng) */}
+                        {isEnrolled && isCompleted && (
+                          <div style={{ marginTop: 32 }}>
+                            <Card
+                              title={<Title level={4} style={{ color: '#06b6d4' }}>{myReview ? 'Cập nhật đánh giá của bạn' : 'Đánh giá của bạn'}</Title>}
+                              style={{
+                                background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)',
+                                borderRadius: 12,
+                                border: '1px solid #d6e4ff'
+                              }}
+                              headStyle={{ borderBottom: '1px solid #e6f4ff' }}
+                            >
+                              <Rate
+                                value={reviewValue}
+                                onChange={setReviewValue}
+                                style={{ fontSize: 24, marginBottom: 16, color: '#f59e42' }}
+                              />
+                              <Input.TextArea
+                                rows={4}
+                                value={reviewComment}
+                                onChange={(e) => setReviewComment(e.target.value)}
+                                placeholder="Chia sẻ trải nghiệm học tập của bạn..."
+                                style={{
+                                  borderRadius: 8,
+                                  fontSize: 15,
+                                  marginBottom: 16,
+                                  resize: 'vertical'
+                                }}
+                              />
+                              <div style={{ textAlign: 'right' }}>
+                                <Button
+                                  type="primary"
+                                  onClick={handleSubmitReview}
+                                  loading={reviewLoading}
+                                  style={{
+                                    borderRadius: 6,
+                                    background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                                    border: 'none',
+                                    height: 40,
+                                    paddingInline: 24,
+                                    fontSize: 16,
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  <SaveOutlined style={{ marginRight: 4 }} />
+                                  {myReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
+                                </Button>
+                              </div>
+                              {reviewError && (
+                                <Alert message={reviewError} type="error" showIcon style={{ marginTop: 16 }} />
+                              )}
+                            </Card>
+                          </div>
+                        )}
+                        {isEnrolled && !isCompleted && (
+                          <Alert
+                            message="Hoàn thành khóa học để đánh giá"
+                            description="Bạn cần hoàn thành 100% khóa học để có thể đánh giá. Hãy cố gắng hoàn thành các bài học!"
+                            type="info"
+                            showIcon
+                            style={{ marginBottom: 24 }}
+                          />
+                        )}
+                      </Card>
+                    )
+                  }
+                ]}
+                style={{ marginTop: 32 }}
               />
-              <Row style={{ marginTop: 20 }}>
-                <Col flex="auto">
-                  <TextArea
-                    rows={3}
-                    value={newComment}
-                    onChange={(e) => {
-                      setNewComment(e.target.value);
-                      if (leoProfanity.check(e.target.value)) setCommentWarning('⚠️ Bình luận của bạn chứa ngôn từ không phù hợp!');
-                      else setCommentWarning('');
-                    }}
-                    placeholder="Viết bình luận của bạn..."
-                  />
-                  {commentWarning && <div style={{ color: 'red', marginBottom: 8 }}>{commentWarning}</div>}
-                </Col>
-                <Col>
-                  <Button type="primary" icon={<SendOutlined />} onClick={handleComment} style={{ height: '100%' }} disabled={!newComment.trim() || !!commentWarning}>
-                    Gửi
-                  </Button>
-                </Col>
-              </Row>
-            </Card>
+            </motion.div>
           </>
         )}
       </motion.div>
+      <Modal
+        title="Báo cáo đánh giá"
+        open={reportModalVisible}
+        onOk={handleReport}
+        onCancel={() => setReportModalVisible(false)}
+        okText="Gửi"
+        cancelText="Hủy"
+      >
+        <Input.TextArea
+          rows={4}
+          value={reportReason}
+          onChange={e => setReportReason(e.target.value)}
+          placeholder="Nhập lý do báo cáo..."
+        />
+      </Modal>
     </div>
   );
 };
 
-export default LessonVideoPage; 
+export default LessonVideoPage;
+
+<style>{`
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none !important;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+`}</style>

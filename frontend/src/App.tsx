@@ -45,6 +45,7 @@ import CheckoutPage from './pages/client/CheckoutPage';
 import OrdersPage from './pages/client/OrdersPage';
 import CourseDetailPage from "./pages/client/CourseDetailPage";
 import Dashboard from './pages/admin/Dashboard/Dashboard';
+import AdminStatistics from './pages/admin/Statistics/AdminStatistics';
 import MyCourseList from './pages/instructor/course/MyCourseList';
 import MyCourseAdd from './pages/instructor/course/MyCourseAdd';
 import MyLessonManager from './pages/instructor/lessons/MyLessonManager';
@@ -61,10 +62,20 @@ import UserReportRoute from "./pages/client/UserReportRoute";
 import UserProfile from "./pages/client/Profile/UserProfile";
 import CheckPayment from "./pages/client/CheckPayment";
 import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
+import UserWithdrawRequestsAdmin from './pages/admin/earnings/UserWithdrawRequestsAdmin';
+import RolesPage from './pages/admin/roles/RolesPage';
+import RoleDetailPage from './pages/admin/roles/RoleDetailPage';
+import TestRoleUpdate from './pages/admin/roles/TestRoleUpdate';
 
 import BlogPage from "./pages/client/BlogPage";
-import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
-import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
+
+
+import ModeratorDashboard from "./pages/Moderator/Dashboard";
+import SimpleBlogModeration from "./pages/Moderator/SimpleBlogModeration";
+import SimpleCommentsModeration from "./pages/Moderator/SimpleCommentsModeration";
+import SimpleCoursesModeration from "./pages/Moderator/SimpleCoursesModeration";
+import SimpleReportStatistics from "./pages/Moderator/SimpleReportStatistics";
+import SimpleModeratorReports from "./pages/Moderator/SimpleModeratorReports";
 
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
 import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
@@ -72,7 +83,15 @@ import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
 import LessonEdit from './pages/instructor/lessons/LessonEdit';
 import VideoManager from './pages/instructor/videos/VideoManager';
 import QuizManager from './pages/instructor/quiz/QuizManager';
-import CoursesModerationPage from './pages/Moderator/Courses/CoursesModerationPage';
+import InstructorVouchersPage from './pages/instructor/vouchers/InstructorVouchersPage';
+
+import WalletPage from "./pages/client/WalletPage";
+import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
+import MessagesPage from './pages/client/MessagesPage';
+import MessagesLayout from './pages/client/MessagesLayout';
+import CertificatePage from "./pages/client/CertificatePage";
+import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
+import InstructorDashboard from './pages/instructor/Dashboard/InstructorDashboard';
 
 const queryClient = new QueryClient();
 
@@ -99,10 +118,7 @@ class ErrorBoundary extends React.Component<
       return (
         <div style={{ padding: '20px', textAlign: 'center' }}>
           <h1>Đã xảy ra lỗi!</h1>
-          <p>Lỗi: {this.state.error?.message}</p>
-          <button onClick={() => window.location.reload()}>
-            Tải lại trang
-          </button>
+          <p>Vui lòng tải lại trang hoặc liên hệ hỗ trợ.</p>
         </div>
       );
     }
@@ -121,7 +137,7 @@ function App() {
         { path: 'verify-email/:token', element: <VerifyEmail /> },
         { path: 'users/verify-instructor-email/:token', element: <VerifyEmail /> },
         { path: 'instructor/earnings', element: <Earnings /> },
-        { path: "blog/write", element: <BlogWritePage /> },//viết blog
+        { path: "blog/write", element: <BlogWritePage /> },
         { path: "blog/mine", element: <MyBlogPosts  /> },
         { path: "blog/saved", element: <SavedBlogPosts  /> },
         { path: "/featured-posts", element: <FeaturedPostsPage   /> },
@@ -129,6 +145,7 @@ function App() {
         { path: "courses", element: <CoursesPage /> },
         { path: "courses/:slug", element: <CourseDetailPage /> },
         { path: "courses/slug/:slug", element: <CourseDetailPage /> },
+        { path: "courses/id/:id", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
         {path:  "/blog/:id", element: <BlogPage />},
@@ -144,6 +161,10 @@ function App() {
         { path: "orders", element: <OrdersPage /> },
         { path: "search/users", element: <UserSearchResultsPage /> },
         { path: "search/courses", element: <CourseSearchResultsPage /> },
+        { path: "wallet", element: <WalletPage /> },
+        { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
+        { path: "certificates/:courseId", element: <CertificatePage /> },
+        { path: '/social-callback', element: <SocialAuthCallback /> },
       ]
     },
     {
@@ -154,6 +175,13 @@ function App() {
         { path: 'edit', element: <ProfileEdit /> },
         { path: 'change-password', element: <ChangePassword /> },
         { path: 'orders', element: <OrdersPage /> },
+      ]
+    },
+    {
+      path: "/messages",
+      element: <MessagesLayout />,
+      children: [
+        { path: ":userId", element: <MessagesPage /> }
       ]
     },
     {
@@ -172,26 +200,34 @@ function App() {
         { path: "system/vouchers", element: <CouponManagement /> },
         { path: "history", element: <TransactionHistory /> },
         { path: "vouchers", element: <VoucherPage />},
+        { path: "statistics", element: <AdminStatistics /> },
         { path: "courses", element: <CourseList />},
         { path: "courses/:id", element: <AdminCourseDetail />},
         { path: "transactions", element: <TransactionHistory /> },
         { path: "earnings", element: <WithdrawRequestsAdmin />},
+        { path: "user-withdraw-requests", element: <UserWithdrawRequestsAdmin /> },
+        { path: "roles", element: <RolesPage /> },
+        { path: "roles/:id", element: <RoleDetailPage /> },
+        { path: "roles/test", element: <TestRoleUpdate /> },
       ],
     },
     {
       path: "/moderator",
       element: <ModeratorLayout />,
       children: [
-        { path: "reports", element: <ReportsPage /> },
-        { path: "blogs", element: <BlogModeration /> },
-        { path: "comments", element: <CommentsModerationPage /> },
-        { path: "courses", element: <CoursesModerationPage /> },
+        { path: "", element: <ModeratorDashboard /> },
+        { path: "reports", element: <SimpleModeratorReports /> },
+        { path: "blogs", element: <SimpleBlogModeration /> },
+        { path: "comments", element: <SimpleCommentsModeration /> },
+        { path: "courses", element: <SimpleCoursesModeration /> },
+        { path: "statistics", element: <SimpleReportStatistics /> },
       ],
     },
     {
       path: "/instructor",
       element: <InstructorLayout />,
       children: [
+        { index: true, element: <InstructorDashboard /> },
         { path: "courses", element: <MyCourseList /> },
         { path: "courses/create", element: <MyCourseAdd /> },
         { path: "courses/:id", element: <CourseDetail /> },
@@ -202,6 +238,7 @@ function App() {
         { path: "income", element: <MyEarnings /> },
         { path: "videos", element: <VideoManager /> },
         { path: "quiz", element: <QuizManager /> },
+        { path: "vouchers", element: <InstructorVouchersPage /> },
       ],
     },
     { path: '/login', element: <LoginPage /> },

@@ -14,6 +14,8 @@ const {
 } = require('../controllers/auth.controller');
 const { uploadInstructorFiles, processInstructorFilesUpload } = require('../middlewares/upload');
 const { registerInstructor, verifyInstructorEmail } = require('../controllers/user.controller');
+const passport = require('../config/passport');
+const { createToken } = require('../controllers/auth.controller');
 
 router.post('/register', register);
 router.post('/login', login);
@@ -36,6 +38,21 @@ router.patch('/change-password', auth, requireAuth(), changePassword);
 router.post('/instructor-register', uploadInstructorFiles, processInstructorFilesUpload, registerInstructor);
 // Xác minh email cho instructor (KHÔNG cần đăng nhập)
 router.get('/verify-instructor-email/:token', verifyInstructorEmail);
+
+// Google OAuth
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google/callback', passport.authenticate('google', { session: false }), (req, res) => {
+  const token = createToken(req.user._id);
+  const user = encodeURIComponent(JSON.stringify({
+    _id: req.user._id,
+    email: req.user.email,
+    fullname: req.user.fullname,
+    nickname: req.user.nickname,
+    role: req.user.role_id?.name || req.user.role,
+    avatar: req.user.avatar
+  }));
+  res.redirect(`http://localhost:5173/social-callback?token=${token}&user=${user}`);
+});
 
 router.get('/me', auth, requireAuth(), getMe);
 

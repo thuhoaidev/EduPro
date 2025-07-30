@@ -84,6 +84,21 @@ exports.approveCourse = async (req, res, next) => {
             course.displayStatus = 'published'; // Tự động chuyển sang hiển thị
             await course.save();
 
+            // Gửi notification khi admin duyệt khóa học
+            try {
+                const Notification = require('../models/Notification');
+                await Notification.create({
+                    title: 'Khóa học mới được duyệt',
+                    content: `Khóa học "${course.title}" đã được admin duyệt và phát hành!`,
+                    type: 'success',
+                    is_global: true,
+                    icon: 'check-circle',
+                    meta: { link: `/courses/${course._id}` }
+                });
+            } catch (notiErr) {
+                console.error('Lỗi tạo notification duyệt khóa học:', notiErr);
+            }
+
             res.json({
                 success: true,
                 message: 'Đã duyệt khóa học thành công',
@@ -91,8 +106,13 @@ exports.approveCourse = async (req, res, next) => {
             });
         } else if (action === 'reject') {
             // Từ chối khóa học
+            if (!reason || reason.trim().length < 10) {
+                throw new ApiError(400, 'Lý do từ chối phải có ít nhất 10 ký tự');
+            }
+            
             course.status = 'rejected';
             course.displayStatus = 'hidden'; // Đảm bảo ẩn khi bị từ chối
+            course.rejection_reason = reason.trim(); // Lưu lý do từ chối
             await course.save();
 
             res.json({
@@ -286,6 +306,7 @@ exports.createCourse = async (req, res, next) => {
                     }
                 }
                 // Gửi thông báo global khi có khóa học mới
+                /*
                 const notification = await Notification.create({
                   title: 'Khóa học mới',
                   content: `Khóa học ${course.title} đã được phát hành!`,
@@ -298,7 +319,7 @@ exports.createCourse = async (req, res, next) => {
                 if (io) {
                   io.emit('new-notification', notification); // emit global
                 }
-
+*/
                 // Trả về kết quả
                 res.status(201).json({
                     success: true,
@@ -1218,17 +1239,8 @@ exports.getInstructorCourses = async (req, res, next) => {
 
         const formatCourse = (course) => {
             const obj = course.toObject();
-            // Tính toán giá cuối cùng dựa trên discount_amount và discount_percentage
-            let finalPrice = obj.price;
-            if (obj.discount_percentage > 0) {
-                finalPrice = finalPrice * (1 - obj.discount_percentage / 100);
-            }
-            if (obj.discount_amount > 0) {
-                finalPrice = Math.max(0, finalPrice - obj.discount_amount);
-            }
-            obj.finalPrice = Math.round(finalPrice);
-            obj.discount_amount = obj.discount_amount || 0;
-            obj.discount_percentage = obj.discount_percentage || 0;
+            obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
+            obj.discount = obj.discount || 0;
             obj.instructor = course.instructor ? {
                 bio: course.instructor.bio,
                 expertise: course.instructor.expertise,

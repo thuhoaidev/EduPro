@@ -18,7 +18,12 @@ import {
   Tag,
   Tooltip,
   message,
-  Switch
+  Switch,
+  Typography,
+  Badge,
+  Divider,
+  Spin,
+  DatePicker as AntdDatePicker,
 } from 'antd';
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -29,21 +34,161 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  FilterOutlined
+  FilterOutlined,
+  TrophyOutlined,
+  BookOutlined,
+  RiseOutlined,
+  FallOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import voucherService from '../../../services/voucher.service';
 import type { Voucher, CreateVoucherData } from '../../../services/voucher.service';
 import { getAllCategories } from '../../../services/categoryService';
 import type { Category } from '../../../interfaces/Category.interface';
+import styles from '../Users/UserPage.module.css';
 
 const { Option } = Select;
+const { Title, Text, Paragraph } = Typography;
+const { RangePicker } = AntdDatePicker;
+
+// FilterSection component
+interface FilterSectionProps {
+  searchText: string;
+  setSearchText: (value: string) => void;
+  filterStatus: 'all' | 'active' | 'expired';
+  setFilterStatus: (value: 'all' | 'active' | 'expired') => void;
+  sortOrder: 'asc' | 'desc';
+  setSortOrder: (value: 'asc' | 'desc') => void;
+}
+
+const FilterSection = ({
+  searchText,
+  setSearchText,
+  filterStatus,
+  setFilterStatus,
+  sortOrder,
+  setSortOrder,
+}: FilterSectionProps) => {
+  return (
+    <Card className={styles.filterCard} bordered={false}>
+      <div className={styles.filterGroup}>
+        <Input
+          placeholder="Tìm kiếm mã giảm giá..."
+          prefix={<SearchOutlined />}
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          className={styles.filterInput}
+          allowClear
+        />
+        <Select
+          value={filterStatus}
+          onChange={value => setFilterStatus(value as 'all' | 'active' | 'expired')}
+          className={styles.filterSelect}
+          options={[
+            { value: "all", label: "Tất cả trạng thái" },
+            { value: "active", label: "Đang hoạt động" },
+            { value: "expired", label: "Đã hết hạn" },
+          ]}
+        />
+        <Select
+          value={sortOrder}
+          onChange={value => setSortOrder(value as 'asc' | 'desc')}
+          className={styles.filterSelect}
+          options={[
+            { value: "asc", label: "Giá trị tăng dần" },
+            { value: "desc", label: "Giá trị giảm dần" },
+          ]}
+        />
+      </div>
+    </Card>
+  );
+};
+
+// StatCards component
+interface StatCardsProps {
+  stats: {
+    total: number;
+    active: number;
+    expired: number;
+  };
+}
+
+const StatCards = ({ stats }: StatCardsProps) => {
+  const activePercentage = stats.total > 0 ? (stats.active / stats.total) * 100 : 0;
+  const expiredPercentage = stats.total > 0 ? (stats.expired / stats.total) * 100 : 0;
+
+  return (
+    <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
+      <Col xs={24} sm={12} md={8}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#1890ff' }}>
+              <BookOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Tổng số mã" 
+                value={stats.total} 
+                valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary">Tất cả mã giảm giá</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={8}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#52c41a' }}>
+              <CheckCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Đang hoạt động" 
+                value={stats.active} 
+                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary">{activePercentage.toFixed(1)}%</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={8}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#ff4d4f' }}>
+              <CloseCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Đã hết hạn" 
+                value={stats.expired} 
+                valueStyle={{ color: '#ff4d4f', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <FallOutlined style={{ color: '#ff4d4f' }} />
+                <Text type="secondary">{expiredPercentage.toFixed(1)}%</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+    </Row>
+  );
+};
 
 const VouchersPage: React.FC = () => {
   const [searchText, setSearchText] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [rowsPerPage] = useState<number>(8);
+  const [pageSize, setPageSize] = useState<number>(15);
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
   const [editingVoucher, setEditingVoucher] = useState<Voucher | null>(null);
   const [form] = Form.useForm();
@@ -54,22 +199,17 @@ const VouchersPage: React.FC = () => {
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
 
-  // Danh sách khóa học giả lập dùng trong Select
-  const courses = [
-    { id: 'all', name: 'Tất cả khóa học' },
-    { id: 'course-1', name: 'Khóa học React Nâng cao' },
-    { id: 'course-2', name: 'Khóa học Node.js và API' },
-    { id: 'course-3', name: 'Khóa học Python cho Data Science' },
-    { id: 'course-4', name: 'Khóa học Thiết kế UI/UX cơ bản' },
-  ];
-
   // Fetch data
   const fetchVouchers = async () => {
     try {
       setLoading(true);
       const response = await voucherService.getAll();
       if (response.success) {
-        setData(response.data);
+        const vouchersWithNumber = response.data.map((voucher: Voucher, index: number) => ({
+          ...voucher,
+          number: index + 1,
+        }));
+        setData(vouchersWithNumber);
       } else {
         message.error('Lỗi khi lấy danh sách mã giảm giá');
       }
@@ -116,10 +256,6 @@ const VouchersPage: React.FC = () => {
       ? (a.maxDiscount || 0) - (b.maxDiscount || 0)
       : (b.maxDiscount || 0) - (a.maxDiscount || 0)
   );
-
-  // Phân trang
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const currentData = sortedData.slice(startIndex, startIndex + rowsPerPage);
 
   const showAddModal = () => {
     setEditingVoucher(null);
@@ -239,13 +375,21 @@ const VouchersPage: React.FC = () => {
 
   const columns: ColumnsType<Voucher> = [
     {
-      title: 'Mã',
+      title: 'STT',
+      dataIndex: 'number',
+      key: 'number',
+      width: 70,
+      align: 'center' as const,
+      render: (number: number) => (
+        <Badge count={number} showZero style={{ backgroundColor: '#1890ff' }} />
+      ),
+    },
+    {
+      title: 'Mã giảm giá',
       dataIndex: 'code',
       key: 'code',
-      width: 100,
-      align: 'center',
-      className: "font-medium text-gray-800",
-      ellipsis: true,
+      width: 120,
+      align: 'center' as const,
       render: (code: string, record: Voucher) => (
         <Button 
           type="link" 
@@ -261,8 +405,8 @@ const VouchersPage: React.FC = () => {
       title: 'Tiêu đề',
       dataIndex: 'title',
       key: 'title',
-      width: 180,
-      align: 'left',
+      width: 200,
+      align: 'left' as const,
       ellipsis: true,
       render: (title: string) => <span style={{ fontWeight: 500 }}>{title}</span>
     },
@@ -270,42 +414,41 @@ const VouchersPage: React.FC = () => {
       title: 'Giá trị giảm',
       dataIndex: 'discountValue',
       key: 'discountValue',
-      width: 110,
-      align: 'center',
+      width: 120,
+      align: 'center' as const,
       render: (value: number, record: Voucher) =>
         <span style={{ color: '#1677ff', fontWeight: 600, fontSize: 13 }}>
           {record.discountType === 'percentage'
             ? `${value}%`
             : `${value.toLocaleString('vi-VN')} VNĐ`}
         </span>,
-      className: "font-semibold text-blue-600"
     },
     {
       title: 'Giảm tối đa',
       dataIndex: 'maxDiscount',
       key: 'maxDiscount',
-      width: 110,
-      align: 'center',
+      width: 120,
+      align: 'center' as const,
       render: (max: number) => max ? `${max.toLocaleString('vi-VN')} VNĐ` : '-'
     },
     {
       title: 'Số lượng',
       dataIndex: 'usageLimit',
       key: 'usageLimit',
-      width: 90,
-      align: 'center',
+      width: 100,
+      align: 'center' as const,
       render: (limit: number, record: Voucher) => `${record.usedCount} / ${limit}`
     },
     {
       title: 'Trạng thái',
       key: 'status',
       width: 130,
-      align: 'left',
+      align: 'center' as const,
       render: (_: void, record: Voucher) => {
         const isActive = isVoucherActive(record);
         const isOutOfUsage = record.usedCount >= record.usageLimit;
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             {isActive && !isOutOfUsage ? (
               <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
             ) : (
@@ -319,12 +462,21 @@ const VouchersPage: React.FC = () => {
       }
     },
     {
-      title: 'Hành động',
+      title: 'Thao tác',
       key: 'actions',
-      align: 'center',
-      width: 90,
+      align: 'center' as const,
+      width: 120,
       render: (_: void, record: Voucher) => (
         <Space size="small">
+          <Tooltip title="Xem chi tiết">
+            <Button
+              icon={<EyeOutlined />}
+              type="text"
+              onClick={() => showDetailModal(record)}
+              style={{ color: '#1677ff', fontSize: 16 }}
+              size="small"
+            />
+          </Tooltip>
           <Tooltip title="Chỉnh sửa">
             <Button
               icon={<EditOutlined />}
@@ -356,120 +508,104 @@ const VouchersPage: React.FC = () => {
     },
   ];
 
+  if (loading && data.length === 0) {
+    return (
+      <div className={styles.userPageContainer}>
+        <div className={styles.loadingContainer}>
+          <Spin size="large" />
+          <Text style={{ marginTop: 16 }}>Đang tải dữ liệu...</Text>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6">
-      {/* Header Section */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Quản lý mã giảm giá</h2>
-          <p className="text-gray-500 mt-1">Tạo và quản lý các mã giảm giá cho khóa học</p>
+    <div className={styles.userPageContainer}>
+      {/* Page Header */}
+      <div className={styles.pageHeader}>
+        <div className={styles.headerLeft}>
+          <Title level={2} className={styles.pageTitle}>
+            <TrophyOutlined className={styles.titleIcon} />
+            Quản lý mã giảm giá
+          </Title>
+          <Paragraph className={styles.pageSubtitle}>
+            Tạo và quản lý các mã giảm giá cho khóa học
+          </Paragraph>
         </div>
         <Button
           icon={<PlusOutlined />}
           type="primary"
           onClick={showAddModal}
-          className="flex items-center font-medium px-4 py-2"
+          className={styles.addButton}
           size="large"
         >
           Tạo mã giảm giá
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <Row gutter={[16, 16]} className="mb-6">
-        <Col xs={24} sm={8}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
-            <Statistic
-              title="Tổng số mã"
-              value={stats.total}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
-            <Statistic
-              title="Đang hoạt động"
-              value={stats.active}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow">
-            <Statistic
-              title="Đã hết hạn"
-              value={stats.expired}
-              prefix={<CloseCircleOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {/* Statistics Cards */}
+      <StatCards stats={stats} />
 
-      {/* Filters and Search */}
-      <Card className="mb-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <Input
-            prefix={<SearchOutlined className="text-gray-400" />}
-            placeholder="Tìm kiếm mã hoặc khóa học..."
-            value={searchText}
-            onChange={e => setSearchText(e.target.value)}
-            className="max-w-sm"
-            allowClear
-          />
-          <Select
-            defaultValue="all"
-            style={{ width: 180 }}
-            onChange={value => setFilterStatus(value as 'all' | 'active' | 'expired')}
-            options={[
-              { value: "all", label: "Tất cả trạng thái" },
-              { value: "active", label: "Đang hoạt động" },
-              { value: "expired", label: "Đã hết hạn" },
-            ]}
-            suffixIcon={<FilterOutlined />}
-          />
-          <Space className="ml-auto">
-            <span className="text-sm text-gray-700">Sắp xếp giá trị:</span>
-            <Select
-              value={sortOrder}
-              onChange={value => setSortOrder(value as 'asc' | 'desc')}
-              style={{ width: 120 }}
-            >
-              <Option value="asc">Tăng dần</Option>
-              <Option value="desc">Giảm dần</Option>
-            </Select>
-          </Space>
+      {/* Filter Section */}
+      <FilterSection
+        searchText={searchText}
+        setSearchText={setSearchText}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+      />
+
+      {/* Vouchers Table */}
+      <Card className={styles.userTableCard} bordered={false}>
+        <div className={styles.tableHeader}>
+          <div className={styles.tableTitleSection}>
+            <BookOutlined className={styles.tableIcon} />
+            <Title level={4} className={styles.tableTitle}>
+              Danh sách mã giảm giá
+            </Title>
+            <Badge count={sortedData.length} className={styles.userCountBadge} />
+          </div>
+          <div className={styles.tableActions}>
+            <Text type="secondary">
+              Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, sortedData.length)} của {sortedData.length} mã giảm giá
+            </Text>
+          </div>
         </div>
-      </Card>
-
-      {/* Table */}
-      <Card className="shadow-sm">
+        
         <Table
-          rowKey="id"
           columns={columns}
-          dataSource={currentData}
-          pagination={false}
-          className="vouchers-table"
+          dataSource={sortedData}
           loading={loading}
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: sortedData.length,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} mã giảm giá`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            size: 'small',
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              setPageSize(size || 15);
+            },
+          }}
+          rowKey="id"
+          className={styles.userTable}
+          scroll={{ x: 1000 }}
+          size="small"
         />
-
-        <div className="text-right mt-4 px-4">
-          <Pagination
-            current={currentPage}
-            pageSize={rowsPerPage}
-            total={filteredData.length}
-            onChange={page => setCurrentPage(page)}
-            showSizeChanger={false}
-            showTotal={(total) => `Tổng số ${total} mã giảm giá`}
-          />
-        </div>
       </Card>
 
+      {/* Add/Edit Modal */}
       <Modal
-        title={<div className="text-xl font-semibold text-gray-800">{editingVoucher ? 'Chỉnh sửa mã giảm giá' : 'Tạo mã giảm giá mới'}</div>}
+        title={
+          <div className={styles.modalTitle}>
+            <EditOutlined className={styles.modalIcon} />
+            {editingVoucher ? 'Chỉnh sửa mã giảm giá' : 'Tạo mã giảm giá mới'}
+          </div>
+        }
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={() => {
@@ -482,10 +618,12 @@ const VouchersPage: React.FC = () => {
         destroyOnHidden
         centered
         width={600}
+        className={styles.userModal}
       >
         <Form
           form={form}
           layout="vertical"
+          className={styles.userForm}
           initialValues={{
             discountType: 'percentage',
             discountValue: 0,
@@ -502,33 +640,38 @@ const VouchersPage: React.FC = () => {
             label="Mã giảm giá"
             name="code"
             rules={[{ required: true, message: 'Vui lòng nhập mã giảm giá' }]}
+            className={styles.formItem}
           >
-            <Input placeholder="Nhập mã giảm giá" maxLength={20} disabled={!!editingVoucher} />
+            <Input placeholder="Nhập mã giảm giá" maxLength={20} disabled={!!editingVoucher} className={styles.input} />
           </Form.Item>
 
           <Form.Item
             label="Tiêu đề"
             name="title"
             rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}
+            className={styles.formItem}
           >
-            <Input maxLength={100} placeholder="Nhập tiêu đề cho mã giảm giá" />
+            <Input maxLength={100} placeholder="Nhập tiêu đề cho mã giảm giá" className={styles.input} />
           </Form.Item>
 
           <Form.Item
             label="Mô tả"
             name="description"
+            className={styles.formItem}
           >
-            <Input.TextArea maxLength={200} rows={2} placeholder="Nhập mô tả cho mã giảm giá" />
+            <Input.TextArea maxLength={200} rows={2} placeholder="Nhập mô tả cho mã giảm giá" className={styles.input} />
           </Form.Item>
 
           <Form.Item
             label="Danh mục áp dụng"
             name="categories"
+            className={styles.formItem}
           >
             <Select
               mode="multiple"
               allowClear
               placeholder="Chọn danh mục áp dụng"
+              className={styles.input}
               options={[
                 { value: 'all', label: 'Tất cả danh mục' },
                 ...categories.map(cat => ({ value: cat._id, label: cat.name }))
@@ -536,8 +679,8 @@ const VouchersPage: React.FC = () => {
             />
           </Form.Item>
 
-          <Form.Item label="Loại giảm giá" name="discountType" rules={[{ required: true }]}>
-            <Select>
+          <Form.Item label="Loại giảm giá" name="discountType" rules={[{ required: true }]} className={styles.formItem}>
+            <Select className={styles.input}>
               <Option value="fixed">Số tiền (VNĐ)</Option>
               <Option value="percentage">Phần trăm (%)</Option>
             </Select>
@@ -562,11 +705,13 @@ const VouchersPage: React.FC = () => {
                 }
               })
             ]}
+            className={styles.formItem}
           >
             <InputNumber<number>
               style={{ width: '100%' }}
               min={0}
               placeholder="Nhập giá trị giảm"
+              className={styles.input}
               formatter={(value) => {
                 if (value === null || value === undefined) return '';
                 const type = form.getFieldValue('discountType');
@@ -585,11 +730,13 @@ const VouchersPage: React.FC = () => {
             rules={[
               { type: 'number', min: 0, message: 'Giá trị không thể âm' },
             ]}
+            className={styles.formItem}
           >
             <InputNumber<number>
               style={{ width: '100%' }}
               min={0}
               placeholder="Nhập giá trị giảm tối đa"
+              className={styles.input}
             />
           </Form.Item>
 
@@ -599,11 +746,13 @@ const VouchersPage: React.FC = () => {
             rules={[
               { type: 'number', min: 0, message: 'Giá trị không thể âm' },
             ]}
+            className={styles.formItem}
           >
-            <InputNumber<number>
+            <InputNumber
               style={{ width: '100%' }}
               min={0}
               placeholder="Nhập đơn tối thiểu"
+              className={styles.input}
             />
           </Form.Item>
 
@@ -614,12 +763,13 @@ const VouchersPage: React.FC = () => {
               { required: true, message: 'Vui lòng nhập số lượng' },
               { type: 'number', min: 1, message: 'Số lượng phải lớn hơn 0' },
             ]}
+            className={styles.formItem}
           >
-            <InputNumber style={{ width: '100%' }} min={1} placeholder="Nhập số lượng" />
+            <InputNumber style={{ width: '100%' }} min={1} placeholder="Nhập số lượng" className={styles.input} />
           </Form.Item>
 
-          <Form.Item label="Loại voucher" name="type" rules={[{ required: true, message: 'Vui lòng chọn loại voucher!' }]}> 
-            <Select placeholder="Chọn loại voucher">
+          <Form.Item label="Loại voucher" name="type" rules={[{ required: true, message: 'Vui lòng chọn loại voucher!' }]} className={styles.formItem}> 
+            <Select placeholder="Chọn loại voucher" className={styles.input}>
               <Select.Option value="default">default</Select.Option>
               <Select.Option value="new-user">new-user</Select.Option>
               <Select.Option value="birthday">birthday</Select.Option>
@@ -630,30 +780,33 @@ const VouchersPage: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item label="Ngày tạo" name="startDate" rules={[{ required: true }]}>
+          <Form.Item label="Ngày tạo" name="startDate" rules={[{ required: true }]} className={styles.formItem}>
             <DatePicker
               style={{ width: '100%' }}
               disabled
               format="YYYY-MM-DD"
               placeholder="Ngày tạo"
+              className={styles.input}
             />
           </Form.Item>
 
-          <Form.Item label="Ngày hết hạn" name="endDate">
+          <Form.Item label="Ngày hết hạn" name="endDate" className={styles.formItem}>
             <DatePicker 
               style={{ width: '100%' }} 
               format="YYYY-MM-DD" 
               placeholder="Chọn ngày hết hạn (Không bắt buộc)"
               disabledDate={current => current && current < dayjs().startOf('day')}
+              className={styles.input}
             />
           </Form.Item>
 
-          <Form.Item label="Tags" name="tags">
+          <Form.Item label="Tags" name="tags" className={styles.formItem}>
             <Select
               mode="tags"
               style={{ width: '100%' }}
               placeholder="Thêm tags (nhấn Enter để thêm)"
               tokenSeparators={[',']}
+              className={styles.input}
             >
               <Select.Option value="new-user">new-user</Select.Option>
               <Select.Option value="birthday">birthday</Select.Option>
@@ -668,7 +821,12 @@ const VouchersPage: React.FC = () => {
 
       {/* Detail Modal */}
       <Modal
-        title={<div className="text-xl font-semibold text-gray-800">Chi tiết mã giảm giá</div>}
+        title={
+          <div className={styles.modalTitle}>
+            <EyeOutlined className={styles.modalIcon} />
+            Chi tiết mã giảm giá
+          </div>
+        }
         open={isDetailModalVisible}
         onCancel={() => {
           setIsDetailModalVisible(false);
@@ -677,12 +835,15 @@ const VouchersPage: React.FC = () => {
         footer={null}
         width={420}
         centered
+        className={styles.userModal}
       >
         {selectedVoucher && (
           <div style={{ padding: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-              <span style={{ fontSize: 22, fontWeight: 700, color: '#1677ff', letterSpacing: 1 }}>{selectedVoucher.code}</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className={styles.userDetailHeaderBox}>
+              <Title level={3} style={{ margin: 0 }}>
+                {selectedVoucher.code}
+              </Title>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {isVoucherActive(selectedVoucher) ? (
                   <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
                 ) : (
@@ -691,82 +852,145 @@ const VouchersPage: React.FC = () => {
                 <span style={{ fontSize: 14, color: isVoucherActive(selectedVoucher) ? '#52c41a' : '#ff4d4f', fontWeight: 500 }}>
                   {isVoucherActive(selectedVoucher) ? 'Đang hoạt động' : 'Đã hết hạn'}
                 </span>
-              </span>
+              </div>
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Tiêu đề:</span>
-              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.title}</span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Mô tả:</span>
-              <span style={{ marginLeft: 8 }}>{selectedVoucher.description || '-'}</span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Loại giảm giá:</span>
-              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.discountType === 'fixed' ? '💵 Số tiền' : '🎯 Phần trăm'}</span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Giá trị giảm:</span>
-              <span style={{ marginLeft: 8, fontWeight: 600, color: '#1677ff' }}>
-                {selectedVoucher.discountType === 'percentage'
-                  ? `${selectedVoucher.discountValue}%`
-                  : `${selectedVoucher.discountValue.toLocaleString('vi-VN')} VNĐ`}
-              </span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Giảm tối đa:</span>
-              <span style={{ marginLeft: 8 }}>{selectedVoucher.maxDiscount ? `${selectedVoucher.maxDiscount.toLocaleString('vi-VN')} VNĐ` : '-'}</span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Đơn tối thiểu:</span>
-              <span style={{ marginLeft: 8 }}>
-                {selectedVoucher.minOrderValue && selectedVoucher.minOrderValue > 0
-                  ? `${selectedVoucher.minOrderValue.toLocaleString('vi-VN')} VNĐ`
-                  : '0 VNĐ'}
-              </span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Đã sử dụng / Số lượng:</span>
-              <span style={{ marginLeft: 8, fontWeight: 500 }}>{selectedVoucher.usedCount} / {selectedVoucher.usageLimit}</span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Danh mục:</span>
-              <span style={{ marginLeft: 8 }}>
-                {selectedVoucher.categories && selectedVoucher.categories.length > 0
-                  ? selectedVoucher.categories
-                      .map(cid => {
-                        if (cid === 'all') return 'Tất cả';
-                        const cat = categories.find(c => c._id === cid);
-                        return cat ? cat.name : cid;
-                      })
-                      .join(', ')
-                  : 'Tất cả'}
-              </span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Tags:</span>
-              <span style={{ marginLeft: 8 }}>
-                {selectedVoucher.tags && selectedVoucher.tags.length > 0
-                  ? selectedVoucher.tags.map((tag, index) => (
-                      <Tag key={index} color="blue" style={{ marginRight: 4 }}>
-                        {tag}
-                      </Tag>
-                    ))
-                  : 'Không có tags'}
-              </span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Loại voucher:</span>
-              <span style={{ marginLeft: 8 }}>{selectedVoucher.type || 'default'}</span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Ngày bắt đầu:</span>
-              <span style={{ marginLeft: 8 }}>{dayjs(selectedVoucher.startDate).format('YYYY-MM-DD')}</span>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontWeight: 500 }}>Ngày kết thúc:</span>
-              <span style={{ marginLeft: 8 }}>{selectedVoucher.endDate ? dayjs(selectedVoucher.endDate).format('YYYY-MM-DD') : 'Không giới hạn'}</span>
-            </div>
+            
+            <Divider />
+            
+            <Card className={styles.userDetailCard} bordered={false}>
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Tiêu đề:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">{selectedVoucher.title}</Text>
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Mô tả:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">{selectedVoucher.description || '-'}</Text>
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Loại giảm giá:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">{selectedVoucher.discountType === 'fixed' ? '💵 Số tiền' : '🎯 Phần trăm'}</Text>
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Giá trị giảm:</Text>
+                </div>
+                <div>
+                  <Text type="secondary" style={{ fontWeight: 600, color: '#1677ff' }}>
+                    {selectedVoucher.discountType === 'percentage'
+                      ? `${selectedVoucher.discountValue}%`
+                      : `${selectedVoucher.discountValue.toLocaleString('vi-VN')} VNĐ`}
+                  </Text>
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Giảm tối đa:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">{selectedVoucher.maxDiscount ? `${selectedVoucher.maxDiscount.toLocaleString('vi-VN')} VNĐ` : '-'}</Text>
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Đơn tối thiểu:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">
+                    {selectedVoucher.minOrderValue && selectedVoucher.minOrderValue > 0
+                      ? `${selectedVoucher.minOrderValue.toLocaleString('vi-VN')} VNĐ`
+                      : '0 VNĐ'}
+                  </Text>
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Đã sử dụng / Số lượng:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">{selectedVoucher.usedCount} / {selectedVoucher.usageLimit}</Text>
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Danh mục:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">
+                    {selectedVoucher.categories && selectedVoucher.categories.length > 0
+                      ? selectedVoucher.categories
+                          .map(cid => {
+                            if (cid === 'all') return 'Tất cả';
+                            const cat = categories.find(c => c._id === cid);
+                            return cat ? cat.name : cid;
+                          })
+                          .join(', ')
+                      : 'Tất cả'}
+                  </Text>
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Tags:</Text>
+                </div>
+                <div>
+                  {selectedVoucher.tags && selectedVoucher.tags.length > 0
+                    ? selectedVoucher.tags.map((tag, index) => (
+                        <Tag key={index} color="blue" style={{ marginRight: 4 }}>
+                          {tag}
+                        </Tag>
+                      ))
+                    : <Text type="secondary">Không có tags</Text>}
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Loại voucher:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">{selectedVoucher.type || 'default'}</Text>
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Ngày bắt đầu:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">{dayjs(selectedVoucher.startDate).format('YYYY-MM-DD')}</Text>
+                </div>
+              </div>
+              
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <Text strong>Ngày kết thúc:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">{selectedVoucher.endDate ? dayjs(selectedVoucher.endDate).format('YYYY-MM-DD') : 'Không giới hạn'}</Text>
+                </div>
+              </div>
+            </Card>
+            
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
               <Button onClick={() => {
                 setIsDetailModalVisible(false);
@@ -781,35 +1005,6 @@ const VouchersPage: React.FC = () => {
           </div>
         )}
       </Modal>
-
-      {/* Custom styles */}
-      <style>
-        {`
-          .vouchers-table .ant-table-thead > tr > th {
-            background: #fafafa;
-            font-weight: 600;
-            color: #1f2937;
-            font-size: 13px;
-            padding: 8px 8px;
-            white-space: nowrap;
-          }
-          .vouchers-table .ant-table-tbody > tr:hover > td {
-            background: #f5f7fa;
-          }
-          .vouchers-table .ant-table-tbody > tr > td {
-            padding: 8px 8px;
-            font-size: 13px;
-            word-break: break-word;
-            white-space: normal;
-          }
-          .ant-tag {
-            margin: 0;
-          }
-          .ant-form-item-label > label {
-            font-weight: 500;
-          }
-        `}
-      </style>
     </div>
   );
 };

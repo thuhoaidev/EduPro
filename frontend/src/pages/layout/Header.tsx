@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   SearchOutlined,
   BellOutlined,
+  MessageOutlined,
   ShoppingCartOutlined,
   LogoutOutlined,
   DashboardOutlined,
@@ -27,22 +28,28 @@ import {
   StarOutlined,
   SettingOutlined,
   DeleteOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import AuthNotification from '../../components/common/AuthNotification';
+import ToastNotification from '../../components/common/ToastNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
 import { useCart } from '../../contexts/CartContext';
 import { courseService } from '../../services/apiService';
+import { useNotification } from '../../hooks/useNotification';
 import './Header.css';
 import { io } from 'socket.io-client';
+import socket from '../../services/socket';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
+const role = localStorage.getItem('role');
+
 
 interface User {
   avatar?: string;
   fullname: string;
   email: string;
-  role?: { name: string };
+  role_id?: { name: string };
   isVerified?: boolean;
   nickname?: string;
 }
@@ -58,7 +65,11 @@ interface Notification {
 }
 
 const AppHeader = () => {
-  const getRoleName = (user: User): string => user?.role?.name || 'student';
+  const getRoleName = (user: User): string => {
+    const roleName = user?.role_id?.name || 'student';
+    console.log('Header - getRoleName:', roleName, 'for user:', user);
+    return roleName;
+  };
   const { cartCount } = useCart();
 
   const [user, setUser] = useState<User | null | false>(null);
@@ -66,20 +77,49 @@ const AppHeader = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [accountTypeModalVisible, setAccountTypeModalVisible] = useState(false);
   const navigate = useNavigate();
-  const [notification, setNotification] = useState<{
-    isVisible: boolean;
-    type: 'success' | 'error' | 'info' | 'warning';
-    title: string;
-    message: string;
-  }>({
-    isVisible: false,
-    type: 'success',
-    title: '',
-    message: ''
-  });
+  
+  // Sử dụng hook notification mới
+  const { 
+    notification, 
+    toast,
+    showLogoutSuccess, 
+    hideNotification, 
+    hideToast 
+  } = useNotification();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
+  // Fetch unread messages count (only once when user changes)
+  useEffect(() => {
+    const fetchUnreadMessagesCount = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const response = await fetch('/api/messages/unread-count', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setUnreadMessagesCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching unread messages count:', error);
+      }
+    };
+
+    if (user) {
+      fetchUnreadMessagesCount();
+      // Refresh count every 2 minutes instead of 30 seconds to reduce API calls
+      const interval = setInterval(fetchUnreadMessagesCount, 120000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   useEffect(() => {
     setLoadingNotifications(true);
@@ -91,7 +131,7 @@ const AppHeader = () => {
     })
       .then(res => res.json())
       .then(data => setNotifications(
-        (data.data || []).map(notification => ({
+        (data.data || []).map((notification: any) => ({
           id: notification._id || notification.id,
           type: notification.type,
           title: notification.title,
@@ -131,15 +171,15 @@ const AppHeader = () => {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleLogout = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user && user._id) {
+      socket.connect();
+      socket.emit('auth-event', { type: 'logout', userId: user._id });
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(false);
-    setNotification({
-      isVisible: true,
-      type: 'success',
-      title: 'Đăng xuất thành công!',
-      message: 'Bạn đã đăng xuất khỏi hệ thống. Hẹn gặp lại!'
-    });
+    showLogoutSuccess();
   };
 
   const handleRegisterClick = () => {
@@ -270,19 +310,19 @@ const AppHeader = () => {
           style: { height: 'auto', padding: '16px', cursor: 'pointer' },
         },
         { type: 'divider' as const },
-        ...(getRoleName(user) === 'admin'
+        ...(getRoleName(user) === 'admin' || getRoleName(user) === 'quản trị viên'
           ? [
             { key: '/admin', icon: <DashboardOutlined />, label: 'Trang quản trị' },
             { type: 'divider' as const },
           ]
           : []),
-        ...(getRoleName(user) === 'moderator'
+        ...(getRoleName(user) === 'moderator' || getRoleName(user) === 'kiểm duyệt viên'
           ? [
             { key: '/moderator', icon: <DashboardOutlined />, label: 'Khu vực kiểm duyệt' },
             { type: 'divider' as const },
           ]
           : []),
-        ...(getRoleName(user) === 'instructor'
+        ...(getRoleName(user) === 'instructor' || getRoleName(user) === 'giảng viên'
           ? [
             { key: '/instructor', icon: <DashboardOutlined />, label: 'Khu vực giảng viên' },
             { type: 'divider' as const },
@@ -311,6 +351,13 @@ const AppHeader = () => {
             { key: '/report', icon: <BarChartOutlined />, label: 'Báo cáo!' }
           ],
         },
+        ...(!['admin', 'quản trị viên', 'instructor', 'giảng viên', 'moderator', 'kiểm duyệt viên'].includes(getRoleName(user) || '') ? [{
+          type: 'group' as const,
+          label: 'Ví',
+          children: [
+            { key: '/wallet', icon: <WalletOutlined />, label: 'Ví của tôi' }
+          ],
+        }] : []),
         { type: 'divider' as const },
         { key: 'logout', icon: <LogoutOutlined />, label: <span className="logout-text">Đăng xuất</span> },
       ].filter((item, idx, arr) => {
@@ -590,6 +637,28 @@ const AppHeader = () => {
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   whileTap={{ scale: 0.9 }}
                   transition={{ duration: 0.2 }}
+                  className="message-button"
+                >
+                  <div className="action-button-wrapper">
+                    <Button
+                      onClick={() => navigate('/messages')}
+                      className="action-button message-action"
+                      type="text"
+                      shape="circle"
+                      icon={<MessageOutlined className="action-icon" />}
+                    />
+                    {unreadMessagesCount > 0 && (
+                      <span className="corner-badge message-corner-badge">
+                        {unreadMessagesCount}
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+                
+                <motion.div
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
                   className="cart-button"
                 >
                   <div className="action-button-wrapper">
@@ -668,13 +737,25 @@ const AppHeader = () => {
       {/* Shared Auth Notification */}
       <AuthNotification
         isVisible={notification.isVisible}
-        onComplete={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+        onComplete={hideNotification}
         type={notification.type}
         title={notification.title}
         message={notification.message}
-        autoClose={true}
-        duration={2000}
-        showProgress={notification.type === 'success'}
+        autoClose={notification.autoClose}
+        duration={notification.duration}
+        showProgress={notification.showProgress}
+      />
+
+      {/* Toast Notification */}
+      <ToastNotification
+        isVisible={toast.isVisible}
+        onComplete={hideToast}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        autoClose={toast.autoClose}
+        duration={toast.duration}
+        position={toast.position}
       />
 
       {/* Account Type Modal */}

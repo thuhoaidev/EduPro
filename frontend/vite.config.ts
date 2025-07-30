@@ -18,5 +18,26 @@ export default defineConfig({
         secure: false
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Bỏ qua tất cả warnings
+        return;
+      },
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          antd: ['antd'],
+          mui: ['@mui/material', '@mui/icons-material'],
+          utils: ['axios', 'dayjs', 'moment']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
+  },
+  esbuild: {
+    // Bỏ qua lỗi TypeScript trong esbuild
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }
 })

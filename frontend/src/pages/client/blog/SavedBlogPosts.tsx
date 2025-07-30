@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   BookOutlined, DeleteOutlined, EyeOutlined, MoreOutlined,
   UserOutlined, HeartOutlined, HeartFilled, MessageOutlined,
-  ShareAltOutlined, ClockCircleOutlined, ReloadOutlined
+  ShareAltOutlined, ClockCircleOutlined, ReloadOutlined,
+  SyncOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -73,11 +74,24 @@ const SavedBlogPosts = () => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [activeCommentBlogId, setActiveCommentBlogId] = useState<string | null>(null);
   const [replyWarning, setReplyWarning] = useState('');
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [isRealtimeActive, setIsRealtimeActive] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchSavedPosts();
   }, []);
+
+  // Realtime update every 30 seconds
+  useEffect(() => {
+    if (!isRealtimeActive) return;
+
+    const interval = setInterval(() => {
+      fetchSavedPosts(true); // silent update
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [isRealtimeActive]);
 
   useEffect(() => {
     leoProfanity.add([
@@ -85,40 +99,41 @@ const SavedBlogPosts = () => {
     ]);
   }, []);
 
-const fetchSavedPosts = async () => {
-  setLoading(true);
+const fetchSavedPosts = async (silent = false) => {
+  if (!silent) setLoading(true);
   try {
     const saved = await apiService.fetchSavedPosts();
-    const validPosts = saved.filter(p => p.blog && p.blog._id);
+    const validPosts = (saved as SavedPost[]).filter((p: SavedPost) => p.blog && p.blog._id);
     // ✅ Nếu blog.thumbnail không có, cố gắng lấy ảnh đầu tiên từ content Markdown
-validPosts.forEach(item => {
-  if (!item.blog.thumbnail && item.blog.content) {
-    const match = item.blog.content.match(/!\[.*?\]\((.*?)\)/);
-    if (match && match[1]) {
-      item.blog.thumbnail = match[1];
-    }
-  }
-});
+    validPosts.forEach((item: SavedPost) => {
+      if (!item.blog.thumbnail && item.blog.content) {
+        const match = item.blog.content.match(/!\[.*?\]\((.*?)\)/);
+        if (match && match[1]) {
+          item.blog.thumbnail = match[1];
+        }
+      }
+    });
 
     setSavedPosts(validPosts);
+    setLastUpdate(new Date());
 
-    const uniqueCategories = [...new Set(validPosts.map(item => item.blog?.category))];
-    setCategories(uniqueCategories.filter(Boolean));
+    const uniqueCategories = [...new Set(validPosts.map((item: SavedPost) => item.blog?.category))];
+    setCategories(uniqueCategories.filter((cat): cat is string => Boolean(cat)));
 
     // 🚀 Load comment song song
     const commentResponses = await Promise.all(
-      validPosts.map(post => apiService.fetchComments(post.blog._id))
+      validPosts.map((post: SavedPost) => apiService.fetchComments(post.blog._id))
     );
     const newComments: Record<string, CommentItem[]> = {};
-    validPosts.forEach((post, i) => {
+    validPosts.forEach((post: SavedPost, i: number) => {
       newComments[post.blog._id] = commentResponses[i].data;
     });
     setComments(newComments);
   } catch (error) {
     console.error('❌ Lỗi fetchSavedPosts:', error);
-    message.error('Không thể tải bài viết đã lưu');
+    if (!silent) message.error('Không thể tải bài viết đã lưu');
   } finally {
-    setLoading(false);
+    if (!silent) setLoading(false);
   }
 };
 
@@ -256,6 +271,14 @@ const handleAddComment = async (blogId: string) => {
     return date.toLocaleDateString('vi-VN');
   };
 
+  const formatTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diffInSeconds < 60) return `${diffInSeconds}s trước`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m trước`;
+    return `${Math.floor(diffInSeconds / 3600)}h trước`;
+  };
+
   const processedPosts = savedPosts
     .filter(item => {
       const blog = item.blog;
@@ -351,28 +374,38 @@ const handleAddComment = async (blogId: string) => {
   const renderSavedPostCard = (savedPost: SavedPost) => {
     const { blog } = savedPost;
     return (
-      <Card key={savedPost._id} hoverable style={{ marginBottom: 24, borderRadius: 12 }}>
-        <Row>
+      <Card
+        key={savedPost._id}
+        hoverable
+        style={{ marginBottom: 24, borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+        bodyStyle={{ padding: 0 }}
+      >
+        <Row gutter={0}>
           <Col xs={24} sm={8}>
             <div
               style={{
                 height: 200,
-                background: blog.thumbnail ? `url(${blog.thumbnail})` : '#eee',
-                backgroundSize: 'cover',
+                overflow: 'hidden',
+                borderTopLeftRadius: 14,
+                borderBottomLeftRadius: 14,
+                background: blog.thumbnail ? `url(${blog.thumbnail})` : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backgroundSize: blog.thumbnail ? 'cover' : undefined,
                 backgroundPosition: 'center',
-                position: 'relative',
-                cursor: 'pointer'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                cursor: 'pointer',
               }}
               onClick={() => navigate(`/blog/post/${blog._id}`)}
             >
               {!blog.thumbnail && (
-                <div style={{
-                  position: 'absolute', top: '50%', left: '50%',
-                  transform: 'translate(-50%, -50%)', color: '#999', textAlign: 'center'
-                }}>
-                  <BookOutlined style={{ fontSize: 24, marginBottom: 8 }} /><br />Không có ảnh
+                <div style={{ textAlign: 'center' }}>
+                  <BookOutlined style={{ fontSize: 28, marginBottom: 8 }} />
+                  <div>Không có ảnh</div>
                 </div>
               )}
+              {blog.thumbnail && <img src={blog.thumbnail} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover', borderTopLeftRadius: 14, borderBottomLeftRadius: 14 }} />}
               <div style={{
                 position: 'absolute', top: 12, right: 12,
                 background: 'rgba(0,0,0,0.7)', color: '#fff',
@@ -384,96 +417,125 @@ const handleAddComment = async (blogId: string) => {
           </Col>
           <Col xs={24} sm={16}>
             <div style={{ padding: 24 }}>
-              <Title level={4} onClick={() => navigate(`/blog/post/${blog._id}`)} style={{ cursor: 'pointer' }}>
+              <Title level={4} onClick={() => navigate(`/blog/post/${blog._id}`)} style={{ cursor: 'pointer', margin: 0, marginBottom: 8 }}>
                 {blog.title}
               </Title>
-              <Paragraph ellipsis={{ rows: 2 }} style={{ color: '#666' }}>
+              <Paragraph ellipsis={{ rows: 2 }} style={{ color: '#666', margin: 0, marginBottom: 12 }}>
                 {blog.excerpt || ''}
               </Paragraph>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
                 {blog.author ? (
-                <>
-                  <Avatar src={blog.author.avatar} icon={<UserOutlined />} />
+                  <>
+                    <Avatar src={blog.author.avatar} icon={<UserOutlined />} />
+                    <div style={{ marginLeft: 10 }}>
+                      <Text strong>{blog.author.fullname}</Text><br />
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {blog.category} • {formatDate(blog.createdAt)}
+                      </Text>
+                    </div>
+                  </>
+                ) : (
                   <div style={{ marginLeft: 10 }}>
-                    <Text strong>{blog.author.fullname}</Text><br />
+                    <Text type="secondary">Tác giả không tồn tại</Text><br />
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       {blog.category} • {formatDate(blog.createdAt)}
                     </Text>
                   </div>
-                </>
-              ) : (
-                <div style={{ marginLeft: 10 }}>
-                  <Text type="secondary">Tác giả không tồn tại</Text><br />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {blog.category} • {formatDate(blog.createdAt)}
-                  </Text>
-                </div>
-              )}
-
+                )}
               </div>
               <Space wrap style={{ marginBottom: 16 }}>
-                {(blog.tags || []).slice(0, 3).map(tag => (
-                  <Tag key={tag} onClick={() => setSearchText(tag)}>{tag}</Tag>
+                {(blog.tags || []).map(tag => (
+                  <Tag key={tag} color="#108ee9" style={{ margin: '2px 4px 2px 0' }} onClick={() => setSearchText(tag)}>{tag}</Tag>
                 ))}
-                {(blog.tags || []).length > 3 && <Tag>+{(blog.tags || []).length - 3}</Tag>}
               </Space>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Space size="middle">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, color: '#666', fontSize: 13 }}>
                   <Tooltip title={`Đã lưu vào ${formatDate(savedPost.savedAt)}`}>
                     <span><BookOutlined /> {formatDate(savedPost.savedAt)}</span>
                   </Tooltip>
                   <span><EyeOutlined /> {blog.views}</span>
-                  <span
-  style={{ cursor: 'pointer' }}
-  onClick={() =>
-    setActiveCommentBlogId(activeCommentBlogId === blog._id ? null : blog._id)
-  }
->
-  <MessageOutlined /> {blog.comments_count}
-</span>
-                </Space>
-                <Space>
                   <Button
                     type="text"
+                    size="small"
                     icon={blog.isLiked ? <HeartFilled style={{ color: '#ff4757' }} /> : <HeartOutlined />}
                     onClick={() => handleLikeToggle(blog._id)}
                   >
                     {blog.likes_count}
                   </Button>
-
-                  <Dropdown
-                    menu={{
-                      items: [
-                        {
-                          key: 'view',
-                          label: 'Xem bài viết',
-                          icon: <EyeOutlined />,
-                          onClick: () => {
-                            console.log('Đi tới:', `/blog/post/${blog._id}`);
-                            navigate(`/blog/${blog._id}`);
-                          },
-                        },
-                        {
-                          key: 'unsave',
-                          label: 'Bỏ lưu',
-                          icon: <DeleteOutlined />,
-                          danger: true,
-                          onClick: () => handleUnsavePost(blog._id, blog.title),
-                        },
-                      ],
-                    }}
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<MessageOutlined />}
+                    onClick={() => setActiveCommentBlogId(activeCommentBlogId === blog._id ? null : blog._id)}
+                    style={{ padding: 0, color: '#666', border: 'none' }}
                   >
-                    <Button type="text" icon={<MoreOutlined />} />
-                  </Dropdown>
-
-                </Space>
+                    {blog.comments_count}
+                  </Button>
+                </div>
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        key: 'view',
+                        label: (
+                          <Button
+                            type="text"
+                            block
+                            style={{ textAlign: 'left' }}
+                            icon={<EyeOutlined />}
+                            onClick={() => navigate(`/blog/post/${blog._id}`)}
+                          >
+                            Xem bài viết
+                          </Button>
+                        )
+                      },
+                      {
+                        key: 'share',
+                        label: (
+                          <Button
+                            type="text"
+                            block
+                            style={{ textAlign: 'left' }}
+                            icon={<ShareAltOutlined />}
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/blog/post/${blog._id}`);
+                              message.success('Đã sao chép link bài viết');
+                            }}
+                          >
+                            Chia sẻ
+                          </Button>
+                        )
+                      },
+                      {
+                        key: 'unsave',
+                        label: (
+                          <Button
+                            type="text"
+                            block
+                            style={{ textAlign: 'left' }}
+                            icon={<DeleteOutlined />}
+                            danger
+                            onClick={() => handleUnsavePost(blog._id, blog.title)}
+                          >
+                            Bỏ lưu
+                          </Button>
+                        ),
+                        danger: true
+                      },
+                    ],
+                  }}
+                  trigger={['click']}
+                  placement="bottomRight"
+                >
+                  <Button type="text" icon={<MoreOutlined />} />
+                </Dropdown>
               </div>
             </div>
           </Col>
         </Row>
         {activeCommentBlogId === blog._id && (
-    <div style={{ marginTop: 24 }}>{renderComments(blog._id)}</div>
-  )}
+          <div style={{ marginTop: 24 }}>{renderComments(blog._id)}</div>
+        )}
       </Card>
     );
   };
@@ -537,7 +599,6 @@ const handleUnsavePost = async (blogId: string, blogTitle: string) => {
             </Col>
             <Col xs={24} sm={12} md={8} style={{ textAlign: 'right' }}>
               <Space>
-                <Button icon={<ReloadOutlined />} onClick={fetchSavedPosts} loading={loading}>Làm mới</Button>
                 <Text type="secondary">{processedPosts.length} bài viết</Text>
               </Space>
             </Col>

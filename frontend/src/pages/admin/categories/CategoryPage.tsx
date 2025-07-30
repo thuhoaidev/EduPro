@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Table,
   Input,
@@ -17,6 +17,11 @@ import {
   Spin,
   DatePicker,
   Tooltip,
+  Typography,
+  Badge,
+  Divider,
+  Progress,
+  Alert,
 } from "antd";
 import {
   SearchOutlined,
@@ -27,6 +32,16 @@ import {
   ClockCircleOutlined,
   CloseCircleOutlined,
   FilterOutlined,
+  ReloadOutlined,
+  EyeOutlined,
+  BookOutlined,
+  TrophyOutlined,
+  RiseOutlined,
+  FallOutlined,
+  CalendarOutlined,
+  TagsOutlined,
+  FileTextOutlined,
+  ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { getAllCategories, createCategory, updateCategory, deleteCategory } from "../../../services/categoryService";
@@ -38,6 +53,7 @@ import styles from '../Users/UserPage.module.css';
 dayjs.locale('vi');
 
 const { RangePicker } = DatePicker;
+const { Title, Text, Paragraph } = Typography;
 
 // FilterSection component
 interface FilterSectionProps {
@@ -47,6 +63,8 @@ interface FilterSectionProps {
   selectedStatus: string | undefined;
   setSelectedStatus: (status: string | undefined) => void;
   setDateRange: (dates: any) => void;
+  dateRange: any;
+  search: string;
 }
 
 const FilterSection = ({
@@ -56,35 +74,144 @@ const FilterSection = ({
   selectedStatus,
   setSelectedStatus,
   setDateRange,
+  dateRange,
+  search,
 }: FilterSectionProps) => (
-  <div className={styles.filterGroup}>
-    <Input
-      placeholder="Tìm kiếm danh mục..."
-      prefix={<SearchOutlined />}
-      value={searchInput}
-      onChange={(e) => setSearchInput(e.target.value)}
-      onPressEnter={() => setSearch(searchInput)}
-      className={styles.filterInput}
-      allowClear
-    />
-    <Select
-      placeholder="Lọc theo trạng thái"
-      value={selectedStatus}
-      onChange={setSelectedStatus}
-      className={styles.filterSelect}
-      allowClear
-    >
-      <Select.Option value="active">Hiển thị</Select.Option>
-      <Select.Option value="inactive">Ẩn</Select.Option>
-    </Select>
-    <RangePicker
-      placeholder={['Từ ngày', 'Đến ngày']}
-      onChange={(dates) => setDateRange(dates)}
-      className={styles.filterDateRange}
-      format="DD/MM/YYYY"
-    />
-  </div>
+  <Card className={styles.filterCard} bordered={false}>
+    <div className={styles.filterGroup}>
+      <Input
+        placeholder="Tìm kiếm danh mục..."
+        prefix={<SearchOutlined />}
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        onPressEnter={() => setSearch(searchInput)}
+        className={styles.filterInput}
+        allowClear
+      />
+      <Select
+        placeholder="Lọc theo trạng thái"
+        value={selectedStatus}
+        onChange={setSelectedStatus}
+        className={styles.filterSelect}
+        allowClear
+      >
+        <Select.Option value="active">Hiển thị</Select.Option>
+        <Select.Option value="inactive">Ẩn</Select.Option>
+      </Select>
+      <RangePicker
+        placeholder={['Từ ngày', 'Đến ngày']}
+        onChange={(dates) => setDateRange(dates)}
+        className={styles.filterDateRange}
+        format="DD/MM/YYYY"
+        value={dateRange}
+      />
+    </div>
+  </Card>
 );
+
+// StatCards component
+interface StatCardsProps {
+  categoryStats: {
+    total: number;
+    active: number;
+    inactive: number;
+  };
+}
+
+const StatCards = ({ categoryStats }: StatCardsProps) => {
+  const activePercentage = categoryStats.total > 0 ? (categoryStats.active / categoryStats.total) * 100 : 0;
+  const inactivePercentage = categoryStats.total > 0 ? (categoryStats.inactive / categoryStats.total) * 100 : 0;
+
+  return (
+    <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#1890ff' }}>
+              <TagsOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Tổng số danh mục" 
+                value={categoryStats.total} 
+                valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary">Tất cả danh mục</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#52c41a' }}>
+              <CheckCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Hiển thị" 
+                value={categoryStats.active} 
+                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary">{activePercentage.toFixed(1)}%</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#ff4d4f' }}>
+              <CloseCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Ẩn" 
+                value={categoryStats.inactive} 
+                valueStyle={{ color: '#ff4d4f', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <FallOutlined style={{ color: '#ff4d4f' }} />
+                <Text type="secondary">{inactivePercentage.toFixed(1)}%</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#722ed1' }}>
+              <FileTextOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Tỷ lệ hoạt động" 
+                value={activePercentage} 
+                suffix="%" 
+                precision={1}
+                valueStyle={{ color: '#722ed1', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <Progress 
+                percent={activePercentage} 
+                size="small" 
+                strokeColor="#722ed1"
+                showInfo={false}
+                style={{ marginTop: '8px' }}
+              />
+            </div>
+          </div>
+        </Card>
+      </Col>
+    </Row>
+  );
+};
 
 const CategoryPage = () => {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -101,7 +228,7 @@ const CategoryPage = () => {
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 10,
+    pageSize: 15,
     total: 0,
   });
 
@@ -111,30 +238,21 @@ const CategoryPage = () => {
     inactive: 0,
   });
 
-  useEffect(() => {
-    fetchCategories();
-  }, []); // Only fetch when component mounts
-
-  useEffect(() => {
-    if (search) {
-      fetchCategories(1, pagination.pageSize);
-    }
-  }, [search]);
-
-  // Fetch categories
-  const fetchCategories = async (page = 1, limit = 10) => {
+  // Fetch categories with realtime updates
+  const fetchCategories = useCallback(async (page = 1, limit = 15) => {
     try {
       setLoading(true);
       const params = {
         page,
         limit,
+        search: search,
         status: selectedStatus,
-        startDate: dateRange?.[0]?.format('YYYY-MM-DD'),
-        endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
+        startDate: dateRange?.[0]?.startOf('day').toISOString(),
+        endDate: dateRange?.[1]?.endOf('day').toISOString(),
       };
       
+      console.log("Fetching categories with params:", params);
       const response = await getAllCategories(params);
-      console.log('API Response:', response); // Debug log
 
       if (response.success) {
         const categoriesData = Array.isArray(response.data) 
@@ -174,9 +292,21 @@ const CategoryPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedStatus, dateRange, pagination.pageSize]);
 
-  // Lọc categories khi searchInput hoặc selectedStatus thay đổi
+  // Initial fetch and realtime updates
+  useEffect(() => {
+    fetchCategories();
+    
+    // Set up realtime updates every 30 seconds
+    const interval = setInterval(() => {
+      fetchCategories();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchCategories]);
+
+  // Filter categories when searchInput or selectedStatus changes
   useEffect(() => {
     const filtered = allCategories.filter(category => {
       const matchName = category.name.toLowerCase().includes(searchInput.toLowerCase());
@@ -191,64 +321,125 @@ const CategoryPage = () => {
     fetchCategories();
   }, [search, selectedStatus, dateRange]);
 
+  const getStatusTag = (status: string) => {
+    return status === 'active' ? (
+      <Tag color="green" icon={<CheckCircleOutlined />}>
+        Hiển thị
+      </Tag>
+    ) : (
+      <Tag color="red" icon={<CloseCircleOutlined />}>
+        Ẩn
+      </Tag>
+    );
+  };
+
   const columns: ColumnsType<Category> = [
     {
       title: 'STT',
       dataIndex: 'number',
       key: 'number',
-      width: 60,
+      width: 70,
+      align: 'center',
+      render: (number) => (
+        <Badge count={number} showZero style={{ backgroundColor: '#1890ff' }} />
+      ),
     },
     {
       title: 'Tên danh mục',
       dataIndex: 'name',
       key: 'name',
+      width: 250,
       render: (name, record) => (
-        <Button type="link" className={styles.linkBtn} onClick={() => handleViewCategory(record)}>
-          {name}
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ 
+            width: '40px', 
+            height: '40px', 
+            borderRadius: '8px', 
+            backgroundColor: '#f0f8ff', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            border: '1px solid #e6f7ff'
+          }}>
+            <TagsOutlined style={{ color: '#1890ff', fontSize: '18px' }} />
+          </div>
+          <div>
+            <Text strong style={{ fontSize: '14px', display: 'block', marginBottom: '4px' }}>
+              {name}
+            </Text>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              {record.description ? 
+                (record.description.length > 50 ? 
+                  `${record.description.substring(0, 50)}...` : 
+                  record.description
+                ) : 
+                'Không có mô tả'
+              }
+            </Text>
+          </div>
+        </div>
       ),
-    },
-    {
-      title: 'Mô tả',
-      dataIndex: 'description',
-      key: 'description',
-      render: (description) => <span>{description || 'Không có mô tả'}</span>,
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
-      render: (status) => (
-        <Tag color={status === 'active' ? 'green' : 'red'}>
-          {status === 'active' ? 'Hiển thị' : 'Ẩn'}
-        </Tag>
-      ),
+      width: 100,
+      align: 'center',
+      render: (status) => getStatusTag(status),
     },
     {
       title: 'Ngày tạo',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (createdAt) => dayjs(createdAt).format('DD/MM/YYYY HH:mm'),
+      width: 150,
+      align: 'center',
+      render: (createdAt) => (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>
+            {dayjs(createdAt).format('DD/MM/YYYY')}
+          </div>
+          <div style={{ fontSize: '11px', color: '#999' }}>
+            {dayjs(createdAt).format('HH:mm')}
+          </div>
+        </div>
+      ),
     },
     {
       title: 'Thao tác',
       key: 'action',
+      width: 120,
+      align: 'center',
       render: (_, record) => (
-        <Space size="middle">
+        <Space size="small">
+          <Tooltip title="Xem chi tiết">
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewCategory(record);
+              }}
+              style={{ color: '#1890ff' }}
+            />
+          </Tooltip>
           <Tooltip title="Chỉnh sửa">
             <Button
               type="text"
+              size="small"
               icon={<EditOutlined />}
               onClick={(e) => {
                 e.stopPropagation();
                 handleEditCategory(record);
               }}
-              className={styles.actionBtn}
+              style={{ color: '#52c41a' }}
             />
           </Tooltip>
           <Tooltip title="Xóa">
             <Popconfirm
               title="Bạn có chắc chắn muốn xóa danh mục này?"
+              description="Hành động này không thể hoàn tác. Tất cả khóa học thuộc danh mục này sẽ không có danh mục."
               onConfirm={(e) => {
                 e?.stopPropagation();
                 handleDeleteCategory(record._id);
@@ -256,12 +447,13 @@ const CategoryPage = () => {
               onCancel={(e) => e?.stopPropagation()}
               okText="Xóa"
               cancelText="Hủy"
+              okType="danger"
             >
               <Button
                 type="text"
+                size="small"
                 danger
                 icon={<DeleteOutlined />}
-                className={styles.actionBtn}
                 onClick={e => e.stopPropagation()}
               />
             </Popconfirm>
@@ -349,33 +541,46 @@ const CategoryPage = () => {
     setIsDetailModalVisible(true);
   };
 
+  if (loading && categories.length === 0) {
+    return (
+      <div className={styles.userPageContainer}>
+        <div className={styles.loadingContainer}>
+          <Spin size="large" />
+          <Text style={{ marginTop: 16 }}>Đang tải dữ liệu...</Text>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.userPageContainer}>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Quản lý danh mục</h2>
-          <p className="text-gray-500 mt-1">Quản lý và theo dõi các danh mục khóa học</p>
+      {/* Page Header */}
+      <div className={styles.pageHeader}>
+        <div className={styles.headerLeft}>
+          <Title level={2} className={styles.pageTitle}>
+            <TrophyOutlined className={styles.titleIcon} />
+            Quản lý danh mục
+          </Title>
+          <Paragraph className={styles.pageSubtitle}>
+            Quản lý và theo dõi các danh mục khóa học trong hệ thống
+          </Paragraph>
+        </div>
+        <div className={styles.headerRight}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAddCategory}
+            className={styles.addUserBtn}
+          >
+            Thêm danh mục
+          </Button>
         </div>
       </div>
 
-      <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
-        <Col xs={24} sm={12} md={8}>
-          <Card className={styles.statsCard}>
-            <Statistic title="Tổng số danh mục" value={categoryStats.total} valueStyle={{ color: '#3f8600' }} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={8}>
-          <Card className={styles.statsCard}>
-            <Statistic title="Hiển thị" value={categoryStats.active} valueStyle={{ color: '#3f8600' }} />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={8}>
-          <Card className={styles.statsCard}>
-            <Statistic title="Ẩn" value={categoryStats.inactive} valueStyle={{ color: '#cf1322' }} />
-          </Card>
-        </Col>
-      </Row>
+      {/* Statistics Cards */}
+      <StatCards categoryStats={categoryStats} />
 
+      {/* Filter Section */}
       <FilterSection
         searchInput={searchInput}
         setSearchInput={setSearchInput}
@@ -383,31 +588,44 @@ const CategoryPage = () => {
         selectedStatus={selectedStatus}
         setSelectedStatus={setSelectedStatus}
         setDateRange={setDateRange}
+        dateRange={dateRange}
+        search={search}
       />
 
-      <Card className={styles.userTableCard}>
+      {/* Categories Table */}
+      <Card className={styles.userTableCard} bordered={false}>
+        <div className={styles.tableHeader}>
+          <div className={styles.tableTitleSection}>
+            <BookOutlined className={styles.tableIcon} />
+            <Title level={4} className={styles.tableTitle}>
+              Danh sách danh mục
+            </Title>
+            <Badge count={categories.length} className={styles.userCountBadge} />
+          </div>
+          <div className={styles.tableActions}>
+            <Text type="secondary">
+              Hiển thị {((pagination.current - 1) * pagination.pageSize) + 1} - {Math.min(pagination.current * pagination.pageSize, categories.length)} của {categories.length} danh mục
+            </Text>
+          </div>
+        </div>
+        
         <Table
           columns={columns}
           dataSource={categories}
           loading={loading}
-          pagination={pagination}
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} danh mục`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            size: 'small',
+          }}
           onChange={(pagination) => fetchCategories(pagination.current, pagination.pageSize)}
           rowKey="_id"
           className={styles.userTable}
-          scroll={{ x: true }}
-          title={() => (
-            <div className={styles.tableHeader}>
-              <h4 className={styles.tableTitle}>Danh sách danh mục</h4>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAddCategory}
-                className={styles.addUserBtn}
-              >
-                Thêm danh mục
-              </Button>
-            </div>
-          )}
+          scroll={{ x: 800 }}
+          size="small"
           onRow={(record) => ({
             onClick: () => handleViewCategory(record),
             style: { cursor: 'pointer' },
@@ -415,96 +633,131 @@ const CategoryPage = () => {
         />
       </Card>
 
+      {/* Add/Edit Category Modal */}
       <Modal
-        title={editingCategory ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'}
+        title={
+          <div className={styles.modalTitle}>
+            <TagsOutlined className={styles.modalIcon} />
+            {editingCategory ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'}
+          </div>
+        }
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
         okText="Lưu"
         cancelText="Hủy"
-        width={600}
+        width={800}
         className={styles.userModal}
       >
-        <Card>
-          <Form form={form} layout="vertical" className={styles.userForm}>
-            <Row gutter={[16, 16]}>
-              <Col span={24}>
-                <Form.Item
-                  name="name"
-                  label="Tên danh mục"
-                  rules={[{ required: true, message: 'Vui lòng nhập tên danh mục' }]}
-                  className={styles.formItem}
-                >
-                  <Input placeholder="Nhập tên danh mục" className={styles.input} />
-                </Form.Item>
-              </Col>
+        <Form form={form} layout="vertical" className={styles.userForm}>
+          <Row gutter={[16, 16]}>
+            <Col span={24}>
+              <Form.Item
+                name="name"
+                label="Tên danh mục"
+                rules={[{ required: true, message: 'Vui lòng nhập tên danh mục' }]}
+                className={styles.formItem}
+              >
+                <Input placeholder="Nhập tên danh mục" className={styles.input} />
+              </Form.Item>
+            </Col>
 
-              <Col span={24}>
-                <Form.Item
-                  name="description"
-                  label="Mô tả"
-                  className={styles.formItem}
-                >
-                  <Input.TextArea placeholder="Nhập mô tả danh mục" className={styles.input} />
-                </Form.Item>
-              </Col>
+            <Col span={24}>
+              <Form.Item
+                name="description"
+                label="Mô tả"
+                className={styles.formItem}
+              >
+                <Input.TextArea 
+                  placeholder="Nhập mô tả danh mục" 
+                  className={styles.input}
+                  rows={4}
+                />
+              </Form.Item>
+            </Col>
 
-              <Col span={24}>
-                <Form.Item
-                  name="status"
-                  label="Trạng thái"
-                  rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
-                  className={styles.formItem}
-                >
-                  <Select placeholder="Chọn trạng thái" className={styles.input}>
-                    <Select.Option value="active">
-                      <Space>
-                        <CheckCircleOutlined style={{ color: 'green' }} />
-                        Hiển thị
-                      </Space>
-                    </Select.Option>
-                    <Select.Option value="inactive">
-                      <Space>
-                        <CloseCircleOutlined style={{ color: 'red' }} />
-                        Ẩn
-                      </Space>
-                    </Select.Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
-          </Form>
-        </Card>
+            <Col span={24}>
+              <Form.Item
+                name="status"
+                label="Trạng thái"
+                rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
+                className={styles.formItem}
+              >
+                <Select placeholder="Chọn trạng thái" className={styles.input}>
+                  <Select.Option value="active">
+                    <Space>
+                      <CheckCircleOutlined style={{ color: 'green' }} />
+                      Hiển thị
+                    </Space>
+                  </Select.Option>
+                  <Select.Option value="inactive">
+                    <Space>
+                      <CloseCircleOutlined style={{ color: 'red' }} />
+                      Ẩn
+                    </Space>
+                  </Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
       </Modal>
 
+      {/* Category Detail Modal */}
       <Modal
+        title={
+          <div className={styles.modalTitle}>
+            <TagsOutlined className={styles.modalIcon} />
+            Chi tiết danh mục
+          </div>
+        }
         open={isDetailModalVisible}
         onCancel={() => setIsDetailModalVisible(false)}
         footer={null}
-        width={500}
+        width={600}
         className={styles.userModal}
       >
         {viewingCategory && (
-          <div style={{ padding: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontWeight: 700, fontSize: 22, margin: 0 }}>{viewingCategory.name}</h2>
+          <div>
+            <div className={styles.userDetailHeaderBox}>
+              <Title level={3} style={{ margin: 0 }}>
+                {viewingCategory.name}
+              </Title>
+              {getStatusTag(viewingCategory.status)}
             </div>
-            <Tag color={viewingCategory.status === 'active' ? 'green' : 'red'} style={{ marginRight: 12, fontSize: 16, marginBottom: 12 }}>
-              {viewingCategory.status === 'active' ? 'Hiển thị' : 'Ẩn'}
-            </Tag>
-            <div style={{ marginBottom: 12 }}>
-              <b>Mô tả:</b>
-              <div style={{ color: '#555', marginTop: 4, fontStyle: 'italic' }}>
-                {viewingCategory.description || 'Không có mô tả'}
+            
+            <Divider />
+            
+            <Card className={styles.userDetailCard} bordered={false}>
+              <div className={styles.userDetailRow}>
+                <div className={styles.userDetailLabel}>
+                  <FileTextOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                  <Text strong>Mô tả:</Text>
+                </div>
+                <div>
+                  <Text type="secondary">
+                    {viewingCategory.description || 'Không có mô tả'}
+                  </Text>
+                </div>
               </div>
+            </Card>
+            
+            <Divider />
+            
+            <div className={styles.userDetailRow}>
+              <div className={styles.userDetailLabel}>
+                <CalendarOutlined style={{ marginRight: '8px', color: '#52c41a' }} />
+                <Text strong>Ngày tạo:</Text>
+              </div>
+              <Text>{dayjs(viewingCategory.createdAt).format('DD/MM/YYYY HH:mm')}</Text>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <span style={{ color: '#888' }}><b>Ngày tạo:</b></span>
-              <span>{dayjs(viewingCategory.createdAt).format('DD/MM/YYYY HH:mm')}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ color: '#888' }}><b>Ngày chỉnh sửa:</b></span>
-              <span>{dayjs(viewingCategory.updatedAt).format('DD/MM/YYYY HH:mm')}</span>
+            
+            <div className={styles.userDetailRow}>
+              <div className={styles.userDetailLabel}>
+                <CalendarOutlined style={{ marginRight: '8px', color: '#faad14' }} />
+                <Text strong>Ngày chỉnh sửa:</Text>
+              </div>
+              <Text>{dayjs(viewingCategory.updatedAt).format('DD/MM/YYYY HH:mm')}</Text>
             </div>
           </div>
         )}

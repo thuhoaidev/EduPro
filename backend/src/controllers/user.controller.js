@@ -30,10 +30,14 @@ exports.getCurrentUser = async (req, res) => {
     let userObj = user.toJSON();
     // Đảm bảo trả về role (object) và roles (mảng tên role)
     if (user.role_id && user.role_id.name) {
-      userObj.role = { name: user.role_id.name };
+      userObj.role = { 
+        name: user.role_id.name,
+        description: user.role_id.description,
+        permissions: user.role_id.permissions || []
+      };
       userObj.roles = [user.role_id.name];
     } else {
-      userObj.role = { name: 'guest' };
+      userObj.role = { name: 'guest', description: 'Khách', permissions: [] };
       userObj.roles = ['guest'];
     }
     console.log('DEBUG userObj trả về:', userObj);
@@ -82,10 +86,7 @@ exports.updateCurrentUser = async (req, res) => {
     };
 
     // Xử lý avatar: ưu tiên file upload, nếu không có thì lấy từ body
-    let avatarUrl = null;
-    console.log('DEBUG - req.uploadedAvatar:', req.uploadedAvatar);
-    console.log('DEBUG - req.body.avatar:', req.body.avatar);
-
+    let avatarUrl;
     if (req.uploadedAvatar && req.uploadedAvatar.url) {
       avatarUrl = req.uploadedAvatar.url;
       console.log('DEBUG - Using uploaded avatar URL:', avatarUrl);
@@ -93,8 +94,10 @@ exports.updateCurrentUser = async (req, res) => {
       avatarUrl = req.body.avatar;
       console.log('DEBUG - Using body avatar URL:', avatarUrl);
     } else {
-      console.log('DEBUG - No avatar provided, using default');
-      avatarUrl = 'default-avatar.jpg'; // Giá trị mặc định
+      // Nếu không có file mới và không có avatar mới, giữ nguyên avatar cũ
+      const user = await User.findById(req.user._id);
+      avatarUrl = user && user.avatar ? user.avatar : 'default-avatar.jpg';
+      console.log('DEBUG - Keeping existing avatar:', avatarUrl);
     }
 
     // Luôn cập nhật avatar vào updateFields
@@ -138,10 +141,12 @@ exports.updateCurrentUser = async (req, res) => {
       } : null,
     });
   } catch (error) {
-    console.error('Lỗi cập nhật người dùng:', error);
+    console.error('Lỗi cập nhật người dùng:', error, error?.errors);
     res.status(500).json({
       success: false,
       message: 'Lỗi cập nhật thông tin người dùng',
+      error: error.message,
+      errors: error.errors || null
     });
   }
 };
@@ -221,25 +226,62 @@ exports.getAllUsers = async (req, res) => {
 // Lấy thông tin chi tiết một người dùng theo ID
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).populate('role_id');
-
-    if (!user) {
-      return res.status(404).json({
+    console.log('=== GET USER BY ID DEBUG ===');
+    console.log('Requested ID:', req.params.id);
+    console.log('ID type:', typeof req.params.id);
+    console.log('ID length:', req.params.id?.length);
+    
+    // Kiểm tra định dạng ObjectId
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      console.log('ERROR: Invalid ObjectId format');
+      return res.status(400).json({
         success: false,
-        message: 'Không tìm thấy người dùng',
+        message: 'ID không hợp lệ',
+        debug: { providedId: req.params.id }
+      });
+    }
+    
+    console.log('Searching for user with ID:', req.params.id);
+    const user = await User.findById(req.params.id).populate('role_id');
+    
+    console.log('User found:', user ? 'YES' : 'NO');
+    if (user) {
+      console.log('User details:', {
+        _id: user._id,
+        fullname: user.fullname,
+        email: user.email,
+        nickname: user.nickname
       });
     }
 
+    if (!user) {
+      console.log('ERROR: User not found in database');
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+        debug: { searchedId: req.params.id }
+      });
+    }
+
+    console.log('SUCCESS: Returning user data');
     res.status(200).json({
       success: true,
       data: user.toJSON(),
     });
   } catch (error) {
-    console.error('Lỗi lấy thông tin người dùng:', error);
+    console.error('ERROR in getUserById:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      requestedId: req.params.id
+    });
+    
     res.status(500).json({
       success: false,
       message: 'Lỗi lấy thông tin người dùng',
       error: error.message,
+      debug: { requestedId: req.params.id }
     });
   }
 };
@@ -380,6 +422,7 @@ exports.createUser = async (req, res) => {
       profileImage: avatarUrl || 'default-avatar.jpg',
     });
     // Gửi thông báo cho user mới
+/*
     await Notification.create({
       title: 'Chào mừng bạn đến với hệ thống!',
       content: 'Tài khoản của bạn đã được tạo thành công.',
@@ -388,6 +431,7 @@ exports.createUser = async (req, res) => {
       icon: 'user-plus',
       meta: { link: '/profile' }
     });
+*/
 
     res.status(201).json({
       success: true,
@@ -569,6 +613,8 @@ exports.getInstructors = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
     const approvalStatus = req.query.approvalStatus;
+    const from = req.query.from;
+    const to = req.query.to;
 
     // Tìm role instructor
     const instructorRole = await Role.findOne({ name: ROLES.INSTRUCTOR });
@@ -584,21 +630,55 @@ exports.getInstructors = async (req, res) => {
       role_id: instructorRole._id,
     };
 
+    // Tạo mảng conditions để kết hợp
+    const conditions = [];
+
     // Tìm kiếm
     if (search) {
       const searchRegex = new RegExp(search, 'i');
-      instructorsQuery.$or = [
-        { fullname: searchRegex },
-        { email: searchRegex },
-        { nickname: searchRegex },
-        { phone: searchRegex },
-      ];
+      conditions.push({
+        $or: [
+          { fullname: searchRegex },
+          { email: searchRegex },
+          { nickname: searchRegex },
+          { phone: searchRegex },
+        ]
+      });
     }
 
     // Lọc theo trạng thái duyệt nếu có
     if (approvalStatus) {
-      instructorsQuery['instructorInfo.approval_status'] = approvalStatus;
+      conditions.push({ 'instructorInfo.approval_status': approvalStatus });
     }
+
+    // Lọc theo khoảng thời gian nộp hồ sơ
+    if (from || to) {
+      const dateQuery = {};
+      if (from) {
+        dateQuery.$gte = new Date(from);
+      }
+      if (to) {
+        // Đặt thời gian cuối ngày cho 'to' date
+        const toDate = new Date(to);
+        toDate.setHours(23, 59, 59, 999);
+        dateQuery.$lte = toDate;
+      }
+      
+      // Lọc theo application_date hoặc createdAt
+      conditions.push({
+        $or: [
+          { 'instructorInfo.application_date': dateQuery },
+          { createdAt: dateQuery }
+        ]
+      });
+    }
+
+    // Kết hợp tất cả conditions
+    if (conditions.length > 0) {
+      instructorsQuery.$and = conditions;
+    }
+
+    console.log('Instructors query:', JSON.stringify(instructorsQuery, null, 2));
 
     // Query + lean để truy cập nested fields
     const instructors = await User.find(instructorsQuery)
@@ -734,6 +814,28 @@ exports.updateInstructorApproval = async (req, res) => {
 
     await instructor.save();
 
+    // Cập nhật bảng instructorprofiles
+    const InstructorProfile = require('../models/InstructorProfile');
+    let instructorProfile = await InstructorProfile.findOne({ user: instructorId });
+    
+    if (instructorProfile) {
+      // Cập nhật trạng thái trong bảng instructorprofiles
+      instructorProfile.status = status;
+      instructorProfile.is_approved = status === 'approved';
+      await instructorProfile.save();
+    } else {
+      // Tạo mới record trong bảng instructorprofiles nếu chưa có
+      instructorProfile = await InstructorProfile.create({
+        user: instructorId,
+        status: status,
+        is_approved: status === 'approved',
+        bio: info.bio || '',
+        expertise: info.specializations || [],
+        education: instructor.education || [],
+        experience: info.experience || []
+      });
+    }
+
     // Gửi email thông báo kết quả duyệt
     try {
       await sendInstructorApprovalResultEmail(
@@ -744,6 +846,25 @@ exports.updateInstructorApproval = async (req, res) => {
       );
     } catch (emailError) {
       console.error('Lỗi gửi email kết quả duyệt hồ sơ:', emailError);
+    }
+
+    // Emit realtime event cho instructor approval
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('instructor-approved', {
+          userId: instructor._id,
+          email: instructor.email,
+          fullname: instructor.fullname,
+          status: status,
+          rejection_reason: rejection_reason,
+          approvedBy: req.user._id,
+          timestamp: new Date()
+        });
+        console.log('Realtime instructor-approved event emitted');
+      }
+    } catch (socketError) {
+      console.error('Failed to emit realtime event:', socketError);
     }
 
     res.status(200).json({
@@ -1216,6 +1337,24 @@ exports.verifyInstructorEmail = async (req, res) => {
       console.error('Failed to send profile submitted email:', emailError);
     }
 
+    // Emit realtime event cho email verification
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('email-verified', {
+          token: token,
+          userId: user._id,
+          email: user.email,
+          fullname: user.fullname,
+          isInstructor: true,
+          timestamp: new Date()
+        });
+        console.log('Realtime email-verified event emitted');
+      }
+    } catch (socketError) {
+      console.error('Failed to emit realtime event:', socketError);
+    }
+
     console.log('Email verification successful:', {
       userId: user._id,
       email: user.email,
@@ -1674,11 +1813,31 @@ exports.getFollowers = async (req, res) => {
 // Lấy danh sách user mà user này đang theo dõi
 exports.getFollowing = async (req, res) => {
   try {
-    const userId = req.params.id;
-    const following = await Follow.find({ follower: userId }).populate('following', 'fullname nickname avatar slug');
-    res.status(200).json({ success: true, data: following.map(f => f.following) });
+    // Nếu có req.params.id thì lấy theo id đó (public route)
+    // Nếu không có thì lấy theo user hiện tại (authenticated route)
+    const userId = req.params.id || req.user._id;
+    
+    console.log('Getting following for userId:', userId);
+    
+    const following = await Follow.find({ follower: userId })
+      .populate('following', 'fullname nickname avatar slug _id')
+      .sort({ createdAt: -1 });
+    
+    console.log('Found following:', following.length);
+    
+    const followingUsers = following.map(f => f.following).filter(user => user !== null);
+    
+    res.status(200).json({ 
+      success: true, 
+      data: followingUsers 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi máy chủ', error: error.message });
+    console.error('Error getting following:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi máy chủ', 
+      error: error.message 
+    });
   }
 };
 

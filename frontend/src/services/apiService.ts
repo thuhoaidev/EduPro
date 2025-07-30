@@ -37,6 +37,7 @@ interface ApiCourse {
   finalPrice: number;
   status: string;
   displayStatus?: string;
+  rejection_reason?: string;
   requirements: string[];
   createdAt: string;
   updatedAt: string;
@@ -45,6 +46,7 @@ interface ApiCourse {
   __v: number;
   rating?: number;
   reviews?: number;
+  totalReviews?: number;
 }
 
 export interface Course {
@@ -74,6 +76,7 @@ export interface Course {
   language: string;
   level: string;
   updatedAt: string;
+  rejection_reason?: string;
 }
 
 export interface Section {
@@ -116,8 +119,8 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
       avatar: apiCourse.instructor?.user?.avatar || '',
       bio: apiCourse.instructor?.bio || 'Thông tin giảng viên đang được cập nhật.'
     },
-    rating: apiCourse.rating || 4.5,
-    reviews: apiCourse.reviews || Math.floor(Math.random() * 100) + 10,
+    rating: typeof apiCourse.rating === 'number' ? apiCourse.rating : 0,
+    reviews: typeof (apiCourse.totalReviews) === 'number' ? apiCourse.totalReviews : 0,
     price: finalPrice,
     oldPrice: hasDiscount ? apiCourse.price : undefined,
     Image: apiCourse.thumbnail || 'https://via.placeholder.com/600x400/4A90E2/FFFFFF?text=Khóa+học',
@@ -132,7 +135,8 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
     displayStatus: apiCourse.displayStatus,
     language: apiCourse.language,
     level: apiCourse.level,
-    updatedAt: apiCourse.updatedAt
+    updatedAt: apiCourse.updatedAt,
+    rejection_reason: apiCourse.rejection_reason
   };
 };
 
@@ -466,5 +470,39 @@ const apiService = {
 };
 
 export { apiClient, apiService };
+
+// API rút tiền user
+export const userWalletService = {
+  // Gửi yêu cầu rút tiền
+  requestWithdraw: async (data: { amount: number; bank: string; account: string; holder: string }) => {
+    const res = await apiClient.post('/wallet/withdraw', data);
+    return res.data;
+  },
+  // Lấy lịch sử yêu cầu rút tiền của user
+  getMyWithdrawRequests: async () => {
+    const res = await apiClient.get('/wallet/my-withdraw-requests');
+    return res.data;
+  },
+  // Admin lấy tất cả yêu cầu rút tiền
+  getAllWithdrawRequests: async () => {
+    const res = await apiClient.get('/wallet/withdraw-requests');
+    return res.data;
+  },
+  // Admin duyệt yêu cầu
+  approveWithdraw: async (id: string) => {
+    const res = await apiClient.post(`/wallet/withdraw/${id}/approve`);
+    return res.data;
+  },
+  // Admin từ chối yêu cầu
+  rejectWithdraw: async (id: string, reason: string) => {
+    const res = await apiClient.post(`/wallet/withdraw/${id}/reject`, { reason });
+    return res.data;
+  },
+  // User hủy yêu cầu
+  cancelWithdraw: async (id: string) => {
+    const res = await apiClient.delete(`/wallet/withdraw/${id}/cancel`);
+    return res.data;
+  },
+};
 
 

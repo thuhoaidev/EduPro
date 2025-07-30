@@ -35,6 +35,7 @@ function CheckPayment() {
           const status = searchParams.get("status");
           if (Number(status) === 1) {
             isPaid = true;
+            setStatus("success"); // Thêm dòng này để hiển thị thành công ngay
             setTitle("Thanh toán thành công");
           } else {
             setStatus("error");
@@ -49,6 +50,7 @@ function CheckPayment() {
 
           if (code === "00") {
             isPaid = true;
+            setStatus("success"); // Thêm dòng này để hiển thị thành công ngay
             setTitle("Thanh toán thành công");
           } else if (code === "24") {
             setStatus("error");
@@ -115,16 +117,6 @@ function CheckPayment() {
           setStatus("success");
           setTitle("Đơn hàng đã được ghi nhận!");
           setSubTitle(`Mã đơn hàng: ${res.order.id}`);
-
-          // ✅ Chuyển trang sau 2 giây
-          setTimeout(() => {
-            if (validItems.length > 0) {
-              const courseId = validItems[0].courseId;
-              window.location.href = `/courses/${courseId}`;
-            } else {
-              window.location.href = "/profile/orders";
-            }
-          }, 2000);
         }
       } catch (error: unknown) {
         console.error("❌ Payment processing error:", error);
@@ -153,20 +145,36 @@ function CheckPayment() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Result
         status={status}
-        title={title}
-        subTitle={subTitle}
+        icon={
+          status === "success" ? (
+            <svg width="72" height="72" fill="none" viewBox="0 0 72 72">
+              <circle cx="36" cy="36" r="36" fill="#52c41a" opacity="0.15" />
+              <path d="M22 37l10 10 18-18" stroke="#52c41a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg width="72" height="72" fill="none" viewBox="0 0 72 72">
+              <circle cx="36" cy="36" r="36" fill="#ff4d4f" opacity="0.15" />
+              <path d="M27 27l18 18M45 27L27 45" stroke="#ff4d4f" strokeWidth="4" strokeLinecap="round" />
+            </svg>
+          )
+        }
+        title={<span style={{ fontSize: 28, fontWeight: 700 }}>{title}</span>}
+        subTitle={<span style={{ fontSize: 18 }}>{subTitle}</span>}
         extra={[
-          <Button type="primary" key="orders" onClick={() => navigate("/profile/orders")}>
-            Xem đơn hàng
-          </Button>,
-          <Button key="home" onClick={() => navigate("/")}>
-            Về trang chủ
-          </Button>,
+          <Button type="primary" key="orders" size="large" onClick={() => navigate("/profile/orders")}>Xem đơn hàng</Button>,
+          <Button key="home" size="large" onClick={() => navigate("/")}>Về trang chủ</Button>,
         ]}
+        style={{ width: 480, background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.08)', padding: 32 }}
       />
+      {/* Hiệu ứng confetti khi thành công */}
+      {status === "success" && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 1000 }}>
+          <canvas id="confetti-canvas" style={{ width: '100vw', height: '100vh' }}></canvas>
+        </div>
+      )}
     </div>
   );
 }

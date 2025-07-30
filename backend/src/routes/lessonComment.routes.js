@@ -11,5 +11,7 @@ router.post('/:lessonId/comment', lessonCommentController.addComment);
 router.get('/:lessonId/comments', lessonCommentController.getComments);
 // Trả lời bình luận
 router.post('/comment/:commentId/reply', lessonCommentController.replyComment);
+// Toggle like cho bình luận
+router.post('/comment/:commentId/toggle-like', lessonCommentController.toggleLikeComment);
 
 module.exports = router; 

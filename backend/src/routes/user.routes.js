@@ -40,8 +40,14 @@ router.get('/slug/:slug', getUserBySlug);
 // Route tìm kiếm user public (phải đặt trước router.use(auth))
 router.get('/search', getAllUsers);
 
+// Route lấy thông tin user cho tin nhắn (public, không cần auth)
+router.get('/profile/:id', getUserById);
+
 // Routes cho người dùng hiện tại (cần đăng nhập)
 router.use(auth);
+
+// Lấy danh sách người đang theo dõi (cho tin nhắn)
+router.get('/following', getFollowing);
 
 // Test endpoint để kiểm tra role
 router.get('/test-role', (req, res) => {
@@ -95,7 +101,7 @@ router.use(checkRole(['admin']));
 // Lấy danh sách tất cả người dùng
 router.get('/', getAllUsers);
 
-// Lấy thông tin chi tiết một người dùng theo ID
+// Lấy thông tin chi tiết một người dùng theo ID (admin)
 router.get('/:id', getUserById);
 
 // Tạo người dùng mới (với upload avatar)

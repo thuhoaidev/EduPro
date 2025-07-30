@@ -21,6 +21,7 @@ const lessonRoutes = require('./routes/lesson.routes');
 const videoRoutes = require('./routes/video.routes');
 const quizRoutes = require('./routes/quiz.routes');
 const voucherRoutes = require('./routes/voucher.routes');
+const noteRoutes = require('./routes/note.routes');
 const userRoutes = require('./routes/user.routes');
 const blogRoutes = require('./routes/blog.routes');
 const cartRoutes = require('./routes/cart.routes');
@@ -29,13 +30,20 @@ const paymentRouter = require('./routes/paymentRouter');
 const orderRoutes = require('./routes/order.routes');
 const report = require('./routes/report.routes');
 const teacherWalletRoutes = require('./routes/teacherWallet.routes');
-const commentLikeRoutes = require('./routes/commentLike.route');
 const progressRoutes = require('./routes/progress.routes');
 const courseReviewRoutes = require('./routes/courseReview.routes');
 const paymentZaloRouter = require('./routes/paymentZaloRouter');
 const momoRouter = require('./routes/paymentMomoRouter');
 const commentRoutes = require('./routes/comment.routes');
 const notificationRoutes = require('./routes/notification.routes');
+const vnpayRouter = require('./routes/paymentRouter');
+const userWalletRoutes = require('./routes/userWallet.routes');
+const lessonCommentRoutes = require('./routes/lessonComment.routes');
+const messageRoutes = require('./routes/message.routes');
+const certificateRoutes = require('./routes/certificate.routes');
+const statisticsRoutes = require('./routes/statistics.routes');
+
+
 // Khởi tạo app
 const app = express();
 
@@ -99,6 +107,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/vouchers', voucherRoutes);
+app.use('/api/notes', noteRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/carts', cartRoutes);
@@ -107,13 +116,18 @@ app.use('/api', paymentRouter);
 app.use('/api/orders', orderRoutes);
 app.use('/api/reports', report);
 app.use('/api/teacher-wallet', teacherWalletRoutes);
-app.use('/api/comment-likes', commentLikeRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/course-reviews', courseReviewRoutes);
 app.use('/api/payment-zalo', paymentZaloRouter);
 app.use('/api/payment-momo', momoRouter);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api', vnpayRouter);
+app.use('/api/wallet', userWalletRoutes);
+app.use('/api/lesson-comments', lessonCommentRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/certificates', certificateRoutes);
+app.use('/api/statistics', statisticsRoutes);
 // Error handling middleware
 app.use((err, req, res, _next) => {
   console.error(err.stack);
