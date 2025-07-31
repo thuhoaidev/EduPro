@@ -1450,7 +1450,7 @@ exports.getMyEnrollments = async (req, res, next) => {
     const Course = require('../models/Course');
     const Section = require('../models/Section');
 
-    const enrollments = await Enrollment.find({ user: req.user._id })
+    const enrollments = await Enrollment.find({ student: req.user._id })
       .populate({
         path: 'course',
         populate: {
@@ -1868,7 +1868,7 @@ exports.getUserBySlug = async (req, res) => {
     // Lấy danh sách khóa học đã tham gia (enrolled)
     const Enrollment = require('../models/Enrollment');
     const Course = require('../models/Course');
-    const enrollments = await Enrollment.find({ user: user._id });
+    const enrollments = await Enrollment.find({ student: user._id });
     const enrolledCourseIds = enrollments.map(e => e.course);
     const enrolledCourses = await Course.find({ _id: { $in: enrolledCourseIds } });
 
