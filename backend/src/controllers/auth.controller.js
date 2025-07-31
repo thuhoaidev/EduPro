@@ -17,13 +17,54 @@ exports.getMe = async (req, res) => {
       path: 'role_id',
       select: 'name description permissions'
     });
-    console.log('getMe - user with role:', user);
-    console.log('getMe - role_id:', user?.role_id);
-    console.log('getMe - permissions:', user?.role_id?.permissions);
-    res.json({ user });
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Không tìm thấy người dùng' 
+      });
+    }
+    
+    // Trả về đầy đủ thông tin user bao gồm avatar
+    const userData = {
+      _id: user._id,
+      id: user._id,
+      email: user.email,
+      fullname: user.fullname,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      bio: user.bio,
+      gender: user.gender,
+      phone: user.phone,
+      address: user.address,
+      dob: user.dob,
+      status: user.status,
+      approval_status: user.approval_status,
+      email_verified: user.email_verified,
+      isInstructor: user.isInstructor,
+      created_at: user.createdAt,
+      updated_at: user.updatedAt,
+      role: user.role_id,
+      role_id: user.role_id,
+      social_links: user.social_links,
+      followers_count: user.followers_count,
+      following_count: user.following_count,
+      instructorInfo: user.instructorInfo
+    };
+    
+    console.log('getMe - returning user data:', userData);
+    res.json({ 
+      success: true,
+      message: 'Lấy thông tin người dùng thành công',
+      user: userData 
+    });
   } catch (err) {
     console.error('getMe error:', err);
-    res.status(500).json({ message: 'Lỗi server khi lấy thông tin user' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Lỗi server khi lấy thông tin user',
+      error: err.message 
+    });
   }
 };
 
