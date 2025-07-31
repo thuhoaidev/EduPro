@@ -795,7 +795,12 @@ const Homepage = () => {
               <div key={instructor._id || idx} className="instructor-banner-slide">
                 <div className="instructor-banner-content flex flex-col items-center justify-center text-center py-10">
                   <div className="mb-6">
-                    <Avatar src={instructor.avatar || instructor.profilePicture || '/images/default-avatar.png'} size={120} className="instructor-banner-avatar shadow-lg transition-transform duration-300 hover:scale-105" style={{ background: 'white' }} />
+                    <Avatar 
+                      src={instructor.avatar && instructor.avatar !== 'default-avatar.jpg' && instructor.avatar !== '' && (instructor.avatar.includes('googleusercontent.com') || instructor.avatar.startsWith('http')) ? instructor.avatar : (instructor.profilePicture || '/images/default-avatar.png')} 
+                      size={120} 
+                      className="instructor-banner-avatar shadow-lg transition-transform duration-300 hover:scale-105" 
+                      style={{ background: 'white' }} 
+                    />
                   </div>
                   <div className="instructor-banner-info">
                     <Title level={3} className="instructor-banner-name gradient-text" style={{ marginBottom: 8, fontWeight: 800 }}>{instructor.fullname || instructor.name}</Title>
@@ -836,7 +841,10 @@ const Homepage = () => {
                   <Title level={2} className="blog-banner-title gradient-text mb-2" style={{ fontWeight: 800, color: '#fff', textShadow: '0 2px 16px rgba(0,0,0,0.25)' }}>{blog.title}</Title>
                   <Paragraph className="blog-banner-summary" style={{ color: '#f3f4f6', fontSize: 18, maxWidth: 700, margin: '0 auto 18px', textShadow: '0 1px 8px rgba(0,0,0,0.18)' }}>{blog.summary || blog.content?.slice(0, 120) || ''}</Paragraph>
                   <div className="flex items-center justify-center gap-4 mb-4">
-                    <Avatar src={blog.author?.avatar || '/images/default-avatar.png'} size={40} />
+                    <Avatar 
+                      src={blog.author?.avatar && blog.author.avatar !== 'default-avatar.jpg' && blog.author.avatar !== '' && (blog.author.avatar.includes('googleusercontent.com') || blog.author.avatar.startsWith('http')) ? blog.author.avatar : '/images/default-avatar.png'} 
+                      size={40} 
+                    />
                     <span className="text-white font-semibold text-base">{blog.author?.fullname || 'Tác giả'}</span>
                     <span className="text-gray-200 text-sm">{blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : ''}</span>
                   </div>
@@ -881,7 +889,7 @@ const Homepage = () => {
                   <Space direction="vertical" size="large" className="testimonial-content">
                     <div className="testimonial-avatar-container">
                       <Avatar 
-                        src={testimonial.avatar} 
+                        src={testimonial.avatar && testimonial.avatar !== 'default-avatar.jpg' && testimonial.avatar !== '' && (testimonial.avatar.includes('googleusercontent.com') || testimonial.avatar.startsWith('http')) ? testimonial.avatar : undefined} 
                         alt={testimonial.name} 
                         size={80}
                         className="testimonial-avatar"

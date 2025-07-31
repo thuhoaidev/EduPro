@@ -297,6 +297,36 @@ const AppHeader = () => {
     };
   }, []);
 
+  // Force refresh user data khi cần thiết
+  const forceRefreshUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Header: Fresh user data from API:', data.user);
+
+        // Cập nhật localStorage
+        localStorage.setItem('user', JSON.stringify(data.user));
+
+        // Cập nhật state
+        setUser(data.user);
+
+        // Trigger event
+        window.dispatchEvent(new CustomEvent('user-updated', { detail: { user: data.user } }));
+      }
+    } catch (error) {
+      console.error('Header: Error refreshing user data:', error);
+    }
+  };
+
   // Thêm useEffect để lắng nghe thay đổi user data từ localStorage
   useEffect(() => {
     const checkUserUpdate = () => {
@@ -322,6 +352,14 @@ const AppHeader = () => {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Auto refresh user data nếu avatar không hợp lệ
+  useEffect(() => {
+    if (user && user.avatar && !user.avatar.includes('googleusercontent.com') && !user.avatar.startsWith('http')) {
+      console.log('Header: Invalid avatar detected, refreshing user data...');
+      forceRefreshUser();
+    }
+  }, [user]);
+
   const userMenu = user
     ? {
       items: [
@@ -330,7 +368,7 @@ const AppHeader = () => {
           label: (
             <div className="user-menu-header">
               <Avatar
-                src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                src={user.avatar && user.avatar !== 'default-avatar.jpg' && user.avatar !== '' && (user.avatar.includes('googleusercontent.com') || user.avatar.startsWith('http')) ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
                 size={48}
                 className="user-avatar"
               />
@@ -721,7 +759,7 @@ const AppHeader = () => {
                     className="user-avatar-container"
                   >
                     <Avatar
-                      src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                      src={user.avatar && user.avatar !== 'default-avatar.jpg' && user.avatar !== '' && (user.avatar.includes('googleusercontent.com') || user.avatar.startsWith('http')) ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
                       className="user-avatar"
                       size={40}
                     />

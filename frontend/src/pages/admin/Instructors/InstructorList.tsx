@@ -611,7 +611,11 @@ const InstructorList = () => {
         {viewingInstructor && (
           <div className={styles.userDetailWrapper}>
             <div className={styles.userDetailHeaderBox}>
-              <Avatar size={96} src={viewingInstructor.avatar} className={styles.userDetailAvatar} />
+              <Avatar 
+                size={96} 
+                src={viewingInstructor.avatar && viewingInstructor.avatar !== 'default-avatar.jpg' && viewingInstructor.avatar !== '' && (viewingInstructor.avatar.includes('googleusercontent.com') || viewingInstructor.avatar.startsWith('http')) ? viewingInstructor.avatar : undefined} 
+                className={styles.userDetailAvatar} 
+              />
               <div className={styles.userDetailHeaderInfo}>
                 <div className={styles.userDetailName}>{viewingInstructor.fullname}</div>
                 <div className={styles.userDetailEmail}>
