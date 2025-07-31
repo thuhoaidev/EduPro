@@ -159,11 +159,23 @@ const WalletPage: React.FC = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const fromPayment = urlParams.get('fromPayment');
       
-      if (fromPayment === 'true') {
+      // Kiểm tra thông tin thanh toán từ sessionStorage
+      const paymentInfo = sessionStorage.getItem('paymentInProgress');
+      
+      if (fromPayment === 'true' || paymentInfo) {
         console.log('Returning from payment, refreshing wallet data');
         fetchWallet();
+        
+        // Xóa thông tin thanh toán
+        sessionStorage.removeItem('paymentInProgress');
+        
         // Xóa tham số để tránh refresh liên tục
         window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Hiển thị thông báo thành công nếu có
+        if (fromPayment === 'true') {
+          message.success('Đã quay về từ thanh toán. Số dư ví đã được cập nhật.');
+        }
       }
     };
 
@@ -269,80 +281,18 @@ const WalletPage: React.FC = () => {
       if (json.success && json.payUrl) {
         sessionStorage.removeItem('walletDepositInProgress');
         
-        // Thêm thông báo đặc biệt cho VNPAY
-        if (method === 'vnpay') {
-          message.info('Đang chuyển đến VNPAY. Nếu gặp lỗi "timer is not defined", đây là lỗi từ VNPAY sandbox. Vui lòng thử lại sau hoặc chọn phương thức khác.');
-          
-          // Thêm fallback cho VNPAY - nếu popup bị lỗi, redirect trực tiếp
-          const popup = window.open(json.payUrl, '_blank', 'width=800,height=600');
-          setVnpayPopupOpen(true);
-          
-          if (!popup) {
-            message.warning('Popup bị chặn. Đang chuyển hướng trực tiếp đến VNPAY...');
-            window.location.href = json.payUrl;
-            return;
-          }
-          
-          // Kiểm tra xem popup có bị lỗi không - giảm thời gian xuống 2 giây
-          setTimeout(() => {
-            try {
-              if (popup.closed || popup.location.href === 'about:blank') {
-                message.warning('VNPAY popup gặp sự cố. Đang chuyển hướng trực tiếp...');
-                popup.close();
-                window.location.href = json.payUrl;
-              }
-            } catch (e) {
-              // Nếu không thể truy cập popup (CORS), có thể popup đã bị lỗi
-              message.warning('VNPAY popup gặp sự cố. Đang chuyển hướng trực tiếp...');
-              popup.close();
-              window.location.href = json.payUrl;
-            }
-          }, 2000); // Giảm xuống 2 giây
-          
-          // Thêm timeout để tự động chuyển sang phương thức khác nếu VNPAY gặp lỗi - giảm xuống 5 giây
-          setTimeout(() => {
-            if (vnpayError) {
-              Modal.confirm({
-                title: 'VNPAY gặp sự cố',
-                content: `VNPAY đã gặp lỗi kỹ thuật ${vnpayErrorCount} lần. Bạn có muốn thử với Momo không?`,
-                okText: 'Thử Momo',
-                cancelText: 'Hủy',
-                onOk: () => {
-                  setMethod('momo');
-                  message.info('Đã chuyển sang Momo. Vui lòng thử nạp tiền lại.');
-                }
-              });
-            }
-          }, 5000); // Giảm xuống 5 giây
-          
-          return;
-        }
+        // Chuyển hướng trực tiếp đến trang thanh toán thay vì mở popup
+        message.info(`Đang chuyển đến ${method.toUpperCase()} để thanh toán...`);
         
-        // Mở cửa sổ popup cho thanh toán thay vì redirect
-        const popup = window.open(json.payUrl, '_blank', 'width=800,height=600');
+        // Lưu thông tin thanh toán vào sessionStorage để kiểm tra khi quay về
+        sessionStorage.setItem('paymentInProgress', JSON.stringify({
+          method: method,
+          amount: amount,
+          timestamp: Date.now()
+        }));
         
-        if (!popup) {
-          message.warning('Popup bị chặn. Vui lòng cho phép popup và thử lại.');
-          return;
-        }
-
-        // Kiểm tra trạng thái popup
-        const checkClosed = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkClosed);
-            // Refresh wallet data khi popup đóng
-            fetchWallet();
-          }
-        }, 1000);
-
-        // Timeout sau 5 phút
-        setTimeout(() => {
-          clearInterval(checkClosed);
-          if (!popup.closed) {
-            popup.close();
-            message.warning('Phiên thanh toán đã hết hạn. Vui lòng thử lại.');
-          }
-        }, 300000);
+        // Chuyển hướng trực tiếp trong cùng tab
+        window.location.href = json.payUrl;
         
       } else {
         message.error(json.message || "Lỗi tạo yêu cầu nạp tiền");
@@ -369,7 +319,6 @@ const WalletPage: React.FC = () => {
       sessionStorage.removeItem('walletDepositInProgress');
     } finally {
       setLoading(false);
-      setVnpayPopupOpen(false);
     }
   };
 
@@ -1000,7 +949,7 @@ const WalletPage: React.FC = () => {
                   <Button 
                     type="primary" 
                     onClick={handleDeposit} 
-                    loading={loading || (method === 'vnpay' && vnpayPopupOpen)}
+                    loading={loading}
                     icon={<PlusOutlined />}
                     size="large"
                     style={{ 
@@ -1013,7 +962,7 @@ const WalletPage: React.FC = () => {
                       fontWeight: 600
                     }}
                   >
-                    {method === 'vnpay' && vnpayPopupOpen ? 'Đang mở VNPAY...' : 'Nạp tiền ngay'}
+                    Nạp tiền ngay
                   </Button>
                 </Form>
               </Card>
