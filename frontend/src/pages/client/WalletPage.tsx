@@ -28,6 +28,23 @@ const WalletPage: React.FC = () => {
     // eslint-disable-next-line
   }, []);
 
+  // Thêm effect để refresh khi quay về từ payment result
+  useEffect(() => {
+    const checkPaymentResult = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromPayment = urlParams.get('fromPayment');
+      
+      if (fromPayment === 'true') {
+        console.log('Returning from payment, refreshing wallet data');
+        fetchWallet();
+        // Xóa tham số để tránh refresh liên tục
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    checkPaymentResult();
+  }, []);
+
   const fetchWallet = async () => {
     setLoading(true);
     try {
@@ -72,7 +89,11 @@ const WalletPage: React.FC = () => {
           "Content-Type": "application/json",
           ...(token ? { "Authorization": "Bearer " + token } : {})
         },
-        body: JSON.stringify({ amount, method })
+        body: JSON.stringify({ 
+          amount, 
+          method,
+          callbackUrl: `${window.location.origin}/wallet/payment-result`
+        })
       });
       if (res.status === 401) {
         message.error("Bạn cần đăng nhập lại");
