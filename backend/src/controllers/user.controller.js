@@ -1,7 +1,11 @@
 const User = require('../models/User');
 const { Role } = require('../models/Role');
 const ROLES = require('../constants/roles');
-const { sendInstructorVerificationEmail, sendInstructorProfileSubmittedEmail, sendInstructorApprovalResultEmail } = require('../utils/sendEmail');
+const {
+  sendInstructorVerificationEmail,
+  sendInstructorProfileSubmittedEmail,
+  sendInstructorApprovalResultEmail,
+} = require('../utils/sendEmail');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const InstructorProfile = require('../models/InstructorProfile');
@@ -30,10 +34,10 @@ exports.getCurrentUser = async (req, res) => {
     let userObj = user.toJSON();
     // Đảm bảo trả về role (object) và roles (mảng tên role)
     if (user.role_id && user.role_id.name) {
-      userObj.role = { 
+      userObj.role = {
         name: user.role_id.name,
         description: user.role_id.description,
-        permissions: user.role_id.permissions || []
+        permissions: user.role_id.permissions || [],
       };
       userObj.roles = [user.role_id.name];
     } else {
@@ -107,9 +111,10 @@ exports.updateCurrentUser = async (req, res) => {
     if (req.body.social_links) {
       try {
         // Nếu social_links là string JSON, parse thành object
-        const socialLinks = typeof req.body.social_links === 'string'
-          ? JSON.parse(req.body.social_links)
-          : req.body.social_links;
+        const socialLinks =
+          typeof req.body.social_links === 'string'
+            ? JSON.parse(req.body.social_links)
+            : req.body.social_links;
 
         updateFields.social_links = socialLinks;
       } catch (error) {
@@ -122,7 +127,8 @@ exports.updateCurrentUser = async (req, res) => {
 
     // Lọc bỏ các trường không có giá trị
     Object.keys(updateFields).forEach(
-      (key) => (updateFields[key] === undefined || updateFields[key] === null) && delete updateFields[key],
+      key =>
+        (updateFields[key] === undefined || updateFields[key] === null) && delete updateFields[key],
     );
 
     const updatedUser = await User.findByIdAndUpdate(req.user._id, updateFields, {
@@ -134,11 +140,13 @@ exports.updateCurrentUser = async (req, res) => {
       success: true,
       message: 'Cập nhật thông tin thành công',
       data: updatedUser.toJSON(),
-      avatarInfo: req.uploadedAvatar ? {
-        url: req.uploadedAvatar.url,
-        public_id: req.uploadedAvatar.public_id,
-        size: req.uploadedAvatar.size,
-      } : null,
+      avatarInfo: req.uploadedAvatar
+        ? {
+            url: req.uploadedAvatar.url,
+            public_id: req.uploadedAvatar.public_id,
+            size: req.uploadedAvatar.size,
+          }
+        : null,
     });
   } catch (error) {
     console.error('Lỗi cập nhật người dùng:', error, error?.errors);
@@ -146,7 +154,7 @@ exports.updateCurrentUser = async (req, res) => {
       success: false,
       message: 'Lỗi cập nhật thông tin người dùng',
       error: error.message,
-      errors: error.errors || null
+      errors: error.errors || null,
     });
   }
 };
@@ -191,15 +199,17 @@ exports.getAllUsers = async (req, res) => {
     const total = await User.countDocuments(query);
 
     // Bổ sung enrolledCourses cho học viên
-    const usersWithEnrollments = await Promise.all(users.map(async user => {
-      const userObj = user.toJSON();
-      if (userObj.role_id && userObj.role_id.name === 'student') {
-        // Đếm số lượng Enrollment có student là user._id
-        const enrolledCount = await Enrollment.countDocuments({ student: user._id });
-        userObj.enrolledCourses = enrolledCount;
-      }
-      return userObj;
-    }));
+    const usersWithEnrollments = await Promise.all(
+      users.map(async user => {
+        const userObj = user.toJSON();
+        if (userObj.role_id && userObj.role_id.name === 'student') {
+          // Đếm số lượng Enrollment có student là user._id
+          const enrolledCount = await Enrollment.countDocuments({ student: user._id });
+          userObj.enrolledCourses = enrolledCount;
+        }
+        return userObj;
+      }),
+    );
 
     res.status(200).json({
       success: true,
@@ -230,7 +240,7 @@ exports.getUserById = async (req, res) => {
     console.log('Requested ID:', req.params.id);
     console.log('ID type:', typeof req.params.id);
     console.log('ID length:', req.params.id?.length);
-    
+
     // Kiểm tra định dạng ObjectId
     const mongoose = require('mongoose');
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -238,20 +248,20 @@ exports.getUserById = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'ID không hợp lệ',
-        debug: { providedId: req.params.id }
+        debug: { providedId: req.params.id },
       });
     }
-    
+
     console.log('Searching for user with ID:', req.params.id);
     const user = await User.findById(req.params.id).populate('role_id');
-    
+
     console.log('User found:', user ? 'YES' : 'NO');
     if (user) {
       console.log('User details:', {
         _id: user._id,
         fullname: user.fullname,
         email: user.email,
-        nickname: user.nickname
+        nickname: user.nickname,
       });
     }
 
@@ -260,7 +270,7 @@ exports.getUserById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy người dùng',
-        debug: { searchedId: req.params.id }
+        debug: { searchedId: req.params.id },
       });
     }
 
@@ -274,14 +284,14 @@ exports.getUserById = async (req, res) => {
     console.error('Error details:', {
       name: error.name,
       message: error.message,
-      requestedId: req.params.id
+      requestedId: req.params.id,
     });
-    
+
     res.status(500).json({
       success: false,
       message: 'Lỗi lấy thông tin người dùng',
       error: error.message,
-      debug: { requestedId: req.params.id }
+      debug: { requestedId: req.params.id },
     });
   }
 };
@@ -333,11 +343,24 @@ exports.createUser = async (req, res) => {
 
     // Tạo nickname từ fullname nếu không được cung cấp
     let finalNickname = nickname;
-    if (!finalNickname || finalNickname === '' || finalNickname === null || finalNickname === undefined) {
+    if (
+      !finalNickname ||
+      finalNickname === '' ||
+      finalNickname === null ||
+      finalNickname === undefined
+    ) {
       if (fullname) {
-        finalNickname = fullname.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '');
+        finalNickname = fullname
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, '')
+          .replace(/\s+/g, '');
         // Đảm bảo nickname không rỗng
-        if (!finalNickname || finalNickname === '' || finalNickname === null || finalNickname === undefined) {
+        if (
+          !finalNickname ||
+          finalNickname === '' ||
+          finalNickname === null ||
+          finalNickname === undefined
+        ) {
           finalNickname = 'user' + Date.now();
         }
       } else {
@@ -367,9 +390,10 @@ exports.createUser = async (req, res) => {
     let socialLinks = null;
     if (req.body.social_links) {
       try {
-        socialLinks = typeof req.body.social_links === 'string'
-          ? JSON.parse(req.body.social_links)
-          : req.body.social_links;
+        socialLinks =
+          typeof req.body.social_links === 'string'
+            ? JSON.parse(req.body.social_links)
+            : req.body.social_links;
       } catch (error) {
         return res.status(400).json({
           success: false,
@@ -398,7 +422,12 @@ exports.createUser = async (req, res) => {
     };
 
     // Chỉ thêm nickname nếu nó có giá trị hợp lệ
-    if (finalNickname && finalNickname !== '' && finalNickname !== null && finalNickname !== undefined) {
+    if (
+      finalNickname &&
+      finalNickname !== '' &&
+      finalNickname !== null &&
+      finalNickname !== undefined
+    ) {
       userData.nickname = finalNickname;
     }
 
@@ -414,15 +443,17 @@ exports.createUser = async (req, res) => {
       is_approved: false,
       bio: user.bio,
       expertise: user.instructorInfo.specializations,
-      education: [{
-        degree: user.instructorInfo.degree,
-        institution: user.instructorInfo.institution,
-        year: parseInt(user.instructorInfo.graduation_year) || new Date().getFullYear(),
-      }],
+      education: [
+        {
+          degree: user.instructorInfo.degree,
+          institution: user.instructorInfo.institution,
+          year: parseInt(user.instructorInfo.graduation_year) || new Date().getFullYear(),
+        },
+      ],
       profileImage: avatarUrl || 'default-avatar.jpg',
     });
     // Gửi thông báo cho user mới
-/*
+    /*
     await Notification.create({
       title: 'Chào mừng bạn đến với hệ thống!',
       content: 'Tài khoản của bạn đã được tạo thành công.',
@@ -437,11 +468,13 @@ exports.createUser = async (req, res) => {
       success: true,
       message: 'Tạo người dùng thành công',
       data: user.toJSON(),
-      avatarInfo: req.uploadedAvatar ? {
-        url: req.uploadedAvatar.url,
-        public_id: req.uploadedAvatar.public_id,
-        size: req.uploadedAvatar.size,
-      } : null,
+      avatarInfo: req.uploadedAvatar
+        ? {
+            url: req.uploadedAvatar.url,
+            public_id: req.uploadedAvatar.public_id,
+            size: req.uploadedAvatar.size,
+          }
+        : null,
     });
   } catch (error) {
     console.error('Lỗi tạo người dùng:', error);
@@ -642,7 +675,7 @@ exports.getInstructors = async (req, res) => {
           { email: searchRegex },
           { nickname: searchRegex },
           { phone: searchRegex },
-        ]
+        ],
       });
     }
 
@@ -663,13 +696,10 @@ exports.getInstructors = async (req, res) => {
         toDate.setHours(23, 59, 59, 999);
         dateQuery.$lte = toDate;
       }
-      
+
       // Lọc theo application_date hoặc createdAt
       conditions.push({
-        $or: [
-          { 'instructorInfo.application_date': dateQuery },
-          { createdAt: dateQuery }
-        ]
+        $or: [{ 'instructorInfo.application_date': dateQuery }, { createdAt: dateQuery }],
       });
     }
 
@@ -693,7 +723,7 @@ exports.getInstructors = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        instructors: instructors.map((instructor) => {
+        instructors: instructors.map(instructor => {
           const info = instructor.instructorInfo || {};
           const education = instructor.education || [];
           const firstEducation = education.length > 0 ? education[0] : {};
@@ -748,7 +778,6 @@ exports.getInstructors = async (req, res) => {
     });
   }
 };
-
 
 // Cập nhật trạng thái hồ sơ giảng viên
 exports.updateInstructorApproval = async (req, res) => {
@@ -817,7 +846,7 @@ exports.updateInstructorApproval = async (req, res) => {
     // Cập nhật bảng instructorprofiles
     const InstructorProfile = require('../models/InstructorProfile');
     let instructorProfile = await InstructorProfile.findOne({ user: instructorId });
-    
+
     if (instructorProfile) {
       // Cập nhật trạng thái trong bảng instructorprofiles
       instructorProfile.status = status;
@@ -832,7 +861,7 @@ exports.updateInstructorApproval = async (req, res) => {
         bio: info.bio || '',
         expertise: info.specializations || [],
         education: instructor.education || [],
-        experience: info.experience || []
+        experience: info.experience || [],
       });
     }
 
@@ -842,7 +871,7 @@ exports.updateInstructorApproval = async (req, res) => {
         instructor.email,
         instructor.fullname,
         status,
-        rejection_reason
+        rejection_reason,
       );
     } catch (emailError) {
       console.error('Lỗi gửi email kết quả duyệt hồ sơ:', emailError);
@@ -859,7 +888,7 @@ exports.updateInstructorApproval = async (req, res) => {
           status: status,
           rejection_reason: rejection_reason,
           approvedBy: req.user._id,
-          timestamp: new Date()
+          timestamp: new Date(),
         });
         console.log('Realtime instructor-approved event emitted');
       }
@@ -869,9 +898,10 @@ exports.updateInstructorApproval = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: status === 'approved'
-        ? 'Duyệt hồ sơ giảng viên thành công'
-        : 'Từ chối hồ sơ giảng viên thành công',
+      message:
+        status === 'approved'
+          ? 'Duyệt hồ sơ giảng viên thành công'
+          : 'Từ chối hồ sơ giảng viên thành công',
       data: {
         _id: instructor._id,
         email: instructor.email,
@@ -880,7 +910,6 @@ exports.updateInstructorApproval = async (req, res) => {
         instructorInfo: instructor.instructorInfo,
       },
     });
-
   } catch (error) {
     console.error('Lỗi khi cập nhật trạng thái hồ sơ giảng viên:', error);
     res.status(500).json({
@@ -890,7 +919,6 @@ exports.updateInstructorApproval = async (req, res) => {
     });
   }
 };
-
 
 // Lấy thông tin chi tiết hồ sơ giảng viên chờ duyệt
 exports.getInstructorDetail = async (req, res) => {
@@ -994,7 +1022,7 @@ exports.registerInstructor = async (req, res) => {
       bio,
       facebook,
       github,
-      website
+      website,
     } = req.body;
 
     // Thêm log kiểm tra giá trị bio
@@ -1016,18 +1044,18 @@ exports.registerInstructor = async (req, res) => {
 
     // Map gender values
     const genderMap = {
-      'nam': 'Nam',
-      'nữ': 'Nữ',
-      'khác': 'Khác',
-      'male': 'Nam',
-      'female': 'Nữ',
-      'other': 'Khác'
+      nam: 'Nam',
+      nữ: 'Nữ',
+      khác: 'Khác',
+      male: 'Nam',
+      female: 'Nữ',
+      other: 'Khác',
     };
 
     const mappedGender = genderMap[cleanGender?.toLowerCase()] || cleanGender;
 
     // Tạo nickname từ fullName
-    const generateNickname = (fullName) => {
+    const generateNickname = fullName => {
       const nameParts = fullName.trim().split(' ');
       if (nameParts.length >= 2) {
         return `${nameParts[nameParts.length - 2]}${nameParts[nameParts.length - 1]}`.toLowerCase();
@@ -1053,11 +1081,19 @@ exports.registerInstructor = async (req, res) => {
       specializations,
       teachingExperience,
       experienceDescription,
-      bio: cleanBio
+      bio: cleanBio,
     });
 
     // Validation dữ liệu bắt buộc
-    if (!cleanFullName || !cleanEmail || !cleanPhone || !cleanPassword || !mappedGender || !dateOfBirth || !cleanAddress) {
+    if (
+      !cleanFullName ||
+      !cleanEmail ||
+      !cleanPhone ||
+      !cleanPassword ||
+      !mappedGender ||
+      !dateOfBirth ||
+      !cleanAddress
+    ) {
       return res.status(400).json({
         success: false,
         message: 'Thiếu thông tin cá nhân bắt buộc',
@@ -1068,7 +1104,7 @@ exports.registerInstructor = async (req, res) => {
           password: !cleanPassword,
           gender: !mappedGender,
           dateOfBirth: !dateOfBirth,
-          address: !cleanAddress
+          address: !cleanAddress,
         },
         received: {
           fullName: cleanFullName,
@@ -1077,8 +1113,8 @@ exports.registerInstructor = async (req, res) => {
           password: cleanPassword ? '***' : '',
           gender: mappedGender,
           dateOfBirth,
-          address: cleanAddress
-        }
+          address: cleanAddress,
+        },
       });
     }
 
@@ -1090,8 +1126,8 @@ exports.registerInstructor = async (req, res) => {
           degree: !cleanDegree,
           institution: !cleanInstitution,
           graduationYear: !graduationYear,
-          major: !cleanMajor
-        }
+          major: !cleanMajor,
+        },
       });
     }
 
@@ -1102,8 +1138,8 @@ exports.registerInstructor = async (req, res) => {
         missing: {
           specializations: !specializations,
           teachingExperience: !teachingExperience,
-          experienceDescription: !experienceDescription
-        }
+          experienceDescription: !experienceDescription,
+        },
       });
     }
 
@@ -1171,13 +1207,16 @@ exports.registerInstructor = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Định dạng ngày sinh không hợp lệ',
-        receivedDate: dateOfBirth
+        receivedDate: dateOfBirth,
       });
     }
 
     // Tạo email verification token (dùng đúng tên trường trong schema)
     const verificationToken = crypto.randomBytes(32).toString('hex');
-    const hashedVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    const hashedVerificationToken = crypto
+      .createHash('sha256')
+      .update(verificationToken)
+      .digest('hex');
     const verificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24h
 
     // Tạo user mới
@@ -1204,12 +1243,14 @@ exports.registerInstructor = async (req, res) => {
       instructor_approval_status: 'pending',
       email_verification_token: hashedVerificationToken,
       email_verification_expires: verificationExpires,
-      education: [{
-        degree: cleanDegree,
-        institution: cleanInstitution,
-        year: parseInt(graduationYear) || new Date().getFullYear(),
-        major: cleanMajor,
-      }],
+      education: [
+        {
+          degree: cleanDegree,
+          institution: cleanInstitution,
+          year: parseInt(graduationYear) || new Date().getFullYear(),
+          major: cleanMajor,
+        },
+      ],
       instructorInfo: {
         is_approved: false,
         experience_years: parseInt(teachingExperience) || 0,
@@ -1235,11 +1276,13 @@ exports.registerInstructor = async (req, res) => {
       is_approved: false,
       bio: newUser.bio,
       expertise: newUser.instructorInfo.specializations,
-      education: [{
-        degree: cleanDegree,
-        institution: cleanInstitution,
-        year: parseInt(graduationYear) || new Date().getFullYear(),
-      }],
+      education: [
+        {
+          degree: cleanDegree,
+          institution: cleanInstitution,
+          year: parseInt(graduationYear) || new Date().getFullYear(),
+        },
+      ],
       profileImage: avatarUrl || 'default-avatar.jpg',
     });
 
@@ -1256,7 +1299,7 @@ exports.registerInstructor = async (req, res) => {
       userId: newUser._id,
       email: newUser.email,
       status: newUser.status,
-      emailVerified: newUser.email_verified
+      emailVerified: newUser.email_verified,
     });
 
     res.status(201).json({
@@ -1273,7 +1316,9 @@ exports.registerInstructor = async (req, res) => {
           instructor_approval_status: newUser.instructor_approval_status,
         },
         instructorInfo: {
-          ...newUser.instructorInfo.toObject ? newUser.instructorInfo.toObject() : newUser.instructorInfo,
+          ...(newUser.instructorInfo.toObject
+            ? newUser.instructorInfo.toObject()
+            : newUser.instructorInfo),
           bio: newUser.bio || newUser.instructorInfo.bio || '',
           instructor_profile_status: newUser.instructorInfo.instructor_profile_status,
         },
@@ -1305,7 +1350,7 @@ exports.verifyInstructorEmail = async (req, res) => {
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const user = await User.findOne({
       email_verification_token: hashedToken,
-      email_verification_expires: { $gt: Date.now() }
+      email_verification_expires: { $gt: Date.now() },
     });
 
     if (!user) {
@@ -1347,7 +1392,7 @@ exports.verifyInstructorEmail = async (req, res) => {
           email: user.email,
           fullname: user.fullname,
           isInstructor: true,
-          timestamp: new Date()
+          timestamp: new Date(),
         });
         console.log('Realtime email-verified event emitted');
       }
@@ -1360,7 +1405,7 @@ exports.verifyInstructorEmail = async (req, res) => {
       email: user.email,
       status: user.status,
       emailVerified: user.email_verified,
-      approvalStatus: user.approval_status
+      approvalStatus: user.approval_status,
     });
 
     res.status(200).json({
@@ -1405,11 +1450,13 @@ exports.updateInstructorProfile = async (req, res) => {
 
     // Cập nhật các trường cho InstructorProfile
     if (updateData.bio !== undefined) instructorProfile.bio = updateData.bio;
-    if (updateData.profileImage !== undefined) instructorProfile.profileImage = updateData.profileImage;
+    if (updateData.profileImage !== undefined)
+      instructorProfile.profileImage = updateData.profileImage;
     if (updateData.expertise !== undefined) instructorProfile.expertise = updateData.expertise;
     if (updateData.education !== undefined) instructorProfile.education = updateData.education;
     if (updateData.status !== undefined) instructorProfile.status = updateData.status;
-    if (updateData.is_approved !== undefined) instructorProfile.is_approved = updateData.is_approved;
+    if (updateData.is_approved !== undefined)
+      instructorProfile.is_approved = updateData.is_approved;
     if (updateData.experience !== undefined) instructorProfile.experience = updateData.experience;
     // ... thêm các trường khác nếu cần
 
@@ -1450,16 +1497,15 @@ exports.getMyEnrollments = async (req, res, next) => {
     const Course = require('../models/Course');
     const Section = require('../models/Section');
 
-    const enrollments = await Enrollment.find({ student: req.user._id })
-      .populate({
-        path: 'course',
-        populate: {
-          path: 'instructor category',
-        },
-      });
+    const enrollments = await Enrollment.find({ student: req.user._id }).populate({
+      path: 'course',
+      populate: {
+        path: 'instructor category',
+      },
+    });
 
     const data = await Promise.all(
-      enrollments.map(async (enroll) => {
+      enrollments.map(async enroll => {
         const course = enroll.course;
 
         // 👇 Tính totalLessons cho từng course
@@ -1478,7 +1524,7 @@ exports.getMyEnrollments = async (req, res, next) => {
             totalLessons, // 👈 Gắn vào đây
           },
         };
-      })
+      }),
     );
 
     res.json({ success: true, data });
@@ -1507,10 +1553,7 @@ exports.getApprovedInstructors = async (req, res) => {
     const instructorsQuery = {
       role_id: instructorRole._id,
       'instructorInfo.is_approved': true,
-      $or: [
-        { 'instructorInfo.approval_status': 'approved' },
-        { approval_status: 'approved' }
-      ]
+      $or: [{ 'instructorInfo.approval_status': 'approved' }, { approval_status: 'approved' }],
     };
 
     // Tìm kiếm
@@ -1521,7 +1564,7 @@ exports.getApprovedInstructors = async (req, res) => {
         { email: searchRegex },
         { nickname: searchRegex },
         { 'instructorInfo.bio': searchRegex },
-        { 'instructorInfo.expertise': searchRegex }
+        { 'instructorInfo.expertise': searchRegex },
       ];
     }
 
@@ -1541,7 +1584,7 @@ exports.getApprovedInstructors = async (req, res) => {
 
     // Lấy instructor profile IDs cho các user
     const instructorProfiles = await InstructorProfile.find({
-      user: { $in: instructorIds }
+      user: { $in: instructorIds },
     }).select('_id user');
 
     const instructorProfileIds = instructorProfiles.map(profile => profile._id);
@@ -1553,16 +1596,16 @@ exports.getApprovedInstructors = async (req, res) => {
     const courseStats = await Course.aggregate([
       {
         $match: {
-          instructor: { $in: instructorProfileIds }
-        }
+          instructor: { $in: instructorProfileIds },
+        },
       },
       {
         $group: {
           _id: '$instructor',
           totalCourses: { $sum: 1 },
-          totalStudents: { $sum: '$enrolledStudents' || 0 }
-        }
-      }
+          totalStudents: { $sum: '$enrolledStudents' || 0 },
+        },
+      },
     ]);
 
     // Tạo map để truy cập nhanh thống kê
@@ -1574,7 +1617,7 @@ exports.getApprovedInstructors = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        instructors: instructors.map((instructor) => {
+        instructors: instructors.map(instructor => {
           const info = instructor.instructorInfo || {};
           const education = instructor.education || [];
           const firstEducation = education.length > 0 ? education[0] : {};
@@ -1650,8 +1693,10 @@ exports.getApprovedInstructorDetail = async (req, res) => {
       _id: instructorId,
       role_id: instructorRole._id,
       'instructorInfo.approval_status': 'approved',
-      'instructorInfo.is_approved': true
-    }).populate('role_id').lean();
+      'instructorInfo.is_approved': true,
+    })
+      .populate('role_id')
+      .lean();
 
     if (!instructor) {
       return res.status(404).json({
@@ -1673,16 +1718,16 @@ exports.getApprovedInstructorDetail = async (req, res) => {
       const courseAggregation = await Course.aggregate([
         {
           $match: {
-            instructor: instructorProfile._id
-          }
+            instructor: instructorProfile._id,
+          },
         },
         {
           $group: {
             _id: '$instructor',
             totalCourses: { $sum: 1 },
-            totalStudents: { $sum: '$enrolledStudents' || 0 }
-          }
-        }
+            totalStudents: { $sum: '$enrolledStudents' || 0 },
+          },
+        },
       ]);
 
       if (courseAggregation.length > 0) {
@@ -1691,11 +1736,13 @@ exports.getApprovedInstructorDetail = async (req, res) => {
     }
 
     // Lấy danh sách khóa học của giảng viên
-    const courses = instructorProfile ? await Course.find({ instructor: instructorProfile._id })
-      .select('title slug thumbnail price discount rating totalReviews level language')
-      .sort({ createdAt: -1 })
-      .limit(6)
-      .lean() : [];
+    const courses = instructorProfile
+      ? await Course.find({ instructor: instructorProfile._id })
+          .select('title slug thumbnail price discount rating totalReviews level language')
+          .sort({ createdAt: -1 })
+          .limit(6)
+          .lean()
+      : [];
 
     res.status(200).json({
       success: true,
@@ -1715,7 +1762,10 @@ exports.getApprovedInstructorDetail = async (req, res) => {
         expertise: info.expertise || [],
         isVerified: true,
         location: instructor.address || 'Chưa cập nhật',
-        education: info.education || `${info.degree || ''} ${info.university || ''}`.trim() || 'Chưa cập nhật',
+        education:
+          info.education ||
+          `${info.degree || ''} ${info.university || ''}`.trim() ||
+          'Chưa cập nhật',
         degree: info.degree,
         university: info.university,
         major: info.major,
@@ -1736,8 +1786,8 @@ exports.getApprovedInstructorDetail = async (req, res) => {
           rating: course.rating,
           totalReviews: course.totalReviews,
           level: course.level,
-          language: course.language
-        }))
+          language: course.language,
+        })),
       },
     });
   } catch (error) {
@@ -1767,7 +1817,7 @@ exports.followUser = async (req, res) => {
     const follow = await Follow.findOneAndUpdate(
       { follower: currentUserId, following: targetUserId },
       {},
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true },
     );
     // Tăng followers_count và following_count nếu là lần đầu
     await User.findByIdAndUpdate(targetUserId, { $inc: { followers_count: 1 } });
@@ -1786,7 +1836,10 @@ exports.unfollowUser = async (req, res) => {
   try {
     const targetUserId = req.params.id;
     const currentUserId = req.user._id;
-    const follow = await Follow.findOneAndDelete({ follower: currentUserId, following: targetUserId });
+    const follow = await Follow.findOneAndDelete({
+      follower: currentUserId,
+      following: targetUserId,
+    });
     if (!follow) {
       return res.status(400).json({ success: false, message: 'Bạn chưa theo dõi người này.' });
     }
@@ -1803,7 +1856,10 @@ exports.unfollowUser = async (req, res) => {
 exports.getFollowers = async (req, res) => {
   try {
     const userId = req.params.id;
-    const followers = await Follow.find({ following: userId }).populate('follower', 'fullname nickname avatar slug');
+    const followers = await Follow.find({ following: userId }).populate(
+      'follower',
+      'fullname nickname avatar slug',
+    );
     res.status(200).json({ success: true, data: followers.map(f => f.follower) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi máy chủ', error: error.message });
@@ -1816,27 +1872,27 @@ exports.getFollowing = async (req, res) => {
     // Nếu có req.params.id thì lấy theo id đó (public route)
     // Nếu không có thì lấy theo user hiện tại (authenticated route)
     const userId = req.params.id || req.user._id;
-    
+
     console.log('Getting following for userId:', userId);
-    
+
     const following = await Follow.find({ follower: userId })
       .populate('following', 'fullname nickname avatar slug _id')
       .sort({ createdAt: -1 });
-    
+
     console.log('Found following:', following.length);
-    
+
     const followingUsers = following.map(f => f.following).filter(user => user !== null);
-    
-    res.status(200).json({ 
-      success: true, 
-      data: followingUsers 
+
+    res.status(200).json({
+      success: true,
+      data: followingUsers,
     });
   } catch (error) {
     console.error('Error getting following:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Lỗi máy chủ', 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ',
+      error: error.message,
     });
   }
 };
@@ -1877,8 +1933,8 @@ exports.getUserBySlug = async (req, res) => {
       data: {
         ...user.toJSON(),
         createdCourses,
-        enrolledCourses
-      }
+        enrolledCourses,
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi máy chủ', error: error.message });
