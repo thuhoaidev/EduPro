@@ -33,10 +33,8 @@ exports.updateProgress = async (req, res, next) => {
     // Cập nhật bài học đang học dở mới nhất
     enrollment.progress.lastWatchedLessonId = lessonId;
     // Lưu đáp án quiz
-    console.log('quizAnswers nhận được:', quizAnswers);
     if (Array.isArray(quizAnswers)) {
       enrollment.progress[lessonId].quizAnswers = quizAnswers;
-      console.log('quizAnswers đã lưu vào progress:', enrollment.progress[lessonId].quizAnswers);
     }
     // Đánh dấu videoCompleted nếu đủ 90% (và không bao giờ set lại false)
     const watchedPercent = (watchedSeconds / (videoDuration || 1)) * 100;
@@ -72,20 +70,16 @@ exports.updateProgress = async (req, res, next) => {
         }
         if (found) break;
       }
-      if (nextLessonId) {
-        if (!enrollment.progress[nextLessonId]) {
-          enrollment.progress[nextLessonId] = { videoCompleted: false, watchedSeconds: 0 };
-          console.log('Đã mở khóa bài tiếp theo:', nextLessonId);
-        } else if (enrollment.progress[nextLessonId] && enrollment.progress[nextLessonId].videoCompleted !== true) {
-          enrollment.progress[nextLessonId].videoCompleted = false;
-          if (typeof enrollment.progress[nextLessonId].watchedSeconds !== 'number' || enrollment.progress[nextLessonId].watchedSeconds > 0) {
-            enrollment.progress[nextLessonId].watchedSeconds = 0;
+              if (nextLessonId) {
+          if (!enrollment.progress[nextLessonId]) {
+            enrollment.progress[nextLessonId] = { videoCompleted: false, watchedSeconds: 0 };
+          } else if (enrollment.progress[nextLessonId] && enrollment.progress[nextLessonId].videoCompleted !== true) {
+            enrollment.progress[nextLessonId].videoCompleted = false;
+            if (typeof enrollment.progress[nextLessonId].watchedSeconds !== 'number' || enrollment.progress[nextLessonId].watchedSeconds > 0) {
+              enrollment.progress[nextLessonId].watchedSeconds = 0;
+            }
           }
-          console.log('Đã cập nhật videoCompleted: false và watchedSeconds: 0 cho bài tiếp theo:', nextLessonId);
-        } else {
-          console.log('Bài tiếp theo đã mở hoặc đã hoàn thành:', nextLessonId);
         }
-      }
     }
     // completed chỉ true khi đã xem đủ 90% và qua quiz
     if (!enrollment.progress[lessonId].completed) {
@@ -121,14 +115,26 @@ exports.getUnlockedLessons = async (req, res, next) => {
     const userId = req.user._id;
     const enrollment = await Enrollment.findOne({ course: courseId, student: userId });
     if (!enrollment) throw new ApiError(404, 'Bạn chưa đăng ký khóa học này');
+    
+    // Lấy tất cả sections và lessons của khóa học
+    const sections = await Section.find({ course_id: courseId }).sort({ position: 1 }).lean();
+    const allLessons = [];
+    for (const section of sections) {
+      const lessons = await Lesson.find({ _id: { $in: section.lessons } }).sort({ position: 1 }).lean();
+      allLessons.push(...lessons);
+    }
+    
     // Lấy tất cả lessonId đã có trường videoCompleted (dù true hay false)
-    const unlocked = Object.entries(enrollment.progress || {})
+    const unlockedFromProgress = Object.entries(enrollment.progress || {})
       .filter(([_, v]) => v.videoCompleted !== undefined)
       .map(([lessonId]) => lessonId);
-    // Log debug
-    console.log('getUnlockedLessons - user:', userId, 'course:', courseId);
-    console.log('getUnlockedLessons - progress:', enrollment.progress);
-    console.log('getUnlockedLessons - unlocked:', unlocked);
+    
+    // Thêm bài học đầu tiên nếu chưa có
+    const firstLessonId = allLessons.length > 0 ? String(allLessons[0]._id) : null;
+    const unlocked = [...new Set([...unlockedFromProgress, firstLessonId].filter(Boolean))];
+    
+
+    
     res.json({ success: true, data: unlocked });
   } catch (err) { next(err); }
 };

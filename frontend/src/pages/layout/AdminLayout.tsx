@@ -34,6 +34,7 @@ import {
   Tooltip,
   Button,
   Divider,
+  Popover,
 } from "antd";
 import type { MenuProps } from "antd";
 import React, { useState, useEffect, useMemo } from "react";
@@ -402,7 +403,19 @@ const AdminLayout = () => {
           </div>
           
           <div className={styles.headerRight}>
-            <Dropdown menu={{ items: userMenuItems }} trigger={["click"]} placement="bottomRight">
+            <Popover
+              content={
+                <Menu items={userMenuItems} onClick={({ key }) => {
+                  if (key === 'home') {
+                    navigate('/admin');
+                  } else if (key === 'logout') {
+                    handleLogout();
+                  }
+                }} />
+              }
+              trigger="click"
+              placement="bottomRight"
+            >
               <a onClick={(e) => e.preventDefault()} className={styles.profileDropdown}>
                 <Avatar 
                   src={authUser?.avatar} 
@@ -415,7 +428,7 @@ const AdminLayout = () => {
                   <span className={styles.headerUserName}>{authUser?.fullname}</span>
                 )}
               </a>
-            </Dropdown>
+            </Popover>
           </div>
         </Header>
         
