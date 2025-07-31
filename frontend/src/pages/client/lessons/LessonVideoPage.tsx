@@ -9,7 +9,7 @@ import {
 import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress, markCourseCompleted } from '../../../services/progressService';
 import { getComments, addComment, replyComment } from '../../../services/lessonCommentService';
 import { getNotesByLesson, createNote, deleteNote, updateNote, type Note } from '../../../services/noteService';
-import AIChatBox from '../../../components/AIChatBox';
+
 import SectionSidebar from './SectionSidebar';
 import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
@@ -79,8 +79,7 @@ const LessonVideoPage: React.FC = () => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [courseOverview, setCourseOverview] = useState<{ title: string; subtitle: string; requirements: string[] }>({ title: '', subtitle: '', requirements: [] });
 
-  // Chat AI state
-  const [isChatOpen, setIsChatOpen] = useState(false);
+
 
   // Thêm các state cho like/reply comment
   const [likeStates, setLikeStates] = useState<{ [commentId: string]: { liked: boolean; count: number } }>({});
@@ -1184,10 +1183,7 @@ const LessonVideoPage: React.FC = () => {
     setIsLoadingCertificate(false);
   };
 
-  // Chat AI toggle function
-  const toggleChat = () => {
-    setIsChatOpen(!isChatOpen);
-  };
+
 
   // Render danh sách bình luận chuyên nghiệp hơn
   const renderCommentItem = (item: any) => (
@@ -2066,13 +2062,7 @@ const LessonVideoPage: React.FC = () => {
         />
       </Modal>
 
-      {/* AI Chat Box Component */}
-      <AIChatBox
-        lessonTitle={lessonTitle}
-        courseTitle={courseOverview.title}
-        isOpen={isChatOpen}
-        onToggle={toggleChat}
-      />
+
 
 
     </div>

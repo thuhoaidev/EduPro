@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { auth, checkRole } = require('../middlewares/auth');
+const { auth, checkRole, checkPermission } = require('../middlewares/auth');
 const OrderController = require('../controllers/order.controller');
 
 // Callback thanh toán Momo cho đơn hàng (không cần auth vì Momo gọi từ bên ngoài)
@@ -14,7 +14,7 @@ router.use(auth);
 router.post('/', OrderController.createOrder);
 
 // [GET] /api/orders - Lấy danh sách đơn hàng của user
-router.get('/', OrderController.getUserOrders);
+router.get('/', auth, checkPermission('xem đơn hàng của mình'), OrderController.getUserOrders);
 
 // [GET] /api/orders/all - Lấy tất cả đơn hàng (chỉ admin)
 router.get('/all', checkRole(['admin']), OrderController.getOrders);
@@ -23,7 +23,7 @@ router.get('/all', checkRole(['admin']), OrderController.getOrders);
 router.get('/:id', OrderController.getOrderDetail);
 
 // [PUT] /api/orders/:id/cancel - Hủy đơn hàng
-router.put('/:id/cancel', OrderController.cancelOrder);
+router.put('/:id/cancel', checkPermission('hủy đơn hàng của mình'), OrderController.cancelOrder);
 
 // [POST] /api/orders/:id/complete-payment - Hoàn thành thanh toán (admin)
 router.post('/:id/complete-payment', OrderController.completePayment);

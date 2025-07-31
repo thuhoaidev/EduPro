@@ -42,6 +42,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import orderService from '../../services/orderService';
 import type { Order } from '../../services/orderService';
 
@@ -59,6 +60,7 @@ const OrdersPage: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [orderSearch, setOrderSearch] = useState('');
   const { token } = useAuth();
+  const { canViewOwnOrders, canCancelOwnOrders } = usePermissions();
   const navigate = useNavigate();
 
   const formatCurrency = (amount: number) => 
@@ -223,6 +225,12 @@ const OrdersPage: React.FC = () => {
       return;
     }
 
+    if (!canViewOwnOrders()) {
+      message.error('Bạn không có quyền xem đơn hàng');
+      navigate('/');
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await orderService.getUserOrders(
@@ -270,6 +278,11 @@ const OrdersPage: React.FC = () => {
 
   const handleCancelOrder = async (orderId: string) => {
     if (!token) return;
+
+    if (!canCancelOwnOrders()) {
+      message.error('Bạn không có quyền hủy đơn hàng');
+      return;
+    }
 
     Modal.confirm({
       title: 'Xác nhận hủy đơn hàng',

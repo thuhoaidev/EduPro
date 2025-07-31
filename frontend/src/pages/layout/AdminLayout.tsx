@@ -136,7 +136,6 @@ const AdminLayout = () => {
           children: [
             { key: "/admin/categories", icon: <TagsOutlined />, label: collapsed ? "DM" : "Danh mục khóa học" },
             { key: "/admin/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Khóa học" },
-            { key: "/admin/content-approval", icon: <SafetyCertificateOutlined />, label: collapsed ? "DY" : "Duyệt nội dung" },
           ],
         },
         {

@@ -249,6 +249,30 @@ export const usePermissions = () => {
       }
       return hasPermissionSimple(user, PERMISSIONS.MANAGE_REPORTS);
     },
+    canViewOwnOrders: () => {
+      // Tất cả user đã đăng nhập đều có thể xem đơn hàng của mình
+      const roleName = typeof user?.role_id === 'string' ? user.role_id : user?.role_id?.name;
+      if (roleName === 'admin' || roleName === 'quản trị viên' || roleName === 'instructor' || roleName === 'giảng viên' || roleName === 'student' || roleName === 'học viên') {
+        return true;
+      }
+      return hasPermissionSimple(user, PERMISSIONS.VIEW_OWN_ORDERS);
+    },
+    canCancelOwnOrders: () => {
+      // Tất cả user đã đăng nhập đều có thể hủy đơn hàng của mình
+      const roleName = typeof user?.role_id === 'string' ? user.role_id : user?.role_id?.name;
+      if (roleName === 'admin' || roleName === 'quản trị viên' || roleName === 'instructor' || roleName === 'giảng viên' || roleName === 'student' || roleName === 'học viên') {
+        return true;
+      }
+      return hasPermissionSimple(user, PERMISSIONS.CANCEL_OWN_ORDERS);
+    },
+    canManageOrders: () => {
+      // Admin có quyền quản lý tất cả đơn hàng
+      const roleName = typeof user?.role_id === 'string' ? user.role_id : user?.role_id?.name;
+      if (roleName === 'admin' || roleName === 'quản trị viên') {
+        return true;
+      }
+      return hasPermissionSimple(user, PERMISSIONS.MANAGE_ORDERS);
+    },
     canApproveInstructors: () => {
       // Admin có quyền approve instructors
       const roleName = typeof user?.role_id === 'string' ? user.role_id : user?.role_id?.name;
