@@ -911,7 +911,30 @@ const AppHeader = () => {
                         // Special handling for profile header
                         if (item.key === '/profile') {
                           return (
-                            <div key={index} style={{ ...item.style }}>
+                            <div 
+                              key={index} 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('Profile header clicked!');
+                                navigate('/profile');
+                              }}
+                              style={{ 
+                                ...item.style,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                position: 'relative',
+                                zIndex: 1
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.02)';
+                                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.15)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.12)';
+                              }}
+                            >
                               {item.label}
                             </div>
                           );
