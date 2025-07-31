@@ -2,6 +2,7 @@ const express = require('express');
 const { auth } = require('../middlewares/auth');
 const Cart = require('../models/Cart');
 const Course = require('../models/Course');
+const Lesson = require('../models/Lesson');
 const router = express.Router();
 const mongoose = require('mongoose');
 
@@ -23,10 +24,14 @@ router.get('/', auth, async (req, res) => {
     const cart = await Cart.findOne({ user: req.user._id })
       .populate({
         path: 'items.course',
-        select: 'title price discount thumbnail instructor slug',
+        select: 'title price discount thumbnail instructor slug rating totalReviews views level language',
         populate: {
           path: 'instructor',
-          select: 'name avatar'
+          select: 'user bio expertise rating totalReviews totalStudents',
+          populate: {
+            path: 'user',
+            select: 'fullname avatar'
+          }
         }
       });
 
@@ -41,22 +46,88 @@ router.get('/', auth, async (req, res) => {
 
     const total = calculateCartTotal(cart.items);
 
+    // Lấy thông tin chi tiết cho từng course
+    const itemsWithDetails = await Promise.all(
+      cart.items.map(async (item) => {
+        const course = item.course;
+        
+        // Lấy số học viên đã đăng ký khóa học
+        const Enrollment = require('../models/Enrollment');
+        const studentCount = await Enrollment.countDocuments({ 
+          course: course._id,
+          status: 'completed'
+        });
+
+        // Lấy tổng thời gian khóa học từ các video
+        const Section = require('../models/Section');
+        const Video = require('../models/Video');
+        
+        const sections = await Section.find({ course_id: course._id });
+        let totalDuration = 0;
+        
+        for (const section of sections) {
+          const lessons = await Lesson.find({ section_id: section._id });
+          for (const lesson of lessons) {
+            const video = await Video.findOne({ lesson_id: lesson._id });
+            if (video && video.duration) {
+              totalDuration += video.duration;
+            }
+          }
+        }
+
+        // Format duration
+        const formatDuration = (seconds) => {
+          const hours = Math.floor(seconds / 3600);
+          const minutes = Math.floor((seconds % 3600) / 60);
+          if (hours > 0) {
+            return `${hours} giờ ${minutes} phút`;
+          }
+          return `${minutes} phút`;
+        };
+
+        return {
+          _id: item._id,
+          course: {
+            _id: course._id,
+            title: course.title,
+            price: course.price,
+            discount: course.discount,
+            finalPrice: item.priceAtAddition,
+            thumbnail: course.thumbnail,
+            slug: course.slug,
+            rating: course.rating || 0,
+            totalReviews: course.totalReviews || 0,
+            views: course.views || 0,
+            level: course.level,
+            language: course.language,
+            instructor: course.instructor ? {
+              name: course.instructor.user?.fullname || 'EduPro',
+              avatar: course.instructor.user?.avatar || null,
+              bio: course.instructor.bio,
+              expertise: course.instructor.expertise,
+              rating: course.instructor.rating || 0,
+              totalReviews: course.instructor.totalReviews || 0,
+              totalStudents: course.instructor.totalStudents || 0
+            } : {
+              name: 'EduPro',
+              avatar: null,
+              bio: '',
+              expertise: [],
+              rating: 0,
+              totalReviews: 0,
+              totalStudents: 0
+            },
+            students: studentCount,
+            duration: formatDuration(totalDuration)
+          },
+          addedAt: item.addedAt
+        };
+      })
+    );
+
     res.json({
       success: true,
-      items: cart.items.map(item => ({
-        _id: item._id,
-        course: {
-          _id: item.course._id,
-          title: item.course.title,
-          price: item.course.price,
-          discount: item.course.discount,
-          finalPrice: item.priceAtAddition,
-          thumbnail: item.course.thumbnail,
-          slug: item.course.slug,
-          instructor: item.course.instructor
-        },
-        addedAt: item.addedAt
-      })),
+      items: itemsWithDetails,
       total,
       itemCount: cart.items.length
     });

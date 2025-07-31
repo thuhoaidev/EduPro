@@ -1,31 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  motion, 
-  AnimatePresence 
+import {
+  motion,
+  AnimatePresence
 } from 'framer-motion';
-import { 
-  Row, 
-  Col, 
-  Card, 
-  Button, 
-  Typography, 
-  Divider, 
-  message, 
-  Empty, 
-  Badge, 
-  Tag, 
+import {
+  Row,
+  Col,
+  Card,
+  Button,
+  Typography,
+  Divider,
+  message,
+  Empty,
+  Badge,
+  Tag,
   Checkbox,
   Spin,
   Input,
   Popconfirm
 } from 'antd';
-import { 
-  DeleteOutlined, 
-  ArrowLeftOutlined, 
-  ShoppingCartOutlined, 
-  CreditCardOutlined, 
-  SafetyOutlined, 
-  CheckCircleOutlined 
+import {
+  DeleteOutlined,
+  ArrowLeftOutlined,
+  ShoppingCartOutlined,
+  CreditCardOutlined,
+  SafetyOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { config as apiClient } from '../../api/axios';
@@ -47,17 +47,26 @@ interface CartItem {
     instructor?: {
       name?: string;
       avatar?: string;
+      bio?: string;
+      expertise?: string[];
+      rating?: number;
+      totalReviews?: number;
+      totalStudents?: number;
     };
     author?: {
       name?: string;
       avatar?: string;
       bio?: string;
+      expertise?: string[];
     };
     slug: string;
     rating?: number;
     students?: number;
     duration?: string;
     level?: string;
+    language?: string;
+    views?: number;
+    totalReviews?: number;
   };
   priceAtAddition: number;
   addedAt: string;
@@ -76,16 +85,16 @@ const CartPage: React.FC = () => {
   const { updateCartCount } = useCart();
   const navigate = useNavigate();
 
-  const formatCurrency = (amount: number) => 
-    new Intl.NumberFormat('vi-VN', { 
-      style: 'currency', 
-      currency: 'VND' 
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
     }).format(amount);
 
   const fetchCart = async () => {
     try {
       setLoading(true);
-      
+
       // Kiểm tra token trước khi gọi API
       const token = localStorage.getItem('token');
       if (!token) {
@@ -93,77 +102,45 @@ const CartPage: React.FC = () => {
         setCartItems([]);
         return;
       }
-      
+
       const res = await apiClient.get('/carts');
       console.log('Cart API response:', res.data.items);
       console.log('First course data structure:', res.data.items[0]?.course);
-      
+
       const items = res.data.items.map((item: { _id: string, course: any, addedAt: string }) => {
         const course = item.course;
         const discount = course.discount || 0;
         const finalPrice = Math.round(course.price * (1 - discount / 100));
 
-        // Debug instructor data
-        console.log('Course instructor data:', {
-          courseId: course._id,
-          author: course.author,
-          instructor: course.instructor,
-          instructor_name: course.instructor_name,
-          instructorName: course.instructorName,
-          instructor_avatar: course.instructor_avatar,
-          instructorAvatar: course.instructorAvatar
-        });
-        
-        // Debug toàn bộ cấu trúc course để tìm dữ liệu giảng viên
-        console.log('Full course structure:', JSON.stringify(course, null, 2));
-
-        // Mapping instructor data theo cấu trúc giống CourseDetailPage
-        let instructorName = 'EduPro';
-        let instructorAvatar = null;
-
-        // Ưu tiên sử dụng course.author (giống CourseDetailPage)
-        if (course.author) {
-          instructorName = course.author.name || 'EduPro';
-          instructorAvatar = course.author.avatar || null;
-        } else if (course.instructor) {
-          // Fallback cho các trường hợp khác
-          if (typeof course.instructor === 'string') {
-            instructorName = course.instructor;
-          } else if (typeof course.instructor === 'object') {
-            instructorName = course.instructor.name || course.instructor.fullname || course.instructor.displayName || 'EduPro';
-            instructorAvatar = course.instructor.avatar || course.instructor.profileImage || null;
-          }
-        } else if (course.instructor_name) {
-          instructorName = course.instructor_name;
-        } else if (course.instructorName) {
-          instructorName = course.instructorName;
-        }
-
-        // Fallback cho avatar nếu chưa có
-        if (!instructorAvatar) {
-          instructorAvatar = course.instructor_avatar || course.instructorAvatar || null;
-        }
-
-        // Tạo object course mới với dữ liệu đã xử lý
+        // Sử dụng thông tin chính xác từ API
         const processedCourse = {
           ...course,
-          rating: course.rating || 4.5,
-          students: course.students || 1000,
-          duration: course.duration || '10 giờ',
+          // Sử dụng rating thực tế từ database
+          rating: course.rating || 0,
+          // Sử dụng số học viên thực tế từ database
+          students: course.students || 0,
+          // Sử dụng thời gian thực tế từ database
+          duration: course.duration || '0 phút',
         };
 
-        // Xử lý author data
-        if (course.author) {
-          // Nếu có author gốc, sử dụng nó
-          processedCourse.author = course.author;
-          console.log('Using original author data:', course.author);
-        } else {
-          // Nếu không có, tạo author từ dữ liệu đã xử lý
+        // Xử lý author data từ instructor thực tế
+        if (course.instructor) {
           processedCourse.author = {
-            name: instructorName,
-            avatar: instructorAvatar
+            name: course.instructor.name || 'EduPro',
+            avatar: course.instructor.avatar || null,
+            bio: course.instructor.bio || '',
+            expertise: course.instructor.expertise || []
           };
-          console.log('Using processed author data:', processedCourse.author);
+          console.log('Using real instructor data:', course.instructor);
+        } else {
+          // Fallback nếu không có instructor
+          processedCourse.author = {
+            name: 'EduPro',
+            avatar: null,
+            bio: '',
+            expertise: []
+          };
+          console.log('Using fallback instructor data');
         }
 
         return {
@@ -247,7 +224,7 @@ const CartPage: React.FC = () => {
       message.warning('Vui lòng chọn ít nhất một khóa học để áp dụng voucher!');
       return;
     }
-    
+
     setIsApplyingVoucher(true);
     setVoucherError('');
     setVoucherValidation(null);
@@ -265,7 +242,7 @@ const CartPage: React.FC = () => {
 
       setVoucherValidation(validationResult);
       message.success('Áp dụng mã giảm giá thành công!');
-      
+
     } catch (error: any) {
       console.error('Voucher validation error:', error);
       setVoucherError(error.response?.data?.message || 'Mã giảm giá không hợp lệ!');
@@ -298,7 +275,7 @@ const CartPage: React.FC = () => {
     try {
       // Chuẩn bị dữ liệu đơn hàng, lưu đầy đủ thông tin khóa học
       const selectedCartItems = cartItems.filter(item => selectedItems.includes(item.id));
-      
+
       // Lưu thông tin đơn hàng vào localStorage để checkout page sử dụng
       const checkoutData = {
         items: selectedCartItems.map(item => ({
@@ -316,10 +293,10 @@ const CartPage: React.FC = () => {
       };
 
       localStorage.setItem('checkoutData', JSON.stringify(checkoutData));
-      
+
       // Chuyển đến trang checkout
       navigate('/checkout');
-      
+
     } catch (error) {
       console.error('Checkout error:', error);
       message.error('Lỗi khi chuẩn bị thanh toán');
@@ -418,7 +395,7 @@ const CartPage: React.FC = () => {
                 <div className="flex items-center justify-between mb-8 pb-4 border-b">
                   <Title level={4} className="!mb-0 text-cyan-700 font-bold text-xl">Khóa học trong giỏ</Title>
                   <div className="flex items-center gap-4">
-                    <Checkbox 
+                    <Checkbox
                       checked={selectedItems.length === cartItems.length && cartItems.length > 0}
                       indeterminate={selectedItems.length > 0 && selectedItems.length < cartItems.length}
                       onChange={(e) => handleSelectAll(e.target.checked)}
@@ -433,11 +410,11 @@ const CartPage: React.FC = () => {
                       cancelText="Hủy"
                       disabled={selectedItems.length === 0}
                     >
-                      <Button 
+                      <Button
                         type="primary"
-                        danger 
-                        disabled={selectedItems.length === 0} 
-                        icon={<DeleteOutlined />} 
+                        danger
+                        disabled={selectedItems.length === 0}
+                        icon={<DeleteOutlined />}
                         className="transition-all duration-300 rounded-full px-5 py-2 font-semibold text-base"
                       >
                       </Button>
@@ -458,7 +435,7 @@ const CartPage: React.FC = () => {
                     >
                       {/* Gradient overlay on hover */}
                       <div className="absolute inset-0 bg-gradient-to-r from-cyan-50/0 to-purple-50/0 group-hover:from-cyan-50/30 group-hover:to-purple-50/30 transition-all duration-500 pointer-events-none"></div>
-                      
+
                       <div className="relative p-6">
                         <div className="flex items-start gap-6">
                           {/* Checkbox */}
@@ -473,8 +450,8 @@ const CartPage: React.FC = () => {
                           {/* Course Image */}
                           <div className="flex-shrink-0">
                             <div className="relative group">
-                              <img 
-                                src={item.course.thumbnail} 
+                              <img
+                                src={item.course.thumbnail}
                                 alt={item.course.title}
                                 className="w-40 h-28 object-cover rounded-2xl shadow-xl border-2 border-white group-hover:border-cyan-200 transition-all duration-300"
                               />
@@ -498,16 +475,12 @@ const CartPage: React.FC = () => {
                                 {item.course.title}
                               </Title>
                             </Link>
-                            
+
                             <div className="flex items-center gap-3 mb-4">
                               <div className="flex items-center gap-2">
-                                {(() => {
-                                  console.log('Rendering author data for course:', item.course.title, 'Author:', item.course.author);
-                                  return null;
-                                })()}
                                 {item.course.author?.avatar ? (
-                                  <img 
-                                    src={item.course.author.avatar} 
+                                  <img
+                                    src={item.course.author.avatar}
                                     alt={item.course.author.name}
                                     className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
                                   />
@@ -528,15 +501,21 @@ const CartPage: React.FC = () => {
                             <div className="flex items-center gap-4 flex-wrap">
                               <div className="flex items-center gap-2 bg-yellow-50 px-3 py-1.5 rounded-full">
                                 <span className="text-yellow-600 text-lg">⭐</span>
-                                <span className="text-yellow-700 font-semibold text-sm">{item.course.rating}</span>
+                                <span className="text-yellow-700 font-semibold text-sm">
+                                  {item.course.rating > 0 ? item.course.rating.toFixed(1) : 'Chưa có đánh giá'}
+                                </span>
                               </div>
                               <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full">
                                 <span className="text-blue-600 text-lg">👥</span>
-                                <span className="text-blue-700 font-semibold text-sm">{item.course.students?.toLocaleString()}</span>
+                                <span className="text-blue-700 font-semibold text-sm">
+                                  {item.course.students > 0 ? item.course.students.toLocaleString() : 'Chưa có học viên'}
+                                </span>
                               </div>
                               <div className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded-full">
                                 <span className="text-purple-600 text-lg">⏱️</span>
-                                <span className="text-purple-700 font-semibold text-sm">{item.course.duration}</span>
+                                <span className="text-purple-700 font-semibold text-sm">
+                                  {item.course.duration !== '0 phút' ? item.course.duration : 'Chưa có nội dung'}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -560,12 +539,12 @@ const CartPage: React.FC = () => {
                                 cancelText="Hủy"
                                 okButtonProps={{ danger: true }}
                               >
-                                <Button 
-                                  type="text" 
-                                  danger 
-                                  shape="circle" 
+                                <Button
+                                  type="text"
+                                  danger
+                                  shape="circle"
                                   size="large"
-                                  icon={<DeleteOutlined className="text-xl" />} 
+                                  icon={<DeleteOutlined className="text-xl" />}
                                   className="hover:bg-red-50 hover:scale-110 transition-all duration-300 shadow-sm hover:shadow-md"
                                 />
                               </Popconfirm>
@@ -581,13 +560,13 @@ const CartPage: React.FC = () => {
             {/* Order Summary Column */}
             <Col xs={24} lg={8}>
               <motion.div variants={itemVariants}>
-                <Card 
+                <Card
                   title={
                     <div className="flex items-center gap-3">
                       <CreditCardOutlined style={{ color: '#1890ff', fontSize: 28 }} />
                       <span className="font-bold text-lg">Tóm tắt đơn hàng</span>
                     </div>
-                  } 
+                  }
                   className="shadow-2xl border-0 sticky top-24 bg-white/80 rounded-3xl backdrop-blur-md"
                   styles={{
                     header: {
@@ -605,7 +584,7 @@ const CartPage: React.FC = () => {
                       <Text strong className="text-xl">{formatCurrency(subtotal)}</Text>
                     </div>
                     {discount > 0 && (
-                      <motion.div 
+                      <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         className="flex justify-between items-center bg-green-50 p-4 rounded-xl"
@@ -626,7 +605,7 @@ const CartPage: React.FC = () => {
                         <Text strong className="text-base">Mã giảm giá</Text>
                       </div>
                       {voucherValidation ? (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="bg-green-50 p-4 rounded-xl border border-green-200"
@@ -635,9 +614,9 @@ const CartPage: React.FC = () => {
                             <Text strong className="text-green-600 text-lg">
                               {voucherValidation.voucher.code}
                             </Text>
-                            <Button 
-                              type="text" 
-                              size="small" 
+                            <Button
+                              type="text"
+                              size="small"
                               onClick={handleRemoveVoucher}
                               className="text-red-500"
                             >
@@ -659,7 +638,7 @@ const CartPage: React.FC = () => {
                               disabled={isApplyingVoucher}
                               className="rounded-xl text-base px-4 py-2 shadow-sm"
                             />
-                            <Button 
+                            <Button
                               type="primary"
                               onClick={handleApplyVoucher}
                               loading={isApplyingVoucher}
@@ -681,10 +660,10 @@ const CartPage: React.FC = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Button 
-                        type="primary" 
-                        size="large" 
-                        block 
+                      <Button
+                        type="primary"
+                        size="large"
+                        block
                         className="!h-16 !text-xl !font-bold bg-gradient-to-r from-cyan-500 to-purple-500 border-0 shadow-xl rounded-2xl hover:scale-105 hover:shadow-2xl transition-all"
                         icon={<SafetyOutlined />}
                         disabled={selectedItems.length === 0 || isCheckingOut}
@@ -699,9 +678,9 @@ const CartPage: React.FC = () => {
                         whileHover={{ x: -5 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        <Button 
-                          type="link" 
-                          block 
+                        <Button
+                          type="link"
+                          block
                           icon={<ArrowLeftOutlined />}
                           className="!h-12 !text-base font-semibold text-cyan-700 hover:text-purple-700"
                         >
