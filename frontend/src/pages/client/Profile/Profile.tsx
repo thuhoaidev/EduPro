@@ -9,6 +9,11 @@ import { Progress } from 'antd';
 import { ArrowRightOutlined } from '@ant-design/icons';
 import { courseService, getCourseById } from '../../../services/courseService';
 import { getProgress } from '../../../services/progressService';
+import { debugAvatar, forceRefreshUser as debugForceRefreshUser } from '../../../utils/debugUserData';
+import { testAvatarLoading } from '../../../utils/testAvatarLoading';
+import { clearCacheAndRefresh } from '../../../utils/clearCacheAndRefresh';
+import { testAllAvatarFunctions } from '../../../utils/testAllAvatarFunctions';
+import { autoFixAvatar } from '../../../utils/autoFixAvatar';
 
 interface User {
   id: number;
@@ -68,6 +73,36 @@ const Profile = () => {
   const location = useLocation();
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastLocationKey, setLastLocationKey] = useState(location.key);
+
+  // Force refresh user data khi cần thiết
+  const forceRefreshUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Profile: Fresh user data from API:', data.user);
+
+        // Cập nhật localStorage
+        localStorage.setItem('user', JSON.stringify(data.user));
+
+        // Cập nhật state
+        setUser(data.user);
+
+        // Trigger event
+        window.dispatchEvent(new CustomEvent('user-updated', { detail: { user: data.user } }));
+      }
+    } catch (error) {
+      console.error('Profile: Error refreshing user data:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -149,8 +184,20 @@ const Profile = () => {
       }
     }
 
+    // Custom event listener để cập nhật user data khi có thay đổi từ Header
+    const handleUserUpdate = (event: CustomEvent) => {
+      console.log('Profile: Received user-updated event', event.detail);
+      if (event.detail && event.detail.user) {
+        setUser(event.detail.user);
+      }
+    };
+
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener('user-updated', handleUserUpdate as EventListener);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('user-updated', handleUserUpdate as EventListener);
+    };
   }, [location.pathname, location.state, location.search, location.key, lastLocationKey]);
 
   // Additional refresh trigger when component mounts or location changes
@@ -160,6 +207,25 @@ const Profile = () => {
       setRefreshKey(prev => prev + 1);
     }
   }, [location.pathname]);
+
+  // Auto refresh user data nếu avatar không hợp lệ
+  useEffect(() => {
+    if (user && user.avatar && !user.avatar.includes('googleusercontent.com') && !user.avatar.startsWith('http')) {
+      console.log('Profile: Invalid avatar detected, refreshing user data...');
+      forceRefreshUser();
+    }
+  }, [user]);
+
+  // Export debug functions to window for console access
+  useEffect(() => {
+    (window as any).debugAvatar = debugAvatar;
+    (window as any).forceRefreshUser = debugForceRefreshUser;
+    (window as any).profileForceRefresh = forceRefreshUser;
+    (window as any).testAvatarLoading = testAvatarLoading;
+    (window as any).clearCacheAndRefresh = clearCacheAndRefresh;
+    (window as any).testAllAvatarFunctions = testAllAvatarFunctions;
+    (window as any).autoFixAvatar = autoFixAvatar;
+  }, []);
 
   // Fetch chi tiết từng khóa học để lấy số lượng bài học
   useEffect(() => {
@@ -352,7 +418,7 @@ const Profile = () => {
               >
                 <motion.div className="w-36 h-36 rounded-full p-1 bg-gradient-to-tr from-blue-400 via-purple-400 to-pink-400 shadow-xl mx-auto">
                   <img
-                    src={user?.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.fullname || '') + '&background=4f8cff&color=fff&size=256'}
+                    src={user?.avatar && user.avatar !== 'default-avatar.jpg' && user.avatar !== '' && (user.avatar.includes('googleusercontent.com') || user.avatar.startsWith('http')) ? user.avatar : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.fullname || '') + '&background=4f8cff&color=fff&size=256'}
                     alt="avatar"
                     className="w-full h-full rounded-full border-4 border-white object-cover"
                   />
@@ -461,9 +527,9 @@ const Profile = () => {
                   ) : 'Chưa cập nhật'}</div>
                   <div><b>Kinh nghiệm giảng dạy:</b> {typeof user?.instructorInfo?.experience_years === 'number' ? user.instructorInfo.experience_years : 'Chưa cập nhật'} năm</div>
                   <div><b>Giới thiệu:</b> {user?.instructorInfo?.teaching_experience?.description ? user.instructorInfo.teaching_experience.description : 'Không có mô tả'}</div>
-                  {user?.bio && (
+                  {/* {user?.bio && (
                     <div><b>Giới thiệu cá nhân:</b> <span className="text-gray-600">{user.bio}</span></div>
-                  )}
+                  )} */}
                 </div>
               </motion.div>
             )}

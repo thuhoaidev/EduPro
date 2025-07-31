@@ -311,7 +311,10 @@ const handleAddComment = async (blogId: string) => {
       renderItem={(item) => (
         <Comment
           author={item.author.fullname}
-          avatar={<Avatar src={item.author.avatar} icon={<UserOutlined />} />}
+          avatar={<Avatar 
+            src={item.author.avatar && item.author.avatar !== 'default-avatar.jpg' && item.author.avatar !== '' && (item.author.avatar.includes('googleusercontent.com') || item.author.avatar.startsWith('http')) ? item.author.avatar : undefined} 
+            icon={<UserOutlined />} 
+          />}
           content={
             <>
               <div>{item.content}</div>
@@ -343,7 +346,10 @@ const handleAddComment = async (blogId: string) => {
                 <Comment
                   key={reply._id}
                   author={reply.author.fullname}
-                  avatar={<Avatar src={reply.author.avatar} icon={<UserOutlined />} />}
+                  avatar={<Avatar 
+                    src={reply.author.avatar && reply.author.avatar !== 'default-avatar.jpg' && reply.author.avatar !== '' && (reply.author.avatar.includes('googleusercontent.com') || reply.author.avatar.startsWith('http')) ? reply.author.avatar : undefined} 
+                    icon={<UserOutlined />} 
+                  />}
                   content={reply.content}
                   datetime={formatDate(reply.createdAt)}
                   style={{ marginTop: 16, marginLeft: 40 }}
@@ -426,7 +432,10 @@ const handleAddComment = async (blogId: string) => {
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
                 {blog.author ? (
                   <>
-                    <Avatar src={blog.author.avatar} icon={<UserOutlined />} />
+                    <Avatar 
+                      src={blog.author.avatar && blog.author.avatar !== 'default-avatar.jpg' && blog.author.avatar !== '' && (blog.author.avatar.includes('googleusercontent.com') || blog.author.avatar.startsWith('http')) ? blog.author.avatar : undefined} 
+                      icon={<UserOutlined />} 
+                    />
                     <div style={{ marginLeft: 10 }}>
                       <Text strong>{blog.author.fullname}</Text><br />
                       <Text type="secondary" style={{ fontSize: 12 }}>

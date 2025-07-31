@@ -499,94 +499,135 @@ const Homepage = () => {
           <Text className="section-subtitle">Đừng bỏ lỡ các ưu đãi đặc biệt từ EduPro!</Text>
         </div>
 
-        <Row gutter={[24, 24]} className="vouchers-grid">
-          {vouchers.map((voucher, index) => (
-            <Col xs={24} sm={12} lg={8} key={voucher.id}>
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                whileHover={{ y: -12, scale: 1.02 }}
-                className="voucher-card-wrapper"
-              >
-                <Card className="voucher-card" hoverable>
-                  <div className="voucher-header">
-                    <div className="voucher-discount-container">
-                      <Title level={3} className="voucher-discount">{formatDiscount(voucher)}</Title>
-                      <Text className="voucher-description">{voucher.description}</Text>
+        {/* Banner Voucher chính */}
+        {vouchers.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="main-voucher-banner"
+          >
+            <div className="voucher-banner-background">
+              <div className="voucher-banner-pattern"></div>
+              <div className="voucher-banner-overlay"></div>
+            </div>
+            <div className="voucher-banner-content">
+              <Row align="middle" gutter={[32, 24]}>
+                <Col xs={24} lg={12}>
+                  <div className="voucher-banner-info">
+                    <div className="voucher-banner-badge">
+                      <FireOutlined className="badge-icon" />
+                      <span>Ưu đãi nổi bật</span>
                     </div>
-                    {voucher.isHot && (
-                      <div className="hot-badge">
-                        <FireOutlined />
+                    <Title level={2} className="voucher-banner-title">
+                      Giảm giá lên đến <span className="gradient-text">{formatDiscount(vouchers[0])}</span>
+                    </Title>
+                    <Paragraph className="voucher-banner-description">
+                      {vouchers[0].description || 'Ưu đãi đặc biệt dành cho học viên mới'}
+                    </Paragraph>
+                    <div className="voucher-banner-features">
+                      <div className="voucher-feature">
+                        <CheckCircleOutlined className="feature-icon" />
+                        <span>Áp dụng cho tất cả khóa học</span>
                       </div>
-                    )}
+                      <div className="voucher-feature">
+                        <CheckCircleOutlined className="feature-icon" />
+                        <span>Không giới hạn số lần sử dụng</span>
+                      </div>
+                      <div className="voucher-feature">
+                        <CheckCircleOutlined className="feature-icon" />
+                        <span>Thanh toán an toàn</span>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="voucher-body">
-                    <div className="voucher-code-section">
+                </Col>
+                <Col xs={24} lg={12}>
+                  <div className="voucher-banner-code-section">
+                    <div className="voucher-code-display">
                       <Text className="voucher-code-label">Mã giảm giá</Text>
-                        <div
-                        className={`voucher-code ${voucher.status === 'available' ? 'clickable' : 'disabled'}`}
-                          onClick={() => voucher.status === 'available' && copyToClipboard(voucher.code)}
-                        >
-                        <Text strong className="voucher-code-text">{voucher.code}</Text>
-                          {voucher.status === 'available' && (
-                            <Tooltip title="Sao chép mã">
-                            <CopyOutlined className="copy-icon" />
-                            </Tooltip>
-                          )}
+                      <div 
+                        className={`voucher-code-main ${vouchers[0].status === 'available' ? 'clickable' : 'disabled'}`}
+                        onClick={() => vouchers[0].status === 'available' && copyToClipboard(vouchers[0].code)}
+                      >
+                        <Text strong className="voucher-code-text">{vouchers[0].code}</Text>
+                        {vouchers[0].status === 'available' && (
+                          <Tooltip title="Sao chép mã">
+                            <CopyOutlined className="copy-icon-large" />
+                          </Tooltip>
+                        )}
+                      </div>
+                      {vouchers[0].status === 'unavailable' && (
+                        <div className="voucher-status-message">
+                          <Text className="status-text">{vouchers[0].statusMessage}</Text>
                         </div>
-                      </div>
-
-                      {voucher.status === 'unavailable' && (
-                      <div className="voucher-status-message">
-                        <Text className="status-text">{voucher.statusMessage}</Text>
-                      </div>
-                    )}
-
-                    <Space direction="vertical" size="small" className="voucher-details">
-                                              {voucher.minAmount && (
-                          <Text className="voucher-detail">
-                            <Tag color='blue' icon={<AimOutlined />}>Điều kiện</Tag> 
-                            Đơn hàng từ {voucher.minAmount.toLocaleString()}đ
-                          </Text>
-                        )}
-                        {voucher.maxDiscount && voucher.discountType === 'percentage' && (
-                          <Text className="voucher-detail">
-                            <Tag color='green' icon={<RiseOutlined />}>Tối đa</Tag> 
-                            Giảm đến {voucher.maxDiscount.toLocaleString()}đ
-                          </Text>
-                        )}
-                        <Text className="voucher-detail">
+                      )}
+                      <div className="voucher-code-details">
+                        <div className="voucher-detail-item">
                           <ClockIcon className="detail-icon" />
-                          Hạn sử dụng: {new Date(voucher.validTo).toLocaleDateString('vi-VN')}
-                        </Text>
-                        <Text className="voucher-detail">
-                          <Tag color='orange' icon={<TeamOutlined />}>Đã sử dụng</Tag> 
-                          {voucher.usedCount}/{voucher.usageLimit}
-                        </Text>
-                      </Space>
-
-                    <Button 
-                      type="primary" 
-                      block 
-                      size="large" 
-                        className={`voucher-button ${voucher.status === 'unavailable' ? 'disabled' : ''}`}
-                      disabled={voucher.status === 'unavailable'}
-                        icon={voucher.status === 'available' ? <GiftOutlined /> : <SafetyOutlined />}
-                    >
-                      {voucher.status === 'available' ? 'Lưu mã' : 'Hết voucher'}
-                    </Button>
+                          <span>Hạn sử dụng: {new Date(vouchers[0].validTo).toLocaleDateString('vi-VN')}</span>
+                        </div>
+                        {vouchers[0].minAmount && (
+                          <div className="voucher-detail-item">
+                            <AimOutlined className="detail-icon" />
+                            <span>Đơn hàng từ {vouchers[0].minAmount.toLocaleString()}đ</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  
-                  {voucher.status === 'unavailable' && (
-                    <Badge.Ribbon text="Hết voucher" color="red" />
-                  )}
-                </Card>
-              </motion.div>
-            </Col>
-          ))}
-        </Row>
+                </Col>
+              </Row>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Grid các voucher khác */}
+        {vouchers.length > 1 && (
+          <div className="other-vouchers-section">
+            <Title level={3} className="other-vouchers-title">Các ưu đãi khác</Title>
+            <div className="vouchers-horizontal-scroll">
+              {vouchers.slice(1).map((voucher, index) => (
+                <motion.div
+                  key={voucher.id}
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  className="voucher-item-compact"
+                >
+                  <div className="voucher-item-content">
+                    <div className="voucher-item-header">
+                      <div className="voucher-item-discount">
+                        <Text strong className="discount-text">{formatDiscount(voucher)}</Text>
+                      </div>
+                      {voucher.isHot && (
+                        <div className="hot-indicator">
+                          <FireOutlined />
+                        </div>
+                      )}
+                    </div>
+                    <div 
+                      className={`voucher-item-code ${voucher.status === 'available' ? 'clickable' : 'disabled'}`}
+                      onClick={() => voucher.status === 'available' && copyToClipboard(voucher.code)}
+                    >
+                      <Text className="code-label">Mã: {voucher.code}</Text>
+                      {voucher.status === 'available' && (
+                        <Tooltip title="Sao chép mã">
+                          <CopyOutlined className="copy-icon-compact" />
+                        </Tooltip>
+                      )}
+                    </div>
+                    <div className="voucher-item-footer">
+                      <Text className="voucher-item-desc">{voucher.description}</Text>
+                      <Text className="voucher-item-expiry">
+                        Hết hạn: {new Date(voucher.validTo).toLocaleDateString('vi-VN')}
+                      </Text>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="section-footer">
           <motion.div
@@ -754,7 +795,12 @@ const Homepage = () => {
               <div key={instructor._id || idx} className="instructor-banner-slide">
                 <div className="instructor-banner-content flex flex-col items-center justify-center text-center py-10">
                   <div className="mb-6">
-                    <Avatar src={instructor.avatar || instructor.profilePicture || '/images/default-avatar.png'} size={120} className="instructor-banner-avatar shadow-lg transition-transform duration-300 hover:scale-105" style={{ background: 'white' }} />
+                    <Avatar 
+                      src={instructor.avatar && instructor.avatar !== 'default-avatar.jpg' && instructor.avatar !== '' && (instructor.avatar.includes('googleusercontent.com') || instructor.avatar.startsWith('http')) ? instructor.avatar : (instructor.profilePicture || '/images/default-avatar.png')} 
+                      size={120} 
+                      className="instructor-banner-avatar shadow-lg transition-transform duration-300 hover:scale-105" 
+                      style={{ background: 'white' }} 
+                    />
                   </div>
                   <div className="instructor-banner-info">
                     <Title level={3} className="instructor-banner-name gradient-text" style={{ marginBottom: 8, fontWeight: 800 }}>{instructor.fullname || instructor.name}</Title>
@@ -795,7 +841,10 @@ const Homepage = () => {
                   <Title level={2} className="blog-banner-title gradient-text mb-2" style={{ fontWeight: 800, color: '#fff', textShadow: '0 2px 16px rgba(0,0,0,0.25)' }}>{blog.title}</Title>
                   <Paragraph className="blog-banner-summary" style={{ color: '#f3f4f6', fontSize: 18, maxWidth: 700, margin: '0 auto 18px', textShadow: '0 1px 8px rgba(0,0,0,0.18)' }}>{blog.summary || blog.content?.slice(0, 120) || ''}</Paragraph>
                   <div className="flex items-center justify-center gap-4 mb-4">
-                    <Avatar src={blog.author?.avatar || '/images/default-avatar.png'} size={40} />
+                    <Avatar 
+                      src={blog.author?.avatar && blog.author.avatar !== 'default-avatar.jpg' && blog.author.avatar !== '' && (blog.author.avatar.includes('googleusercontent.com') || blog.author.avatar.startsWith('http')) ? blog.author.avatar : '/images/default-avatar.png'} 
+                      size={40} 
+                    />
                     <span className="text-white font-semibold text-base">{blog.author?.fullname || 'Tác giả'}</span>
                     <span className="text-gray-200 text-sm">{blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : ''}</span>
                   </div>
@@ -840,7 +889,7 @@ const Homepage = () => {
                   <Space direction="vertical" size="large" className="testimonial-content">
                     <div className="testimonial-avatar-container">
                       <Avatar 
-                        src={testimonial.avatar} 
+                        src={testimonial.avatar && testimonial.avatar !== 'default-avatar.jpg' && testimonial.avatar !== '' && (testimonial.avatar.includes('googleusercontent.com') || testimonial.avatar.startsWith('http')) ? testimonial.avatar : undefined} 
                         alt={testimonial.name} 
                         size={80}
                         className="testimonial-avatar"

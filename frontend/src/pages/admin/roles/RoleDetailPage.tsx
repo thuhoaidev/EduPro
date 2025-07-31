@@ -538,7 +538,10 @@ const RoleDetailPage: React.FC = () => {
       key: 'fullname',
       render: (name: string, record: User) => (
         <Space>
-          <Avatar src={record.avatar} icon={<UserOutlined />} />
+          <Avatar 
+            src={record.avatar && record.avatar !== 'default-avatar.jpg' && record.avatar !== '' && (record.avatar.includes('googleusercontent.com') || record.avatar.startsWith('http')) ? record.avatar : undefined} 
+            icon={<UserOutlined />} 
+          />
           <div>
             <Text strong>{name}</Text>
             <br />

@@ -536,7 +536,10 @@ const CourseDetailPage: React.FC = () => {
                         <Paragraph className="text-gray-700 text-lg md:text-xl max-w-4xl">{course.subtitle}</Paragraph>
                         <div className="flex items-center gap-x-6 gap-y-2 mt-6 flex-wrap">
                             <div className="flex items-center gap-2">
-                                <Avatar src={course.author.avatar} icon={<UserOutlined />} />
+                                <Avatar 
+                                    src={course.author.avatar && course.author.avatar !== 'default-avatar.jpg' && course.author.avatar !== '' && (course.author.avatar.includes('googleusercontent.com') || course.author.avatar.startsWith('http')) ? course.author.avatar : undefined} 
+                                    icon={<UserOutlined />} 
+                                />
                                 <Text className="!text-gray-800 font-semibold">{course.author.name}</Text>
                             </div>
                             <div className="flex items-center gap-2 text-amber-400">
@@ -693,7 +696,12 @@ const CourseDetailPage: React.FC = () => {
                                 <div className="flex items-center gap-6 mt-8">
                                     <div className="relative">
                                         <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 blur opacity-60"></div>
-                                        <Avatar src={course.author.avatar} size={96} icon={<UserOutlined />} className="border-4 border-white shadow-lg relative z-10"/>
+                                        <Avatar 
+                                            src={course.author.avatar && course.author.avatar !== 'default-avatar.jpg' && course.author.avatar !== '' && (course.author.avatar.includes('googleusercontent.com') || course.author.avatar.startsWith('http')) ? course.author.avatar : undefined} 
+                                            size={96} 
+                                            icon={<UserOutlined />} 
+                                            className="border-4 border-white shadow-lg relative z-10"
+                                        />
                                     </div>
                                     <div>
                                         <Title level={4} className="!text-transparent !bg-clip-text !bg-gradient-to-r !from-cyan-600 !to-purple-600 !m-0">{course.author.name}</Title>
@@ -778,7 +786,7 @@ const CourseDetailPage: React.FC = () => {
                                                     <List.Item className="!items-start !border-0 !bg-transparent !py-6">
                                                         <div className="flex items-start gap-5 w-full">
                                                             <Avatar 
-                                                                src={item.user?.avatar} 
+                                                                src={item.user?.avatar && item.user.avatar !== 'default-avatar.jpg' && item.user.avatar !== '' && (item.user.avatar.includes('googleusercontent.com') || item.user.avatar.startsWith('http')) ? item.user.avatar : undefined} 
                                                                 icon={<UserOutlined />} 
                                                                 size={48}
                                                                 style={{ 

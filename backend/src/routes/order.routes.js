@@ -3,7 +3,11 @@ const router = express.Router();
 const { auth, checkRole } = require('../middlewares/auth');
 const OrderController = require('../controllers/order.controller');
 
-// Tất cả routes đều yêu cầu xác thực
+// Callback thanh toán Momo cho đơn hàng (không cần auth vì Momo gọi từ bên ngoài)
+router.post('/momo-callback', OrderController.handleMomoOrderCallback);
+router.get('/momo-callback', OrderController.handleMomoOrderCallback);
+
+// Tất cả routes khác đều yêu cầu xác thực
 router.use(auth);
 
 // [POST] /api/orders - Tạo đơn hàng mới
