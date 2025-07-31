@@ -25,6 +25,7 @@ import {
   Avatar,
   Button,
   Divider,
+  Popover,
 } from "antd";
 import type { MenuProps } from "antd";
 import React, { useState, useEffect, useMemo } from "react";
@@ -383,7 +384,19 @@ const ModeratorLayout = () => {
           </div>
           
           <div className={styles.headerRight}>
-            <Dropdown menu={{ items: userMenuItems }} trigger={["click"]} placement="bottomRight">
+            <Popover
+              content={
+                <Menu items={userMenuItems} onClick={({ key }) => {
+                  if (key === 'home') {
+                    navigate('/');
+                  } else if (key === 'logout') {
+                    handleLogout();
+                  }
+                }} />
+              }
+              trigger="click"
+              placement="bottomRight"
+            >
               <a onClick={(e) => e.preventDefault()} className={styles.profileDropdown}>
                 <Avatar 
                   src={(authUser as any)?.avatar} 
@@ -396,7 +409,7 @@ const ModeratorLayout = () => {
                   <span className={styles.headerUserName}>{(authUser as any)?.fullname || 'User'}</span>
                 )}
               </a>
-            </Dropdown>
+            </Popover>
           </div>
         </Header>
         

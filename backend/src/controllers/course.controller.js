@@ -1168,6 +1168,11 @@ exports.enrollCourse = async (req, res, next) => {
       return res.status(404).json({ message: 'Không tìm thấy khóa học' });
     }
 
+    // Kiểm tra khóa học có được publish không
+    if (course.status !== 'approved' || course.displayStatus !== 'published') {
+      return res.status(403).json({ message: 'Khóa học chưa được phát hành' });
+    }
+
     // Kiểm tra xem người dùng có phải là giảng viên của khóa học này không
     if (course.instructor && course.instructor.user && course.instructor.user.toString() === userId.toString()) {
       return res.status(403).json({ 

@@ -39,6 +39,8 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
   const completedLessons = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
   const lastWatched = progress?.lastWatched;
 
+
+
   // Auto open the section containing the current lesson when currentLessonId changes, unless user has toggled
   useEffect(() => {
     if (!currentLessonId || userToggled) return;
@@ -209,27 +211,13 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
               <ul className="pl-2">
                 {section.lessons.map((lesson, lIdx) => {
                   const lessonIdStr = String(lesson._id);
-                  let unlocked = false;
+                  // Sử dụng unlockedLessons array từ props thay vì logic phức tạp
+                  let unlocked = unlockedLessons.map(String).includes(lessonIdStr);
                   const isFirstLesson = sIdx === 0 && lIdx === 0;
 
+                  // Bài học đầu tiên luôn được mở khóa
                   if (isFirstLesson) {
                     unlocked = true;
-                  } else {
-                    let prevLesson = null;
-                    if (lIdx > 0) {
-                      prevLesson = section.lessons[lIdx - 1];
-                    } else if (sIdx > 0) {
-                      const prevSection = sections[sIdx - 1];
-                      if (prevSection.lessons.length > 0) {
-                        prevLesson = prevSection.lessons[prevSection.lessons.length - 1];
-                      }
-                    }
-                    if (prevLesson) {
-                      const prevProgress = progress && progress[prevLesson._id];
-                      if (prevProgress && prevProgress.videoCompleted && prevProgress.quizPassed) {
-                        unlocked = true;
-                      }
-                    }
                   }
 
                   const isCompleted = completedLessons.map(String).includes(lessonIdStr);
@@ -243,42 +231,27 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                     progressValue = currentVideoProgress;
                   }
 
-                  // Tìm index bài học đầu tiên được mở khóa trong section này
-                  let firstUnlockedIdx = section.lessons.findIndex((l, idx) => {
-                    let unlocked = false;
-                    if (idx === 0 && sIdx === 0) unlocked = true;
-                    else {
-                      let prevLesson = null;
-                      if (idx > 0) prevLesson = section.lessons[idx - 1];
-                      else if (sIdx > 0) {
-                        const prevSection = sections[sIdx - 1];
-                        if (prevSection.lessons.length > 0) prevLesson = prevSection.lessons[prevSection.lessons.length - 1];
-                      }
-                      if (prevLesson) {
-                        const prevProgress = progress && progress[prevLesson._id];
-                        if (prevProgress && prevProgress.videoCompleted && prevProgress.quizPassed) unlocked = true;
-                      }
-                    }
-                    const isCompleted = completedLessons.map(String).includes(String(l._id));
-                    if (isCompleted) unlocked = true;
-                    return unlocked;
-                  });
-                  const isBeforeFirstUnlocked = lIdx < firstUnlockedIdx && firstUnlockedIdx !== -1;
-
                   let progressColor = '#d9d9d9';
                   let showProgress = false;
 
-                  if (progressValue === 100 || isCompleted || isBeforeFirstUnlocked) {
+                  // Kiểm tra trạng thái hoàn thành từ progress
+                  const lessonProgress = progress && progress[lessonIdStr];
+                  const isVideoCompleted = lessonProgress && lessonProgress.videoCompleted;
+                  const isQuizPassed = lessonProgress && lessonProgress.quizPassed;
+                  const isFullyCompleted = isVideoCompleted && isQuizPassed;
+
+                  if (isCompleted || isFullyCompleted) {
                     progressValue = 100;
-                    progressColor = '#52c41a'; // xanh lá
+                    progressColor = '#52c41a'; // xanh lá - hoàn thành
                     showProgress = true;
                   } else if (isCurrent) {
-                    progressColor = '#06b6d4';
+                    progressColor = '#06b6d4'; // xanh dương - đang học
                     showProgress = true;
                   } else if (lastWatched && lessonIdStr === lastWatched) {
+                    progressColor = '#faad14'; // vàng - đã xem một phần
                     showProgress = true;
                   } else if (unlocked && progressValue > 0) {
-                    progressColor = '#faad14';
+                    progressColor = '#faad14'; // vàng - đã xem một phần
                     showProgress = true;
                   }
 

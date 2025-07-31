@@ -283,7 +283,7 @@ const CoursesPage: React.FC = () => {
                                         isInProgress={enrolledCourseIds.includes(course.id) && !courseProgress[course.id]}
                                         continueLessonId={courseContinueLesson[course.id] || undefined}
                                         isCompleted={courseCompletedStatus[course.id]}
-                                        lessons={course.lessons}
+                                        lessons={course.lessonsCount || course.lessons}
                                         rating={course.rating}
                                         reviews={course.reviews}
                                     />

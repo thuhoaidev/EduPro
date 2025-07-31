@@ -16,6 +16,12 @@ router.post('/zalopay-callback', userWalletController.handlePaymentResult);
 router.get('/zalopay-callback', userWalletController.handlePaymentResult);
 // Callback/payment result cho VNPAY (nếu có)
 router.get('/vnpay-callback', userWalletController.handlePaymentResult);
+// API endpoint để frontend gửi kết quả thanh toán
+router.post('/payment-callback', auth, userWalletController.paymentCallback);
+// API để kiểm tra trạng thái giao dịch
+router.get('/transaction/:orderId/status', auth, userWalletController.checkTransactionStatus);
+// API để kiểm tra trạng thái giao dịch theo transId
+router.get('/transaction/transId/:transId/status', auth, userWalletController.checkTransactionByTransId);
 
 // Rút tiền
 router.post('/withdraw', auth, userWalletController.requestWithdraw); // user gửi yêu cầu rút tiền

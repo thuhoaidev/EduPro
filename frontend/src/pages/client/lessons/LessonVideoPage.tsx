@@ -90,6 +90,10 @@ const LessonVideoPage: React.FC = () => {
   // Thêm loading cho like comment
   const [likeLoading, setLikeLoading] = useState<{ [commentId: string]: boolean }>({});
 
+  // Certificate states
+  const [certificate, setCertificate] = useState<any>(null);
+  const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
+
   // Debounce function để tránh gọi API liên tục
   const debouncedUpdateProgress = useCallback((courseId: string, lessonId: string, time: number, duration: number) => {
     if (updateProgressTimeout.current) {
@@ -146,14 +150,10 @@ const LessonVideoPage: React.FC = () => {
       const progressRatio = video.currentTime / video.duration;
       setVideoProgress(progressRatio);
 
-      // Debug log
-      if (video.currentTime % 10 < 0.1) { // Log mỗi 10 giây
-        console.log('Video progress:', { currentTime: video.currentTime, duration: video.duration, ratio: progressRatio });
-      }
+
 
       // Đánh dấu đã xem hết video khi đạt 90%
       if (progressRatio >= 0.9 && !videoWatched) {
-        console.log('Video watched 90%, marking as completed');
         updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration).catch(e => console.error("Failed to update progress", e));
         setVideoWatched(true);
       }
@@ -166,8 +166,7 @@ const LessonVideoPage: React.FC = () => {
     if (courseId && lessonId) {
       getVideoProgress(courseId, lessonId)
         .then(progress => {
-          console.log('Loaded video progress:', progress);
-          if (progress && progress.watchedSeconds && progress.watchedSeconds > 0) {
+                  if (progress && progress.watchedSeconds && progress.watchedSeconds > 0) {
             setSavedVideoTime(progress.watchedSeconds);
             // Cũng cập nhật videoProgress UI nếu có
             const progressData = progress as any;
@@ -195,7 +194,6 @@ const LessonVideoPage: React.FC = () => {
   const handleVideoLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     const video = e.currentTarget;
     if (video && savedVideoTime > 0) {
-      console.log('Setting video time to:', savedVideoTime);
       video.currentTime = savedVideoTime;
     }
   };
@@ -207,7 +205,6 @@ const LessonVideoPage: React.FC = () => {
       const timer = setTimeout(() => {
         const videoElement = document.querySelector('video');
         if (videoElement && videoElement.readyState >= 1) {
-          console.log('Setting video time from useEffect:', savedVideoTime);
           videoElement.currentTime = savedVideoTime;
         }
       }, 100);
@@ -230,7 +227,6 @@ const LessonVideoPage: React.FC = () => {
     }
 
     if (courseId && currentLessonId && video) {
-      console.log('Video ended, updating final progress');
       updateVideoProgress(courseId, currentLessonId, video.duration, video.duration)
         .catch(e => console.error("Failed to update final progress", e));
       // Đảm bảo cập nhật videoCompleted: true vào progress
@@ -238,7 +234,15 @@ const LessonVideoPage: React.FC = () => {
         watchedSeconds: video.duration,
         videoDuration: video.duration,
         videoCompleted: true
-      } as any).catch(e => console.error("Failed to set videoCompleted", e));
+      } as any).then(async () => {
+        // Reload progress sau khi cập nhật
+        try {
+          const progressData = await getProgress(courseId);
+          setProgress(progressData || {});
+        } catch (e) {
+          console.error("Failed to reload progress", e);
+        }
+      }).catch(e => console.error("Failed to set videoCompleted", e));
     }
     // Nếu có quiz thì tự động chuyển sang tab quiz
     if (quiz) {
@@ -331,6 +335,29 @@ const LessonVideoPage: React.FC = () => {
     setCurrentLessonId(lessonId || null);
   }, [lessonId]);
 
+  // Reload progress khi chuyển bài học
+  useEffect(() => {
+    if (courseId && lessonId) {
+      reloadProgress();
+    }
+  }, [courseId, lessonId]);
+
+  // Force reload progress sau khi hoàn thành quiz hoặc video
+  useEffect(() => {
+    if (quizCompleted || videoWatched) {
+      setTimeout(() => {
+        reloadProgress();
+      }, 1000); // Delay 1 giây để đảm bảo backend đã cập nhật
+    }
+  }, [quizCompleted, videoWatched]);
+
+  // Reload progress khi component mount
+  useEffect(() => {
+    if (courseId) {
+      reloadProgress();
+    }
+  }, [courseId]);
+
 
   useEffect(() => {
     // Lấy thông tin section và course để lấy toàn bộ chương/bài học
@@ -389,6 +416,26 @@ const LessonVideoPage: React.FC = () => {
       }
     })();
   }, [courseId, lessonId]);
+
+  // Thêm useEffect để reload progress khi có thay đổi
+  useEffect(() => {
+    if (!courseId) return;
+    const reloadProgress = async () => {
+      try {
+        const progressData = await getProgress(courseId);
+        setProgress(progressData || {});
+        const unlocked = await getUnlockedLessons(courseId);
+        setUnlockedLessons(unlocked || []);
+      } catch (e) {
+        console.error('Error reloading progress:', e);
+      }
+    };
+    
+    // Reload progress sau khi hoàn thành quiz hoặc video
+    if (quizCompleted || videoWatched) {
+      reloadProgress();
+    }
+  }, [courseId, quizCompleted, videoWatched]);
 
   useEffect(() => {
     if (!videoId) {
@@ -451,8 +498,6 @@ const LessonVideoPage: React.FC = () => {
       const lessonKey = String(currentLessonId);
       const prevAnswers = progress && progress[lessonKey] && progress[lessonKey].quizAnswers;
       const quizPassed = progress && progress[lessonKey] && progress[lessonKey].quizPassed;
-      // Log debug
-      console.log('progress:', progress, 'lessonKey:', lessonKey, 'prevAnswers:', prevAnswers, 'quizPassed:', quizPassed, 'quiz:', quiz, 'quizLen:', quiz.questions.length);
       if (Array.isArray(prevAnswers) && prevAnswers.length === quiz.questions.length) {
         setQuizAnswers(prevAnswers);
         // Tự động chấm lại quizResult khi reload
@@ -477,6 +522,21 @@ const LessonVideoPage: React.FC = () => {
   // Hàm kiểm tra bài học có được mở không
   const canAccessLesson = (lessonId: string) => {
     return unlockedLessons.map(String).includes(String(lessonId));
+  };
+
+  // Hàm reload progress
+  const reloadProgress = async () => {
+    if (!courseId) return;
+    try {
+      const [progressData, unlocked] = await Promise.all([
+        getProgress(courseId),
+        getUnlockedLessons(courseId)
+      ]);
+      setProgress(progressData || {});
+      setUnlockedLessons(unlocked || []);
+    } catch (e) {
+      console.error('Error reloading progress:', e);
+    }
   };
 
   // Hàm gửi bình luận
@@ -526,7 +586,12 @@ const LessonVideoPage: React.FC = () => {
         });
 
         if (res.data.success) {
-          const unlocked = await getUnlockedLessons(courseId);
+          // Reload progress và unlocked lessons
+          const [progressData, unlocked] = await Promise.all([
+            getProgress(courseId),
+            getUnlockedLessons(courseId)
+          ]);
+          setProgress(progressData || {});
           setUnlockedLessons(unlocked || []);
           message.success('Bạn đã hoàn thành bài học, bài tiếp theo sẽ được mở...');
           goToNextLesson(); // <-- Tự động chuyển sang bài tiếp theo khi quiz đạt
@@ -602,21 +667,17 @@ const LessonVideoPage: React.FC = () => {
 
       try {
         const progress = await getProgress(courseId);
-        console.log('Progress data:', progress);
 
         // Tính tổng số bài học từ courseContent
         const totalLessons = courseSections.reduce((total, section) => total + section.lessons.length, 0);
-        console.log('Total lessons:', totalLessons);
 
         // Đếm số bài học đã hoàn thành
         const completedLessons = Object.values(progress || {}).filter((p: any) =>
           p.completed === true && p.videoCompleted === true && p.quizPassed === true
         ).length;
-        console.log('Completed lessons:', completedLessons);
 
         // Kiểm tra hoàn thành
         const allCompleted = totalLessons > 0 && completedLessons === totalLessons;
-        console.log('All completed:', allCompleted);
 
         setIsCompleted(allCompleted);
 
@@ -644,6 +705,9 @@ const LessonVideoPage: React.FC = () => {
 
     checkCompleted();
   }, [courseSections, courseId]);
+
+  // Kiểm tra điều kiện enroll sau khi tất cả hooks đã được gọi
+  const shouldShowEnrollmentAlert = isEnrolled === false && !isFree;
 
   // Hàm load like state cho tất cả comment và reply
   const loadLikeStates = async (comments: any[]) => {
@@ -1193,10 +1257,14 @@ const LessonVideoPage: React.FC = () => {
       </div>
     </div>
   );
-  const [certificate, setCertificate] = useState<any>(null);
-  const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
+
   const cloudName = 'dxsilzscb';
   const publicId = 'edupor/videos/ovyuqhtkjutcgcdrfage';
+
+  // Hiển thị thông báo enroll nếu cần
+  if (shouldShowEnrollmentAlert) {
+    return <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />;
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
@@ -2005,6 +2073,8 @@ const LessonVideoPage: React.FC = () => {
         isOpen={isChatOpen}
         onToggle={toggleChat}
       />
+
+
     </div>
   );
 };

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { config } from '../../api/axios';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Layout, Input, Space, Button, Avatar, Dropdown, Spin, Typography, Badge, Card, List, Tag, Divider, Popover, Select, message
+  Layout, Input, Space, Button, Avatar, Dropdown, Spin, Typography, Badge, Card, List, Tag, Divider, Popover, Select, message, Menu
 } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -70,6 +70,19 @@ const AppHeader = () => {
     const roleName = user?.role_id?.name || 'student';
     console.log('Header - getRoleName:', roleName, 'for user:', user);
     return roleName;
+  };
+
+  // Debug function để kiểm tra role
+  const debugUserRole = () => {
+    if (user) {
+      console.log('Current user:', user);
+      console.log('User role:', getRoleName(user));
+      console.log('Role check results:');
+      console.log('- Is admin:', getRoleName(user) === 'admin' || getRoleName(user) === 'quản trị viên');
+      console.log('- Is instructor:', getRoleName(user) === 'instructor' || getRoleName(user) === 'giảng viên');
+      console.log('- Is moderator:', getRoleName(user) === 'moderator' || getRoleName(user) === 'kiểm duyệt viên');
+      console.log('- Is student:', getRoleName(user) === 'student' || getRoleName(user) === 'học viên');
+    }
   };
   const { cartCount } = useCart();
 
@@ -172,7 +185,9 @@ const AppHeader = () => {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleLogout = () => {
+    console.log('handleLogout called'); // Debug log
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    console.log('User from localStorage:', user); // Debug log
     if (user && user._id) {
       socket.connect();
       socket.emit('auth-event', { type: 'logout', userId: user._id });
@@ -181,6 +196,7 @@ const AppHeader = () => {
     localStorage.removeItem('user');
     setUser(false);
     showLogoutSuccess();
+    console.log('Logout completed'); // Debug log
   };
 
   const handleRegisterClick = () => {
@@ -188,11 +204,18 @@ const AppHeader = () => {
   };
 
   const handleMenuClick = ({ key }: { key: string }) => {
+    console.log('Menu clicked:', key); // Debug log
+    if (user && typeof user === 'object') {
+      console.log('User role:', getRoleName(user as User)); // Debug log
+    }
     if (key === 'logout') {
       handleLogout();
       return;
     }
-    navigate(key);
+    // Đảm bảo key bắt đầu với / nếu không phải là logout
+    const path = key.startsWith('/') ? key : `/${key}`;
+    console.log('Navigating to:', path); // Debug log
+    navigate(path);
   };
 
   const handleNotificationClick = (notification: Notification) => {
@@ -263,6 +286,11 @@ const AppHeader = () => {
             localStorage.setItem('user', JSON.stringify(userData));
           }
           setUser(userData);
+          // Debug log khi user được set
+          if (userData) {
+            console.log('User set in Header:', userData);
+            debugUserRole();
+          }
         }
       } catch (err) {
         console.error('Lỗi parse user data:', err);
@@ -297,36 +325,6 @@ const AppHeader = () => {
     };
   }, []);
 
-  // Force refresh user data khi cần thiết
-  const forceRefreshUser = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Header: Fresh user data from API:', data.user);
-
-        // Cập nhật localStorage
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        // Cập nhật state
-        setUser(data.user);
-
-        // Trigger event
-        window.dispatchEvent(new CustomEvent('user-updated', { detail: { user: data.user } }));
-      }
-    } catch (error) {
-      console.error('Header: Error refreshing user data:', error);
-    }
-  };
-
   // Thêm useEffect để lắng nghe thay đổi user data từ localStorage
   useEffect(() => {
     const checkUserUpdate = () => {
@@ -352,96 +350,305 @@ const AppHeader = () => {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Auto refresh user data nếu avatar không hợp lệ
-  useEffect(() => {
-    if (user && user.avatar && !user.avatar.includes('googleusercontent.com') && !user.avatar.startsWith('http')) {
-      console.log('Header: Invalid avatar detected, refreshing user data...');
-      forceRefreshUser();
-    }
-  }, [user]);
-
   const userMenu = user
     ? {
       items: [
         {
           key: '/profile',
           label: (
-            <div className="user-menu-header">
-              <Avatar
-                src={user.avatar && user.avatar !== 'default-avatar.jpg' && user.avatar !== '' && (user.avatar.includes('googleusercontent.com') || user.avatar.startsWith('http')) ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
-                size={48}
-                className="user-avatar"
-              />
-              <div className="user-info">
-                <Text strong className="user-name">{user.fullname}</Text>
-                {user.nickname && (
-                  <Text className="user-nickname">@{user.nickname}</Text>
-                )}
-                <Text className="user-role">Xem hồ sơ của bạn</Text>
+            <motion.div 
+              className="user-menu-header"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="user-menu-avatar-container">
+                <Avatar
+                  src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                  size={56}
+                  className="user-menu-avatar"
+                />
+                <div className="user-menu-status-indicator" />
               </div>
-            </div>
+              <div className="user-menu-info">
+                <Text strong className="user-menu-name">{user.fullname}</Text>
+                {user.nickname && (
+                  <Text className="user-menu-nickname">@{user.nickname}</Text>
+                )}
+                <div className="user-menu-role-badge">
+                  <Text className="user-menu-role-text">
+                    {getRoleName(user) === 'admin' || getRoleName(user) === 'quản trị viên' ? 'Quản trị viên' :
+                     getRoleName(user) === 'moderator' || getRoleName(user) === 'kiểm duyệt viên' ? 'Kiểm duyệt viên' :
+                     getRoleName(user) === 'instructor' || getRoleName(user) === 'giảng viên' ? 'Giảng viên' : 'Học viên'}
+                  </Text>
+                </div>
+                <Text className="user-menu-subtitle">Xem hồ sơ của bạn</Text>
+              </div>
+            </motion.div>
           ) as React.ReactNode,
-          style: { height: 'auto', padding: '16px', cursor: 'pointer' },
+          style: { 
+            height: 'auto', 
+            padding: '20px', 
+            cursor: 'pointer',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '16px 16px 0 0',
+            margin: '0',
+            border: 'none'
+          },
+          onClick: () => {
+            console.log('Profile clicked directly');
+            navigate('/profile');
+          }
         },
-        { type: 'divider' as const },
+        { 
+          type: 'divider' as const,
+          style: { 
+            margin: '0',
+            borderColor: '#f0f0f0',
+            borderWidth: '1px'
+          }
+        },
         ...(getRoleName(user) === 'admin' || getRoleName(user) === 'quản trị viên'
           ? [
-            { key: '/admin', icon: <DashboardOutlined />, label: 'Trang quản trị' },
-            { type: 'divider' as const },
+            { 
+              key: '/admin', 
+              icon: <DashboardOutlined style={{ fontSize: '18px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Trang quản trị</span>
+                  <span className="menu-item-description">Quản lý hệ thống</span>
+                </div>
+              ),
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Admin dashboard clicked directly');
+                navigate('/admin');
+              }
+            },
+            { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
           : []),
         ...(getRoleName(user) === 'moderator' || getRoleName(user) === 'kiểm duyệt viên'
           ? [
-            { key: '/moderator', icon: <DashboardOutlined />, label: 'Khu vực kiểm duyệt' },
-            { type: 'divider' as const },
+            { 
+              key: '/moderator', 
+              icon: <DashboardOutlined style={{ fontSize: '18px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Khu vực kiểm duyệt</span>
+                  <span className="menu-item-description">Duyệt nội dung</span>
+                </div>
+              ),
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Moderator dashboard clicked directly');
+                navigate('/moderator');
+              }
+            },
+            { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
           : []),
         ...(getRoleName(user) === 'instructor' || getRoleName(user) === 'giảng viên'
           ? [
-            { key: '/instructor', icon: <DashboardOutlined />, label: 'Khu vực giảng viên' },
-            { type: 'divider' as const },
+            { 
+              key: '/instructor', 
+              icon: <DashboardOutlined style={{ fontSize: '18px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Khu vực giảng viên</span>
+                  <span className="menu-item-description">Quản lý khóa học</span>
+                </div>
+              ),
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Instructor dashboard clicked directly');
+                navigate('/instructor');
+              }
+            },
+            { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
           : []),
         {
           type: 'group' as const,
-          label: 'Blog cá nhân',
+          label: (
+            <div className="menu-group-header">
+              <BookOutlined style={{ fontSize: '16px', color: '#666' }} />
+              <span>Blog cá nhân</span>
+            </div>
+          ),
           children: [
-            { key: '/blog/write', icon: <EditOutlined />, label: 'Viết blog' },
-            { key: '/blog/mine', icon: <ProfileOutlined />, label: 'Bài viết của tôi' },
-            { key: '/blog/saved', icon: <BookOutlined />, label: 'Bài viết đã lưu' },
+            { 
+              key: '/blog/write', 
+              icon: <EditOutlined style={{ fontSize: '16px', color: '#52c41a' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Viết blog</span>
+                  <span className="menu-item-description">Tạo bài viết mới</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Write blog clicked directly');
+                navigate('/blog/write');
+              }
+            },
+            { 
+              key: '/blog/mine', 
+              icon: <ProfileOutlined style={{ fontSize: '16px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Bài viết của tôi</span>
+                  <span className="menu-item-description">Quản lý bài viết</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('My blog posts clicked directly');
+                navigate('/blog/mine');
+              }
+            },
+            { 
+              key: '/blog/saved', 
+              icon: <BookOutlined style={{ fontSize: '16px', color: '#faad14' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Bài viết đã lưu</span>
+                  <span className="menu-item-description">Xem bài viết đã lưu</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Saved blog posts clicked directly');
+                navigate('/blog/saved');
+              }
+            },
           ],
         },
         {
           type: 'group' as const,
-          label: 'Đơn hàng',
+          label: (
+            <div className="menu-group-header">
+              <ShoppingCartOutlined style={{ fontSize: '16px', color: '#666' }} />
+              <span>Đơn hàng</span>
+            </div>
+          ),
           children: [
-            { key: '/orders', icon: <ShoppingCartOutlined />, label: 'Đơn hàng!' }
+            { 
+              key: '/orders', 
+              icon: <ShoppingCartOutlined style={{ fontSize: '16px', color: '#722ed1' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Đơn hàng</span>
+                  <span className="menu-item-description">Xem lịch sử mua hàng</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Orders clicked directly');
+                navigate('/orders');
+              }
+            }
           ],
         },
         {
           type: 'group' as const,
-          label: 'Báo cáo',
+          label: (
+            <div className="menu-group-header">
+              <BarChartOutlined style={{ fontSize: '16px', color: '#666' }} />
+              <span>Báo cáo</span>
+            </div>
+          ),
           children: [
-            { key: '/report', icon: <BarChartOutlined />, label: 'Báo cáo!' }
+            { 
+              key: '/report', 
+              icon: <BarChartOutlined style={{ fontSize: '16px', color: '#13c2c2' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Báo cáo</span>
+                  <span className="menu-item-description">Xem thống kê học tập</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Report clicked directly');
+                navigate('/report');
+              }
+            }
           ],
         },
-        ...(!['admin', 'quản trị viên', 'instructor', 'giảng viên', 'moderator', 'kiểm duyệt viên'].includes(getRoleName(user) || '') ? [{
+        ...(getRoleName(user) === 'student' || getRoleName(user) === 'học viên' ? [{
           type: 'group' as const,
-          label: 'Ví',
+          label: (
+            <div className="menu-group-header">
+              <WalletOutlined style={{ fontSize: '16px', color: '#666' }} />
+              <span>Ví</span>
+            </div>
+          ),
           children: [
-            { key: '/wallet', icon: <WalletOutlined />, label: 'Ví của tôi' }
+            { 
+              key: '/wallet', 
+              icon: <WalletOutlined style={{ fontSize: '16px', color: '#52c41a' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Ví của tôi</span>
+                  <span className="menu-item-description">Quản lý tài khoản</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Wallet clicked directly');
+                navigate('/wallet');
+              }
+            }
           ],
         }] : []),
-        { type: 'divider' as const },
-        { key: 'logout', icon: <LogoutOutlined />, label: <span className="logout-text">Đăng xuất</span> },
+        { 
+          type: 'divider' as const,
+          style: { 
+            margin: '8px 0',
+            borderColor: '#f0f0f0',
+            borderWidth: '1px'
+          }
+        },
+        { 
+          key: 'logout', 
+          icon: <LogoutOutlined style={{ fontSize: '16px', color: '#ff4d4f' }} />, 
+          label: (
+            <div className="menu-item-content">
+              <span className="menu-item-label logout-text">Đăng xuất</span>
+              <span className="menu-item-description">Thoát khỏi tài khoản</span>
+            </div>
+          ),
+          style: { 
+            padding: '12px 16px',
+            background: 'rgba(255, 77, 79, 0.05)',
+            borderRadius: '8px',
+            margin: '0 8px 8px 8px',
+            cursor: 'pointer'
+          },
+          onClick: () => {
+            console.log('Logout clicked directly');
+            handleLogout();
+          }
+        },
       ].filter((item, idx, arr) => {
         if (item.type === 'divider' && idx > 0 && arr[idx - 1].type === 'divider') return false;
         if (item.type === 'divider' && (idx === 0 || idx === arr.length - 1)) return false;
         return true;
       }),
       onClick: handleMenuClick,
-    }
+      style: {
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+        border: '1px solid #f0f0f0',
+        overflow: 'hidden'
+      }
+    } as any
     : undefined;
+
+  // Debug log để kiểm tra userMenu
+  console.log('userMenu created:', userMenu);
+  console.log('userMenu onClick:', userMenu?.onClick);
 
   const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
     fontWeight: isActive ? '600' : '500',
@@ -751,7 +958,187 @@ const AppHeader = () => {
                   </div>
                 </motion.div>
 
-                <Dropdown menu={userMenu} trigger={['click']} placement="bottomRight" arrow>
+                <Popover
+                  content={
+                    <div style={{ 
+                      borderRadius: '16px',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                      border: '1px solid #f0f0f0',
+                      overflow: 'hidden',
+                      background: 'white',
+                      minWidth: '320px',
+                      maxWidth: '380px'
+                    }}>
+                      {userMenu?.items?.map((item: any, index: number) => {
+                        if (item.type === 'divider') {
+                          return <Divider key={index} style={{ margin: '8px 0', borderColor: '#f0f0f0' }} />;
+                        }
+                        if (item.type === 'group') {
+                          return (
+                            <div key={index}>
+                              <div style={{ 
+                                padding: '12px 20px 8px 20px', 
+                                fontSize: '11px', 
+                                fontWeight: '700', 
+                                color: '#8c8c8c',
+                                background: '#fafafa',
+                                borderBottom: '1px solid #f0f0f0',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                              }}>
+                                {item.label?.props?.children?.[1] || item.label}
+                              </div>
+                              {item.children?.map((child: any, childIndex: number) => (
+                                <div
+                                  key={childIndex}
+                                  onClick={child.onClick}
+                                  style={{
+                                    padding: '12px 20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    borderBottom: '1px solid #fafafa'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f8f9fa';
+                                    e.currentTarget.style.transform = 'translateX(4px)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.transform = 'translateX(0)';
+                                  }}
+                                >
+                                  <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    width: '20px',
+                                    height: '20px'
+                                  }}>
+                                    {child.icon}
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ 
+                                      fontWeight: '500', 
+                                      color: '#262626',
+                                      fontSize: '14px',
+                                      lineHeight: '1.4'
+                                    }}>
+                                      {child.label?.props?.children?.[0]?.props?.children || child.label}
+                                    </div>
+                                    {child.label?.props?.children?.[1]?.props?.children && (
+                                      <div style={{ 
+                                        fontSize: '12px', 
+                                        color: '#8c8c8c',
+                                        marginTop: '2px',
+                                        lineHeight: '1.3'
+                                      }}>
+                                        {child.label.props.children[1].props.children}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        // Special handling for profile header
+                        if (item.key === '/profile') {
+                          return (
+                            <div 
+                              key={index} 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('Profile header clicked!');
+                                navigate('/profile');
+                              }}
+                              style={{ 
+                                ...item.style,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                position: 'relative',
+                                zIndex: 1
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.02)';
+                                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.15)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.12)';
+                              }}
+                            >
+                              {item.label}
+                            </div>
+                          );
+                        }
+                        // Regular menu items
+                        return (
+                          <div
+                            key={index}
+                            onClick={item.onClick}
+                            style={{
+                              padding: '12px 20px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              borderBottom: '1px solid #fafafa'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f8f9fa';
+                              e.currentTarget.style.transform = 'translateX(4px)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                              e.currentTarget.style.transform = 'translateX(0)';
+                            }}
+                          >
+                            <div style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              width: '20px',
+                              height: '20px'
+                            }}>
+                              {item.icon}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ 
+                                fontWeight: '500', 
+                                color: item.key === 'logout' ? '#ff4d4f' : '#262626',
+                                fontSize: '14px',
+                                lineHeight: '1.4'
+                              }}>
+                                {item.label?.props?.children?.[0]?.props?.children || item.label}
+                              </div>
+                              {item.label?.props?.children?.[1]?.props?.children && (
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  color: '#8c8c8c',
+                                  marginTop: '2px',
+                                  lineHeight: '1.3'
+                                }}>
+                                  {item.label.props.children[1].props.children}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  }
+                  trigger="click"
+                  placement="bottomRight"
+                  arrow={{ pointAtCenter: true }}
+                  overlayStyle={{ 
+                    paddingTop: '8px'
+                  }}
+                >
                   <motion.div
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -759,12 +1146,12 @@ const AppHeader = () => {
                     className="user-avatar-container"
                   >
                     <Avatar
-                      src={user.avatar && user.avatar !== 'default-avatar.jpg' && user.avatar !== '' && (user.avatar.includes('googleusercontent.com') || user.avatar.startsWith('http')) ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                      src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
                       className="user-avatar"
                       size={40}
                     />
                   </motion.div>
-                </Dropdown>
+                </Popover>
               </Space>
             ) : (
               <motion.div
