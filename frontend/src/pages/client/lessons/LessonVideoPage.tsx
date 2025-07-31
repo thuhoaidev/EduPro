@@ -252,32 +252,68 @@ const LessonVideoPage: React.FC = () => {
     const fetchLessonVideo = async () => {
       try {
         setLoading(true);
-        // Lấy video
-        const videoRes = await config.get(`/videos/lesson/${lessonId}`);
-        setVideoUrl(videoRes.data.data.url);
-        setVideoId(videoRes.data.data._id || videoRes.data.data.id || null);
+        setError(null); // Reset error state
+        
+        if (!lessonId) {
+          setError('ID bài học không hợp lệ.');
+        } else {
+          // Lấy video
+          const videoRes = await config.get(`/videos/lesson/${lessonId}`);
+          if (videoRes.data && videoRes.data.data) {
+            setVideoUrl(videoRes.data.data.url);
+            setVideoId(videoRes.data.data._id || videoRes.data.data.id || null);
+            
+            // Lấy tên bài học từ lesson
+            const lessonRes = await config.get(`/lessons/${lessonId}`);
+            if (lessonRes.data && lessonRes.data.data) {
+              setLessonTitle(lessonRes.data.data.title || 'Bài học');
+            }
+          } else {
+            setError('Không tìm thấy video cho bài học này.');
+          }
+        }
+        
         // Lấy tên bài học từ lesson
         const lessonRes = await config.get(`/lessons/${lessonId}`);
-        setLessonTitle(lessonRes.data.data.title || '');
-      } catch (e) {
-        setError('Không tìm thấy video cho bài học này.');
+        if (lessonRes.data && lessonRes.data.data) {
+          setLessonTitle(lessonRes.data.data.title || 'Bài học');
+        }
+      } catch (e: any) {
+        console.error('Error fetching lesson video:', e);
+        const errorMessage = e?.response?.data?.message || e?.message || 'Không tìm thấy video cho bài học này.';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
     };
-    fetchLessonVideo();
+    
+    if (lessonId) {
+      fetchLessonVideo();
+    } else {
+      setError('ID bài học không hợp lệ.');
+      setLoading(false);
+    }
   }, [lessonId]);
 
   useEffect(() => {
-    if (!lessonId) return;
+    if (!lessonId) {
+      setComments([]);
+      setCommentLoading(false);
+      return;
+    }
+    
     (async () => {
       try {
         setCommentLoading(true);
         const commentsData = await getComments(lessonId);
         setComments(commentsData || []);
-      } catch (e) { }
-      setCommentLoading(false);
-    })().catch(() => { });
+      } catch (e) {
+        console.error('Error loading comments:', e);
+        setComments([]);
+      } finally {
+        setCommentLoading(false);
+      }
+    })();
   }, [lessonId]);
 
   useEffect(() => {
@@ -321,7 +357,13 @@ const LessonVideoPage: React.FC = () => {
   }, [lessonId]);
 
   useEffect(() => {
-    if (!courseId) return;
+    if (!courseId) {
+      setProgress({ completedLessons: [] });
+      setUnlockedLessons([]);
+      setIsFree(false);
+      return;
+    }
+    
     (async () => {
       try {
         const progressData = await getProgress(courseId);
@@ -340,13 +382,23 @@ const LessonVideoPage: React.FC = () => {
           setIsFree(false);
         }
       } catch (e) {
+        console.error('Error loading course data:', e);
+        setProgress({ completedLessons: [] });
+        setUnlockedLessons([]);
         setIsFree(false);
       }
-    })().catch(() => { });
+    })();
   }, [courseId, lessonId]);
 
   useEffect(() => {
-    if (!videoId) return;
+    if (!videoId) {
+      setQuiz(null);
+      setQuizLoading(false);
+      setQuizError(null);
+      setAnswers([]);
+      return;
+    }
+    
     const fetchQuiz = async () => {
       try {
         setQuizLoading(true);
@@ -355,6 +407,8 @@ const LessonVideoPage: React.FC = () => {
         setQuiz(res.data.data);
         setAnswers(new Array(res.data.data.questions.length).fill(-1));
       } catch (e) {
+        console.error('Error loading quiz:', e);
+        setQuiz(null);
         setQuizError(e instanceof Error ? e.message : 'Không tìm thấy quiz cho video này.');
       } finally {
         setQuizLoading(false);
@@ -590,11 +644,6 @@ const LessonVideoPage: React.FC = () => {
 
     checkCompleted();
   }, [courseSections, courseId]);
-
-  // Nếu chưa enroll và không phải khóa học free
-  if (isEnrolled === false && !isFree) {
-    return <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />;
-  }
 
   // Hàm load like state cho tất cả comment và reply
   const loadLikeStates = async (comments: any[]) => {
@@ -1193,6 +1242,8 @@ const LessonVideoPage: React.FC = () => {
           <div className="flex justify-center items-center min-h-screen"><Spin size="large" /></div>
         ) : error ? (
           <Alert message="Lỗi" description={error} type="error" showIcon style={{ margin: 32 }} />
+        ) : isEnrolled === false && !isFree ? (
+          <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />
         ) : (
           <>
             <Divider style={{ margin: '12px 0 24px 0' }} />
@@ -1216,20 +1267,70 @@ const LessonVideoPage: React.FC = () => {
                     >
                       Trình duyệt không hỗ trợ video tag.
                     </video> */}
-                    <CustomVideoPlayer
-                      sources={{
-                        '360p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_640,h_360,c_limit/${publicId}.mp4`,
-                        '720p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1280,h_720,c_limit/${publicId}.mp4`,
-                        '1080p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1920,h_1080,c_limit/${publicId}.mp4`,
-                      }}
-                      onTimeUpdate={handleVideoTimeUpdate}
-                      onEnded={handleVideoEnded}
-                      onLoadedMetadata={handleVideoLoadedMetadata}
-                      onPlay={() => setIsVideoPlaying(true)}
-                      onPause={() => setIsVideoPlaying(false)}
-                      initialTime={savedVideoTime}
-                      isLessonCompleted={!!progress && !!currentLessonId && (progress[currentLessonId]?.completed === true || progress[currentLessonId]?.videoCompleted === true)}
-                    />
+                    {(() => {
+                      // Extract cloudName and publicId from videoUrl
+                      let cloudName = '';
+                      let publicId = '';
+                      
+                      if (videoUrl) {
+                        try {
+                          const url = new URL(videoUrl);
+                          const pathParts = url.pathname.split('/');
+                          
+                          // For Cloudinary URLs: https://res.cloudinary.com/[cloudName]/video/upload/...
+                          if (url.hostname === 'res.cloudinary.com' && pathParts.length >= 3) {
+                            cloudName = pathParts[1];
+                            // Find the public_id (usually after 'upload/')
+                            const uploadIndex = pathParts.indexOf('upload');
+                            if (uploadIndex !== -1 && uploadIndex + 1 < pathParts.length) {
+                              publicId = pathParts.slice(uploadIndex + 1).join('/').replace(/\.[^/.]+$/, ''); // Remove extension
+                            }
+                          }
+                        } catch (e) {
+                          console.error('Error parsing video URL:', e);
+                        }
+                      }
+                      
+                      // If we have cloudName and publicId, use CustomVideoPlayer with multiple qualities
+                      if (cloudName && publicId) {
+                        return (
+                          <CustomVideoPlayer
+                            sources={{
+                              '360p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_640,h_360,c_limit/${publicId}.mp4`,
+                              '720p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1280,h_720,c_limit/${publicId}.mp4`,
+                              '1080p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1920,h_1080,c_limit/${publicId}.mp4`,
+                            }}
+                            onTimeUpdate={handleVideoTimeUpdate}
+                            onEnded={handleVideoEnded}
+                            onLoadedMetadata={handleVideoLoadedMetadata}
+                            onPlay={() => setIsVideoPlaying(true)}
+                            onPause={() => setIsVideoPlaying(false)}
+                            initialTime={savedVideoTime}
+                            isLessonCompleted={!!progress && !!currentLessonId && (progress[currentLessonId]?.completed === true || progress[currentLessonId]?.videoCompleted === true)}
+                          />
+                        );
+                      } else {
+                        // Fallback to regular video element if not Cloudinary or parsing failed
+                        return (
+                          <video
+                            ref={videoRef}
+                            key={videoUrl}
+                            src={videoUrl}
+                            controls
+                            controlsList="nodownload noplaybackrate"
+                            onContextMenu={(e) => e.preventDefault()}
+                            style={{ width: '100%', borderRadius: 0, background: '#000', display: 'block', maxHeight: 480 }}
+                            onTimeUpdate={handleVideoTimeUpdate}
+                            onEnded={handleVideoEnded}
+                            onLoadedMetadata={handleVideoLoadedMetadata}
+                            onPlay={() => setIsVideoPlaying(true)}
+                            onPause={() => setIsVideoPlaying(false)}
+                          >
+                            Trình duyệt không hỗ trợ video tag.
+                          </video>
+                        );
+                      }
+                    })()}
 
 
                     {videoWatched && !quiz && (
