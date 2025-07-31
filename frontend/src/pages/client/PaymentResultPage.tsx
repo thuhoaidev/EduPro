@@ -72,7 +72,20 @@ const PaymentResultPage: React.FC = () => {
         if (orderId) {
           try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/wallet/payment-callback', {
+            
+            // Xác định endpoint dựa trên phương thức thanh toán
+            let endpoint = 'wallet/payment-callback';
+            if (method === 'momo') {
+              // Kiểm tra xem có phải thanh toán đơn hàng không
+              const pendingOrder = localStorage.getItem('pendingOrder');
+              if (pendingOrder) {
+                endpoint = 'orders/momo-callback';
+              } else {
+                endpoint = 'wallet/momo-callback';
+              }
+            }
+            
+            const response = await fetch(`http://localhost:5000/api/${endpoint}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -94,27 +107,24 @@ const PaymentResultPage: React.FC = () => {
             if (responseData.success) {
               console.log('Payment status updated successfully');
               
-              // Nếu thành công, kiểm tra lại trạng thái giao dịch
-              if (resultCode === '0') {
+              // Nếu thành công và là thanh toán đơn hàng, xóa pendingOrder
+              if (resultCode === '0' && method === 'momo') {
+                localStorage.removeItem('pendingOrder');
+                localStorage.removeItem('checkoutData');
+                
+                // Cập nhật lại user data
                 try {
-                  // Kiểm tra theo transId nếu có, không thì theo orderId
-                  const checkUrl = transId 
-                    ? `http://localhost:5000/api/wallet/transaction/transId/${transId}/status`
-                    : `http://localhost:5000/api/wallet/transaction/${orderId}/status`;
-                  
-                  const statusResponse = await fetch(checkUrl, {
-                    headers: {
-                      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                    }
+                  const res = await config.get('/api/auth/me', {
+                    headers: { Authorization: `Bearer ${token}` }
                   });
-                  const statusData = await statusResponse.json();
-                  console.log('Transaction status check:', statusData);
-                  
-                  if (statusData.success && statusData.status === 'success') {
-                    console.log('Transaction confirmed successful');
+                  const userData = res.data.user || res.data;
+                  if (!userData.role && userData.role_id?.name) {
+                    userData.role = { name: userData.role_id.name };
                   }
-                } catch (statusError) {
-                  console.error('Error checking transaction status:', statusError);
+                  localStorage.setItem('user', JSON.stringify(userData));
+                  localStorage.setItem('role', userData.role?.name || userData.role || '');
+                } catch (error) {
+                  console.log('Refresh user data failed:', error);
                 }
               }
             } else {

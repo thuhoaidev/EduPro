@@ -115,6 +115,11 @@ class OrderController {
         await wallet.save({ session });
       }
 
+      // Nếu thanh toán bằng Momo, tạo đơn hàng với trạng thái pending
+      if (paymentMethod === 'momo') {
+        // Không cần xử lý gì ở đây, đơn hàng sẽ được cập nhật khi có callback từ Momo
+      }
+
       // Tạo đơn hàng
       const order = new Order({
         userId,
@@ -132,37 +137,46 @@ class OrderController {
 
       await order.save({ session });
 
-      // Tự động chuyển trạng thái sang 'paid' và cộng tiền vào ví giảng viên
-      order.status = 'paid';
-      order.paymentStatus = 'paid';
-      order.paidAt = new Date();
-      await order.save({ session });
-
-      // Cộng tiền vào ví giáo viên cho từng khóa học trong đơn hàng
-      for (const item of orderItems) {
-        const course = await Course.findById(item.courseId).session(session);
-        if (!course) continue;
-        if (!course.instructor) continue;
-        const instructorProfile = await InstructorProfile.findById(course.instructor).session(session);
-        if (!instructorProfile || !instructorProfile.user) continue;
-        let wallet = await TeacherWallet.findOne({ teacherId: instructorProfile.user }).session(session);
-        if (!wallet) {
-          wallet = new TeacherWallet({ teacherId: instructorProfile.user, balance: 0, history: [] });
-        }
-        // Giáo viên nhận 40% giá gốc, không bị ảnh hưởng bởi voucher
-        const earning = Math.round(course.price * 0.7 * (item.quantity || 1));
-        wallet.balance += earning;
-        wallet.history.push({
-          type: 'earning',
-          amount: earning,
-          orderId: order._id,
-          note: `Bán khóa học: ${course.title} (70% giá gốc)`
-        });
-        await wallet.save({ session });
+      // Tự động chuyển trạng thái sang 'paid' và cộng tiền vào ví giảng viên (chỉ cho ví và bank_transfer)
+      if (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer') {
+        order.status = 'paid';
+        order.paymentStatus = 'paid';
+        order.paidAt = new Date();
+        await order.save({ session });
+      } else {
+        // Với Momo, VNPAY, ZaloPay: giữ trạng thái pending, sẽ cập nhật khi có callback
+        order.status = 'pending';
+        order.paymentStatus = 'pending';
+        await order.save({ session });
       }
 
-      // Ghi nhận voucher usage
-      if (voucherId) {
+      // Cộng tiền vào ví giáo viên cho từng khóa học trong đơn hàng (chỉ khi thanh toán thành công)
+      if (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer') {
+        for (const item of orderItems) {
+          const course = await Course.findById(item.courseId).session(session);
+          if (!course) continue;
+          if (!course.instructor) continue;
+          const instructorProfile = await InstructorProfile.findById(course.instructor).session(session);
+          if (!instructorProfile || !instructorProfile.user) continue;
+          let wallet = await TeacherWallet.findOne({ teacherId: instructorProfile.user }).session(session);
+          if (!wallet) {
+            wallet = new TeacherWallet({ teacherId: instructorProfile.user, balance: 0, history: [] });
+          }
+          // Giáo viên nhận 70% giá gốc
+          const earning = Math.round(course.price * 0.7 * (item.quantity || 1));
+          wallet.balance += earning;
+          wallet.history.push({
+            type: 'earning',
+            amount: earning,
+            orderId: order._id,
+            note: `Bán khóa học: ${course.title} (70% giá gốc)`
+          });
+          await wallet.save({ session });
+        }
+      }
+
+      // Ghi nhận voucher usage (chỉ khi thanh toán thành công)
+      if (voucherId && (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer')) {
         await new VoucherUsage({
           userId,
           voucherId,
@@ -178,34 +192,38 @@ class OrderController {
         }
       }
 
-      // Xoá item đã mua khỏi giỏ hàng
-      const cart = await Cart.findOne({ user: userId }).session(session);
-      if (cart) {
-        const courseIds = items.map(item => item.courseId.toString());
-        cart.items = cart.items.filter(item => !courseIds.includes(item.course.toString()));
-        await cart.save({ session });
-      }
-
-      // Tạo enrollment cho tất cả khóa học trong đơn hàng
-      const enrollments = [];
-      for (const item of orderItems) {
-        // Kiểm tra xem user đã enrollment khóa học này chưa
-        const existingEnrollment = await Enrollment.findOne({
-          student: userId,
-          course: item.courseId
-        }).session(session);
-
-        if (!existingEnrollment) {
-          enrollments.push({
-            student: userId,
-            course: item.courseId,
-            enrolledAt: new Date()
-          });
+      // Xoá item đã mua khỏi giỏ hàng (chỉ khi thanh toán thành công)
+      if (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer') {
+        const cart = await Cart.findOne({ user: userId }).session(session);
+        if (cart) {
+          const courseIds = items.map(item => item.courseId.toString());
+          cart.items = cart.items.filter(item => !courseIds.includes(item.course.toString()));
+          await cart.save({ session });
         }
       }
 
-      if (enrollments.length > 0) {
-        await Enrollment.insertMany(enrollments, { session });
+      // Tạo enrollment cho tất cả khóa học trong đơn hàng (chỉ khi thanh toán thành công)
+      if (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer') {
+        const enrollments = [];
+        for (const item of orderItems) {
+          // Kiểm tra xem user đã enrollment khóa học này chưa
+          const existingEnrollment = await Enrollment.findOne({
+            student: userId,
+            course: item.courseId
+          }).session(session);
+
+          if (!existingEnrollment) {
+            enrollments.push({
+              student: userId,
+              course: item.courseId,
+              enrolledAt: new Date()
+            });
+          }
+        }
+
+        if (enrollments.length > 0) {
+          await Enrollment.insertMany(enrollments, { session });
+        }
       }
 
       await session.commitTransaction();
@@ -219,22 +237,39 @@ class OrderController {
           select: 'code title discountType discountValue'
         }
       ]);
-      // Gửi thông báo cho user khi thanh toán thành công
-      const notification = await Notification.create({
-        title: 'Thanh toán thành công',
-        content: `Đơn hàng của bạn đã được thanh toán thành công. Cảm ơn bạn đã mua hàng!`,
-        type: 'success',
-        receiver: userId,
-        icon: 'credit-card',
-        meta: { link: `/orders/${order._id}` }
-      });
+      // Gửi thông báo cho user
+      let notification;
+      if (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer') {
+        // Thanh toán thành công ngay
+        notification = await Notification.create({
+          title: 'Thanh toán thành công',
+          content: `Đơn hàng của bạn đã được thanh toán thành công. Cảm ơn bạn đã mua hàng!`,
+          type: 'success',
+          receiver: userId,
+          icon: 'credit-card',
+          meta: { link: `/orders/${order._id}` }
+        });
+      } else {
+        // Đơn hàng đã được tạo, chờ thanh toán
+        notification = await Notification.create({
+          title: 'Đơn hàng đã được tạo',
+          content: `Đơn hàng #${order._id} đã được tạo thành công. Vui lòng hoàn thành thanh toán để truy cập khóa học.`,
+          type: 'info',
+          receiver: userId,
+          icon: 'shopping-cart',
+          meta: { link: `/orders/${order._id}` }
+        });
+      }
+      
       const io = req.app.get && req.app.get('io');
       if (io && notification.receiver) {
         io.to(notification.receiver.toString()).emit('new-notification', notification);
       }
       return res.status(201).json({
         success: true,
-        message: 'Tạo đơn hàng thành công',
+        message: paymentMethod === 'wallet' || paymentMethod === 'bank_transfer' 
+          ? 'Tạo đơn hàng và thanh toán thành công' 
+          : 'Tạo đơn hàng thành công',
         data: {
           order: {
             id: order._id,
@@ -567,6 +602,73 @@ class OrderController {
     } catch (err) {
       await session.abortTransaction();
       return res.status(500).json({ success: false, message: 'Lỗi hoàn tiền', error: err.message });
+    }
+  }
+
+  // Xử lý callback thanh toán Momo cho đơn hàng
+  static async handleMomoOrderCallback(req, res) {
+    try {
+      console.log('Momo order callback received:', {
+        method: req.method,
+        url: req.originalUrl,
+        query: req.query,
+        body: req.body
+      });
+
+      // Momo gửi callback qua query parameters
+      const resultCode = req.query.resultCode || req.body.resultCode;
+      const message = req.query.message || req.body.message;
+      const orderId = req.query.orderId || req.body.orderId;
+      const amount = req.query.amount || req.body.amount;
+      const transId = req.query.transId || req.body.transId;
+
+      console.log('Momo order callback params:', { 
+        resultCode, 
+        message, 
+        orderId, 
+        amount, 
+        transId 
+      });
+
+      // Kiểm tra nếu không có orderId
+      if (!orderId) {
+        console.log('No orderId provided in Momo order callback');
+        return res.status(400).json({ success: false, message: 'Thiếu orderId' });
+      }
+
+      // Xử lý kết quả thanh toán
+      if (resultCode === '0' || resultCode === 0) {
+        // Thành công - chỉ xác nhận thanh toán, không tạo đơn hàng
+        console.log('MoMo payment successful, orderId:', orderId);
+        
+        // Lưu thông tin thanh toán để frontend có thể sử dụng
+        // Có thể lưu vào cache hoặc database tạm thời
+        
+        res.json({ 
+          success: true, 
+          message: 'Thanh toán thành công',
+          orderId: orderId,
+          status: 'paid',
+          transactionId: transId
+        });
+      } else {
+        // Thất bại
+        console.log('MoMo payment failed:', { orderId, resultCode, message });
+
+        res.json({ 
+          success: false, 
+          message: 'Thanh toán thất bại',
+          orderId: orderId,
+          status: 'failed'
+        });
+      }
+    } catch (err) {
+      console.error('handleMomoOrderCallback error:', err);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Lỗi xử lý callback thanh toán đơn hàng', 
+        error: err.message 
+      });
     }
   }
 }

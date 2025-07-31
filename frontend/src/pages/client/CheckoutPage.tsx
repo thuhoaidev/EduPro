@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import {
   ShoppingCartOutlined, CreditCardOutlined,
-  UserOutlined, PhoneOutlined, MailOutlined, WalletOutlined
+  UserOutlined, PhoneOutlined, MailOutlined, WalletOutlined, CheckOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../hooks/Auths/useAuth';
 import orderService from '../../services/orderService';
@@ -58,6 +58,33 @@ const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
   const [walletBalance, setWalletBalance] = useState<number>(0);
+
+  // Hàm tạo hiệu ứng ripple
+  const createRipple = (event: React.MouseEvent<HTMLDivElement>) => {
+    const button = event.currentTarget;
+    const ripple = document.createElement('span');
+    const rect = button.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = event.clientX - rect.left - size / 2;
+    const y = event.clientY - rect.top - size / 2;
+    
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = x + 'px';
+    ripple.style.top = y + 'px';
+    ripple.classList.add('ripple');
+    
+    button.appendChild(ripple);
+    
+    setTimeout(() => {
+      ripple.remove();
+    }, 600);
+  };
+
+  // Hàm xử lý click phương thức thanh toán
+  const handlePaymentMethodClick = (method: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay' | 'wallet', event: React.MouseEvent<HTMLDivElement>) => {
+    createRipple(event);
+    form.setFieldsValue({ paymentMethod: method });
+  };
 
   // const [zalopayUrl, setZalopayUrl] = useState(''); // Không dùng
 
@@ -141,20 +168,21 @@ const handleSubmit = async (values: FormValues) => {
 
     // ✅ Nếu chọn MOMO
     if (values.paymentMethod === 'momo') {
-  localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
+      localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
+      
+      const { data: res } = await config.post(
+        `/payment-momo/create_momo_payment`,
+        {
+          amount: checkoutData.total,
+          name: values.fullName,
+          email: values.email,
+          orderData: orderPayload
+        }
+      );
 
-  const { data: res } = await config.post(
-    `/payment-momo/create_momo_payment`,
-    {
-      amount: checkoutData.total,
-      name: values.fullName,
-      email: values.email
+      window.location.href = res.payUrl;
+      return;
     }
-  );
-
-  window.location.href = res.payUrl;
-  return;
-}
 
     // ✅ Nếu chọn ZaloPay → chuyển thẳng luôn
     if (values.paymentMethod === 'zalopay') {
@@ -184,7 +212,7 @@ const handleSubmit = async (values: FormValues) => {
       const createOrderPayload: CreateOrderData = {
         items: orderPayload.items,
         voucherCode: orderPayload.voucherCode,
-        paymentMethod: 'bank_transfer',
+        paymentMethod: 'wallet',
         shippingInfo: {
           fullName: values.fullName,
           phone: values.phone,
@@ -195,9 +223,17 @@ const handleSubmit = async (values: FormValues) => {
       const response = await orderService.createOrder(createOrderPayload, token);
       setOrderId(response.order.id);
       setOrderSuccess(true);
-      localStorage.removeItem('checkoutData');
-      clearCart();
-      message.success('Thanh toán bằng ví thành công!');
+             localStorage.removeItem('checkoutData');
+       localStorage.removeItem('cart');
+       localStorage.removeItem('cartVoucherData');
+       await clearCart();
+       message.success('Thanh toán bằng ví thành công!');
+      
+      // Chuyển hướng về trang OrdersPage sau 2 giây
+      setTimeout(() => {
+        navigate('/profile/orders');
+      }, 2000);
+      
       setIsSubmitting(false);
       return;
     }
@@ -218,8 +254,10 @@ const handleSubmit = async (values: FormValues) => {
     const response = await orderService.createOrder(createOrderPayload, token);
     setOrderId(response.order.id);
     setOrderSuccess(true);
-    localStorage.removeItem('checkoutData');
-    clearCart(); // Xóa giỏ hàng ở context sau khi thanh toán thành công
+         localStorage.removeItem('checkoutData');
+     localStorage.removeItem('cart');
+     localStorage.removeItem('cartVoucherData');
+     await clearCart(); // Xóa giỏ hàng ở context sau khi thanh toán thành công
     // Cập nhật lại user sau khi thanh toán
     try {
       const token = localStorage.getItem('token');
@@ -241,6 +279,11 @@ const handleSubmit = async (values: FormValues) => {
     }
 
     message.success('Thanh toán thành công!');
+    
+    // Chuyển hướng về trang OrdersPage sau 2 giây
+    setTimeout(() => {
+      navigate('/profile/orders');
+    }, 2000);
   } catch (error) {
     console.error('Create order error:', error);
     message.error('Có lỗi khi thanh toán');
@@ -277,9 +320,16 @@ const handleSubmit = async (values: FormValues) => {
       <Result
         status="success"
         title="Thanh toán thành công!"
-        subTitle={`Mã đơn hàng: ${orderId}`}
+        subTitle={
+          <div>
+            <div>Mã đơn hàng: {orderId}</div>
+            <div style={{ marginTop: '12px', fontSize: '14px', color: '#52c41a' }}>
+              ⏱️ Tự động chuyển hướng về trang đơn hàng sau 2 giây...
+            </div>
+          </div>
+        }
         extra={[
-          <Button key="orders" onClick={handleViewOrders}>Xem đơn hàng</Button>,
+          <Button key="orders" onClick={handleViewOrders}>Xem đơn hàng ngay</Button>,
           <Button key="home" type="default" onClick={() => navigate('/')}>Về trang chủ</Button>
         ]}
       />
@@ -473,15 +523,16 @@ const handleSubmit = async (values: FormValues) => {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {/* VNPAY */}
                         <div
-                          className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-300 hover:shadow-lg ${
-                            form.getFieldValue('paymentMethod') === 'vnpay' 
-                              ? 'border-red-500 bg-red-50 shadow-md' 
-                              : 'border-gray-200 bg-white hover:border-red-300 hover:shadow-md'
+                          className={`payment-method-card vnpay ${
+                            form.getFieldValue('paymentMethod') === 'vnpay' ? 'selected' : ''
                           }`}
-                          onClick={() => form.setFieldsValue({ paymentMethod: 'vnpay' })}
+                          onClick={(e) => handlePaymentMethodClick('vnpay', e)}
                         >
+                          <div className="check-icon">
+                            <CheckOutlined />
+                          </div>
                           <div className="flex flex-col items-center text-center">
-                            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center mb-2 border border-gray-200 shadow-sm">
+                            <div className="logo-container w-12 h-12 bg-white rounded-lg flex items-center justify-center mb-2 border border-gray-200 shadow-sm">
                               <img 
                                 src="https://vinadesign.vn/uploads/images/2023/05/vnpay-logo-vinadesign-25-12-57-55.jpg" 
                                 alt="VNPAY" 
@@ -498,23 +549,24 @@ const handleSubmit = async (values: FormValues) => {
                               </div>
                             </div>
                             <div className="space-y-1">
-                              <div className="font-semibold text-gray-800 text-sm">VNPay</div>
-                              <div className="text-xs text-gray-500">Tiện lợi, an toàn</div>
+                              <div className="payment-title font-semibold text-gray-800 text-sm">VNPay</div>
+                              <div className="payment-description text-xs text-gray-500">Tiện lợi, an toàn</div>
                             </div>
                           </div>
                         </div>
 
                         {/* MoMo */}
                         <div
-                          className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-300 hover:shadow-lg ${
-                            form.getFieldValue('paymentMethod') === 'momo' 
-                              ? 'border-pink-500 bg-pink-50 shadow-md' 
-                              : 'border-gray-200 bg-white hover:border-pink-300 hover:shadow-md'
+                          className={`payment-method-card momo ${
+                            form.getFieldValue('paymentMethod') === 'momo' ? 'selected' : ''
                           }`}
-                          onClick={() => form.setFieldsValue({ paymentMethod: 'momo' })}
+                          onClick={(e) => handlePaymentMethodClick('momo', e)}
                         >
+                          <div className="check-icon">
+                            <CheckOutlined />
+                          </div>
                           <div className="flex flex-col items-center text-center">
-                            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center mb-2 border border-gray-200 shadow-sm">
+                            <div className="logo-container w-12 h-12 bg-white rounded-lg flex items-center justify-center mb-2 border border-gray-200 shadow-sm">
                               <img 
                                 src="https://upload.wikimedia.org/wikipedia/vi/f/fe/MoMo_Logo.png" 
                                 alt="MoMo" 
@@ -531,23 +583,24 @@ const handleSubmit = async (values: FormValues) => {
                               </div>
                             </div>
                             <div className="space-y-1">
-                              <div className="font-semibold text-gray-800 text-sm">MoMo</div>
-                              <div className="text-xs text-gray-500">Nhanh chóng</div>
+                              <div className="payment-title font-semibold text-gray-800 text-sm">MoMo</div>
+                              <div className="payment-description text-xs text-gray-500">Nhanh chóng</div>
                             </div>
                           </div>
                         </div>
 
                         {/* ZaloPay */}
                         <div
-                          className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-300 hover:shadow-lg ${
-                            form.getFieldValue('paymentMethod') === 'zalopay' 
-                              ? 'border-blue-500 bg-blue-50 shadow-md' 
-                              : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
+                          className={`payment-method-card zalopay ${
+                            form.getFieldValue('paymentMethod') === 'zalopay' ? 'selected' : ''
                           }`}
-                          onClick={() => form.setFieldsValue({ paymentMethod: 'zalopay' })}
+                          onClick={(e) => handlePaymentMethodClick('zalopay', e)}
                         >
+                          <div className="check-icon">
+                            <CheckOutlined />
+                          </div>
                           <div className="flex flex-col items-center text-center">
-                            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center mb-2 border border-gray-200 shadow-sm">
+                            <div className="logo-container w-12 h-12 bg-white rounded-lg flex items-center justify-center mb-2 border border-gray-200 shadow-sm">
                               <img 
                                 src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-ZaloPay-Square.png" 
                                 alt="ZaloPay" 
@@ -564,8 +617,8 @@ const handleSubmit = async (values: FormValues) => {
                               </div>
                             </div>
                             <div className="space-y-1">
-                              <div className="font-semibold text-gray-800 text-sm">ZaloPay</div>
-                              <div className="text-xs text-gray-500">Qua Zalo</div>
+                              <div className="payment-title font-semibold text-gray-800 text-sm">ZaloPay</div>
+                              <div className="payment-description text-xs text-gray-500">Qua Zalo</div>
                             </div>
                           </div>
                         </div>
@@ -578,20 +631,26 @@ const handleSubmit = async (values: FormValues) => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {/* Wallet */}
                         <div
-                          className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-300 hover:shadow-lg ${
-                            form.getFieldValue('paymentMethod') === 'wallet' 
-                              ? 'border-green-500 bg-green-50 shadow-md' 
-                              : 'border-gray-200 bg-white hover:border-green-300 hover:shadow-md'
-                          }`}
-                          onClick={() => form.setFieldsValue({ paymentMethod: 'wallet' })}
+                          className={`payment-method-card wallet ${
+                            form.getFieldValue('paymentMethod') === 'wallet' ? 'selected' : ''
+                          } ${walletBalance < (checkoutData?.total || 0) ? 'wallet-balance-low' : ''}`}
+                          onClick={(e) => handlePaymentMethodClick('wallet', e)}
                         >
+                          <div className="check-icon">
+                            <CheckOutlined />
+                          </div>
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-sm">
+                            <div className="logo-container w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-sm">
                               <WalletOutlined className="text-white text-base" />
                             </div>
                             <div>
-                              <div className="font-semibold text-gray-800 text-sm">Ví của tôi</div>
-                              <div className="text-xs text-gray-500">{walletBalance.toLocaleString('vi-VN')}₫</div>
+                              <div className="payment-title font-semibold text-gray-800 text-sm">Ví của tôi</div>
+                              <div className="payment-description text-xs text-gray-500">
+                                {walletBalance.toLocaleString('vi-VN')}₫
+                                {walletBalance < (checkoutData?.total || 0) && (
+                                  <span className="ml-1 text-red-500">(Không đủ)</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
