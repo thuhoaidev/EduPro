@@ -28,6 +28,7 @@ import {
   Avatar,
   Button,
   Divider,
+  Popover,
 } from "antd";
 import type { MenuProps } from "antd";
 import React, { useState, useEffect, useMemo } from "react";
@@ -50,6 +51,8 @@ interface User {
   };
   role_id?: {
     name: string;
+    description?: string;
+    permissions?: string[];
   };
   approval_status?: string;
 }
@@ -139,9 +142,9 @@ const InstructorLayout = () => {
     () => {
       console.log('InstructorLayout - Rendering menu items');
       console.log('InstructorLayout - authUser:', authUser);
-      console.log('InstructorLayout - permissions:', authUser?.role_id?.permissions);
+      console.log('InstructorLayout - permissions:', (authUser as User)?.role_id?.permissions);
       
-             const permissions = authUser?.role_id?.permissions || [];
+             const permissions = (authUser as User)?.role_id?.permissions || [];
        console.log('InstructorLayout - All permissions:', permissions);
        console.log('InstructorLayout - Permissions length:', permissions.length);
       
@@ -188,7 +191,7 @@ const InstructorLayout = () => {
          },
                  {
            label: collapsed ? "KH" : "KHÓA HỌC",
-           type: "group",
+           type: "group" as const,
            children: [
              // Chỉ hiển thị nếu có quyền tạo khóa học hoặc chỉnh sửa khóa học hoặc xuất bản khóa học
              ...(coursesMenu ? [
@@ -202,7 +205,7 @@ const InstructorLayout = () => {
          },
                  {
            label: collapsed ? "ND" : "QUẢN LÝ NỘI DUNG",
-           type: "group",
+           type: "group" as const,
            children: [
              // Chỉ hiển thị nếu có quyền tạo bài học hoặc chỉnh sửa bài học hoặc xóa bài học
              ...(lessonsMenu ? [
@@ -220,7 +223,7 @@ const InstructorLayout = () => {
          },
                  {
            label: collapsed ? "HV" : "HỌC VIÊN",
-           type: "group",
+           type: "group" as const,
            children: [
              // Chỉ hiển thị nếu có quyền xem danh sách học viên hoặc xem tiến độ học viên
              ...(studentsMenu ? [
@@ -238,7 +241,7 @@ const InstructorLayout = () => {
          },
                  {
            label: collapsed ? "TC" : "TÀI CHÍNH",
-           type: "group",
+           type: "group" as const,
            children: [
              // Chỉ hiển thị nếu có quyền xem thống kê thu nhập hoặc rút tiền hoặc xem lịch sử giao dịch
              ...(financeMenu ? [
@@ -257,7 +260,7 @@ const InstructorLayout = () => {
            return shouldShow;
          }
          return true;
-       });
+       }) as MenuProps["items"];
     },
     [collapsed, authUser]
   );
@@ -300,23 +303,14 @@ const InstructorLayout = () => {
   // --- Dropdown Menu ---
   const userMenuItems: MenuProps["items"] = [
     {
-      key: "reload",
-      icon: <ReloadOutlined />,
-      label: "Reload User Data",
-      onClick: async () => {
-        try {
-          await forceReloadUser();
-          message.success('Đã reload user data!');
-        } catch (error) {
-          message.error('Không thể reload user data');
-        }
-      },
-    },
-    {
       key: "home",
       icon: <HomeOutlined />,
       label: "Quay lại trang chủ",
-      onClick: () => navigate("/"),
+      style: { cursor: 'pointer' },
+      onClick: () => {
+        console.log('Home clicked directly');
+        window.location.href = "/";
+      }
     },
     {
       type: 'divider',
@@ -325,9 +319,24 @@ const InstructorLayout = () => {
       key: "logout",
       icon: <LogoutOutlined />,
       label: "Đăng xuất",
-      onClick: handleLogout,
+      style: { cursor: 'pointer' },
+      onClick: () => {
+        console.log('Logout clicked directly');
+        handleLogout();
+      }
     },
   ];
+
+  const handleUserMenuClick = ({ key }: { key: string }) => {
+    console.log('User menu clicked:', key);
+    if (key === 'home') {
+      console.log('Navigating to home page...');
+      window.location.href = "/";
+    } else if (key === 'logout') {
+      console.log('Logging out...');
+      handleLogout();
+    }
+  };
 
   // Show loading while AuthContext is initializing
   if (!isAuthenticated && localStorage.getItem('token')) {
@@ -423,7 +432,7 @@ const InstructorLayout = () => {
             <Divider style={{ margin: '8px 0' }} />
             <div className={styles.userInfo}>
               <Avatar 
-                src={authUser.avatar} 
+                src={(authUser as User).avatar} 
                 size="small" 
                 className={styles.userAvatar}
               >
@@ -451,10 +460,16 @@ const InstructorLayout = () => {
           </div>
           
           <div className={styles.headerRight}>
-            <Dropdown menu={{ items: userMenuItems }} trigger={["click"]} placement="bottomRight">
-              <a onClick={(e) => e.preventDefault()} className={styles.profileDropdown}>
+            <Popover
+              content={
+                <Menu items={userMenuItems} onClick={handleUserMenuClick} />
+              }
+              trigger="click"
+              placement="bottomRight"
+            >
+              <Button type="text" className={styles.profileDropdown}>
                 <Avatar 
-                  src={authUser.avatar} 
+                  src={(authUser as User).avatar} 
                   size="small" 
                   className={styles.headerAvatar}
                 >
@@ -463,8 +478,8 @@ const InstructorLayout = () => {
                 {!collapsed && (
                   <span className={styles.headerUserName}>{authUser.fullname}</span>
                 )}
-              </a>
-            </Dropdown>
+              </Button>
+            </Popover>
           </div>
         </Header>
         

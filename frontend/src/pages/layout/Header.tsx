@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { config } from '../../api/axios';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Layout, Input, Space, Button, Avatar, Dropdown, Spin, Typography, Badge, Card, List, Tag, Divider, Popover, Select, message
+  Layout, Input, Space, Button, Avatar, Dropdown, Spin, Typography, Badge, Card, List, Tag, Divider, Popover, Select, message, Menu
 } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -70,6 +70,19 @@ const AppHeader = () => {
     const roleName = user?.role_id?.name || 'student';
     console.log('Header - getRoleName:', roleName, 'for user:', user);
     return roleName;
+  };
+
+  // Debug function để kiểm tra role
+  const debugUserRole = () => {
+    if (user) {
+      console.log('Current user:', user);
+      console.log('User role:', getRoleName(user));
+      console.log('Role check results:');
+      console.log('- Is admin:', getRoleName(user) === 'admin' || getRoleName(user) === 'quản trị viên');
+      console.log('- Is instructor:', getRoleName(user) === 'instructor' || getRoleName(user) === 'giảng viên');
+      console.log('- Is moderator:', getRoleName(user) === 'moderator' || getRoleName(user) === 'kiểm duyệt viên');
+      console.log('- Is student:', getRoleName(user) === 'student' || getRoleName(user) === 'học viên');
+    }
   };
   const { cartCount } = useCart();
 
@@ -172,7 +185,9 @@ const AppHeader = () => {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleLogout = () => {
+    console.log('handleLogout called'); // Debug log
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    console.log('User from localStorage:', user); // Debug log
     if (user && user._id) {
       socket.connect();
       socket.emit('auth-event', { type: 'logout', userId: user._id });
@@ -181,6 +196,7 @@ const AppHeader = () => {
     localStorage.removeItem('user');
     setUser(false);
     showLogoutSuccess();
+    console.log('Logout completed'); // Debug log
   };
 
   const handleRegisterClick = () => {
@@ -188,11 +204,18 @@ const AppHeader = () => {
   };
 
   const handleMenuClick = ({ key }: { key: string }) => {
+    console.log('Menu clicked:', key); // Debug log
+    if (user && typeof user === 'object') {
+      console.log('User role:', getRoleName(user as User)); // Debug log
+    }
     if (key === 'logout') {
       handleLogout();
       return;
     }
-    navigate(key);
+    // Đảm bảo key bắt đầu với / nếu không phải là logout
+    const path = key.startsWith('/') ? key : `/${key}`;
+    console.log('Navigating to:', path); // Debug log
+    navigate(path);
   };
 
   const handleNotificationClick = (notification: Notification) => {
@@ -263,6 +286,11 @@ const AppHeader = () => {
             localStorage.setItem('user', JSON.stringify(userData));
           }
           setUser(userData);
+          // Debug log khi user được set
+          if (userData) {
+            console.log('User set in Header:', userData);
+            debugUserRole();
+          }
         }
       } catch (err) {
         console.error('Lỗi parse user data:', err);
@@ -367,6 +395,10 @@ const AppHeader = () => {
             margin: '0',
             border: 'none'
           },
+          onClick: () => {
+            console.log('Profile clicked directly');
+            navigate('/profile');
+          }
         },
         { 
           type: 'divider' as const,
@@ -387,7 +419,11 @@ const AppHeader = () => {
                   <span className="menu-item-description">Quản lý hệ thống</span>
                 </div>
               ),
-              style: { padding: '12px 16px' }
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Admin dashboard clicked directly');
+                navigate('/admin');
+              }
             },
             { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
@@ -403,7 +439,11 @@ const AppHeader = () => {
                   <span className="menu-item-description">Duyệt nội dung</span>
                 </div>
               ),
-              style: { padding: '12px 16px' }
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Moderator dashboard clicked directly');
+                navigate('/moderator');
+              }
             },
             { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
@@ -419,7 +459,11 @@ const AppHeader = () => {
                   <span className="menu-item-description">Quản lý khóa học</span>
                 </div>
               ),
-              style: { padding: '12px 16px' }
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Instructor dashboard clicked directly');
+                navigate('/instructor');
+              }
             },
             { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
@@ -442,7 +486,11 @@ const AppHeader = () => {
                   <span className="menu-item-description">Tạo bài viết mới</span>
                 </div>
               ),
-              style: { padding: '10px 16px' }
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Write blog clicked directly');
+                navigate('/blog/write');
+              }
             },
             { 
               key: '/blog/mine', 
@@ -453,7 +501,11 @@ const AppHeader = () => {
                   <span className="menu-item-description">Quản lý bài viết</span>
                 </div>
               ),
-              style: { padding: '10px 16px' }
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('My blog posts clicked directly');
+                navigate('/blog/mine');
+              }
             },
             { 
               key: '/blog/saved', 
@@ -464,7 +516,11 @@ const AppHeader = () => {
                   <span className="menu-item-description">Xem bài viết đã lưu</span>
                 </div>
               ),
-              style: { padding: '10px 16px' }
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Saved blog posts clicked directly');
+                navigate('/blog/saved');
+              }
             },
           ],
         },
@@ -486,7 +542,11 @@ const AppHeader = () => {
                   <span className="menu-item-description">Xem lịch sử mua hàng</span>
                 </div>
               ),
-              style: { padding: '10px 16px' }
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Orders clicked directly');
+                navigate('/orders');
+              }
             }
           ],
         },
@@ -508,11 +568,15 @@ const AppHeader = () => {
                   <span className="menu-item-description">Xem thống kê học tập</span>
                 </div>
               ),
-              style: { padding: '10px 16px' }
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Report clicked directly');
+                navigate('/report');
+              }
             }
           ],
         },
-        ...(!['admin', 'quản trị viên', 'instructor', 'giảng viên', 'moderator', 'kiểm duyệt viên'].includes(getRoleName(user) || '') ? [{
+        ...(getRoleName(user) === 'student' || getRoleName(user) === 'học viên' ? [{
           type: 'group' as const,
           label: (
             <div className="menu-group-header">
@@ -530,7 +594,11 @@ const AppHeader = () => {
                   <span className="menu-item-description">Quản lý tài khoản</span>
                 </div>
               ),
-              style: { padding: '10px 16px' }
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Wallet clicked directly');
+                navigate('/wallet');
+              }
             }
           ],
         }] : []),
@@ -555,7 +623,12 @@ const AppHeader = () => {
             padding: '12px 16px',
             background: 'rgba(255, 77, 79, 0.05)',
             borderRadius: '8px',
-            margin: '0 8px 8px 8px'
+            margin: '0 8px 8px 8px',
+            cursor: 'pointer'
+          },
+          onClick: () => {
+            console.log('Logout clicked directly');
+            handleLogout();
           }
         },
       ].filter((item, idx, arr) => {
@@ -570,8 +643,12 @@ const AppHeader = () => {
         border: '1px solid #f0f0f0',
         overflow: 'hidden'
       }
-    }
+    } as any
     : undefined;
+
+  // Debug log để kiểm tra userMenu
+  console.log('userMenu created:', userMenu);
+  console.log('userMenu onClick:', userMenu?.onClick);
 
   const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
     fontWeight: isActive ? '600' : '500',
@@ -881,7 +958,164 @@ const AppHeader = () => {
                   </div>
                 </motion.div>
 
-                <Dropdown menu={userMenu} trigger={['click']} placement="bottomRight" arrow>
+                <Popover
+                  content={
+                    <div style={{ 
+                      borderRadius: '16px',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                      border: '1px solid #f0f0f0',
+                      overflow: 'hidden',
+                      background: 'white',
+                      minWidth: '320px',
+                      maxWidth: '380px'
+                    }}>
+                      {userMenu?.items?.map((item: any, index: number) => {
+                        if (item.type === 'divider') {
+                          return <Divider key={index} style={{ margin: '8px 0', borderColor: '#f0f0f0' }} />;
+                        }
+                        if (item.type === 'group') {
+                          return (
+                            <div key={index}>
+                              <div style={{ 
+                                padding: '12px 20px 8px 20px', 
+                                fontSize: '11px', 
+                                fontWeight: '700', 
+                                color: '#8c8c8c',
+                                background: '#fafafa',
+                                borderBottom: '1px solid #f0f0f0',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                              }}>
+                                {item.label?.props?.children?.[1] || item.label}
+                              </div>
+                              {item.children?.map((child: any, childIndex: number) => (
+                                <div
+                                  key={childIndex}
+                                  onClick={child.onClick}
+                                  style={{
+                                    padding: '12px 20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    borderBottom: '1px solid #fafafa'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f8f9fa';
+                                    e.currentTarget.style.transform = 'translateX(4px)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.transform = 'translateX(0)';
+                                  }}
+                                >
+                                  <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    width: '20px',
+                                    height: '20px'
+                                  }}>
+                                    {child.icon}
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ 
+                                      fontWeight: '500', 
+                                      color: '#262626',
+                                      fontSize: '14px',
+                                      lineHeight: '1.4'
+                                    }}>
+                                      {child.label?.props?.children?.[0]?.props?.children || child.label}
+                                    </div>
+                                    {child.label?.props?.children?.[1]?.props?.children && (
+                                      <div style={{ 
+                                        fontSize: '12px', 
+                                        color: '#8c8c8c',
+                                        marginTop: '2px',
+                                        lineHeight: '1.3'
+                                      }}>
+                                        {child.label.props.children[1].props.children}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        // Special handling for profile header
+                        if (item.key === '/profile') {
+                          return (
+                            <div key={index} style={{ ...item.style }}>
+                              {item.label}
+                            </div>
+                          );
+                        }
+                        // Regular menu items
+                        return (
+                          <div
+                            key={index}
+                            onClick={item.onClick}
+                            style={{
+                              padding: '12px 20px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              borderBottom: '1px solid #fafafa'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f8f9fa';
+                              e.currentTarget.style.transform = 'translateX(4px)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                              e.currentTarget.style.transform = 'translateX(0)';
+                            }}
+                          >
+                            <div style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              width: '20px',
+                              height: '20px'
+                            }}>
+                              {item.icon}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ 
+                                fontWeight: '500', 
+                                color: item.key === 'logout' ? '#ff4d4f' : '#262626',
+                                fontSize: '14px',
+                                lineHeight: '1.4'
+                              }}>
+                                {item.label?.props?.children?.[0]?.props?.children || item.label}
+                              </div>
+                              {item.label?.props?.children?.[1]?.props?.children && (
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  color: '#8c8c8c',
+                                  marginTop: '2px',
+                                  lineHeight: '1.3'
+                                }}>
+                                  {item.label.props.children[1].props.children}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  }
+                  trigger="click"
+                  placement="bottomRight"
+                  arrow={{ pointAtCenter: true }}
+                  overlayStyle={{ 
+                    paddingTop: '8px'
+                  }}
+                >
                   <motion.div
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -894,7 +1128,7 @@ const AppHeader = () => {
                       size={40}
                     />
                   </motion.div>
-                </Dropdown>
+                </Popover>
               </Space>
             ) : (
               <motion.div
