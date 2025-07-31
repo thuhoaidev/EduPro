@@ -461,9 +461,9 @@ const Profile = () => {
                   ) : 'Chưa cập nhật'}</div>
                   <div><b>Kinh nghiệm giảng dạy:</b> {typeof user?.instructorInfo?.experience_years === 'number' ? user.instructorInfo.experience_years : 'Chưa cập nhật'} năm</div>
                   <div><b>Giới thiệu:</b> {user?.instructorInfo?.teaching_experience?.description ? user.instructorInfo.teaching_experience.description : 'Không có mô tả'}</div>
-                  {user?.bio && (
+                  {/* {user?.bio && (
                     <div><b>Giới thiệu cá nhân:</b> <span className="text-gray-600">{user.bio}</span></div>
-                  )}
+                  )} */}
                 </div>
               </motion.div>
             )}

@@ -46,6 +46,7 @@ const role = localStorage.getItem('role');
 
 
 interface User {
+  _id?: string;
   avatar?: string;
   fullname: string;
   email: string;
@@ -77,14 +78,14 @@ const AppHeader = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [accountTypeModalVisible, setAccountTypeModalVisible] = useState(false);
   const navigate = useNavigate();
-  
+
   // Sử dụng hook notification mới
-  const { 
-    notification, 
+  const {
+    notification,
     toast,
-    showLogoutSuccess, 
-    hideNotification, 
-    hideToast 
+    showLogoutSuccess,
+    hideNotification,
+    hideToast
   } = useNotification();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -97,13 +98,13 @@ const AppHeader = () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        
+
         const response = await fetch('/api/messages/unread-count', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           setUnreadMessagesCount(data.count || 0);
@@ -276,15 +277,50 @@ const AppHeader = () => {
       }
     };
 
+    // Custom event listener để cập nhật user data khi có thay đổi từ ProfileEdit
+    const handleUserUpdate = (event: CustomEvent) => {
+      console.log('Header: Received user-updated event', event.detail);
+      if (event.detail && event.detail.user) {
+        setUser(event.detail.user);
+      } else {
+        fetchUser(); // Fallback: fetch lại từ localStorage
+      }
+    };
+
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('user-updated', fetchUser);
+    window.addEventListener('user-updated', handleUserUpdate as EventListener);
     fetchUser();
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('user-updated', fetchUser);
+      window.removeEventListener('user-updated', handleUserUpdate as EventListener);
     };
   }, []);
+
+  // Thêm useEffect để lắng nghe thay đổi user data từ localStorage
+  useEffect(() => {
+    const checkUserUpdate = () => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          if (user && userData._id === (user as any)._id) {
+            // Chỉ cập nhật nếu có thay đổi
+            if (JSON.stringify(userData) !== JSON.stringify(user)) {
+              console.log('Header: User data changed, updating...');
+              setUser(userData);
+            }
+          }
+        } catch (err) {
+          console.error('Error parsing user data:', err);
+        }
+      }
+    };
+
+    // Kiểm tra thay đổi mỗi 1 giây
+    const interval = setInterval(checkUserUpdate, 1000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const userMenu = user
     ? {
@@ -542,7 +578,7 @@ const AppHeader = () => {
                 <span className="logo-text">EduPro</span>
               </NavLink>
             </motion.div>
-            
+
             <div className="nav-links">
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
@@ -554,7 +590,7 @@ const AppHeader = () => {
                   <span className="nav-text">Mã giảm giá</span>
                 </NavLink>
               </motion.div>
-              
+
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
@@ -565,7 +601,7 @@ const AppHeader = () => {
                   <span className="nav-text">Khóa học</span>
                 </NavLink>
               </motion.div>
-              
+
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
@@ -576,7 +612,7 @@ const AppHeader = () => {
                   <span className="nav-text">Giảng viên</span>
                 </NavLink>
               </motion.div>
-              
+
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
@@ -632,7 +668,7 @@ const AppHeader = () => {
                     </div>
                   </motion.div>
                 </Popover>
-                
+
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   whileTap={{ scale: 0.9 }}
@@ -654,7 +690,7 @@ const AppHeader = () => {
                     )}
                   </div>
                 </motion.div>
-                
+
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   whileTap={{ scale: 0.9 }}
@@ -676,7 +712,7 @@ const AppHeader = () => {
                     )}
                   </div>
                 </motion.div>
-                
+
                 <Dropdown menu={userMenu} trigger={['click']} placement="bottomRight" arrow>
                   <motion.div
                     whileHover={{ scale: 1.1 }}
@@ -712,7 +748,7 @@ const AppHeader = () => {
                     Đăng nhập
                   </Button>
                 </motion.div>
-                
+
                 <motion.div
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
@@ -738,7 +774,7 @@ const AppHeader = () => {
       <AuthNotification
         isVisible={notification.isVisible}
         onComplete={hideNotification}
-        type={notification.type}
+        type={notification.type as any}
         title={notification.title}
         message={notification.message}
         autoClose={notification.autoClose}
