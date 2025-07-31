@@ -928,7 +928,11 @@ const UserPage = () => {
         {viewingUser && (
           <div className={styles.userDetailWrapper}>
             <div className={styles.userDetailHeaderBox}>
-              <Avatar size={96} src={viewingUser.avatar} className={styles.userDetailAvatar} />
+              <Avatar 
+                size={96} 
+                src={viewingUser.avatar && viewingUser.avatar !== 'default-avatar.jpg' && viewingUser.avatar !== '' && (viewingUser.avatar.includes('googleusercontent.com') || viewingUser.avatar.startsWith('http')) ? viewingUser.avatar : undefined} 
+                className={styles.userDetailAvatar} 
+              />
               <div className={styles.userDetailHeaderInfo}>
                 <div className={styles.userDetailName}>{viewingUser.fullname}</div>
                 <div className={styles.userDetailEmail}>

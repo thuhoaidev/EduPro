@@ -148,7 +148,11 @@ const Dashboard: React.FC = () => {
         const info = getInfo(instructor);
         return (
           <div className={styles.instructorCell}>
-            <Avatar src={info.avatar} size="small" className={styles.instructorAvatar}>
+            <Avatar 
+              src={info.avatar && info.avatar !== 'default-avatar.jpg' && info.avatar !== '' && (info.avatar.includes('googleusercontent.com') || info.avatar.startsWith('http')) ? info.avatar : undefined} 
+              size="small" 
+              className={styles.instructorAvatar}
+            >
               {info.name?.charAt(0)}
             </Avatar>
             <Text>{info.name}</Text>
@@ -431,7 +435,11 @@ const Dashboard: React.FC = () => {
                       <div className={styles.instructorRank}>
                         <Badge count={index + 1} style={{ backgroundColor: index < 3 ? '#faad14' : '#d9d9d9' }} />
                       </div>
-                      <Avatar src={instructor.avatar} size="large" className={styles.instructorAvatar}>
+                      <Avatar 
+                        src={instructor.avatar && instructor.avatar !== 'default-avatar.jpg' && instructor.avatar !== '' && (instructor.avatar.includes('googleusercontent.com') || instructor.avatar.startsWith('http')) ? instructor.avatar : undefined} 
+                        size="large" 
+                        className={styles.instructorAvatar}
+                      >
                         {instructor.fullname?.charAt(0) || instructor.name?.charAt(0)}
                       </Avatar>
                       <div className={styles.instructorInfo}>

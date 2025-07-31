@@ -820,7 +820,11 @@ const LessonVideoPage: React.FC = () => {
               borderBottom: '1px solid #f0f0f0',
               background: 'transparent'
             }}>
-              <Avatar src={reply.user?.avatar} size={24} style={{ marginRight: 8, marginTop: 2, background: '#e6f7ff', color: '#1890ff' }} />
+              <Avatar 
+                src={reply.user?.avatar && reply.user.avatar !== 'default-avatar.jpg' && reply.user.avatar !== '' && (reply.user.avatar.includes('googleusercontent.com') || reply.user.avatar.startsWith('http')) ? reply.user.avatar : undefined} 
+                size={24} 
+                style={{ marginRight: 8, marginTop: 2, background: '#e6f7ff', color: '#1890ff' }} 
+              />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{reply.user?.fullname || reply.user?.name || 'Anonymous'}</div>
                 <div style={{ fontSize: 14, color: '#444', margin: '2px 0 4px 0' }}>{reply.content}</div>
@@ -1196,7 +1200,12 @@ const LessonVideoPage: React.FC = () => {
       background: '#fff',
       borderRadius: 12
     }}>
-      <Avatar src={item.user?.avatar} icon={<UserOutlined />} size={44} style={{ background: '#e6f7ff', color: '#1890ff', marginRight: 18, marginTop: 2 }} />
+      <Avatar 
+        src={item.user?.avatar && item.user.avatar !== 'default-avatar.jpg' && item.user.avatar !== '' && (item.user.avatar.includes('googleusercontent.com') || item.user.avatar.startsWith('http')) ? item.user.avatar : undefined} 
+        icon={<UserOutlined />} 
+        size={44} 
+        style={{ background: '#e6f7ff', color: '#1890ff', marginRight: 18, marginTop: 2 }} 
+      />
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
           <span style={{ fontWeight: 700, fontSize: 17, color: '#222' }}>{item.user?.fullname || item.user?.name || 'Anonymous'}</span>

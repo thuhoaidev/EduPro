@@ -180,7 +180,10 @@ const UserDetail = () => {
 
       <Card variant="outlined" className="shadow-lg rounded-xl">
         <div className="flex items-center gap-6 mb-6">
-          <Avatar size={100} src={user.avatar} />
+          <Avatar 
+            size={100} 
+            src={user.avatar && user.avatar !== 'default-avatar.jpg' && user.avatar !== '' && (user.avatar.includes('googleusercontent.com') || user.avatar.startsWith('http')) ? user.avatar : undefined} 
+          />
           <div>
             <h2 className="text-2xl font-semibold">{user.fullname}</h2>
             <p className="text-gray-500">{user.email}</p>
