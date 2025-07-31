@@ -17,6 +17,7 @@ import { courseService } from '../../../services/apiService';
 import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, toggleDislikeReview, reportReview } from '../../../services/courseReviewService';
 import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
 import { issueCertificate, getCertificate } from '../../../services/certificateService';
+import Fireworks from '../../../components/common/Fireworks';
 dayjs.extend(relativeTime);
 
 const { Title, Paragraph, Text } = Typography;
@@ -73,6 +74,10 @@ const LessonVideoPage: React.FC = () => {
   const [isFree, setIsFree] = useState<boolean | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [courseOverview, setCourseOverview] = useState<{ title: string; subtitle: string; requirements: string[] }>({ title: '', subtitle: '', requirements: [] });
+  
+  // State cho pháo hoa khi hoàn thành khóa học
+  const [showFireworks, setShowFireworks] = useState(false);
+  const [hasShownFireworks, setHasShownFireworks] = useState(false);
 
   // Thêm các state cho like/reply comment
   const [likeStates, setLikeStates] = useState<{ [commentId: string]: { liked: boolean; count: number } }>({});
@@ -513,6 +518,12 @@ const LessonVideoPage: React.FC = () => {
         console.log('All completed:', allCompleted);
 
         setIsCompleted(allCompleted);
+
+        // Kích hoạt pháo hoa nếu hoàn thành 100% và chưa hiển thị
+        if (allCompleted && !hasShownFireworks) {
+          setShowFireworks(true);
+          setHasShownFireworks(true);
+        }
 
         // Tìm bài học tiếp theo chưa hoàn thành (nếu có)
         if (!allCompleted) {
@@ -1811,6 +1822,12 @@ const LessonVideoPage: React.FC = () => {
           placeholder="Nhập lý do báo cáo..." 
         />
       </Modal>
+      
+      {/* Component pháo hoa khi hoàn thành khóa học */}
+      <Fireworks 
+        isVisible={showFireworks} 
+        onComplete={() => setShowFireworks(false)}
+      />
     </div>
   );
 };
