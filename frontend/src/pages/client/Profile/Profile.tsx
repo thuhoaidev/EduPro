@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { config } from "../../../api/axios";
 import { formatDistanceToNow, format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Progress } from 'antd';
 import { ArrowRightOutlined } from '@ant-design/icons';
 import { courseService, getCourseById } from '../../../services/courseService';
@@ -65,13 +65,19 @@ const Profile = () => {
   const [courseSectionsMap, setCourseSectionsMap] = useState<Record<string, any[]>>({});
   const [courseProgressMap, setCourseProgressMap] = useState<Record<string, any>>({});
   const navigate = useNavigate();
+  const location = useLocation();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [lastLocationKey, setLastLocationKey] = useState(location.key);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
+        setLoading(true);
         const response = await config.get('/users/me');
         setUser(response.data.data);
         setError(null);
+        console.log('Fetched user data:', response.data.data);
+        console.log('User bio:', response.data.data.bio);
       } catch (error: unknown) {
         console.error('Error fetching user profile:', error);
         let errorMessage = 'Không thể tải thông tin người dùng';
@@ -100,7 +106,60 @@ const Profile = () => {
 
     fetchUserProfile();
     fetchEnrolledCourses();
-  }, []);
+    // Nếu có ?refresh=1 thì xóa nó khỏi URL sau khi fetch
+    const urlParams = new URLSearchParams(location.search);
+    if (urlParams.get('refresh') === '1') {
+      urlParams.delete('refresh');
+      const newUrl = location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, [location.search]); // Re-fetch when location changes, refreshKey changes, or location key changes
+
+  // Force refresh when coming back from edit page
+  useEffect(() => {
+    const handleFocus = () => {
+      // Check if we're coming back from edit page
+      if (location.pathname === '/profile') {
+        setRefreshKey(prev => prev + 1);
+      }
+    };
+
+    // Check if we're coming back from edit page via location state
+    if (location.state?.from === 'edit') {
+      setRefreshKey(prev => prev + 1);
+      // Clear the state to prevent infinite refresh
+      window.history.replaceState({}, document.title);
+    }
+
+    // Check if we're coming back from edit page via URL search params
+    const urlParams = new URLSearchParams(location.search);
+    if (urlParams.get('refresh') === 'true') {
+      setRefreshKey(prev => prev + 1);
+      // Remove the refresh parameter from URL
+      const newUrl = location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+
+    // Check if location key changed (indicating navigation)
+    if (location.key !== lastLocationKey) {
+      setLastLocationKey(location.key);
+      // If we're on profile page and location key changed, refresh data
+      if (location.pathname === '/profile') {
+        setRefreshKey(prev => prev + 1);
+      }
+    }
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [location.pathname, location.state, location.search, location.key, lastLocationKey]);
+
+  // Additional refresh trigger when component mounts or location changes
+  useEffect(() => {
+    // Refresh data when component mounts or when we're on profile page
+    if (location.pathname === '/profile') {
+      setRefreshKey(prev => prev + 1);
+    }
+  }, [location.pathname]);
 
   // Fetch chi tiết từng khóa học để lấy số lượng bài học
   useEffect(() => {
@@ -338,8 +397,8 @@ const Profile = () => {
                 <span className="text-base">{user?.email ?? ''}</span>
               </motion.div>
 
-              {/* Bio Section */}
-              {user?.bio && user?.role?.name !== 'instructor' && (
+              {/* Bio Section - Hiển thị cho tất cả user */}
+              {user?.bio && (
                 <motion.div
                   className="text-center mb-4"
                   initial={{ y: 20, opacity: 0 }}
@@ -402,6 +461,9 @@ const Profile = () => {
                   ) : 'Chưa cập nhật'}</div>
                   <div><b>Kinh nghiệm giảng dạy:</b> {typeof user?.instructorInfo?.experience_years === 'number' ? user.instructorInfo.experience_years : 'Chưa cập nhật'} năm</div>
                   <div><b>Giới thiệu:</b> {user?.instructorInfo?.teaching_experience?.description ? user.instructorInfo.teaching_experience.description : 'Không có mô tả'}</div>
+                  {user?.bio && (
+                    <div><b>Giới thiệu cá nhân:</b> <span className="text-gray-600">{user.bio}</span></div>
+                  )}
                 </div>
               </motion.div>
             )}
