@@ -1,8 +1,9 @@
 const express = require("express");
 const axios = require("axios");
 const CryptoJS = require("crypto-js");
-const moment = require("moment");
+const dayjs = require("dayjs");
 const qs = require("qs");
+const { auth } = require("../middlewares/auth");
 const OrderController = require("../controllers/order.controller");
 
 const momoRouter = express.Router();
@@ -17,38 +18,15 @@ const config = {
   ipnUrl: "http://localhost:5000/api/orders/momo-callback",
 };
 
-momoRouter.post("/create_momo_payment", async (req, res) => {
+momoRouter.post("/create_momo_payment", auth, async (req, res) => {
   try {
     const { amount, name, email, orderData } = req.body;
 
-    // Tạo đơn hàng trước
-    let orderId;
-    if (orderData) {
-      // Tạo đơn hàng với paymentMethod: 'momo'
-      const orderPayload = {
-        ...orderData,
-        paymentMethod: 'momo'
-      };
-      
-      // Gọi OrderController để tạo đơn hàng
-      const orderResponse = await OrderController.createOrder({
-        body: orderPayload,
-        user: req.user
-      }, {
-        status: (code) => ({ status: code }),
-        json: (data) => data
-      });
-
-      if (orderResponse.success) {
-        orderId = orderResponse.data.order.id;
-        console.log('Order created for Momo payment:', orderId);
-      } else {
-        return res.status(400).json({ message: orderResponse.message || "Lỗi tạo đơn hàng" });
-      }
-    } else {
-      // Fallback: tạo orderId từ timestamp nếu không có orderData
-      orderId = `${moment().format("YYMMDD_HHmmss")}`;
-    }
+    // Tạo orderId từ timestamp
+    const orderId = `MOMO_${dayjs().format("YYMMDD_HHmmss")}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('Creating MoMo payment with orderId:', orderId);
+    
+    console.log('Creating MoMo payment with orderId:', orderId);
 
     const requestId = orderId;
 
@@ -72,6 +50,8 @@ momoRouter.post("/create_momo_payment", async (req, res) => {
     };
 
     const momoRes = await axios.post(config.endpoint, body);
+    
+    console.log('MoMo payment URL created:', momoRes.data.payUrl);
     res.status(200).json({ payUrl: momoRes.data.payUrl, orderId });
   } catch (error) {
     console.error("Momo error:", error?.response?.data || error.message);

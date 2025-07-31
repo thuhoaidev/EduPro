@@ -636,162 +636,30 @@ class OrderController {
         return res.status(400).json({ success: false, message: 'Thiếu orderId' });
       }
 
-      // Tìm đơn hàng theo orderId
-      const order = await Order.findOne({ 
-        _id: orderId,
-        paymentMethod: 'momo'
-      });
-
-      if (!order) {
-        console.log('Order not found for orderId:', orderId);
-        return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
-      }
-
-      console.log('Found order:', { orderId: order._id, status: order.status, paymentStatus: order.paymentStatus });
-
       // Xử lý kết quả thanh toán
       if (resultCode === '0' || resultCode === 0) {
-        // Thành công - cập nhật trạng thái đơn hàng
-        if (order.status === 'pending' && order.paymentStatus === 'pending') {
-          order.status = 'paid';
-          order.paymentStatus = 'paid';
-          order.paidAt = new Date();
-          order.transactionId = transId;
-          await order.save();
-
-          console.log('Order payment completed successfully:', { orderId: order._id, transId });
-
-          // Tạo enrollment cho tất cả khóa học trong đơn hàng
-          const enrollments = [];
-          for (const item of order.items) {
-            // Kiểm tra xem user đã enrollment khóa học này chưa
-            const existingEnrollment = await Enrollment.findOne({
-              student: order.userId,
-              course: item.courseId
-            });
-
-            if (!existingEnrollment) {
-              enrollments.push({
-                student: order.userId,
-                course: item.courseId,
-                enrolledAt: new Date(),
-                progress: 0,
-                completedLessons: [],
-                lastAccessedAt: new Date()
-              });
-            }
-          }
-
-          if (enrollments.length > 0) {
-            await Enrollment.insertMany(enrollments);
-            console.log('Created enrollments for order:', enrollments.length);
-          }
-
-          // Cộng tiền vào ví giáo viên cho từng khóa học trong đơn hàng
-          for (const item of order.items) {
-            const course = await Course.findById(item.courseId);
-            if (!course || !course.instructor) continue;
-            
-            const instructorProfile = await InstructorProfile.findById(course.instructor);
-            if (!instructorProfile || !instructorProfile.user) continue;
-            
-            let wallet = await TeacherWallet.findOne({ teacherId: instructorProfile.user });
-            if (!wallet) {
-              wallet = new TeacherWallet({ teacherId: instructorProfile.user, balance: 0, history: [] });
-            }
-            
-            // Giáo viên nhận 70% giá gốc
-            const earning = Math.round(course.price * 0.7 * (item.quantity || 1));
-            wallet.balance += earning;
-            wallet.history.push({
-              type: 'earning',
-              amount: earning,
-              orderId: order._id,
-              note: `Bán khóa học: ${course.title} (70% giá gốc)`
-            });
-            await wallet.save();
-          }
-
-          // Ghi nhận voucher usage nếu có
-          if (order.voucherId) {
-            await VoucherUsage.findOneAndUpdate(
-              { userId: order.userId, voucherId: order.voucherId },
-              { orderId: order._id },
-              { upsert: true }
-            );
-
-            // Tăng usedCount cho voucher
-            await Voucher.findByIdAndUpdate(order.voucherId, {
-              $inc: { usedCount: 1 }
-            });
-          }
-
-          // Xoá item đã mua khỏi giỏ hàng
-          const cart = await Cart.findOne({ user: order.userId });
-          if (cart) {
-            const courseIds = order.items.map(item => item.courseId.toString());
-            cart.items = cart.items.filter(item => !courseIds.includes(item.course.toString()));
-            await cart.save();
-          }
-
-          // Gửi notification cho user
-          try {
-            await Notification.create({
-              title: 'Thanh toán thành công',
-              content: `Đơn hàng #${order._id} đã được thanh toán thành công. Bạn có thể truy cập khóa học ngay bây giờ.`,
-              type: 'success',
-              receiver: order.userId,
-              icon: 'check-circle',
-              meta: { orderId: order._id, link: '/profile/orders' }
-            });
-          } catch (notiErr) {
-            console.error('Lỗi tạo notification thanh toán:', notiErr);
-          }
-
-          res.json({ 
-            success: true, 
-            message: 'Thanh toán thành công',
-            orderId: order._id,
-            status: 'paid'
-          });
-        } else {
-          console.log('Order already processed:', { orderId: order._id, status: order.status });
-          res.json({ 
-            success: true, 
-            message: 'Đơn hàng đã được xử lý trước đó',
-            orderId: order._id,
-            status: order.status
-          });
-        }
+        // Thành công - chỉ xác nhận thanh toán, không tạo đơn hàng
+        console.log('MoMo payment successful, orderId:', orderId);
+        
+        // Lưu thông tin thanh toán để frontend có thể sử dụng
+        // Có thể lưu vào cache hoặc database tạm thời
+        
+        res.json({ 
+          success: true, 
+          message: 'Thanh toán thành công',
+          orderId: orderId,
+          status: 'paid',
+          transactionId: transId
+        });
       } else {
-        // Thất bại - cập nhật trạng thái đơn hàng
-        order.status = 'cancelled';
-        order.paymentStatus = 'failed';
-        order.cancelledAt = new Date();
-        order.cancelReason = message || 'Thanh toán thất bại';
-        await order.save();
-
-        console.log('Order payment failed:', { orderId: order._id, resultCode, message });
-
-        // Gửi notification cho user
-        try {
-          await Notification.create({
-            title: 'Thanh toán thất bại',
-            content: `Đơn hàng #${order._id} thanh toán thất bại. Vui lòng thử lại.`,
-            type: 'error',
-            receiver: order.userId,
-            icon: 'close-circle',
-            meta: { orderId: order._id, link: '/profile/orders' }
-          });
-        } catch (notiErr) {
-          console.error('Lỗi tạo notification thanh toán thất bại:', notiErr);
-        }
+        // Thất bại
+        console.log('MoMo payment failed:', { orderId, resultCode, message });
 
         res.json({ 
           success: false, 
           message: 'Thanh toán thất bại',
-          orderId: order._id,
-          status: 'cancelled'
+          orderId: orderId,
+          status: 'failed'
         });
       }
     } catch (err) {

@@ -246,6 +246,13 @@ const OrdersPage: React.FC = () => {
     fetchOrders();
   }, [currentPage, pageSize, statusFilter, token]);
 
+  // Thêm useEffect để refresh orders khi component mount
+  useEffect(() => {
+    if (token) {
+      fetchOrders();
+    }
+  }, [token]);
+
   const handlePageChange = (page: number, size?: number) => {
     setCurrentPage(page);
     if (size) setPageSize(size);

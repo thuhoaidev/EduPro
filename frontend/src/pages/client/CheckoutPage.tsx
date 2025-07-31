@@ -212,7 +212,7 @@ const handleSubmit = async (values: FormValues) => {
       const createOrderPayload: CreateOrderData = {
         items: orderPayload.items,
         voucherCode: orderPayload.voucherCode,
-        paymentMethod: 'bank_transfer',
+        paymentMethod: 'wallet',
         shippingInfo: {
           fullName: values.fullName,
           phone: values.phone,
@@ -223,9 +223,17 @@ const handleSubmit = async (values: FormValues) => {
       const response = await orderService.createOrder(createOrderPayload, token);
       setOrderId(response.order.id);
       setOrderSuccess(true);
-      localStorage.removeItem('checkoutData');
-      clearCart();
-      message.success('Thanh toán bằng ví thành công!');
+             localStorage.removeItem('checkoutData');
+       localStorage.removeItem('cart');
+       localStorage.removeItem('cartVoucherData');
+       await clearCart();
+       message.success('Thanh toán bằng ví thành công!');
+      
+      // Chuyển hướng về trang OrdersPage sau 2 giây
+      setTimeout(() => {
+        navigate('/profile/orders');
+      }, 2000);
+      
       setIsSubmitting(false);
       return;
     }
@@ -246,8 +254,10 @@ const handleSubmit = async (values: FormValues) => {
     const response = await orderService.createOrder(createOrderPayload, token);
     setOrderId(response.order.id);
     setOrderSuccess(true);
-    localStorage.removeItem('checkoutData');
-    clearCart(); // Xóa giỏ hàng ở context sau khi thanh toán thành công
+         localStorage.removeItem('checkoutData');
+     localStorage.removeItem('cart');
+     localStorage.removeItem('cartVoucherData');
+     await clearCart(); // Xóa giỏ hàng ở context sau khi thanh toán thành công
     // Cập nhật lại user sau khi thanh toán
     try {
       const token = localStorage.getItem('token');
@@ -269,6 +279,11 @@ const handleSubmit = async (values: FormValues) => {
     }
 
     message.success('Thanh toán thành công!');
+    
+    // Chuyển hướng về trang OrdersPage sau 2 giây
+    setTimeout(() => {
+      navigate('/profile/orders');
+    }, 2000);
   } catch (error) {
     console.error('Create order error:', error);
     message.error('Có lỗi khi thanh toán');
@@ -305,9 +320,16 @@ const handleSubmit = async (values: FormValues) => {
       <Result
         status="success"
         title="Thanh toán thành công!"
-        subTitle={`Mã đơn hàng: ${orderId}`}
+        subTitle={
+          <div>
+            <div>Mã đơn hàng: {orderId}</div>
+            <div style={{ marginTop: '12px', fontSize: '14px', color: '#52c41a' }}>
+              ⏱️ Tự động chuyển hướng về trang đơn hàng sau 2 giây...
+            </div>
+          </div>
+        }
         extra={[
-          <Button key="orders" onClick={handleViewOrders}>Xem đơn hàng</Button>,
+          <Button key="orders" onClick={handleViewOrders}>Xem đơn hàng ngay</Button>,
           <Button key="home" type="default" onClick={() => navigate('/')}>Về trang chủ</Button>
         ]}
       />
