@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Card, Table, Button, InputNumber, Select, message, Tag, Form, Typography, Modal, Statistic, Row, Col, Divider, Space } from "antd";
+import { Card, Table, Button, InputNumber, Select, message, Tag, Form, Typography, Modal, Statistic, Row, Col, Divider, Space, Alert } from "antd";
 import { useNavigate } from "react-router-dom";
 import WithdrawModal from '../../components/common/WithdrawModal';
 import { userWalletService } from '../../services/apiService';
-import { EyeOutlined, WalletOutlined, PlusOutlined, MinusOutlined, HistoryOutlined, DollarOutlined } from "@ant-design/icons";
+import { EyeOutlined, WalletOutlined, PlusOutlined, MinusOutlined, HistoryOutlined, DollarOutlined, ExclamationCircleOutlined, ReloadOutlined } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -19,14 +19,139 @@ const WalletPage: React.FC = () => {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [detailModal, setDetailModal] = useState<{ open: boolean; data?: any }>({ open: false });
   const [showAllWithdraw, setShowAllWithdraw] = useState(false);
+  const [showVnpayWarning, setShowVnpayWarning] = useState(false);
+  const [vnpayError, setVnpayError] = useState(false);
+  const [vnpayErrorCount, setVnpayErrorCount] = useState(0);
+  const [vnpayPopupOpen, setVnpayPopupOpen] = useState(false);
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchWallet();
     fetchWithdrawHistory();
+    
+    // Thêm global error handler để phát hiện lỗi VNPAY
+    const handleGlobalError = (event: ErrorEvent) => {
+      const errorMessage = event.error?.message || event.message || '';
+      const errorSource = event.filename || '';
+      
+      // Phát hiện các loại lỗi VNPAY
+      const isVnpayError = 
+        errorMessage.includes('timer is not defined') ||
+        errorMessage.includes('Content-Security-Policy') ||
+        errorMessage.includes('Sai chữ ký') ||
+        errorMessage.includes('Wrong signature') ||
+        errorMessage.includes('Invalid signature') ||
+        errorSource.includes('vnpayment.vn') ||
+        errorSource.includes('sandbox.vnpayment.vn');
+      
+      if (isVnpayError) {
+        console.log('VNPAY error detected:', {
+          message: errorMessage,
+          source: errorSource,
+          error: event.error
+        });
+        
+        setVnpayError(true);
+        setVnpayErrorCount(prev => prev + 1);
+        
+        // Xác định loại lỗi cụ thể
+        let errorType = 'Lỗi kỹ thuật';
+        let errorDescription = 'VNPAY sandbox đang gặp sự cố kỹ thuật.';
+        let errorSolution = 'Vui lòng thử phương thức thanh toán khác hoặc liên hệ hỗ trợ.';
+        
+        if (errorMessage.includes('timer is not defined')) {
+          errorType = 'Lỗi JavaScript';
+          errorDescription = 'VNPAY sandbox có lỗi trong mã JavaScript (timer is not defined).';
+          errorSolution = 'Vui lòng thử phương thức thanh toán khác (Momo/ZaloPay).';
+        } else if (errorMessage.includes('Content-Security-Policy')) {
+          errorType = 'Lỗi CSP';
+          errorDescription = 'VNPAY sandbox có vấn đề với Content Security Policy.';
+          errorSolution = 'Vui lòng thử phương thức thanh toán khác hoặc thử lại sau vài phút.';
+        } else if (errorMessage.includes('Sai chữ ký') || errorMessage.includes('Wrong signature') || errorMessage.includes('Invalid signature')) {
+          errorType = 'Lỗi xác thực';
+          errorDescription = 'VNPAY gặp lỗi xác thực chữ ký trong quá trình thanh toán.';
+          errorSolution = 'Vui lòng thử lại hoặc chọn phương thức thanh toán khác. Lỗi này thường do vấn đề kỹ thuật tạm thời.';
+        }
+        
+        // Hiển thị thông báo cho người dùng
+        Modal.error({
+          title: `VNPAY gặp sự cố - ${errorType}`,
+          content: (
+            <div>
+              <p><strong>{errorDescription}</strong></p>
+              <p>Lỗi này không phải từ hệ thống của chúng tôi mà từ VNPAY sandbox.</p>
+              <p><strong>Giải pháp:</strong></p>
+              <p>{errorSolution}</p>
+              <ul>
+                <li>Thử phương thức thanh toán khác (Momo hoặc ZaloPay)</li>
+                <li>Thử lại sau vài phút</li>
+                <li>Liên hệ hỗ trợ nếu vấn đề tiếp tục</li>
+              </ul>
+              <div style={{ 
+                marginTop: '12px', 
+                padding: '8px', 
+                background: '#f5f5f5', 
+                borderRadius: '4px',
+                fontSize: '12px',
+                color: '#666' 
+              }}>
+                <strong>Chi tiết lỗi:</strong><br/>
+                Loại: {errorType}<br/>
+                Số lần lỗi: {vnpayErrorCount + 1}<br/>
+                Nguồn: {errorSource.includes('vnpayment') ? 'VNPAY Sandbox' : 'Không xác định'}
+              </div>
+            </div>
+          ),
+          okText: 'Đã hiểu',
+          onOk: () => {
+            // Tự động chuyển sang Momo nếu đã lỗi nhiều lần
+            if (vnpayErrorCount >= 2) {
+              setMethod('momo');
+              message.info('Đã tự động chuyển sang Momo do VNPAY gặp lỗi nhiều lần.');
+            }
+          }
+        });
+      }
+    };
+
+    // Thêm event listener cho global errors
+    window.addEventListener('error', handleGlobalError);
+    
+    // Thêm event listener cho unhandled promise rejections
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const errorMessage = event.reason?.message || event.reason || '';
+      const errorSource = event.reason?.stack || '';
+      
+      // Phát hiện lỗi VNPAY từ promise rejections
+      const isVnpayError = 
+        errorMessage.includes('timer is not defined') ||
+        errorMessage.includes('Content-Security-Policy') ||
+        errorMessage.includes('Sai chữ ký') ||
+        errorMessage.includes('Wrong signature') ||
+        errorMessage.includes('Invalid signature') ||
+        errorSource.includes('vnpayment.vn') ||
+        errorSource.includes('sandbox.vnpayment.vn');
+      
+      if (isVnpayError) {
+        console.log('VNPAY promise rejection detected:', event.reason);
+        setVnpayError(true);
+        setVnpayErrorCount(prev => prev + 1);
+        
+        message.error('VNPAY gặp sự cố kỹ thuật. Vui lòng thử phương thức thanh toán khác.');
+      }
+    };
+    
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+    
     // eslint-disable-next-line
-  }, []);
+  }, [vnpayErrorCount]);
 
   // Thêm effect để refresh khi quay về từ payment result
   useEffect(() => {
@@ -77,6 +202,46 @@ const WalletPage: React.FC = () => {
     }
   };
 
+  const resetVnpayError = () => {
+    setVnpayError(false);
+    setVnpayErrorCount(0);
+    message.success('Đã reset trạng thái lỗi VNPAY. Bạn có thể thử lại.');
+  };
+
+  const handleVnpaySignatureError = () => {
+    Modal.warning({
+      title: 'Lỗi xác thực VNPAY',
+      content: (
+        <div>
+          <p><strong>VNPAY gặp lỗi xác thực chữ ký.</strong></p>
+          <p>Đây là lỗi kỹ thuật từ VNPAY sandbox, không phải từ hệ thống của chúng tôi.</p>
+          <p><strong>Nguyên nhân có thể:</strong></p>
+          <ul>
+            <li>Vấn đề tạm thời với VNPAY sandbox</li>
+            <li>Lỗi cấu hình chữ ký</li>
+            <li>Vấn đề về thời gian đồng bộ</li>
+          </ul>
+          <p><strong>Giải pháp:</strong></p>
+          <ul>
+            <li>Thử lại sau vài phút</li>
+            <li>Chọn phương thức thanh toán khác (Momo/ZaloPay)</li>
+            <li>Liên hệ hỗ trợ nếu vấn đề tiếp tục</li>
+          </ul>
+        </div>
+      ),
+      okText: 'Thử lại',
+      cancelText: 'Chọn phương thức khác',
+      onOk: () => {
+        // Thử lại VNPAY
+        message.info('Đang thử lại VNPAY...');
+      },
+      onCancel: () => {
+        setMethod('momo');
+        message.success('Đã chuyển sang Momo');
+      }
+    });
+  };
+
   const handleDeposit = async () => {
     if (!amount || amount <= 0) return message.error("Nhập số tiền hợp lệ");
     setLoading(true);
@@ -103,16 +268,108 @@ const WalletPage: React.FC = () => {
       const json = await res.json();
       if (json.success && json.payUrl) {
         sessionStorage.removeItem('walletDepositInProgress');
-        window.location.href = json.payUrl;
+        
+        // Thêm thông báo đặc biệt cho VNPAY
+        if (method === 'vnpay') {
+          message.info('Đang chuyển đến VNPAY. Nếu gặp lỗi "timer is not defined", đây là lỗi từ VNPAY sandbox. Vui lòng thử lại sau hoặc chọn phương thức khác.');
+          
+          // Thêm fallback cho VNPAY - nếu popup bị lỗi, redirect trực tiếp
+          const popup = window.open(json.payUrl, '_blank', 'width=800,height=600');
+          setVnpayPopupOpen(true);
+          
+          if (!popup) {
+            message.warning('Popup bị chặn. Đang chuyển hướng trực tiếp đến VNPAY...');
+            window.location.href = json.payUrl;
+            return;
+          }
+          
+          // Kiểm tra xem popup có bị lỗi không - giảm thời gian xuống 2 giây
+          setTimeout(() => {
+            try {
+              if (popup.closed || popup.location.href === 'about:blank') {
+                message.warning('VNPAY popup gặp sự cố. Đang chuyển hướng trực tiếp...');
+                popup.close();
+                window.location.href = json.payUrl;
+              }
+            } catch (e) {
+              // Nếu không thể truy cập popup (CORS), có thể popup đã bị lỗi
+              message.warning('VNPAY popup gặp sự cố. Đang chuyển hướng trực tiếp...');
+              popup.close();
+              window.location.href = json.payUrl;
+            }
+          }, 2000); // Giảm xuống 2 giây
+          
+          // Thêm timeout để tự động chuyển sang phương thức khác nếu VNPAY gặp lỗi - giảm xuống 5 giây
+          setTimeout(() => {
+            if (vnpayError) {
+              Modal.confirm({
+                title: 'VNPAY gặp sự cố',
+                content: `VNPAY đã gặp lỗi kỹ thuật ${vnpayErrorCount} lần. Bạn có muốn thử với Momo không?`,
+                okText: 'Thử Momo',
+                cancelText: 'Hủy',
+                onOk: () => {
+                  setMethod('momo');
+                  message.info('Đã chuyển sang Momo. Vui lòng thử nạp tiền lại.');
+                }
+              });
+            }
+          }, 5000); // Giảm xuống 5 giây
+          
+          return;
+        }
+        
+        // Mở cửa sổ popup cho thanh toán thay vì redirect
+        const popup = window.open(json.payUrl, '_blank', 'width=800,height=600');
+        
+        if (!popup) {
+          message.warning('Popup bị chặn. Vui lòng cho phép popup và thử lại.');
+          return;
+        }
+
+        // Kiểm tra trạng thái popup
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+            // Refresh wallet data khi popup đóng
+            fetchWallet();
+          }
+        }, 1000);
+
+        // Timeout sau 5 phút
+        setTimeout(() => {
+          clearInterval(checkClosed);
+          if (!popup.closed) {
+            popup.close();
+            message.warning('Phiên thanh toán đã hết hạn. Vui lòng thử lại.');
+          }
+        }, 300000);
+        
       } else {
         message.error(json.message || "Lỗi tạo yêu cầu nạp tiền");
         sessionStorage.removeItem('walletDepositInProgress');
       }
     } catch (err) {
-      message.error("Lỗi tạo yêu cầu nạp tiền");
+      console.error('Lỗi nạp tiền:', err);
+      
+      // Xử lý lỗi đặc biệt cho VNPAY
+      if (method === 'vnpay') {
+        Modal.confirm({
+          title: 'VNPAY gặp sự cố',
+          content: `VNPAY sandbox đang gặp sự cố kỹ thuật. Đã lỗi ${vnpayErrorCount} lần. Bạn có muốn thử với phương thức thanh toán khác không?`,
+          okText: 'Thử Momo',
+          cancelText: 'Hủy',
+          onOk: () => {
+            setMethod('momo');
+            message.info('Đã chuyển sang Momo. Vui lòng thử nạp tiền lại.');
+          }
+        });
+      } else {
+        message.error("Lỗi tạo yêu cầu nạp tiền");
+      }
       sessionStorage.removeItem('walletDepositInProgress');
     } finally {
       setLoading(false);
+      setVnpayPopupOpen(false);
     }
   };
 
@@ -149,6 +406,29 @@ const WalletPage: React.FC = () => {
       setAmount(value);
     } else {
       setAmount(null);
+    }
+  };
+
+  const handleMethodChange = (value: string) => {
+    setMethod(value);
+    // Hiển thị cảnh báo cho VNPAY
+    setShowVnpayWarning(value === 'vnpay');
+    
+    // Nếu chọn VNPAY và đã có lỗi trước đó, hiển thị cảnh báo mạnh hơn
+    if (value === 'vnpay' && vnpayError) {
+      Modal.warning({
+        title: 'Cảnh báo về VNPAY',
+        content: 'VNPAY đã gặp sự cố kỹ thuật trước đó. Bạn có chắc muốn thử lại không?',
+        okText: 'Thử lại',
+        cancelText: 'Chọn khác',
+        onOk: () => {
+          setVnpayError(false);
+        },
+        onCancel: () => {
+          setMethod('momo');
+          message.info('Đã chuyển sang Momo');
+        }
+      });
     }
   };
 
@@ -592,7 +872,7 @@ const WalletPage: React.FC = () => {
                   <Form.Item label="Phương thức thanh toán" style={{ marginBottom: '20px' }}>
                     <Select 
                       value={method} 
-                      onChange={setMethod} 
+                      onChange={handleMethodChange} 
                       style={{ width: '100%', height: '48px' }}
                       size="large"
                     >
@@ -644,10 +924,83 @@ const WalletPage: React.FC = () => {
                     </Select>
                   </Form.Item>
 
+                  {/* Cảnh báo VNPAY */}
+                  {showVnpayWarning && (
+                    <Alert
+                      message={
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span>Lưu ý về VNPAY</span>
+                          {vnpayError && (
+                            <Tag color="red" style={{ marginLeft: '8px' }}>
+                              Đã gặp lỗi {vnpayErrorCount} lần
+                            </Tag>
+                          )}
+                        </div>
+                      }
+                      description={
+                        <div>
+                          <p>VNPAY sandbox có thể gặp sự cố kỹ thuật như:</p>
+                          <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
+                            <li>Lỗi JavaScript: "timer is not defined"</li>
+                            <li>Lỗi Content Security Policy (CSP)</li>
+                            <li>Lỗi xác thực: "Sai chữ ký" / "Wrong signature"</li>
+                            <li>Lỗi tải tài nguyên từ VNPAY sandbox</li>
+                          </ul>
+                          <p>Đây đều là lỗi từ VNPAY sandbox, không phải từ hệ thống của chúng tôi.</p>
+                          {vnpayError && (
+                            <p style={{ color: '#ff4d4f', fontWeight: 'bold', marginTop: '8px' }}>
+                              ⚠️ VNPAY đã gặp lỗi {vnpayErrorCount} lần trước đó. Khuyến nghị sử dụng Momo hoặc ZaloPay.
+                            </p>
+                          )}
+                          <p style={{ marginTop: '8px' }}>
+                            <strong>Giải pháp:</strong>
+                          </p>
+                          <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
+                            <li>Thử phương thức thanh toán khác (Momo/ZaloPay)</li>
+                            <li>Thử lại sau vài phút</li>
+                            <li>Liên hệ hỗ trợ nếu vấn đề tiếp tục</li>
+                          </ul>
+                        </div>
+                      }
+                      type={vnpayError ? "error" : "warning"}
+                      showIcon
+                      icon={<ExclamationCircleOutlined />}
+                      style={{ marginBottom: '16px' }}
+                      closable
+                      onClose={() => setShowVnpayWarning(false)}
+                      action={
+                        vnpayError ? (
+                          <Space>
+                            <Button 
+                              size="small" 
+                              type="default"
+                              icon={<ReloadOutlined />}
+                              onClick={resetVnpayError}
+                            >
+                              Reset lỗi
+                            </Button>
+                            <Button 
+                              size="small" 
+                              type="primary" 
+                              danger
+                              onClick={() => {
+                                setMethod('momo');
+                                setShowVnpayWarning(false);
+                                message.success('Đã chuyển sang Momo');
+                              }}
+                            >
+                              Chuyển sang Momo
+                            </Button>
+                          </Space>
+                        ) : undefined
+                      }
+                    />
+                  )}
+
                   <Button 
                     type="primary" 
                     onClick={handleDeposit} 
-                    loading={loading}
+                    loading={loading || (method === 'vnpay' && vnpayPopupOpen)}
                     icon={<PlusOutlined />}
                     size="large"
                     style={{ 
@@ -660,7 +1013,7 @@ const WalletPage: React.FC = () => {
                       fontWeight: 600
                     }}
                   >
-                    Nạp tiền ngay
+                    {method === 'vnpay' && vnpayPopupOpen ? 'Đang mở VNPAY...' : 'Nạp tiền ngay'}
                   </Button>
                 </Form>
               </Card>
@@ -714,34 +1067,60 @@ const WalletPage: React.FC = () => {
             </Col>
           </Row>
 
-          <div style={{ 
-            marginTop: '32px', 
-            padding: '16px', 
-            background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', 
-            borderRadius: '12px',
-            border: '1px solid #bae6fd'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ 
-                width: '40px', 
-                height: '40px', 
-                borderRadius: '50%', 
-                background: '#0ea5e9', 
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: '12px'
-              }}>
-                <span style={{ color: 'white', fontSize: '16px' }}>ℹ</span>
-              </div>
-              <div>
-                <Text strong style={{ color: '#0c4a6e' }}>Thông tin quan trọng:</Text>
-                <div style={{ color: '#0369a1', fontSize: '14px', marginTop: '4px' }}>
-                  • Số tiền tối thiểu nạp: 10,000₫ • Số tiền tối thiểu rút: 50,000₫ • Thời gian xử lý rút tiền: 1-3 ngày làm việc
-                </div>
-              </div>
-            </div>
-          </div>
+                     <div style={{ 
+             marginTop: '32px', 
+             padding: '16px', 
+             background: vnpayError 
+               ? 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)' 
+               : 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', 
+             borderRadius: '12px',
+             border: vnpayError ? '1px solid #fecaca' : '1px solid #bae6fd'
+           }}>
+             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               <div style={{ 
+                 width: '40px', 
+                 height: '40px', 
+                 borderRadius: '50%', 
+                 background: vnpayError ? '#ef4444' : '#0ea5e9', 
+                 display: 'flex',
+                 alignItems: 'center',
+                 justifyContent: 'center',
+                 marginRight: '12px'
+               }}>
+                 <span style={{ color: 'white', fontSize: '16px' }}>
+                   {vnpayError ? '⚠' : 'ℹ'}
+                 </span>
+               </div>
+               <div>
+                 <Text strong style={{ color: vnpayError ? '#991b1b' : '#0c4a6e' }}>
+                   {vnpayError ? `Cảnh báo về VNPAY (${vnpayErrorCount} lỗi):` : 'Thông tin quan trọng:'}
+                 </Text>
+                 <div style={{ 
+                   color: vnpayError ? '#dc2626' : '#0369a1', 
+                   fontSize: '14px', 
+                   marginTop: '4px' 
+                 }}>
+                   {vnpayError ? (
+                     <>
+                       • VNPAY đang gặp sự cố kỹ thuật (JavaScript/CSP/Xác thực)
+                       <br />
+                       • Đã gặp lỗi {vnpayErrorCount} lần trong phiên này
+                       <br />
+                       • Khuyến nghị sử dụng Momo hoặc ZaloPay thay thế
+                       <br />
+                       • Số tiền tối thiểu nạp: 10,000₫ • Số tiền tối thiểu rút: 50,000₫
+                     </>
+                   ) : (
+                     <>
+                       • Số tiền tối thiểu nạp: 10,000₫ • Số tiền tối thiểu rút: 50,000₫ • Thời gian xử lý rút tiền: 1-3 ngày làm việc
+                       <br />
+                       • VNPAY sandbox có thể gặp lỗi JavaScript, CSP hoặc xác thực. Nếu gặp lỗi, vui lòng thử phương thức khác
+                     </>
+                   )}
+                 </div>
+               </div>
+             </div>
+           </div>
         </Card>
 
         {/* Transaction History */}
