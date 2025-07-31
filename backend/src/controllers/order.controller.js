@@ -310,7 +310,18 @@ class OrderController {
       console.log('🔍 getUserOrders - Filter:', filter);
 
       const orders = await Order.find(filter)
-        .populate('items.courseId', 'title thumbnail price')
+        .populate({
+          path: 'items.courseId',
+          select: 'title thumbnail price discount rating totalReviews views level language',
+          populate: {
+            path: 'instructor',
+            select: 'user bio expertise rating totalReviews totalStudents',
+            populate: {
+              path: 'user',
+              select: 'fullname avatar'
+            }
+          }
+        })
         .populate('voucherId', 'code title')
         .sort({ createdAt: -1 })
         .limit(limit * 1)
@@ -320,23 +331,100 @@ class OrderController {
 
       const total = await Order.countDocuments(filter);
 
-      return res.json({
-        success: true,
-        message: 'Lấy danh sách đơn hàng thành công',
-        data: {
-          orders: orders.map(order => ({
+      // Xử lý dữ liệu khóa học với thông tin chi tiết
+      const ordersWithDetails = await Promise.all(
+        orders.map(async (order) => {
+          const itemsWithDetails = await Promise.all(
+            order.items.map(async (item) => {
+              const course = item.courseId;
+              
+              // Lấy số học viên đã đăng ký khóa học
+              const studentCount = await Enrollment.countDocuments({ 
+                course: course._id,
+                status: 'completed'
+              });
+
+              // Lấy tổng thời gian khóa học từ các video
+              const Section = require('../models/Section');
+              const Lesson = require('../models/Lesson');
+              const Video = require('../models/Video');
+              
+              const sections = await Section.find({ course_id: course._id });
+              let totalDuration = 0;
+              
+              for (const section of sections) {
+                const lessons = await Lesson.find({ section_id: section._id });
+                for (const lesson of lessons) {
+                  const video = await Video.findOne({ lesson_id: lesson._id });
+                  if (video && video.duration) {
+                    totalDuration += video.duration;
+                  }
+                }
+              }
+
+              // Format duration
+              const formatDuration = (seconds) => {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                if (hours > 0) {
+                  return `${hours} giờ ${minutes} phút`;
+                }
+                return `${minutes} phút`;
+              };
+
+              return {
+                ...item.toObject(),
+                courseId: {
+                  ...course.toObject(),
+                  students: studentCount,
+                  duration: formatDuration(totalDuration),
+                  author: course.instructor ? {
+                    name: course.instructor.user?.fullname || 'EduPro',
+                    avatar: course.instructor.user?.avatar || null,
+                    bio: course.instructor.bio,
+                    expertise: course.instructor.expertise,
+                    rating: course.instructor.rating || 0,
+                    totalReviews: course.instructor.totalReviews || 0,
+                    totalStudents: course.instructor.totalStudents || 0
+                  } : {
+                    name: 'EduPro',
+                    avatar: null,
+                    bio: '',
+                    expertise: [],
+                    rating: 0,
+                    totalReviews: 0,
+                    totalStudents: 0
+                  }
+                }
+              };
+            })
+          );
+
+          return {
             id: order._id,
-            items: order.items,
+            items: itemsWithDetails,
             totalAmount: order.totalAmount,
             discountAmount: order.discountAmount,
             finalAmount: order.finalAmount,
             voucher: order.voucherId,
+            status: order.status,
+            paymentStatus: order.paymentStatus,
             paymentMethod: order.paymentMethod,
             fullName: order.fullName,
             phone: order.phone,
             email: order.email,
-            createdAt: order.createdAt
-          })),
+            notes: order.notes,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt
+          };
+        })
+      );
+
+      return res.json({
+        success: true,
+        message: 'Lấy danh sách đơn hàng thành công',
+        data: {
+          orders: ordersWithDetails,
           pagination: {
             current: Number(page),
             total: Math.ceil(total / limit),
@@ -357,12 +445,90 @@ class OrderController {
       const userId = req.user.id;
 
       const order = await Order.findOne({ _id: id, userId })
-        .populate('items.courseId', 'title thumbnail price discount description')
+        .populate({
+          path: 'items.courseId',
+          select: 'title thumbnail price discount description rating totalReviews views level language',
+          populate: {
+            path: 'instructor',
+            select: 'user bio expertise rating totalReviews totalStudents',
+            populate: {
+              path: 'user',
+              select: 'fullname avatar'
+            }
+          }
+        })
         .populate('voucherId', 'code title discountType discountValue');
 
       if (!order) {
         return res.status(404).json({ success: false, message: 'Đơn hàng không tồn tại' });
       }
+
+      // Xử lý dữ liệu khóa học với thông tin chi tiết
+      const itemsWithDetails = await Promise.all(
+        order.items.map(async (item) => {
+          const course = item.courseId;
+          
+          // Lấy số học viên đã đăng ký khóa học
+          const studentCount = await Enrollment.countDocuments({ 
+            course: course._id,
+            status: 'completed'
+          });
+
+          // Lấy tổng thời gian khóa học từ các video
+          const Section = require('../models/Section');
+          const Lesson = require('../models/Lesson');
+          const Video = require('../models/Video');
+          
+          const sections = await Section.find({ course_id: course._id });
+          let totalDuration = 0;
+          
+          for (const section of sections) {
+            const lessons = await Lesson.find({ section_id: section._id });
+            for (const lesson of lessons) {
+              const video = await Video.findOne({ lesson_id: lesson._id });
+              if (video && video.duration) {
+                totalDuration += video.duration;
+              }
+            }
+          }
+
+          // Format duration
+          const formatDuration = (seconds) => {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            if (hours > 0) {
+              return `${hours} giờ ${minutes} phút`;
+            }
+            return `${minutes} phút`;
+          };
+
+          return {
+            ...item.toObject(),
+            courseId: {
+              ...course.toObject(),
+              students: studentCount,
+              duration: formatDuration(totalDuration),
+              author: course.instructor ? {
+                name: course.instructor.user?.fullname || 'EduPro',
+                avatar: course.instructor.user?.avatar || null,
+                bio: course.instructor.bio,
+                expertise: course.instructor.expertise,
+                rating: course.instructor.rating || 0,
+                totalReviews: course.instructor.totalReviews || 0,
+                totalStudents: course.instructor.totalStudents || 0
+              } : {
+                name: 'EduPro',
+                avatar: null,
+                bio: '',
+                expertise: [],
+                rating: 0,
+                totalReviews: 0,
+                totalStudents: 0
+              }
+            }
+          };
+        })
+      );
 
       return res.json({
         success: true,
@@ -370,11 +536,13 @@ class OrderController {
         data: {
           order: {
             id: order._id,
-            items: order.items,
+            items: itemsWithDetails,
             totalAmount: order.totalAmount,
             discountAmount: order.discountAmount,
             finalAmount: order.finalAmount,
             voucher: order.voucherId,
+            status: order.status,
+            paymentStatus: order.paymentStatus,
             paymentMethod: order.paymentMethod,
             notes: order.notes,
             fullName: order.fullName,

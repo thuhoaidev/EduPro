@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  motion, 
-  AnimatePresence 
+import {
+  motion,
+  AnimatePresence
 } from 'framer-motion';
-import { 
-  Row, 
-  Col, 
-  Card, 
-  Button, 
-  Typography, 
-  Divider, 
-  message, 
-  Empty, 
-  Badge, 
-  Tag, 
+import {
+  Row,
+  Col,
+  Card,
+  Button,
+  Typography,
+  Divider,
+  message,
+  Empty,
+  Badge,
+  Tag,
   Spin,
   Pagination,
   Select,
@@ -22,9 +22,9 @@ import {
   Input,
   Statistic
 } from 'antd';
-import { 
-  ShoppingOutlined, 
-  EyeOutlined, 
+import {
+  ShoppingOutlined,
+  EyeOutlined,
   CloseCircleOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -61,10 +61,10 @@ const OrdersPage: React.FC = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
 
-  const formatCurrency = (amount: number) => 
-    new Intl.NumberFormat('vi-VN', { 
-      style: 'currency', 
-      currency: 'VND' 
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
     }).format(amount);
 
   const formatDate = (dateString: string) => {
@@ -124,10 +124,10 @@ const OrdersPage: React.FC = () => {
 
   const getPaymentMethodIcon = (method: string) => {
     const methodLower = method?.toLowerCase() || '';
-    
+
     if (methodLower.includes('zalopay') || methodLower.includes('zalo')) {
       return (
-        <img 
+        <img
           src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-ZaloPay-Square.png"
           alt="ZaloPay"
           style={{
@@ -139,10 +139,10 @@ const OrdersPage: React.FC = () => {
         />
       );
     }
-    
+
     if (methodLower.includes('momo') || methodLower.includes('momo')) {
       return (
-        <img 
+        <img
           src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-MoMo-Square.png"
           alt="MoMo"
           style={{
@@ -154,10 +154,10 @@ const OrdersPage: React.FC = () => {
         />
       );
     }
-    
+
     if (methodLower.includes('vnpay') || methodLower.includes('vnpay')) {
       return (
-        <img 
+        <img
           src="https://vnpay.vn/s1/statics.vnpay.vn/2023/6/0oxhzjmxbksr1686814746087.png"
           alt="VNPay"
           style={{
@@ -169,50 +169,50 @@ const OrdersPage: React.FC = () => {
         />
       );
     }
-    
+
     if (methodLower.includes('bank') || methodLower.includes('transfer')) {
       return <BankOutlined style={{ color: '#1890ff', fontSize: '20px' }} />;
     }
-    
+
     if (methodLower.includes('card') || methodLower.includes('credit')) {
       return <CreditCardOutlined style={{ color: '#52c41a', fontSize: '20px' }} />;
     }
-    
+
     if (methodLower.includes('wallet') || methodLower.includes('balance')) {
       return <WalletOutlined style={{ color: '#fa8c16', fontSize: '20px' }} />;
     }
-    
+
     // Default icon
     return <DollarOutlined style={{ color: '#722ed1', fontSize: '20px' }} />;
   };
 
   const getPaymentMethodText = (method: string) => {
     const methodLower = method?.toLowerCase() || '';
-    
+
     if (methodLower.includes('zalopay') || methodLower.includes('zalo')) {
       return 'ZaloPay';
     }
-    
+
     if (methodLower.includes('momo') || methodLower.includes('momo')) {
       return 'MoMo';
     }
-    
+
     if (methodLower.includes('vnpay') || methodLower.includes('vnpay')) {
       return 'VNPay';
     }
-    
+
     if (methodLower.includes('bank') || methodLower.includes('transfer')) {
       return 'Chuyển khoản';
     }
-    
+
     if (methodLower.includes('card') || methodLower.includes('credit')) {
       return 'Thẻ tín dụng';
     }
-    
+
     if (methodLower.includes('wallet') || methodLower.includes('balance')) {
       return 'Ví điện tử';
     }
-    
+
     return method?.toUpperCase() || '---';
   };
 
@@ -226,12 +226,12 @@ const OrdersPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await orderService.getUserOrders(
-        token, 
-        currentPage, 
-        pageSize, 
+        token,
+        currentPage,
+        pageSize,
         statusFilter
       );
-      
+
       setOrders(response.orders);
       setTotal(response.pagination.total);
     } catch (error: any) {
@@ -295,7 +295,7 @@ const OrdersPage: React.FC = () => {
 
   if (loading && orders.length === 0) {
     return (
-      <div style={{ 
+      <div style={{
         minHeight: '100vh',
         background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
         display: 'flex',
@@ -303,7 +303,7 @@ const OrdersPage: React.FC = () => {
         justifyContent: 'center'
       }}>
         <div style={{ textAlign: 'center' }}>
-        <Spin size="large" />
+          <Spin size="large" />
           <div style={{ marginTop: '16px', color: '#718096' }}>
             Đang tải danh sách đơn hàng...
           </div>
@@ -315,7 +315,7 @@ const OrdersPage: React.FC = () => {
   const filteredOrders = orderSearch ? orders.filter(order => order.id.includes(orderSearch)) : orders;
 
   return (
-    <div style={{ 
+    <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
       padding: '24px'
@@ -327,7 +327,7 @@ const OrdersPage: React.FC = () => {
           transition={{ duration: 0.6 }}
         >
           {/* Header Section */}
-          <div style={{ 
+          <div style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             borderRadius: '24px',
             padding: '40px',
@@ -347,7 +347,7 @@ const OrdersPage: React.FC = () => {
               backgroundSize: '30px 30px',
               animation: 'float 8s ease-in-out infinite'
             }} />
-            
+
             <div style={{ position: 'relative', zIndex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
                 <div style={{
@@ -364,16 +364,16 @@ const OrdersPage: React.FC = () => {
                   <ShoppingOutlined style={{ fontSize: '36px', color: 'white' }} />
                 </div>
                 <div>
-                  <Title level={1} style={{ 
-                    margin: 0, 
+                  <Title level={1} style={{
+                    margin: 0,
                     color: 'white',
                     fontWeight: 800,
                     fontSize: '32px'
                   }}>
                     Đơn hàng của tôi
                   </Title>
-                  <Text style={{ 
-                    color: 'rgba(255,255,255,0.9)', 
+                  <Text style={{
+                    color: 'rgba(255,255,255,0.9)',
                     fontSize: '16px',
                     display: 'block',
                     marginTop: '8px'
@@ -445,10 +445,10 @@ const OrdersPage: React.FC = () => {
           }}>
             <Row gutter={[24, 16]} align="middle">
               <Col xs={24} md={12}>
-            <Input.Search
+                <Input.Search
                   placeholder="Tìm kiếm theo mã đơn hàng..."
-              allowClear
-              onSearch={value => setOrderSearch(value)}
+                  allowClear
+                  onSearch={value => setOrderSearch(value)}
                   prefix={<SearchOutlined style={{ color: '#667eea' }} />}
                   style={{
                     borderRadius: '12px',
@@ -497,8 +497,8 @@ const OrdersPage: React.FC = () => {
                   </Text>
                 }
               >
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   size="large"
                   onClick={() => navigate('/courses')}
                   style={{
@@ -528,7 +528,7 @@ const OrdersPage: React.FC = () => {
                     transition={{ delay: index * 0.1 }}
                     style={{ marginBottom: '20px' }}
                   >
-                    <Card 
+                    <Card
                       style={{
                         borderRadius: '20px',
                         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
@@ -547,9 +547,9 @@ const OrdersPage: React.FC = () => {
                       }}
                     >
                       {/* Order Header */}
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'flex-start',
                         marginBottom: '20px',
                         flexWrap: 'wrap',
@@ -570,10 +570,10 @@ const OrdersPage: React.FC = () => {
                             <CalendarOutlined style={{ color: '#667eea' }} />
                             <Text style={{ color: '#718096', fontSize: '14px' }}>
                               {formatDate(order.createdAt)}
-                          </Text>
+                            </Text>
                           </div>
                         </div>
-                        
+
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <Tag
                             color={getStatusColor(order.status)}
@@ -588,7 +588,7 @@ const OrdersPage: React.FC = () => {
                           >
                             {getStatusText(order.status)}
                           </Tag>
-                          <Button 
+                          <Button
                             type="primary"
                             icon={<EyeOutlined />}
                             onClick={() => handleViewDetail(order)}
@@ -617,8 +617,8 @@ const OrdersPage: React.FC = () => {
                             marginBottom: '12px',
                             border: '1px solid #e2e8f0'
                           }}>
-                            <img 
-                              src={item.courseId.thumbnail} 
+                            <img
+                              src={item.courseId.thumbnail}
                               alt={item.courseId.title}
                               style={{
                                 width: '80px',
@@ -628,83 +628,83 @@ const OrdersPage: React.FC = () => {
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                               }}
                             />
-                                                         <div style={{ flex: 1 }}>
-                               <Text strong style={{ 
-                                 fontSize: '16px',
-                                 color: '#1a202c',
-                                 display: 'block',
-                                 marginBottom: '8px'
-                               }}>
+                            <div style={{ flex: 1 }}>
+                              <Text strong style={{
+                                fontSize: '16px',
+                                color: '#1a202c',
+                                display: 'block',
+                                marginBottom: '8px'
+                              }}>
                                 {item.courseId.title}
                               </Text>
-                               
-                               {/* Instructor Info */}
-                               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                                 {(item.courseId as any)?.author?.avatar ? (
-                                   <img 
-                                     src={(item.courseId as any)?.author?.avatar} 
-                                     alt="Instructor"
-                                     style={{
-                                       width: '20px',
-                                       height: '20px',
-                                       borderRadius: '50%',
-                                       marginRight: '8px',
-                                       objectFit: 'cover'
-                                     }}
-                                   />
-                                 ) : (
-                                   <div style={{
-                                     width: '20px',
-                                     height: '20px',
-                                     borderRadius: '50%',
-                                     marginRight: '8px',
-                                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                     display: 'flex',
-                                     alignItems: 'center',
-                                     justifyContent: 'center',
-                                     color: 'white',
-                                     fontSize: '10px',
-                                     fontWeight: 'bold'
-                                   }}>
-                                     {(item.courseId as any)?.author?.name?.charAt(0) || 'E'}
-                                   </div>
-                                 )}
-                                 <Text style={{ 
-                                   fontSize: '14px',
-                                   color: '#718096'
-                                 }}>
-                                   {(item.courseId as any)?.author?.name || 'EduPro'}
-                                 </Text>
-                               </div>
-                               
-                               {/* Course Stats */}
-                               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                                 {/* Rating */}
-                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                   <StarFilled style={{ color: '#fbbf24', fontSize: '14px' }} />
-                                   <Text style={{ fontSize: '12px', color: '#718096' }}>
-                                     {(item.courseId as any)?.rating > 0 ? (item.courseId as any)?.rating?.toFixed(1) : 'Chưa có đánh giá'}
-                                   </Text>
-                                 </div>
-                                 
-                                 {/* Duration */}
-                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                   <PlayCircleOutlined style={{ color: '#667eea', fontSize: '14px' }} />
-                                   <Text style={{ fontSize: '12px', color: '#718096' }}>
-                                     {(item.courseId as any)?.duration !== '0 phút' ? (item.courseId as any)?.duration : 'Chưa có nội dung'}
-                                   </Text>
-                                 </div>
-                                 
-                                 {/* Students */}
-                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                   <UserOutlined style={{ color: '#10b981', fontSize: '14px' }} />
-                                   <Text style={{ fontSize: '12px', color: '#718096' }}>
-                                     {(item.courseId as any)?.students > 0 ? (item.courseId as any)?.students?.toLocaleString() : 'Chưa có học viên'}
-                              </Text>
+
+                              {/* Instructor Info */}
+                              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                                {item.courseId.author?.avatar ? (
+                                  <img
+                                    src={item.courseId.author.avatar}
+                                    alt="Instructor"
+                                    style={{
+                                      width: '20px',
+                                      height: '20px',
+                                      borderRadius: '50%',
+                                      marginRight: '8px',
+                                      objectFit: 'cover'
+                                    }}
+                                  />
+                                ) : (
+                                  <div style={{
+                                    width: '20px',
+                                    height: '20px',
+                                    borderRadius: '50%',
+                                    marginRight: '8px',
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: '10px',
+                                    fontWeight: 'bold'
+                                  }}>
+                                    {item.courseId.author?.name?.charAt(0) || 'E'}
+                                  </div>
+                                )}
+                                <Text style={{
+                                  fontSize: '14px',
+                                  color: '#718096'
+                                }}>
+                                  {item.courseId.author?.name || 'EduPro'}
+                                </Text>
+                              </div>
+
+                              {/* Course Stats */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                                {/* Rating */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <StarFilled style={{ color: '#fbbf24', fontSize: '14px' }} />
+                                  <Text style={{ fontSize: '12px', color: '#718096' }}>
+                                    {item.courseId.rating > 0 ? item.courseId.rating.toFixed(1) : 'Chưa có đánh giá'}
+                                  </Text>
+                                </div>
+
+                                {/* Duration */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <PlayCircleOutlined style={{ color: '#667eea', fontSize: '14px' }} />
+                                  <Text style={{ fontSize: '12px', color: '#718096' }}>
+                                    {item.courseId.duration && item.courseId.duration !== '0 phút' ? item.courseId.duration : 'Chưa có nội dung'}
+                                  </Text>
+                                </div>
+
+                                {/* Students */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <UserOutlined style={{ color: '#10b981', fontSize: '14px' }} />
+                                  <Text style={{ fontSize: '12px', color: '#718096' }}>
+                                    {item.courseId.students > 0 ? item.courseId.students.toLocaleString() : 'Chưa có học viên'}
+                                  </Text>
+                                </div>
+                              </div>
                             </div>
-                               </div>
-                             </div>
-                            <Text strong style={{ 
+                            <Text strong style={{
                               color: '#e53e3e',
                               fontSize: '18px',
                               fontWeight: 700
@@ -717,28 +717,28 @@ const OrdersPage: React.FC = () => {
 
                       {/* Order Summary */}
                       <Divider style={{ margin: '20px 0' }} />
-                      
-                      <div style={{ 
-                        display: 'flex', 
+
+                      <div style={{
+                        display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         flexWrap: 'wrap',
                         gap: '16px'
                       }}>
-                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                             {getPaymentMethodIcon(order.paymentMethod)}
-                             <Text style={{ fontSize: '16px', color: '#4a5568' }}>
-                               <Text strong>{getPaymentMethodText(order.paymentMethod)}</Text>
-                             </Text>
-                           </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {getPaymentMethodIcon(order.paymentMethod)}
+                            <Text style={{ fontSize: '16px', color: '#4a5568' }}>
+                              <Text strong>{getPaymentMethodText(order.paymentMethod)}</Text>
+                            </Text>
+                          </div>
                           {order.voucher && (
                             <Tag color="blue" style={{ borderRadius: '8px', padding: '4px 12px' }}>
                               Voucher: {order.voucher.code}
                             </Tag>
                           )}
                         </div>
-                        
+
                         <div style={{ textAlign: 'right' }}>
                           {order.discountAmount > 0 && (
                             <div style={{ marginBottom: '8px' }}>
@@ -750,7 +750,7 @@ const OrdersPage: React.FC = () => {
                           )}
                           <div>
                             <Text style={{ fontSize: '18px', color: '#4a5568' }}>Tổng cộng: </Text>
-                            <Text style={{ 
+                            <Text style={{
                               fontSize: '24px',
                               color: '#e53e3e',
                               fontWeight: 800
@@ -767,8 +767,8 @@ const OrdersPage: React.FC = () => {
 
               {/* Pagination */}
               {total > pageSize && (
-                <div style={{ 
-                  display: 'flex', 
+                <div style={{
+                  display: 'flex',
                   justifyContent: 'center',
                   marginTop: '32px'
                 }}>
@@ -779,19 +779,19 @@ const OrdersPage: React.FC = () => {
                     background: 'rgba(255, 255, 255, 0.95)',
                     backdropFilter: 'blur(10px)'
                   }}>
-                  <Pagination
-                    current={currentPage}
-                    total={total}
-                    pageSize={pageSize}
-                    showSizeChanger
-                    showQuickJumper
-                    showTotal={(total, range) => 
-                      `${range[0]}-${range[1]} của ${total} đơn hàng`
-                    }
-                    onChange={handlePageChange}
-                    onShowSizeChange={handlePageChange}
+                    <Pagination
+                      current={currentPage}
+                      total={total}
+                      pageSize={pageSize}
+                      showSizeChanger
+                      showQuickJumper
+                      showTotal={(total, range) =>
+                        `${range[0]}-${range[1]} của ${total} đơn hàng`
+                      }
+                      onChange={handlePageChange}
+                      onShowSizeChange={handlePageChange}
                       style={{ padding: '8px' }}
-                  />
+                    />
                   </Card>
                 </div>
               )}
@@ -846,7 +846,7 @@ const OrdersPage: React.FC = () => {
                       <Text style={{ fontSize: '16px' }}>
                         {formatDate(selectedOrder.createdAt)}
                       </Text>
-                </div>
+                    </div>
                   </Col>
                   <Col xs={24} sm={12}>
                     <div style={{
@@ -855,16 +855,16 @@ const OrdersPage: React.FC = () => {
                       borderRadius: '12px',
                       border: '1px solid #e2e8f0'
                     }}>
-                                             <Text strong style={{ color: '#2d3748', display: 'block', marginBottom: '8px' }}>
-                         Phương thức thanh toán
-                       </Text>
-                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                         {getPaymentMethodIcon(selectedOrder.paymentMethod)}
-                         <Text style={{ fontSize: '16px' }}>
-                           {getPaymentMethodText(selectedOrder.paymentMethod)}
-                         </Text>
-                </div>
-                </div>
+                      <Text strong style={{ color: '#2d3748', display: 'block', marginBottom: '8px' }}>
+                        Phương thức thanh toán
+                      </Text>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {getPaymentMethodIcon(selectedOrder.paymentMethod)}
+                        <Text style={{ fontSize: '16px' }}>
+                          {getPaymentMethodText(selectedOrder.paymentMethod)}
+                        </Text>
+                      </div>
+                    </div>
                   </Col>
                   <Col xs={24} sm={12}>
                     <div style={{
@@ -888,10 +888,10 @@ const OrdersPage: React.FC = () => {
                       >
                         {getStatusText(selectedOrder.status)}
                       </Tag>
-                  </div>
+                    </div>
                   </Col>
                 </Row>
-                  </div>
+              </div>
 
               {/* Customer Information */}
               <div style={{ marginBottom: '24px' }}>
@@ -954,7 +954,7 @@ const OrdersPage: React.FC = () => {
                 <Title level={4} style={{ marginBottom: '16px', color: '#2d3748' }}>
                   Chi tiết sản phẩm
                 </Title>
-                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {selectedOrder.items.map((item, index) => (
                     <div key={index} style={{
                       display: 'flex',
@@ -966,8 +966,8 @@ const OrdersPage: React.FC = () => {
                       marginBottom: '12px',
                       border: '1px solid #e2e8f0'
                     }}>
-                      <img 
-                        src={item.courseId.thumbnail} 
+                      <img
+                        src={item.courseId.thumbnail}
                         alt={item.courseId.title}
                         style={{
                           width: '100px',
@@ -977,83 +977,83 @@ const OrdersPage: React.FC = () => {
                           boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                         }}
                       />
-                                             <div style={{ flex: 1 }}>
-                         <Text strong style={{ 
-                           fontSize: '16px',
-                           color: '#1a202c',
-                           display: 'block',
-                           marginBottom: '8px'
-                         }}>
+                      <div style={{ flex: 1 }}>
+                        <Text strong style={{
+                          fontSize: '16px',
+                          color: '#1a202c',
+                          display: 'block',
+                          marginBottom: '8px'
+                        }}>
                           {item.courseId.title}
                         </Text>
-                         
-                         {/* Instructor Info */}
-                         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                           {(item.courseId as any)?.author?.avatar ? (
-                             <img 
-                               src={(item.courseId as any)?.author?.avatar} 
-                               alt="Instructor"
-                               style={{
-                                 width: '20px',
-                                 height: '20px',
-                                 borderRadius: '50%',
-                                 marginRight: '8px',
-                                 objectFit: 'cover'
-                               }}
-                             />
-                           ) : (
-                             <div style={{
-                               width: '20px',
-                               height: '20px',
-                               borderRadius: '50%',
-                               marginRight: '8px',
-                               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                               display: 'flex',
-                               alignItems: 'center',
-                               justifyContent: 'center',
-                               color: 'white',
-                               fontSize: '10px',
-                               fontWeight: 'bold'
-                             }}>
-                               {(item.courseId as any)?.author?.name?.charAt(0) || 'E'}
-                             </div>
-                           )}
-                           <Text style={{ 
-                             fontSize: '14px',
-                             color: '#718096'
-                           }}>
-                             {(item.courseId as any)?.author?.name || 'EduPro'}
-                           </Text>
-                         </div>
-                         
-                         {/* Course Stats */}
-                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                           {/* Rating */}
-                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                             <StarFilled style={{ color: '#fbbf24', fontSize: '14px' }} />
-                             <Text style={{ fontSize: '12px', color: '#718096' }}>
-                               {(item.courseId as any)?.rating > 0 ? (item.courseId as any)?.rating?.toFixed(1) : 'Chưa có đánh giá'}
-                             </Text>
-                           </div>
-                           
-                           {/* Duration */}
-                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                             <PlayCircleOutlined style={{ color: '#667eea', fontSize: '14px' }} />
-                             <Text style={{ fontSize: '12px', color: '#718096' }}>
-                               {(item.courseId as any)?.duration !== '0 phút' ? (item.courseId as any)?.duration : 'Chưa có nội dung'}
-                             </Text>
-                           </div>
-                           
-                           {/* Students */}
-                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                             <UserOutlined style={{ color: '#10b981', fontSize: '14px' }} />
-                             <Text style={{ fontSize: '12px', color: '#718096' }}>
-                               {(item.courseId as any)?.students > 0 ? (item.courseId as any)?.students?.toLocaleString() : 'Chưa có học viên'}
-                        </Text>
+
+                        {/* Instructor Info */}
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                          {item.courseId.author?.avatar ? (
+                            <img
+                              src={item.courseId.author.avatar}
+                              alt="Instructor"
+                              style={{
+                                width: '20px',
+                                height: '20px',
+                                borderRadius: '50%',
+                                marginRight: '8px',
+                                objectFit: 'cover'
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '50%',
+                              marginRight: '8px',
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontSize: '10px',
+                              fontWeight: 'bold'
+                            }}>
+                              {item.courseId.author?.name?.charAt(0) || 'E'}
+                            </div>
+                          )}
+                          <Text style={{
+                            fontSize: '14px',
+                            color: '#718096'
+                          }}>
+                            {item.courseId.author?.name || 'EduPro'}
+                          </Text>
+                        </div>
+
+                        {/* Course Stats */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                          {/* Rating */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <StarFilled style={{ color: '#fbbf24', fontSize: '14px' }} />
+                            <Text style={{ fontSize: '12px', color: '#718096' }}>
+                              {item.courseId.rating > 0 ? item.courseId.rating.toFixed(1) : 'Chưa có đánh giá'}
+                            </Text>
+                          </div>
+
+                          {/* Duration */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <PlayCircleOutlined style={{ color: '#667eea', fontSize: '14px' }} />
+                            <Text style={{ fontSize: '12px', color: '#718096' }}>
+                              {item.courseId.duration && item.courseId.duration !== '0 phút' ? item.courseId.duration : 'Chưa có nội dung'}
+                            </Text>
+                          </div>
+
+                          {/* Students */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <UserOutlined style={{ color: '#10b981', fontSize: '14px' }} />
+                            <Text style={{ fontSize: '12px', color: '#718096' }}>
+                              {item.courseId.students > 0 ? item.courseId.students.toLocaleString() : 'Chưa có học viên'}
+                            </Text>
+                          </div>
+                        </div>
                       </div>
-                         </div>
-                       </div>
-                      <Text strong style={{ 
+                      <Text strong style={{
                         color: '#e53e3e',
                         fontSize: '18px',
                         fontWeight: 700
@@ -1075,25 +1075,25 @@ const OrdersPage: React.FC = () => {
                 <Title level={4} style={{ marginBottom: '16px', color: '#2d3748' }}>
                   Tổng kết đơn hàng
                 </Title>
-                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {selectedOrder.discountAmount > 0 && (
-                    <div style={{ 
-                      display: 'flex', 
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {selectedOrder.discountAmount > 0 && (
+                    <div style={{
+                      display: 'flex',
                       justifyContent: 'space-between',
                       marginBottom: '12px'
                     }}>
                       <Text style={{ fontSize: '16px', color: '#4a5568' }}>Giảm giá:</Text>
-                      <Text style={{ 
+                      <Text style={{
                         fontSize: '16px',
                         color: '#38a169',
                         fontWeight: 600
                       }}>
                         -{formatCurrency(selectedOrder.discountAmount)}
                       </Text>
-                  </div>
-                )}
-                  <div style={{ 
-                    display: 'flex', 
+                    </div>
+                  )}
+                  <div style={{
+                    display: 'flex',
                     justifyContent: 'space-between',
                     borderTop: '2px solid #e2e8f0',
                     paddingTop: '16px'
@@ -1101,13 +1101,13 @@ const OrdersPage: React.FC = () => {
                     <Text strong style={{ fontSize: '20px', color: '#2d3748' }}>
                       Tổng cộng:
                     </Text>
-                    <Text strong style={{ 
+                    <Text strong style={{
                       fontSize: '24px',
                       color: '#e53e3e',
                       fontWeight: 800
                     }}>
-                    {formatCurrency(selectedOrder.finalAmount)}
-                  </Text>
+                      {formatCurrency(selectedOrder.finalAmount)}
+                    </Text>
                   </div>
                 </div>
               </div>

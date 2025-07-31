@@ -31,6 +31,22 @@ export interface Order {
       thumbnail: string;
       price: number;
       discount?: number;
+      rating?: number;
+      totalReviews?: number;
+      views?: number;
+      level?: string;
+      language?: string;
+      students?: number;
+      duration?: string;
+      author?: {
+        name?: string;
+        avatar?: string;
+        bio?: string;
+        expertise?: string[];
+        rating?: number;
+        totalReviews?: number;
+        totalStudents?: number;
+      };
     };
     price: number;
     quantity: number;
