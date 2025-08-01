@@ -1016,7 +1016,10 @@ exports.getAllCourses = async (req, res, next) => {
         const filter = {};
         // Chỉ hiển thị khóa học có trạng thái published
         filter.displayStatus = 'published';
-        if (category) filter.category = category;
+        if (category) {
+            console.log('Filtering by category:', category);
+            filter.category = category;
+        }
         if (level) filter.level = level;
         if (language) filter.language = language;
         if (minPrice) filter.price = { ...filter.price, $gte: Number(minPrice) };
@@ -1027,6 +1030,7 @@ exports.getAllCourses = async (req, res, next) => {
             { discount_percentage: { $gt: 0 } }
         ];
 
+        console.log('Course filter:', JSON.stringify(filter, null, 2));
         const courses = await Course.find(filter)
             .populate('category', 'name')
             .populate({
@@ -1042,6 +1046,7 @@ exports.getAllCourses = async (req, res, next) => {
             .limit(Number(limit));
 
         const totalCourses = await Course.countDocuments(filter);
+        console.log(`Found ${courses.length} courses for category ${category}, total: ${totalCourses}`);
         
         const formatCourse = (course) => {
             const obj = course.toObject();

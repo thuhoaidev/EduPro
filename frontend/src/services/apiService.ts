@@ -171,7 +171,9 @@ export const courseService = {
   // Lấy khóa học theo danh mục có trạng thái published
   getCoursesByCategory: async (categoryId: string): Promise<Course[]> => {
     try {
+      console.log('Calling API for category:', categoryId);
       const response = await apiClient.get<ApiResponse<ApiCourse[]>>(`/courses?category=${categoryId}`);
+      console.log('API response for category:', response.data);
       return response.data?.success && Array.isArray(response.data.data)
         ? response.data.data.map(mapApiCourseToAppCourse)
         : [];

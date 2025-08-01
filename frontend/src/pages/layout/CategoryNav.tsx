@@ -69,6 +69,46 @@ const modernIconMap: { [key: string]: { icon: React.ReactNode; color: string; is
     color: '#10b981',
     isPopular: true 
   },
+  'Lập trình Web': { 
+    icon: <GlobalOutlined />, 
+    color: '#10b981',
+    isPopular: true 
+  },
+  'Lập trình Backend': { 
+    icon: <CloudOutlined />, 
+    color: '#6366f1',
+    isPopular: true 
+  },
+  'An ninh mạng': { 
+    icon: <SafetyCertificateOutlined />, 
+    color: '#059669',
+    isPopular: true 
+  },
+  'Trí tuệ nhân tạo & Deep Learning': { 
+    icon: <RocketOutlined />, 
+    color: '#f97316',
+    isNew: true 
+  },
+  'Cơ sở dữ liệu': { 
+    icon: <DatabaseOutlined />, 
+    color: '#06b6d4',
+    isPopular: true 
+  },
+  'Khoa học máy tính': { 
+    icon: <StarOutlined />, 
+    color: '#fbbf24',
+    isPopular: true 
+  },
+  'Kỹ thuật phần mềm': { 
+    icon: <SettingOutlined />, 
+    color: '#7c3aed',
+    isPopular: true 
+  },
+  'Hệ thống thông tin': { 
+    icon: <LaptopOutlined />, 
+    color: '#84cc16',
+    isPopular: true 
+  },
   'Phát triển mobile': { 
     icon: <MobileOutlined />, 
     color: '#f59e0b',
@@ -157,14 +197,14 @@ const fallbackIcons: { icon: React.ReactNode; color: string }[] = [
 ];
 
 // Format category with modern styling
-const formatCategory = (category: BackendCategory, index: number): Category => {
+const formatCategory = (category: BackendCategory, index: number, courseCount: number = 0): Category => {
   const categoryInfo = modernIconMap[category.name] || fallbackIcons[index % fallbackIcons.length];
   return {
-    id: category._id,
+    id: category._id || category.id || `category-${index}`,
     name: category.name,
     icon: categoryInfo.icon,
     description: category.description,
-    courseCount: Math.floor(Math.random() * 50) + 5,
+    courseCount: courseCount,
     isPopular: categoryInfo.isPopular,
     isNew: categoryInfo.isNew,
     color: categoryInfo.color,
@@ -183,7 +223,14 @@ const AppSidebar: React.FC = () => {
       try {
         const response = await config.get<ApiResponse>('/categories/status/active');
         const backendCategories = response.data.data;
-        const formattedCategories = backendCategories.map((cat, index) => formatCategory(cat, index));
+        console.log('Backend categories:', backendCategories);
+        
+        // Format categories without course count
+        const formattedCategories = backendCategories.map((cat, index) => {
+          const formatted = formatCategory(cat, index);
+          console.log(`Formatted category: ${cat.name} -> ID: ${formatted.id}`);
+          return formatted;
+        });
 
         setCategories(formattedCategories);
         if (formattedCategories.length > 0) {
@@ -254,6 +301,7 @@ const AppSidebar: React.FC = () => {
   }, []);
 
   const handleMenuClick = ({ key }: { key: string }) => {
+    console.log('Category clicked:', key);
     navigate(`/courses?category=${key}`);
   };
 
@@ -337,16 +385,11 @@ const AppSidebar: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="category-content">
-                      <div className="category-name">
-                        {category.name}
-                      </div>
-                      {category.courseCount && category.courseCount > 0 && (
-                        <Text className="course-count">
-                          {category.courseCount} khóa học
-                        </Text>
-                      )}
-                    </div>
+                                         <div className="category-content">
+                       <div className="category-name">
+                         {category.name}
+                       </div>
+                     </div>
 
                     {/* Selection indicator */}
                     {isSelected && (
