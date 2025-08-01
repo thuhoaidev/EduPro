@@ -13,36 +13,18 @@ import {
   Col,
   Statistic,
 } from "antd";
-import { SearchOutlined, EyeInvisibleOutlined, DeleteOutlined, CheckCircleOutlined } from "@ant-design/icons";
+import { SearchOutlined, EyeInvisibleOutlined, DeleteOutlined } from "@ant-design/icons";
 import { fetchComments, updateCommentStatus, deleteComment } from '../../../services/commentModerationService';
 
 const { Option } = Select;
-
-const CommentStatus = {
-  PENDING: "pending",
-  APPROVED: "approved",
-  HIDDEN: "hidden",
-  REJECTED: "rejected",
-} as const;
-
-type CommentStatus = typeof CommentStatus[keyof typeof CommentStatus];
-
 
 interface Comment {
   id: string;
   content: string;
   userName: string;
   postTitle: string;
-  status: CommentStatus;
   createdAt: string;
 }
-
-const statusColors = {
-  [CommentStatus.PENDING]: "orange",
-  [CommentStatus.APPROVED]: "green",
-  [CommentStatus.HIDDEN]: "red",
-  [CommentStatus.REJECTED]: "red",
-};
 
 const CommentsModerationPage: React.FC = () => {
   const [comments, setComments] = useState<Comment[]>([]);
@@ -135,55 +117,19 @@ const CommentsModerationPage: React.FC = () => {
         }),
     },
     {
-      title: "Trạng thái",
-      dataIndex: "status",
-      key: "status",
-      render: (status: CommentStatus) => {
-        const statusText = {
-          [CommentStatus.PENDING]: "Chờ duyệt",
-          [CommentStatus.APPROVED]: "Đã duyệt",
-          [CommentStatus.HIDDEN]: "Đã ẩn",
-          [CommentStatus.REJECTED]: "Từ chối",
-        };
-        return (
-          <Tag color={statusColors[status]}>
-            {statusText[status]}
-          </Tag>
-        );
-      },
-    },
-    {
       title: "Hành động",
       key: "actions",
       align: "center" as const,
       render: (_: any, record: Comment) => (
         <Space size="small">
-          {record.status !== "approved" && (
-            <Popconfirm
-              title="Xác nhận duyệt bình luận này?"
-              onConfirm={() => updateStatus(record.id, "approved")}
-              okText="Duyệt"
-              cancelText="Hủy"
-            >
-              <Button
-                type="primary"
-                size="small"
-                icon={<CheckCircleOutlined />}
-              >
-                {record.status === "hidden" ? "Duyệt lại" : "Duyệt"}
-              </Button>
-            </Popconfirm>
-          )}
-          {record.status !== "hidden" && (
-            <Button
-              danger
-              size="small"
-              onClick={() => updateStatus(record.id, "hidden")}
-              icon={<EyeInvisibleOutlined />}
-            >
-              Ẩn
-            </Button>
-          )}
+          <Button
+            danger
+            size="small"
+            onClick={() => updateStatus(record.id, "hidden")}
+            icon={<EyeInvisibleOutlined />}
+          >
+            Ẩn
+          </Button>
           <Popconfirm
             title="Xác nhận xóa bình luận này?"
             onConfirm={() => handleDelete(record.id)}
