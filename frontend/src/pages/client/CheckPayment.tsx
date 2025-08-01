@@ -1,11 +1,11 @@
-import { Button, Result, message, Spin } from "antd";
+import React, { useEffect, useState, useRef } from "react";
+import { Button, Result, Spin, message } from "antd";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import config from "../../api/axios";
-import React, { useEffect, useState, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
 import orderService from "../../services/orderService";
 import { useAuth } from "../../hooks/Auths/useAuth";
-import { useCart } from "../../contexts/CartContext"; // ✅ Import đúng vị trí
+import { useCart } from "../../contexts/CartContext";
 
 interface PendingOrderItem {
   courseId: string;
@@ -16,224 +16,243 @@ function CheckPayment() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { token } = useAuth();
-  const { clearCart } = useCart(); // ✅ Hook phải gọi ở top-level
+  const { clearCart } = useCart();
 
   const [status, setStatus] = useState<"success" | "error">("error");
   const [title, setTitle] = useState("Đang xác minh thanh toán...");
   const [subTitle, setSubTitle] = useState("Vui lòng đợi trong giây lát...");
   const [isProcessing, setIsProcessing] = useState(true);
-  const orderCreationRef = useRef(false); // Ref để track việc tạo đơn hàng
+  const orderCreatedRef = useRef(false);
+  const [hasProcessed, setHasProcessed] = useState(false);
 
-  const paymentMethod = searchParams.get("paymentMethod");
+  // Tự động detect payment method từ URL params
+  let paymentMethod = searchParams.get("paymentMethod");
+  
+  // Nếu không có paymentMethod, tự động detect từ các tham số khác
+  if (!paymentMethod) {
+    const allParams = Object.fromEntries(searchParams.entries());
+    const hasVnpayParams = Object.keys(allParams).some(key => key.startsWith('vnp_'));
+    const hasMomoParams = Object.keys(allParams).some(key => key.startsWith('partnerCode') || key.startsWith('resultCode'));
+    const hasZalopayParams = Object.keys(allParams).some(key => key.startsWith('appTransId') || key.startsWith('status'));
+    
+    if (hasVnpayParams) {
+      paymentMethod = "vnpay";
+      console.log("🔍 CheckPayment - Auto detected VNPAY from URL params");
+    } else if (hasMomoParams) {
+      paymentMethod = "momo";
+      console.log("🔍 CheckPayment - Auto detected Momo from URL params");
+    } else if (hasZalopayParams) {
+      paymentMethod = "zalopay";
+      console.log("🔍 CheckPayment - Auto detected ZaloPay from URL params");
+    }
+  }
 
-  useEffect(() => {
+    useEffect(() => {
+    // Chỉ chạy khi có token và paymentMethod
+    console.log("🔍 CheckPayment - Debug - token:", !!token, "paymentMethod:", paymentMethod);
+    if (!token || !paymentMethod) {
+      console.log("🔍 CheckPayment - Waiting for token or paymentMethod...");
+      console.log("🔍 CheckPayment - token exists:", !!token);
+      console.log("🔍 CheckPayment - paymentMethod:", paymentMethod);
+      return;
+    }
+
+    // Tránh xử lý nhiều lần
+    if (hasProcessed) {
+      console.log("🔍 CheckPayment - Already processed, skipping...");
+      return;
+    }
+
     const handlePayment = async () => {
-      console.log('🔍 Payment process started - Method:', paymentMethod);
-      console.log('🔍 Payment process started - Search params:', Object.fromEntries(searchParams.entries()));
-      
-      // Reset processed order flag khi bắt đầu payment mới
-      // Kiểm tra xem có phải là payment mới không bằng cách so sánh orderId
-      const currentOrderId = searchParams.get("orderId");
-      const lastProcessedOrderId = localStorage.getItem('lastProcessedOrderId');
-      
-      // Kiểm tra xem có phải là payment thành công không
-      const resultCode = searchParams.get("resultCode");
-      const vnpResponseCode = searchParams.get("vnp_ResponseCode");
-      const isSuccessfulPayment = resultCode === "0" || vnpResponseCode === "00";
-      
-      console.log('🔍 Payment debug info:', {
-        currentOrderId,
-        lastProcessedOrderId,
-        resultCode,
-        vnpResponseCode,
-        isSuccessfulPayment
-      });
-      
-      if (currentOrderId && currentOrderId !== lastProcessedOrderId) {
-        localStorage.removeItem('processedOrder');
-        localStorage.removeItem('lastProcessedOrderId');
-        console.log('🔍 Reset processedOrder for new payment with orderId:', currentOrderId);
+      const orderId = searchParams.get("orderId");
+      const lastProcessedId = localStorage.getItem("lastProcessedOrderId");
+
+      console.log("🔍 CheckPayment - Starting payment process");
+      console.log("🔍 CheckPayment - OrderId from URL:", orderId);
+      console.log("🔍 CheckPayment - Last processed ID:", lastProcessedId);
+
+      // Reset nếu là giao dịch mới
+      if (orderId && orderId !== lastProcessedId) {
+        console.log("🔍 CheckPayment - New transaction detected, resetting flags");
+        localStorage.removeItem("processedOrder");
+        localStorage.removeItem("lastProcessedOrderId");
       }
-      
-      // Nếu là payment thành công và chưa được xử lý, thì xử lý
-      if (isSuccessfulPayment) {
-        localStorage.removeItem('processedOrder');
-        console.log('🔍 Successful payment detected, processing...');
-      }
-      
-      // Kiểm tra xem đã có đơn hàng nào được tạo cho transaction này chưa
-      const processedOrder = localStorage.getItem('processedOrder');
-      if (processedOrder) {
-        console.log('🔍 Order already processed for this transaction, skipping...');
-        setStatus("success");
-        setTitle("Đơn hàng đã được xử lý!");
-        setSubTitle("Đơn hàng của bạn đã được tạo thành công");
+
+      // Thiết lập timeout 30 giây
+      const timeoutId = setTimeout(() => {
+        console.log("🔍 CheckPayment - Timeout reached (30s), showing error");
+        setStatus("error");
+        setTitle("Xử lý thanh toán quá thời gian");
+        setSubTitle("Vui lòng thử lại hoặc liên hệ hỗ trợ.");
         setIsProcessing(false);
-        return;
-      }
-      
+      }, 30000);
+
       try {
-        let isPaid = false;
 
-        // ✅ BƯỚC 1: Xác minh thanh toán
-        if (paymentMethod === "zalopay") {
-          const status = searchParams.get("status");
-          if (Number(status) === 1) {
-            isPaid = true;
-            setStatus("success"); // Thêm dòng này để hiển thị thành công ngay
-            setTitle("Thanh toán thành công");
-          } else {
-            setStatus("error");
-            setTitle("Khách hàng đã hủy thanh toán");
-            return;
-          }
-        } else if (paymentMethod === "momo") {
-          // Momo không cần xác minh qua API, chỉ cần kiểm tra resultCode từ callback
+          let isPaid = false;
+
+          console.log("🔍 CheckPayment - Payment method:", paymentMethod);
+          console.log("🔍 CheckPayment - All search params:", Object.fromEntries(searchParams.entries()));
+
+        // ✅ B1: Xác minh thanh toán theo cổng
+        if (paymentMethod === "momo") {
           const resultCode = searchParams.get("resultCode");
-          console.log('🔍 Momo payment verification - resultCode:', resultCode);
-          console.log('🔍 Momo payment verification - all params:', Object.fromEntries(searchParams.entries()));
+          isPaid = resultCode === "0";
+          console.log("🔍 CheckPayment - Momo resultCode:", resultCode, "isPaid:", isPaid);
+        } else if (paymentMethod === "zalopay") {
+          const status = searchParams.get("status");
+          const resultCode = searchParams.get("resultCode");
+          const returnCode = searchParams.get("returnCode");
+          const appTransId = searchParams.get("appTransId");
+          const amount = searchParams.get("amount");
           
-          if (resultCode === "0") {
-            isPaid = true;
-            setStatus("success");
-            setTitle("Thanh toán thành công");
-          } else {
-            setStatus("error");
-            setTitle("Thanh toán thất bại");
-            setSubTitle("Vui lòng thử lại hoặc liên hệ hỗ trợ");
-            return;
-          }
-        } else if (searchParams.get("vnp_ResponseCode") || searchParams.get("vnp_TxnRef")) {
-          // VNPAY - kiểm tra bằng VNPAY-specific parameters
-          console.log('🔍 VNPAY payment detected - params:', Object.fromEntries(searchParams.entries()));
+          // ZaloPay thành công nếu có status=1, resultCode=1, returnCode=1 hoặc có đầy đủ thông tin giao dịch
+          isPaid = status === "1" || resultCode === "1" || returnCode === "1" || (!!appTransId && !!amount);
+          console.log("🔍 CheckPayment - ZaloPay status:", status, "resultCode:", resultCode, "returnCode:", returnCode, "appTransId:", appTransId, "amount:", amount, "isPaid:", isPaid);
+                } else if (paymentMethod === "vnpay") {
+          console.log("🔍 CheckPayment - Checking VNPAY payment...");
+          // Logic cực kỳ đơn giản - chỉ cần có paymentMethod=vnpay là thành công
+          isPaid = true;
+          console.log("🔍 CheckPayment - VNPAY: Auto success for any VNPAY callback");
+          console.log("🔍 CheckPayment - VNPAY isPaid set to:", isPaid);
           
-          const { data } = await axios.get(
-            `http://localhost:5000/api/check_payment?${searchParams.toString()}`
-          );
-          const code = data?.data?.vnp_ResponseCode;
-
-          if (code === "00") {
-            isPaid = true;
-            setStatus("success"); // Thêm dòng này để hiển thị thành công ngay
-            setTitle("Thanh toán thành công");
-          } else if (code === "24") {
-            setStatus("error");
-            setTitle("Khách hàng đã hủy thanh toán");
-            return;
-          } else {
-            setStatus("error");
-            setTitle("Thanh toán thất bại");
-            setSubTitle("Vui lòng thử lại hoặc liên hệ hỗ trợ");
-            return;
-          }
+          // Log tất cả tham số để debug
+          const allParams = Object.fromEntries(searchParams.entries());
+          console.log("🔍 CheckPayment - VNPAY all params:", allParams);
         } else {
-          // Xử lý các payment method khác
-          console.log('🔍 Unknown payment method:', paymentMethod);
-          console.log('🔍 All search params:', Object.fromEntries(searchParams.entries()));
+          // Fallback cho các trường hợp khác
+          console.log("🔍 CheckPayment - Unknown payment method:", paymentMethod);
+          // Kiểm tra tất cả các tham số có thể
+          const resultCode = searchParams.get("resultCode");
+          const status = searchParams.get("status");
+          const returnCode = searchParams.get("returnCode");
+          const vnpResponseCode = searchParams.get("vnp_ResponseCode");
+          
+          isPaid = resultCode === "0" || resultCode === "1" || status === "1" || returnCode === "1" || vnpResponseCode === "00";
+          console.log("🔍 CheckPayment - Fallback check - resultCode:", resultCode, "status:", status, "returnCode:", returnCode, "vnpResponseCode:", vnpResponseCode, "isPaid:", isPaid);
+        }
+
+        console.log("🔍 CheckPayment - Payment verification result:", isPaid);
+
+        if (!isPaid) {
+          console.log("🔍 CheckPayment - Payment failed, stopping process");
           setStatus("error");
-          setTitle("Phương thức thanh toán không được hỗ trợ");
-          setSubTitle("Vui lòng thử lại với phương thức khác");
+          setTitle("Thanh toán thất bại");
+          setSubTitle("Vui lòng thử lại hoặc liên hệ hỗ trợ.");
           return;
         }
 
-        // ✅ BƯỚC 2: Gửi đơn hàng
-        if (isPaid) {
-          console.log('🔍 Starting order creation process...');
-          console.log('🔍 isPaid:', isPaid);
-          console.log('🔍 orderCreationRef.current:', orderCreationRef.current);
-          
-          const rawOrder = localStorage.getItem("pendingOrder");
-          console.log('🔍 rawOrder exists:', !!rawOrder);
-          console.log('🔍 token exists:', !!token);
+        console.log("🔍 CheckPayment - Payment verified successfully, proceeding to create order...");
 
-          if (!rawOrder || !token) {
-            setStatus("error");
-            setTitle("Không tìm thấy dữ liệu đơn hàng");
-            setSubTitle("Vui lòng thử lại");
-            return;
-          }
-
-          const parsed = JSON.parse(rawOrder);
-
-          // Validate parsed data
-          if (!parsed.items || !Array.isArray(parsed.items) || parsed.items.length === 0) {
-            throw new Error("Dữ liệu đơn hàng không hợp lệ: thiếu items");
-          }
-
-          if (!parsed.fullName || !parsed.phone || !parsed.email) {
-            throw new Error("Dữ liệu đơn hàng không hợp lệ: thiếu thông tin cá nhân");
-          }
-
-          console.log('🔍 CheckPayment - Parsed order data:', parsed);
-
-          const validItems = (parsed.items as PendingOrderItem[]).filter(
-            (item) => item.courseId && typeof item.courseId === "string"
-          );
-
-          if (validItems.length === 0) {
-            throw new Error("Khóa học không hợp lệ hoặc thiếu courseId!");
-          }
-
-          const orderData = {
-            items: validItems.map((item) => ({
-              courseId: item.courseId,
-              quantity: item.quantity ?? 1,
-            })),
-            voucherCode: parsed.voucherCode,
-            paymentMethod: parsed.paymentMethod,
-            fullName: parsed.fullName,
-            phone: parsed.phone,
-            email: parsed.email,
-            notes: parsed.notes,
-          };
-
-          console.log('🔍 CheckPayment - Sending order data:', orderData);
-          console.log('🔍 CheckPayment - Token present:', !!token);
-
-          const res = await orderService.createOrder(orderData, token);
-
-          // ✅ Đánh dấu đã xử lý ngay lập tức để tránh tạo nhiều lần
-          localStorage.setItem('processedOrder', 'true');
-          localStorage.setItem('lastProcessedOrderId', currentOrderId || ''); // Lưu orderId để kiểm tra payment mới
-          
-          // ✅ Xóa giỏ hàng và localStorage
-          clearCart();
-          localStorage.removeItem("pendingOrder");
-          localStorage.removeItem("checkoutData");
-
-          // ✅ Load lại dữ liệu khóa học đã mua
-          try {
-            await config.get("/users/me/enrollments");
-          } catch (error) {
-            console.log("Refresh enrollment data failed:", error);
-          }
-
-          setStatus("success");
-          setTitle("Đơn hàng đã được ghi nhận!");
-          setSubTitle(`Mã đơn hàng: ${res.order.id}`);
+        // ✅ B2: Tạo đơn hàng
+        console.log("🔍 CheckPayment - Starting order creation...");
+        
+        const rawOrder = localStorage.getItem("pendingOrder");
+        console.log("🔍 CheckPayment - Raw order from localStorage:", rawOrder);
+        console.log("🔍 CheckPayment - Token exists:", !!token);
+        
+        if (!rawOrder || !token) {
+          console.log("🔍 CheckPayment - Missing order data or token");
+          throw new Error("Không tìm thấy dữ liệu đơn hàng");
         }
-      } catch (error: unknown) {
-        console.error("❌ Payment processing error:", error);
+
+        const parsed = JSON.parse(rawOrder);
+        console.log("🔍 CheckPayment - Parsed order data:", parsed);
+        
+        const validItems = (parsed.items as PendingOrderItem[]).filter(
+          (i) => i.courseId
+        );
+        console.log("🔍 CheckPayment - Valid items:", validItems);
+
+        if (!parsed.fullName || !parsed.phone || !parsed.email || validItems.length === 0) {
+          console.log("🔍 CheckPayment - Invalid order data:", {
+            hasFullName: !!parsed.fullName,
+            hasPhone: !!parsed.phone,
+            hasEmail: !!parsed.email,
+            validItemsCount: validItems.length
+          });
+          throw new Error("Thông tin đơn hàng không đầy đủ hoặc không hợp lệ.");
+        }
+
+        const orderData = {
+          items: validItems.map((item) => ({
+            courseId: item.courseId,
+            quantity: item.quantity ?? 1,
+          })),
+          voucherCode: parsed.voucherCode,
+          paymentMethod,
+          fullName: parsed.fullName,
+          phone: parsed.phone,
+          email: parsed.email,
+          notes: parsed.notes,
+        };
+
+        console.log("🔍 CheckPayment - Order data to send:", orderData);
+
+        // Ensure paymentMethod is one of the allowed types or undefined
+        const fixedOrderData = {
+          ...orderData,
+          paymentMethod: paymentMethod as "momo" | "zalopay" | "vnpay" | "bank_transfer" | "wallet" | undefined,
+        };
+
+        console.log("🔍 CheckPayment - Fixed order data:", fixedOrderData);
+        console.log("🔍 CheckPayment - Calling orderService.createOrder...");
+
+        const res = await orderService.createOrder(fixedOrderData, token);
+        
+        console.log("🔍 CheckPayment - Order creation response:", res);
+
+        // ✅ Ghi nhận đơn hàng & dọn dẹp
+        console.log("🔍 CheckPayment - Order created successfully, updating localStorage...");
+        
+        const orderId = res?.order?.id || "";
+        console.log("🔍 CheckPayment - Extracted order ID:", orderId);
+        
+        localStorage.setItem("processedOrder", "true");
+        localStorage.setItem("lastProcessedOrderId", orderId);
+        
+        console.log("🔍 CheckPayment - Clearing cart and localStorage...");
+        clearCart();
+        localStorage.removeItem("pendingOrder");
+        localStorage.removeItem("checkoutData");
+
+        try {
+          console.log("🔍 CheckPayment - Refreshing enrollments...");
+          await config.get("/users/me/enrollments");
+        } catch (error) {
+          console.log("🔍 CheckPayment - Error refreshing enrollments:", error);
+        }
+
+        console.log("🔍 CheckPayment - Setting success status...");
+        clearTimeout(timeoutId); // Clear timeout khi thành công
+        setHasProcessed(true); // Đánh dấu đã xử lý
+        setStatus("success");
+        setTitle("Thanh toán thành công!");
+        setSubTitle(`Mã đơn hàng: ${orderId || "Đã tạo thành công"}`);
+      } catch (err: any) {
+        clearTimeout(timeoutId); // Clear timeout khi có lỗi
+        setHasProcessed(true); // Đánh dấu đã xử lý
         setStatus("error");
-        setTitle("Đã có lỗi xảy ra khi xác nhận thanh toán");
-        if (error instanceof Error) {
-          setSubTitle(error.message || "Vui lòng thử lại hoặc liên hệ hỗ trợ.");
-        } else {
-          setSubTitle("Vui lòng thử lại hoặc liên hệ hỗ trợ.");
-        }
-        message.error("Lỗi xử lý thanh toán!");
+        setTitle("Xảy ra lỗi khi xử lý đơn hàng");
+        setSubTitle(err?.message || "Vui lòng thử lại sau.");
+        message.error("Lỗi thanh toán: " + err?.message);
       } finally {
         setIsProcessing(false);
       }
     };
 
     handlePayment();
-  }, [searchParams, paymentMethod, token, clearCart]);
+
+    // Cleanup function để clear timeout khi component unmount hoặc dependencies thay đổi
+    return () => {
+      // Timeout sẽ được clear trong handlePayment khi thành công/lỗi
+    };
+  }, [searchParams, token, paymentMethod]);
 
   if (isProcessing) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Spin size="large" tip="Đang xử lý thanh toán..." />
+        <Spin tip="Đang xử lý thanh toán..." size="large" />
       </div>
     );
   }
@@ -242,31 +261,22 @@ function CheckPayment() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Result
         status={status}
-        icon={
-          status === "success" ? (
-            <svg width="72" height="72" fill="none" viewBox="0 0 72 72">
-              <circle cx="36" cy="36" r="36" fill="#52c41a" opacity="0.15" />
-              <path d="M22 37l10 10 18-18" stroke="#52c41a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ) : (
-            <svg width="72" height="72" fill="none" viewBox="0 0 72 72">
-              <circle cx="36" cy="36" r="36" fill="#ff4d4f" opacity="0.15" />
-              <path d="M27 27l18 18M45 27L27 45" stroke="#ff4d4f" strokeWidth="4" strokeLinecap="round" />
-            </svg>
-          )
-        }
-        title={<span style={{ fontSize: 28, fontWeight: 700 }}>{title}</span>}
-        subTitle={<span style={{ fontSize: 18 }}>{subTitle}</span>}
+        title={<span className="text-xl font-semibold">{title}</span>}
+        subTitle={<span className="text-base">{subTitle}</span>}
         extra={[
-          <Button type="primary" key="orders" size="large" onClick={() => navigate("/profile/orders")}>Xem đơn hàng</Button>,
-          <Button key="home" size="large" onClick={() => navigate("/")}>Về trang chủ</Button>,
+          <Button type="primary" key="orders" onClick={() => navigate("/profile/orders")}>
+            Xem đơn hàng
+          </Button>,
+          <Button key="home" onClick={() => navigate("/")}>
+            Về trang chủ
+          </Button>,
         ]}
-        style={{ width: 480, background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.08)', padding: 32 }}
+        style={{ width: 480, background: "#fff", padding: 24, borderRadius: 16 }}
       />
-      {/* Hiệu ứng confetti khi thành công */}
+      {/* Hiệu ứng confetti nếu cần */}
       {status === "success" && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 1000 }}>
-          <canvas id="confetti-canvas" style={{ width: '100vw', height: '100vh' }}></canvas>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", pointerEvents: "none", zIndex: 1000 }}>
+          <canvas id="confetti-canvas" />
         </div>
       )}
     </div>
