@@ -1,7 +1,7 @@
 import { Button, Result, message, Spin } from "antd";
 import axios from "axios";
 import config from "../../api/axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import orderService from "../../services/orderService";
 import { useAuth } from "../../hooks/Auths/useAuth";
@@ -22,11 +22,56 @@ function CheckPayment() {
   const [title, setTitle] = useState("Đang xác minh thanh toán...");
   const [subTitle, setSubTitle] = useState("Vui lòng đợi trong giây lát...");
   const [isProcessing, setIsProcessing] = useState(true);
+  const orderCreationRef = useRef(false); // Ref để track việc tạo đơn hàng
 
   const paymentMethod = searchParams.get("paymentMethod");
 
   useEffect(() => {
     const handlePayment = async () => {
+      console.log('🔍 Payment process started - Method:', paymentMethod);
+      console.log('🔍 Payment process started - Search params:', Object.fromEntries(searchParams.entries()));
+      
+      // Reset processed order flag khi bắt đầu payment mới
+      // Kiểm tra xem có phải là payment mới không bằng cách so sánh orderId
+      const currentOrderId = searchParams.get("orderId");
+      const lastProcessedOrderId = localStorage.getItem('lastProcessedOrderId');
+      
+      // Kiểm tra xem có phải là payment thành công không
+      const resultCode = searchParams.get("resultCode");
+      const vnpResponseCode = searchParams.get("vnp_ResponseCode");
+      const isSuccessfulPayment = resultCode === "0" || vnpResponseCode === "00";
+      
+      console.log('🔍 Payment debug info:', {
+        currentOrderId,
+        lastProcessedOrderId,
+        resultCode,
+        vnpResponseCode,
+        isSuccessfulPayment
+      });
+      
+      if (currentOrderId && currentOrderId !== lastProcessedOrderId) {
+        localStorage.removeItem('processedOrder');
+        localStorage.removeItem('lastProcessedOrderId');
+        console.log('🔍 Reset processedOrder for new payment with orderId:', currentOrderId);
+      }
+      
+      // Nếu là payment thành công và chưa được xử lý, thì xử lý
+      if (isSuccessfulPayment) {
+        localStorage.removeItem('processedOrder');
+        console.log('🔍 Successful payment detected, processing...');
+      }
+      
+      // Kiểm tra xem đã có đơn hàng nào được tạo cho transaction này chưa
+      const processedOrder = localStorage.getItem('processedOrder');
+      if (processedOrder) {
+        console.log('🔍 Order already processed for this transaction, skipping...');
+        setStatus("success");
+        setTitle("Đơn hàng đã được xử lý!");
+        setSubTitle("Đơn hàng của bạn đã được tạo thành công");
+        setIsProcessing(false);
+        return;
+      }
+      
       try {
         let isPaid = false;
 
@@ -42,7 +87,26 @@ function CheckPayment() {
             setTitle("Khách hàng đã hủy thanh toán");
             return;
           }
-        } else {
+        } else if (paymentMethod === "momo") {
+          // Momo không cần xác minh qua API, chỉ cần kiểm tra resultCode từ callback
+          const resultCode = searchParams.get("resultCode");
+          console.log('🔍 Momo payment verification - resultCode:', resultCode);
+          console.log('🔍 Momo payment verification - all params:', Object.fromEntries(searchParams.entries()));
+          
+          if (resultCode === "0") {
+            isPaid = true;
+            setStatus("success");
+            setTitle("Thanh toán thành công");
+          } else {
+            setStatus("error");
+            setTitle("Thanh toán thất bại");
+            setSubTitle("Vui lòng thử lại hoặc liên hệ hỗ trợ");
+            return;
+          }
+        } else if (searchParams.get("vnp_ResponseCode") || searchParams.get("vnp_TxnRef")) {
+          // VNPAY - kiểm tra bằng VNPAY-specific parameters
+          console.log('🔍 VNPAY payment detected - params:', Object.fromEntries(searchParams.entries()));
+          
           const { data } = await axios.get(
             `http://localhost:5000/api/check_payment?${searchParams.toString()}`
           );
@@ -62,11 +126,25 @@ function CheckPayment() {
             setSubTitle("Vui lòng thử lại hoặc liên hệ hỗ trợ");
             return;
           }
+        } else {
+          // Xử lý các payment method khác
+          console.log('🔍 Unknown payment method:', paymentMethod);
+          console.log('🔍 All search params:', Object.fromEntries(searchParams.entries()));
+          setStatus("error");
+          setTitle("Phương thức thanh toán không được hỗ trợ");
+          setSubTitle("Vui lòng thử lại với phương thức khác");
+          return;
         }
 
         // ✅ BƯỚC 2: Gửi đơn hàng
         if (isPaid) {
+          console.log('🔍 Starting order creation process...');
+          console.log('🔍 isPaid:', isPaid);
+          console.log('🔍 orderCreationRef.current:', orderCreationRef.current);
+          
           const rawOrder = localStorage.getItem("pendingOrder");
+          console.log('🔍 rawOrder exists:', !!rawOrder);
+          console.log('🔍 token exists:', !!token);
 
           if (!rawOrder || !token) {
             setStatus("error");
@@ -76,6 +154,17 @@ function CheckPayment() {
           }
 
           const parsed = JSON.parse(rawOrder);
+
+          // Validate parsed data
+          if (!parsed.items || !Array.isArray(parsed.items) || parsed.items.length === 0) {
+            throw new Error("Dữ liệu đơn hàng không hợp lệ: thiếu items");
+          }
+
+          if (!parsed.fullName || !parsed.phone || !parsed.email) {
+            throw new Error("Dữ liệu đơn hàng không hợp lệ: thiếu thông tin cá nhân");
+          }
+
+          console.log('🔍 CheckPayment - Parsed order data:', parsed);
 
           const validItems = (parsed.items as PendingOrderItem[]).filter(
             (item) => item.courseId && typeof item.courseId === "string"
@@ -92,16 +181,21 @@ function CheckPayment() {
             })),
             voucherCode: parsed.voucherCode,
             paymentMethod: parsed.paymentMethod,
-            shippingInfo: {
-              fullName: parsed.fullName,
-              phone: parsed.phone,
-              email: parsed.email,
-            },
+            fullName: parsed.fullName,
+            phone: parsed.phone,
+            email: parsed.email,
             notes: parsed.notes,
           };
 
+          console.log('🔍 CheckPayment - Sending order data:', orderData);
+          console.log('🔍 CheckPayment - Token present:', !!token);
+
           const res = await orderService.createOrder(orderData, token);
 
+          // ✅ Đánh dấu đã xử lý ngay lập tức để tránh tạo nhiều lần
+          localStorage.setItem('processedOrder', 'true');
+          localStorage.setItem('lastProcessedOrderId', currentOrderId || ''); // Lưu orderId để kiểm tra payment mới
+          
           // ✅ Xóa giỏ hàng và localStorage
           clearCart();
           localStorage.removeItem("pendingOrder");

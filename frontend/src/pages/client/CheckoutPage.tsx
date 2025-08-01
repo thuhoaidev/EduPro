@@ -126,6 +126,8 @@ const handleSubmit = async (values: FormValues) => {
       notes: values.notes
     };
 
+    console.log('🔍 CheckoutPage - Order payload:', orderPayload);
+
     // ✅ Nếu chọn VNPAY
     if (values.paymentMethod === 'vnpay') {
       localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
@@ -183,12 +185,10 @@ const handleSubmit = async (values: FormValues) => {
       const createOrderPayload: CreateOrderData = {
         items: orderPayload.items,
         voucherCode: orderPayload.voucherCode,
-        paymentMethod: 'bank_transfer',
-        shippingInfo: {
-          fullName: values.fullName,
-          phone: values.phone,
-          email: values.email
-        },
+        paymentMethod: 'wallet',
+        fullName: values.fullName,
+        phone: values.phone,
+        email: values.email,
         notes: values.notes
       };
       const response = await orderService.createOrder(createOrderPayload, token);
