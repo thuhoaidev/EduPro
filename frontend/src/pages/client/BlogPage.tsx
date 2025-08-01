@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+
 import {
   Heart,
   MessageCircle,
@@ -27,6 +28,7 @@ import { Pagination } from 'antd';
 import leoProfanity from 'leo-profanity';
 import { useNavigate } from 'react-router-dom';
 const API_BASE = 'http://localhost:5000/api';
+
 const getAuthorAvatar = (author) => {
   if (author?.avatar && author.avatar.trim() !== '') {
     return author.avatar;
@@ -105,7 +107,10 @@ const BlogPage = () => {
   const [commentWarning, setCommentWarning] = useState('');
   const [replyWarning, setReplyWarning] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
-
+  
+  
+  
+  
   const commentEndRef = useRef<HTMLDivElement>(null);
  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
   const target = e.currentTarget;
@@ -476,6 +481,81 @@ const handleSave = async (blogId: string) => {
     }
     console.log('replyWarning:', replyWarning); // Debug giá trị replyWarning
   };
+  useEffect(() => {
+  const fetchLikedComments = async () => {
+    try {
+      const liked = new Set<string>();
+
+      await Promise.all(
+        comments.map(async (cmt) => {
+          const res = await axiosClient.get(`/comment-likes/has-liked/${cmt._id}`);
+          if (res?.liked) {
+            liked.add(cmt._id);
+          }
+        })
+      );
+
+      setLikedComments(liked);
+    } catch (error) {
+      console.error('Lỗi khi check liked comments:', error);
+    }
+  };
+
+  if (comments.length > 0) {
+    fetchLikedComments();
+  }
+}, [comments]);
+useEffect(() => {
+  const fetchCommentLikeCount = async () => {
+    const newCounts: { [key: string]: number } = {};
+    await Promise.all(
+      comments.map(async (comment) => {
+        try {
+          const res = await axiosClient.get(`/comment-likes/count/${comment._id}`);
+          newCounts[comment._id] = res.data.count;
+        } catch (err) {
+          console.error(`Error fetching like count for comment ${comment._id}`, err);
+        }
+      })
+    );
+    setCommentLikesCount(newCounts);
+  };
+
+  if (comments.length > 0) fetchCommentLikeCount();
+}, [comments]);
+
+useEffect(() => {
+  const fetchComments = async () => {
+    try {
+      const res = await axiosClient.get(`/blog-comments/${blogId}`);
+      const commentData = res.data;
+
+      setComments(commentData);
+
+      // Fetch số lượng tym cho từng comment
+      const likeCounts = await Promise.all(
+        commentData.map((cmt: any) =>
+          axiosClient.get(`/comment-likes/count/${cmt._id}`).then(res => ({
+            commentId: cmt._id,
+            count: res.data.count
+          }))
+        )
+      );
+
+      const countMap: Record<string, number> = {};
+      likeCounts.forEach(item => {
+        countMap[item.commentId] = item.count;
+      });
+
+      setCommentLikesCount(countMap);
+
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  fetchComments();
+}, []);
 
   useEffect(() => {
     loadBlogs();
@@ -530,6 +610,33 @@ const extractFirstImageFromContent = (content: string): string | null => {
   const match = content.match(/!\[.*?\]\((.*?)\)/);
   return match ? match[1] : null;
 };
+const onLike = async (commentId: string) => {
+  try {
+    await axiosClient.post(`/comment-likes/toggle/${commentId}`);
+
+    const isLikedBefore = likedComments.has(commentId);
+
+    // cập nhật lại set likedComments
+    setLikedComments((prev) => {
+      const newSet = new Set(prev);
+      if (isLikedBefore) {
+        newSet.delete(commentId);
+      } else {
+        newSet.add(commentId);
+      }
+      return newSet;
+    });
+
+    // cập nhật lại số like dựa vào trạng thái trước đó
+    setCommentLikesCount((prev) => ({
+      ...prev,
+      [commentId]: (prev[commentId] || 0) + (isLikedBefore ? -1 : 1),
+    }));
+  } catch (err) {
+    console.error('Lỗi khi toggle like comment:', err);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-[#fafbfc]">
@@ -783,8 +890,6 @@ const extractFirstImageFromContent = (content: string): string | null => {
                     <div className="w-20 h-20 md:w-24 md:h-24 rounded-full p-1 bg-gradient-to-tr from-blue-400 to-purple-400 shadow-xl">
                       {selectedBlog && (
   <>
-    {console.log('selectedBlog:', selectedBlog)}
-    {console.log('selectedBlog.author:', selectedBlog?.author)}
     <img
       src={
         selectedBlog?.author?.avatar?.startsWith('http')

@@ -228,8 +228,8 @@ const getBlogComments = async (req, res) => {
 
   try {
     const comments = await BlogComment.find({ blog: id, parent: null })
-      .populate('author', 'fullname nickname email')
-      .populate({ path: 'replies', populate: { path: 'author', select: 'fullname nickname email' } })
+      .populate('author', 'fullname nickname email avatar')
+      .populate({ path: 'replies', populate: { path: 'author', select: 'fullname nickname email avatar' } })
       .sort({ createdAt: -1 });
     res.json({ success: true, data: comments });
   } catch (error) {
@@ -241,7 +241,7 @@ const getBlogComments = async (req, res) => {
 const getAllComments = async (req, res) => {
   try {
     const comments = await BlogComment.find({})
-      .populate('author', 'fullname nickname email')
+      .populate('author', 'fullname nickname email avatar')
       .populate('blog', 'title')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: comments });
