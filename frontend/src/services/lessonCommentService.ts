@@ -1,4 +1,4 @@
-import axios from '../api/axios';
+import { config } from '../api/axios';
 
 export const getComments = (lessonId: string) =>
   axios.get(`/lesson-comments/${lessonId}/comments`).then(res => res.data.data);

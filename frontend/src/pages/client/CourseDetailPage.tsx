@@ -198,12 +198,17 @@ const CourseDetailPage: React.FC = () => {
                 const token = localStorage.getItem('token');
                 let enrolled = false;
                 if (token) {
-                    const res = await config.get('/users/me/enrollments');
-                    const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => String(enroll.course?._id || enroll.course?.id));
-                    console.log('🔍 Course ID:', course.id);
-                    console.log('🔍 Enrolled IDs:', enrolledIds);
-                    console.log('🔍 Is enrolled:', enrolledIds.includes(String(course.id)));
-                    enrolled = enrolledIds.includes(String(course.id));
+                    try {
+                        const res = await config.get('/users/me/enrollments');
+                        const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => String(enroll.course?._id || enroll.course?.id));
+                        console.log('🔍 Course ID:', course.id);
+                        console.log('🔍 Enrolled IDs:', enrolledIds);
+                        console.log('🔍 Is enrolled:', enrolledIds.includes(String(course.id)));
+                        enrolled = enrolledIds.includes(String(course.id));
+                    } catch (error) {
+                        console.log('Không thể kiểm tra enrollment, có thể chưa đăng nhập');
+                        enrolled = false;
+                    }
                 }
                 setIsEnrolled(enrolled);
             } catch {
@@ -280,6 +285,13 @@ const CourseDetailPage: React.FC = () => {
                 return;
             }
             try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    setIsCompleted(false);
+                    setContinueLessonId(null);
+                    return;
+                }
+                
                 const progress = await getProgress(course.id);
                 const totalLessons = courseContent.reduce((acc, section) => acc + section.lessons.length, 0);
                 const completedLessons = Object.values(progress || {}).filter((p: any) =>
@@ -993,20 +1005,28 @@ const CourseDetailPage: React.FC = () => {
                                                     navigate(`/instructor/courses/${course.id}`);
                                                     return;
                                                 }
+                                                
+                                                // Kiểm tra nếu đã đăng ký khóa học
+                                                if (isEnrolled) {
+                                                    // Chuyển đến trang học
+                                                    navigate(`/lessons/${course.id}`);
+                                                    return;
+                                                }
+                                                
                                                 const token = localStorage.getItem('token');
                                                 if (!token) {
-                                                    localStorage.removeItem('token');
-                                                    localStorage.removeItem('user');
-                                                    localStorage.removeItem('refresh_token');
-                                                    message.warning('Vui lòng đăng nhập!');
+                                                    // Nếu chưa đăng nhập, chuyển đến trang đăng nhập
+                                                    message.warning('Vui lòng đăng nhập để mua khóa học!');
                                                     setTimeout(() => navigate('/login'), 800);
                                                     return;
                                                 }
+                                                
                                                 const courseInCart = isInCart(course.id);
                                                 if (courseInCart) {
                                                     navigate('/cart');
                                                     return;
                                                 }
+                                                
                                                 setIsAddingToCart(true);
                                                 try {
                                                     const success = await addToCart(course.id);

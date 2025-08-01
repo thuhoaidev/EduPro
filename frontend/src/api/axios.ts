@@ -87,8 +87,16 @@ config.interceptors.response.use(
             (requestUrl.includes('/courses/') && !requestUrl.includes('/courses/instructor'))
         );
         
+        // Thêm kiểm tra cụ thể cho route chi tiết khóa học và các route liên quan
+        const isCourseDetailRoute = requestUrl.includes('/courses/') && 
+            (requestUrl.match(/\/courses\/[^\/]+$/) || 
+             requestUrl.match(/\/courses\/[^\/]+\/content$/) ||
+             requestUrl.match(/\/courses\/[^\/]+\/reviews$/) ||
+             requestUrl.match(/\/courses\/[^\/]+\/sections$/));
+        
         console.log('🔍 Request URL:', requestUrl);
         console.log('🔍 Is public route:', isPublicRoute);
+        console.log('🔍 Is course detail route:', isCourseDetailRoute);
         console.log('🔍 Error status:', error.response?.status);
         
         if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
@@ -100,9 +108,9 @@ config.interceptors.response.use(
                 return Promise.reject(error);
             }
             
-            // Nếu là route public, không redirect, chỉ reject error
-            if (isPublicRoute) {
-                console.log('✅ Public route detected, not redirecting to login');
+            // Nếu là route public hoặc route chi tiết khóa học, không redirect, chỉ reject error
+            if (isPublicRoute || isCourseDetailRoute) {
+                console.log('✅ Public route or course detail route detected, not redirecting to login');
                 return Promise.reject(error);
             }
             
