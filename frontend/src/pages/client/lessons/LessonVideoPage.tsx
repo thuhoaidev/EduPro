@@ -39,6 +39,30 @@ type Comment = {
   likes?: string[];
 };
 
+// Utility functions for localStorage cache
+function getQuizCacheKey(courseId: string | null, lessonId: string | null) {
+  return courseId && lessonId ? `quizAnswers_${courseId}_${lessonId}` : '';
+}
+function saveQuizAnswersToCache(courseId: string | null, lessonId: string | null, answers: number[]) {
+  const key = getQuizCacheKey(courseId, lessonId);
+  if (key) localStorage.setItem(key, JSON.stringify(answers));
+}
+function getQuizAnswersFromCache(courseId: string | null, lessonId: string | null): number[] | null {
+  const key = getQuizCacheKey(courseId, lessonId);
+  if (!key) return null;
+  const data = localStorage.getItem(key);
+  if (!data) return null;
+  try {
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
+}
+function clearQuizAnswersCache(courseId: string | null, lessonId: string | null) {
+  const key = getQuizCacheKey(courseId, lessonId);
+  if (key) localStorage.removeItem(key);
+}
+
 const LessonVideoPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -55,7 +79,7 @@ const LessonVideoPage: React.FC = () => {
   const [quiz, setQuiz] = useState<{ _id: string; questions: { question: string; options: string[]; correctIndex?: number }[] } | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizError, setQuizError] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<number[]>([]);
+  // Removed unused answers state - using quizAnswers instead
   const [quizResult, setQuizResult] = useState<{ success: boolean; message: string; wrongQuestions?: number[] } | null>(null);
   const [videoId, setVideoId] = useState<string | null>(null);
   const [courseId, setCourseId] = useState<string | null>(null);
@@ -175,13 +199,13 @@ const LessonVideoPage: React.FC = () => {
       setSavedVideoTime(0);
       setQuizCompleted(false);
       setQuizResult(null);
-      setQuizAnswers([]);
+      // Không reset quizAnswers ở đây - để logic khôi phục từ progress xử lý
+      // setQuizAnswers([]);
       // Không reset quiz và activeTab nếu video đã được xem hết
       // Quiz sẽ được mở vĩnh viễn sau khi xem hết video
       setQuizPassed(false); // Reset quiz passed
       setQuizUnlocked(false); // Reset quiz unlocked
       setShowQuiz(false); // Reset show quiz
-      setAnswers([]); // Reset answers
 
       navigate(`/lessons/${nextLessonId}/video`);
       setHasNavigated(false);
@@ -235,7 +259,6 @@ const LessonVideoPage: React.FC = () => {
     setQuizPassed(false); // Reset quiz passed
     setQuizUnlocked(false); // Reset quiz unlocked
     setShowQuiz(false); // Reset show quiz
-    setAnswers([]); // Reset answers
 
     // Reset video element nếu có
     const videoElement = document.querySelector('video');
@@ -495,7 +518,8 @@ const LessonVideoPage: React.FC = () => {
     setQuizPassed(false);
     setQuizCompleted(false);
     setQuizResult(null);
-    setQuizAnswers([]);
+    // Không reset quizAnswers ở đây - để logic khôi phục từ progress xử lý
+    // setQuizAnswers([]);
     setShowQuiz(false);
     setQuizUnlocked(false);
     setVideoProgress(0); // Reset progress UI, nhưng không reset savedVideoTime
@@ -590,16 +614,6 @@ const LessonVideoPage: React.FC = () => {
   // Thêm useEffect để reload progress khi có thay đổi
   useEffect(() => {
     if (!courseId) return;
-    const reloadProgress = async () => {
-      try {
-        const progressData = await getProgress(courseId);
-        setProgress(progressData || {});
-        const unlocked = await getUnlockedLessons(courseId);
-        setUnlockedLessons(unlocked || []);
-      } catch (e) {
-        console.error('Error reloading progress:', e);
-      }
-    };
 
     // Reload progress sau khi hoàn thành quiz hoặc video
     if (quizCompleted || videoWatched) {
@@ -612,7 +626,6 @@ const LessonVideoPage: React.FC = () => {
       setQuiz(null);
       setQuizLoading(false);
       setQuizError(null);
-      setAnswers([]);
       return;
     }
 
@@ -620,9 +633,16 @@ const LessonVideoPage: React.FC = () => {
       try {
         setQuizLoading(true);
         setQuizError(null);
+
+        // Đảm bảo progress đã được load trước khi fetch quiz
+        if (courseId && currentLessonId && (!progress || Object.keys(progress).length === 0)) {
+          console.log('⏳ Waiting for progress to load before fetching quiz...');
+          await reloadProgress();
+        }
+
         const res = await config.get(`/quizzes/video/${videoId}`);
         setQuiz(res.data.data);
-        setAnswers(new Array(res.data.data.questions.length).fill(-1));
+        console.log('📝 Quiz loaded for video:', videoId);
       } catch (e) {
         console.error('Error loading quiz:', e);
         setQuiz(null);
@@ -632,7 +652,7 @@ const LessonVideoPage: React.FC = () => {
       }
     };
     fetchQuiz();
-  }, [videoId]);
+  }, [videoId, courseId, currentLessonId, progress]);
 
   // Khi component unmount, dọn dẹp timeout
   useEffect(() => {
@@ -646,14 +666,23 @@ const LessonVideoPage: React.FC = () => {
   // Khi load quiz, nếu đã đạt thì set quizResult.success = true để giữ giao diện ĐẠT
   useEffect(() => {
     if (quiz && currentLessonId) {
-      const passed = localStorage.getItem(`quiz-passed-${currentLessonId}`);
-      if (passed === '1') {
+      // Ưu tiên kiểm tra backend progress trước
+      const lessonKey = String(currentLessonId);
+      const backendQuizPassed = progress && progress[lessonKey] && progress[lessonKey].quizPassed;
+
+      if (backendQuizPassed === true) {
+        console.log('✅ Quiz passed from backend progress');
         setQuizResult({ success: true, message: 'Tất cả đáp án đều đúng!' });
+      } else {
+        // Fallback to localStorage only if no backend data
+        const passed = localStorage.getItem(`quiz-passed-${currentLessonId}`);
+        if (passed === '1') {
+          console.log('✅ Quiz passed from localStorage (fallback)');
+          setQuizResult({ success: true, message: 'Tất cả đáp án đều đúng!' });
+        }
       }
     }
-  }, [quiz, currentLessonId]);
-
-
+  }, [quiz, currentLessonId, progress]);
 
   // Bỏ logic unlock quiz theo videoProgress
 
@@ -664,30 +693,183 @@ const LessonVideoPage: React.FC = () => {
 
   // Khi load quiz mới, reset quizAnswers đúng số lượng câu hỏi
   useEffect(() => {
-    if (quiz) {
+    if (quiz && progress && currentLessonId) {
       const lessonKey = String(currentLessonId);
-      const prevAnswers = progress && progress[lessonKey] && progress[lessonKey].quizAnswers;
-      const quizPassed = progress && progress[lessonKey] && progress[lessonKey].quizPassed;
+      const prevAnswers = progress[lessonKey] && progress[lessonKey].quizAnswers;
+      const quizPassed = progress[lessonKey] && progress[lessonKey].quizPassed;
+
+      console.log('🔄 Loading quiz answers for lesson:', lessonKey, {
+        hasProgress: !!progress[lessonKey],
+        prevAnswers,
+        quizPassed,
+        quizQuestionsLength: quiz.questions.length,
+        progressKeys: Object.keys(progress),
+        progressType: typeof progress,
+        lessonKeyType: typeof lessonKey
+      });
+
+      // Check if we have valid saved answers from backend
       if (Array.isArray(prevAnswers) && prevAnswers.length === quiz.questions.length) {
-        setQuizAnswers(prevAnswers);
-        // Tự động chấm lại quizResult khi reload
-        const wrongQuestions = quiz.questions
-          .map((q, idx) => prevAnswers[idx] !== q.correctIndex ? idx : -1)
-          .filter(idx => idx !== -1);
-        if (quizPassed === true) {
-          setQuizResult({ success: true, message: 'Tất cả đáp án đều đúng!' });
-        } else if (quizPassed === false) {
-          setQuizResult({ success: false, message: 'Có đáp án sai.', wrongQuestions });
+        // Validate that all answers are valid indices
+        const validAnswers = prevAnswers.every((answer, idx) =>
+          typeof answer === 'number' && answer >= 0 && answer < quiz.questions[idx]?.options?.length
+        );
+
+        if (validAnswers) {
+          setQuizAnswers(prevAnswers);
+          // Tự động chấm lại quizResult khi reload
+          const wrongQuestions = quiz.questions
+            .map((q, idx) => prevAnswers[idx] !== q.correctIndex ? idx : -1)
+            .filter(idx => idx !== -1);
+          if (quizPassed === true) {
+            setQuizResult({ success: true, message: 'Tất cả đáp án đều đúng!' });
+          } else if (quizPassed === false) {
+            setQuizResult({ success: false, message: 'Có đáp án sai.', wrongQuestions });
+          } else {
+            setQuizResult(null);
+          }
+          console.log('✅ Quiz answers restored from backend progress');
         } else {
+          console.log('❌ Saved answers are invalid, checking cache');
+          // Try to restore from cache
+          const cached = getQuizAnswersFromCache(courseId, currentLessonId);
+          if (cached && Array.isArray(cached) && cached.length === quiz.questions.length) {
+            console.log('💾 Restoring answers from cache:', cached);
+            setQuizAnswers(cached);
+          } else {
+            console.log('🆕 No cached answers - starting fresh');
+            setQuizAnswers(new Array(quiz.questions.length).fill(-1));
+          }
           setQuizResult(null);
         }
       } else {
-        setQuizAnswers(new Array(quiz.questions.length).fill(-1));
+        // No backend progress - try to restore from cache
+        console.log('🔍 No backend progress - checking cache');
+        const cached = getQuizAnswersFromCache(courseId, currentLessonId);
+        if (cached && Array.isArray(cached) && cached.length === quiz.questions.length) {
+          console.log('💾 Restoring answers from cache:', cached);
+          setQuizAnswers(cached);
+        } else {
+          console.log('🆕 No cached answers - starting fresh');
+          setQuizAnswers(new Array(quiz.questions.length).fill(-1));
+        }
         setQuizResult(null);
       }
       setQuizCompleted(false);
     }
   }, [quiz, progress, currentLessonId]);
+
+  // Save answers to cache on every change (if not submitted)
+  useEffect(() => {
+    if (
+      quiz &&
+      quizAnswers.length === quiz.questions.length &&
+      !quizResult // Only cache if not submitted
+    ) {
+      console.log('💾 Saving quiz answers to cache:', quizAnswers);
+      saveQuizAnswersToCache(courseId, currentLessonId, quizAnswers);
+    }
+  }, [quizAnswers, quiz, courseId, currentLessonId, quizResult]);
+
+  // Clear cache when quiz is completed
+  useEffect(() => {
+    if (quizResult && quizResult.success && courseId && currentLessonId) {
+      console.log('🗑️ Clearing cache - quiz completed');
+      clearQuizAnswersCache(courseId, currentLessonId);
+    }
+  }, [quizResult, courseId, currentLessonId]);
+
+  // Fallback: Reload quiz answers when progress is loaded after quiz
+  useEffect(() => {
+    if (quiz && progress && currentLessonId && quizAnswers.length === 0) {
+      const lessonKey = String(currentLessonId);
+      const prevAnswers = progress[lessonKey] && progress[lessonKey].quizAnswers;
+
+      console.log('🔄 Fallback: Checking for quiz answers after progress load:', {
+        lessonKey,
+        hasProgress: !!progress[lessonKey],
+        prevAnswers,
+        currentQuizAnswersLength: quizAnswers.length,
+        progressKeys: Object.keys(progress)
+      });
+
+      if (Array.isArray(prevAnswers) && prevAnswers.length === quiz.questions.length) {
+        // Validate that all answers are valid indices
+        const validAnswers = prevAnswers.every((answer, idx) =>
+          typeof answer === 'number' && answer >= 0 && answer < quiz.questions[idx]?.options?.length
+        );
+
+        if (validAnswers) {
+          setQuizAnswers(prevAnswers);
+          const quizPassed = progress[lessonKey] && progress[lessonKey].quizPassed;
+
+          // Tự động chấm lại quizResult khi reload
+          const wrongQuestions = quiz.questions
+            .map((q, idx) => prevAnswers[idx] !== q.correctIndex ? idx : -1)
+            .filter(idx => idx !== -1);
+          if (quizPassed === true) {
+            setQuizResult({ success: true, message: 'Tất cả đáp án đều đúng!' });
+          } else if (quizPassed === false) {
+            setQuizResult({ success: false, message: 'Có đáp án sai.', wrongQuestions });
+          } else {
+            setQuizResult(null);
+          }
+          console.log('✅ Quiz answers restored from progress (fallback)');
+        } else {
+          console.log('❌ Saved answers are invalid in fallback, checking cache');
+          // Try to restore from cache
+          const cached = getQuizAnswersFromCache(courseId, currentLessonId);
+          if (cached && Array.isArray(cached) && cached.length === quiz.questions.length) {
+            console.log('💾 Restoring answers from cache (fallback):', cached);
+            setQuizAnswers(cached);
+          }
+        }
+      } else {
+        // No backend progress - try to restore from cache
+        console.log('🔍 No backend progress in fallback - checking cache');
+        const cached = getQuizAnswersFromCache(courseId, currentLessonId);
+        if (cached && Array.isArray(cached) && cached.length === quiz.questions.length) {
+          console.log('💾 Restoring answers from cache (fallback):', cached);
+          setQuizAnswers(cached);
+        }
+      }
+    }
+  }, [progress, quiz, currentLessonId, quizAnswers.length]);
+
+  // Additional fallback: Force reload progress if quiz is loaded but answers are not restored
+  useEffect(() => {
+    if (quiz && currentLessonId && quizAnswers.length === 0 && (!progress || Object.keys(progress).length === 0)) {
+      console.log('🔄 Additional fallback: Progress is empty, forcing reload...');
+      reloadProgress();
+    }
+  }, [quiz, currentLessonId, quizAnswers.length, progress]);
+
+  // Debug useEffect to track state changes
+  useEffect(() => {
+    console.log('🔍 State Debug:', {
+      currentLessonId,
+      quizLoaded: !!quiz,
+      quizQuestionsCount: quiz?.questions?.length || 0,
+      quizAnswersLength: quizAnswers.length,
+      progressKeys: Object.keys(progress || {}),
+      hasProgressForLesson: progress && currentLessonId ? !!progress[currentLessonId] : false,
+      lessonProgress: progress && currentLessonId ? progress[currentLessonId] : null
+    });
+  }, [currentLessonId, quiz, quizAnswers.length, progress]);
+
+  // Handle lesson change - ensure quiz answers are properly reset and reloaded
+  useEffect(() => {
+    if (currentLessonId) {
+      console.log('📝 Lesson changed to:', currentLessonId);
+      // Reset quiz-related states when lesson changes
+      // Không reset quizAnswers ở đây - để logic khôi phục từ progress xử lý
+      // setQuizAnswers([]);
+      setQuizResult(null);
+      setQuizCompleted(false);
+      setShowQuiz(false);
+      setQuizUnlocked(false);
+    }
+  }, [currentLessonId]);
 
   // Hàm kiểm tra bài học có được mở không
   const canAccessLesson = (lessonId: string) => {
@@ -704,12 +886,18 @@ const LessonVideoPage: React.FC = () => {
   const reloadProgress = async () => {
     if (!courseId) return;
     try {
+      console.log('🔄 Reloading progress for course:', courseId);
       const [progressData, unlocked] = await Promise.all([
         getProgress(courseId),
         getUnlockedLessons(courseId)
       ]);
       setProgress(progressData || {});
       setUnlockedLessons(unlocked || []);
+      console.log('✅ Progress reloaded:', {
+        progressKeys: Object.keys(progressData || {}),
+        unlockedLessons: unlocked || [],
+        currentLessonId
+      });
     } catch (e) {
       console.error('Error reloading progress:', e);
     }
@@ -749,6 +937,7 @@ const LessonVideoPage: React.FC = () => {
       message.warning('Bạn cần trả lời tất cả các câu hỏi!');
       return;
     }
+
     try {
       const res = await config.post(`/quizzes/${quiz._id}/submit`, { answers: quizAnswers });
       setQuizResult(res.data);
@@ -768,12 +957,15 @@ const LessonVideoPage: React.FC = () => {
             await updateProgress(courseId, currentLessonId, {
               watchedSeconds: videoRef.current.currentTime,
               videoDuration: videoRef.current.duration,
+              quizPassed: res.data.success,
+              quizAnswers: quizAnswers,
               videoCompleted: true
             } as any);
           }
 
-          // Đợi một chút để đảm bảo backend đã xử lý xong
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Clear cache on successful submit
+          console.log('🗑️ Clearing cache after successful submit');
+          clearQuizAnswersCache(courseId, currentLessonId);
 
           // Reload progress và unlocked lessons
           const [progressData, unlocked] = await Promise.all([
@@ -787,14 +979,6 @@ const LessonVideoPage: React.FC = () => {
 
           // Nếu đã mở được quiz thì có nghĩa là đã xem hết video, chỉ cần quiz đạt là chuyển bài
           message.success('Bạn đã hoàn thành bài học! Đang chuyển sang bài tiếp theo...');
-
-          // Reload lại unlocked lessons để đảm bảo cập nhật
-          const updatedUnlocked = await getUnlockedLessons(courseId);
-          console.log('🔄 Updated unlocked lessons after quiz:', updatedUnlocked);
-          setUnlockedLessons(updatedUnlocked || []);
-
-          // Đợi một chút để đảm bảo backend đã xử lý xong
-          await new Promise(resolve => setTimeout(resolve, 500));
 
           // Chuyển bài
           await goToNextLesson(); // Chuyển bài khi quiz đạt
@@ -1226,10 +1410,10 @@ const LessonVideoPage: React.FC = () => {
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
-  
+
   // AI Chat states
   const [isChatOpen, setIsChatOpen] = useState(false);
-  
+
   const toggleChat = () => {
     setIsChatOpen(!isChatOpen);
   };
@@ -1620,6 +1804,7 @@ const LessonVideoPage: React.FC = () => {
                       if (cloudName && publicId) {
                         return (
                           <CustomVideoPlayer
+                            ref={videoRef}
                             sources={{
                               '360p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_640,h_360,c_limit/${publicId}.mp4`,
                               '720p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1280,h_720,c_limit/${publicId}.mp4`,
