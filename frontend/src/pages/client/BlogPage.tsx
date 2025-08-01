@@ -27,7 +27,15 @@ import { Pagination } from 'antd';
 import leoProfanity from 'leo-profanity';
 import { useNavigate } from 'react-router-dom';
 const API_BASE = 'http://localhost:5000/api';
-
+const getAuthorAvatar = (author) => {
+  if (author?.avatar && author.avatar.trim() !== '') {
+    return author.avatar;
+  }
+  if (author?.profilePic && author.profilePic.trim() !== '') {
+    return author.profilePic;
+  }
+  return '/images/default-avatar.png';
+};
 const axiosClient = {
   get: async (url: string) => {
     const res = await fetch(`${API_BASE}${url}`, {
@@ -773,12 +781,29 @@ const extractFirstImageFromContent = (content: string): string | null => {
                 <div className="flex items-center gap-6">
                   <div className="relative">
                     <div className="w-20 h-20 md:w-24 md:h-24 rounded-full p-1 bg-gradient-to-tr from-blue-400 to-purple-400 shadow-xl">
-                      <img
-                        src={selectedBlog.author?.avatar || '/images/default-avatar.png'}
-                        alt="avatar"
-                        className="w-full h-full rounded-full border-4 border-white object-cover"
-                        onError={handleImageError}
-                      />
+                      {selectedBlog && (
+  <>
+    {console.log('selectedBlog:', selectedBlog)}
+    {console.log('selectedBlog.author:', selectedBlog?.author)}
+    <img
+      src={
+        selectedBlog?.author?.avatar?.startsWith('http')
+          ? selectedBlog.author.avatar
+          : selectedBlog.author?.avatar
+          ? `${import.meta.env.VITE_BASE_URL}/uploads/avatar/${selectedBlog.author.avatar}`
+          : '/images/default-avatar.png'
+      }
+      alt="avatar"
+      className="w-full h-full rounded-full border-4 border-white object-cover"
+      onError={(e) => {
+        e.currentTarget.onerror = null;
+        e.currentTarget.src = '/images/default-avatar.png';
+      }}
+    />
+  </>
+)}
+
+
                     </div>
                   </div>
                   <div>
