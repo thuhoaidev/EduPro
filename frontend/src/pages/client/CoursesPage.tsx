@@ -38,7 +38,6 @@ const CoursesPage: React.FC = () => {
         const fetchCourses = async () => {
             try {
                 setLoading(true);
-                console.log('Fetching courses with categoryId:', categoryId, 'searchTerm:', searchTerm);
                 let fetchedCourses: Course[];
                 if (searchTerm) {
                     fetchedCourses = await courseService.searchCourses(searchTerm);
