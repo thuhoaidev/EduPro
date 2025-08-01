@@ -136,33 +136,34 @@ const Certificates = () => {
 
   return (
     <motion.div
-      className="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen py-12"
+      className="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
     >
       <div className="max-w-6xl mx-auto px-4 lg:px-8">
-        {/* Header */}
-        <motion.div
-          className="text-center mb-12"
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6 }}
-        >
-          <motion.div
-            className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full mb-6"
-            whileHover={{ scale: 1.1, rotate: 360 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Award className="w-10 h-10 text-white" />
-          </motion.div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Chứng Chỉ Của Tôi
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Danh sách các chứng chỉ bạn đã nhận sau khi hoàn thành khóa học
-          </p>
-        </motion.div>
+          <div className="max-w-6xl mx-auto">
+            {/* Header */}
+            <motion.div
+              className="text-center mb-12"
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6 }}
+            >
+              <motion.div
+                className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full mb-6"
+                whileHover={{ scale: 1.1, rotate: 360 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Award className="w-10 h-10 text-white" />
+              </motion.div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                Chứng Chỉ Của Tôi
+              </h1>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Danh sách các chứng chỉ bạn đã nhận sau khi hoàn thành khóa học
+              </p>
+            </motion.div>
 
         {/* Certificates Grid */}
         {certificates.length === 0 ? (
@@ -280,6 +281,7 @@ const Certificates = () => {
             ))}
           </motion.div>
         )}
+        </div>
       </div>
     </motion.div>
   );
