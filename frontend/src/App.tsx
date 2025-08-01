@@ -90,6 +90,7 @@ import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
 import MessagesPage from './pages/client/MessagesPage';
 import MessagesLayout from './pages/client/MessagesLayout';
 import CertificatePage from "./pages/client/CertificatePage";
+import Certificates from "./pages/client/Profile/Certificates";
 import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
 import InstructorDashboard from './pages/instructor/Dashboard/InstructorDashboard';
 
@@ -164,6 +165,7 @@ function App() {
         { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
         { path: "certificates/:courseId", element: <CertificatePage /> },
+
         { path: '/social-callback', element: <SocialAuthCallback /> },
       ]
     },
@@ -175,6 +177,7 @@ function App() {
         { path: 'edit', element: <ProfileEdit /> },
         { path: 'change-password', element: <ChangePassword /> },
         { path: 'orders', element: <OrdersPage /> },
+        { path: 'certificates', element: <Certificates /> },
       ]
     },
     {

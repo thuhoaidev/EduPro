@@ -586,6 +586,9 @@ const Profile = () => {
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.4 }}
         >
+
+            
+
           {/* Courses Section */}
           <motion.div
             className="bg-white/90 rounded-3xl shadow-2xl p-10 border border-blue-100"
