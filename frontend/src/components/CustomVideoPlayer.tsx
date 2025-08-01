@@ -138,7 +138,7 @@ const createStreamingOptimizer = () => {
       };
 };
 
-export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
+export const CustomVideoPlayer = React.forwardRef<HTMLVideoElement, CustomVideoPlayerProps>(({
       sources,
       onTimeUpdate,
       onEnded,
@@ -147,7 +147,7 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
       onPause,
       initialTime = 0,
       isLessonCompleted = false
-}) => {
+}, ref) => {
       const videoRef = useRef<HTMLVideoElement>(null);
       const containerRef = useRef<HTMLDivElement>(null);
       const timeUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -189,6 +189,17 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
       const [showSeekWarning, setShowSeekWarning] = useState(false);
       const [bufferHealth, setBufferHealth] = useState(0);
       const [networkIssues, setNetworkIssues] = useState(false);
+
+      // Forward ref to parent component
+      useEffect(() => {
+            if (ref) {
+                  if (typeof ref === 'function') {
+                        ref(videoRef.current);
+                  } else {
+                        ref.current = videoRef.current;
+                  }
+            }
+      }, [ref]);
 
       // Sync refs with state
       useEffect(() => {
@@ -998,4 +1009,4 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
                    `}</style>
             </div>
       );
-};
+});

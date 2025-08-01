@@ -23,7 +23,7 @@ exports.updateProgress = async (req, res, next) => {
   try {
     const { courseId, lessonId } = req.params;
     const userId = req.user._id;
-    const { watchedSeconds, videoDuration, quizPassed, quizAnswers } = req.body;
+    const { watchedSeconds, videoDuration, quizPassed, quizAnswers, videoCompleted } = req.body;
     const enrollment = await Enrollment.findOne({ course: courseId, student: userId });
     if (!enrollment) throw new ApiError(404, 'Bạn chưa đăng ký khóa học này');
     if (!enrollment.progress) enrollment.progress = {};
@@ -38,10 +38,10 @@ exports.updateProgress = async (req, res, next) => {
     if (Array.isArray(quizAnswers)) {
       enrollment.progress[lessonId].quizAnswers = quizAnswers;
     }
-    // Đánh dấu videoCompleted nếu đủ 90% (và không bao giờ set lại false)
+    // Đánh dấu videoCompleted nếu đủ 90% hoặc được gửi từ frontend (và không bao giờ set lại false)
     const watchedPercent = (watchedSeconds / (videoDuration || 1)) * 100;
     let justCompleted = false;
-    if (watchedPercent >= 90) {
+    if (watchedPercent >= 90 || videoCompleted === true) {
       enrollment.progress[lessonId].videoCompleted = true;
       // completed chỉ true khi đã xem đủ 90% và qua quiz
       const wasCompleted = enrollment.progress[lessonId].completed;
