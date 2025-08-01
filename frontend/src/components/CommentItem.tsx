@@ -64,7 +64,10 @@ const CommentItem: React.FC<CommentItemProps> = ({
                     : 'text-gray-400'
                 }`}
               />
-              Thích ({commentLikesCount[cmt._id] || 0})
+              Thích {typeof commentLikesCount[cmt._id] === 'number'
+  ? commentLikesCount[cmt._id]
+  : 0}
+
             </button>
 
             <button

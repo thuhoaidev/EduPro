@@ -32,7 +32,10 @@ const createBlog = async (req, res) => {
     });
 
     await blog.save();
-    // Gửi thông báo global khi có bài viết mới
+    await blog.populate('author', 'fullname avatar nickname'); // 👈 Thêm dòng này
+
+// Gửi thông báo...
+
     const notification = await Notification.create({
       title: 'Bài viết mới',
       content: `Bài viết "${blog.title}" đã được đăng tải và chờ duyệt.`,
@@ -225,8 +228,8 @@ const getBlogComments = async (req, res) => {
 
   try {
     const comments = await BlogComment.find({ blog: id, parent: null })
-      .populate('author', 'fullname nickname email')
-      .populate({ path: 'replies', populate: { path: 'author', select: 'fullname nickname email' } })
+      .populate('author', 'fullname nickname email avatar')
+      .populate({ path: 'replies', populate: { path: 'author', select: 'fullname nickname email avatar' } })
       .sort({ createdAt: -1 });
     res.json({ success: true, data: comments });
   } catch (error) {
@@ -238,7 +241,7 @@ const getBlogComments = async (req, res) => {
 const getAllComments = async (req, res) => {
   try {
     const comments = await BlogComment.find({})
-      .populate('author', 'fullname nickname email')
+      .populate('author', 'fullname nickname email avatar')
       .populate('blog', 'title')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: comments });
@@ -397,7 +400,7 @@ const getBlogById = async (req, res) => {
     }
 
     const blog = await Blog.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true })
-      .populate('author', 'fullname nickname email')
+      .populate('author', 'fullname nickname avatar')
       .populate('category')
       .lean();
 

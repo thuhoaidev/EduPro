@@ -100,6 +100,7 @@ const MyBlogPosts = () => {
   const [pageSize] = useState(6);
   const [totalPosts, setTotalPosts] = useState(0);
   
+  
   // Comment modal states
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
@@ -186,6 +187,10 @@ const MyBlogPosts = () => {
           const errorRes = await response.json();
           throw new Error(errorRes.message || 'Xoá thất bại');
         }
+        // ✅ Lọc bài viết theo status
+  const filteredPosts = statusFilter === 'all'
+    ? posts
+    : posts.filter((post) => post.status === statusFilter);
 
         // Cập nhật danh sách sau khi xoá
         setPosts(prev => prev.filter(post => post._id !== postId));
@@ -601,18 +606,17 @@ const navigate = useNavigate();
                 />
               </Col>
               <Col xs={24} sm={12} md={6}>
-                <Select
-                  placeholder="Trạng thái"
-                  value={statusFilter}
-                  onChange={setStatusFilter}
-                  style={{ width: '100%' }}
-                  suffixIcon={<FilterOutlined />}
-                >
-                  <Option value="all">Tất cả trạng thái</Option>
-                  <Option value="published">Đã xuất bản</Option>
-                  <Option value="draft">Bản nháp</Option>
-                  <Option value="pending">Chờ duyệt</Option>
-                </Select>
+               <Select
+                value={statusFilter}
+                onChange={(value) => setStatusFilter(value)}
+                style={{ width: 200, marginBottom: 16 }}
+              >
+                <Select.Option value="all">Tất cả trạng thái</Select.Option>
+                <Select.Option value="published">Đã xuất bản</Select.Option>
+                <Select.Option value="draft">Bản nháp</Select.Option>
+                <Select.Option value="pending">Chờ duyệt</Select.Option>
+              </Select>
+
               </Col>
               <Col xs={24} sm={24} md={10}>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16 }}>
