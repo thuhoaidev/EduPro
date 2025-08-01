@@ -1,6 +1,19 @@
 const cloudinary = require('cloudinary').v2;
 const fs = require('fs');
 const path = require('path');
+
+// Constants cho folder structure
+const FOLDERS = {
+    COURSES: 'courses',
+    VIDEOS: 'videos',
+    THUMBNAILS: 'thumbnails',
+    AVATARS: 'avatars',
+    CERTIFICATES: 'certificates',
+    BLOG_IMAGES: 'blog-images',
+    INSTRUCTOR_PROFILES: 'instructor-profiles',
+    COURSE_MATERIALS: 'course-materials'
+};
+
 // Cấu hình Cloudinary với các biến môi trường riêng lẻ
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -13,6 +26,17 @@ console.log('[Cloudinary] cloud_name:', process.env.CLOUDINARY_CLOUD_NAME);
 console.log('[Cloudinary] api_key:', process.env.CLOUDINARY_API_KEY);
 
 /**
+ * Tạo folder path với prefix
+ * @param {string} folder - Tên folder
+ * @param {string} subfolder - Subfolder (optional)
+ * @returns {string} - Full folder path
+ */
+const getFolderPath = (folder, subfolder = '') => {
+    const basePath = `edupor/${folder}`;
+    return subfolder ? `${basePath}/${subfolder}` : basePath;
+};
+
+/**
  * Upload file từ buffer trực tiếp lên Cloudinary
  * @param {Buffer} fileBuffer - Buffer của file cần upload
  * @param {string} folder - Thư mục lưu trữ trên Cloudinary
@@ -21,10 +45,10 @@ console.log('[Cloudinary] api_key:', process.env.CLOUDINARY_API_KEY);
 exports.uploadBufferToCloudinary = async (fileBuffer, folder = 'misc') => {
     return new Promise((resolve, reject) => {
         const options = {
-            folder: `edupor/${folder}`,
+            folder: getFolderPath(folder),
             resource_type: 'auto',
         };
-        if (folder !== 'videos') {
+        if (folder !== FOLDERS.VIDEOS) {
             options.transformation = [
                 { width: 1920, height: 1080, crop: 'limit' },
                 { quality: 'auto:good' },
@@ -56,7 +80,7 @@ exports.uploadToCloudinary = async (filePath, folder = 'misc') => {
     try {
         // Upload file với cấu hình resize
         const result = await cloudinary.uploader.upload(filePath, {
-            folder: `edupor/${folder}`,
+            folder: getFolderPath(folder),
             resource_type: 'auto',
             use_filename: true,
             unique_filename: true,
@@ -101,8 +125,8 @@ exports.getPublicIdFromUrl = (url) => {
     return matches ? matches[1] : null;
 }; 
 // Upload 1 video và chuyển đổi nhiều độ phân giải
-exports.uploadVideoWithQualitiesToCloudinary = async (filePath, folder = 'videos') => {
-  const baseFolder = `edupor/${folder}`;
+exports.uploadVideoWithQualitiesToCloudinary = async (filePath, folder = FOLDERS.VIDEOS) => {
+  const baseFolder = getFolderPath(folder);
   const resolutions = [
     { label: '360p', transformation: { width: 640, height: 360, crop: 'limit' } },
     { label: '720p', transformation: { width: 1280, height: 720, crop: 'limit' } },
@@ -155,3 +179,78 @@ exports.uploadVideoWithQualitiesToCloudinary = async (filePath, folder = 'videos
     throw error;
   }
 };
+
+/**
+ * Upload video với streaming optimization
+ * @param {string} filePath - Đường dẫn file video
+ * @param {string} folder - Thư mục lưu trữ
+ * @param {Object} options - Tùy chọn bổ sung
+ * @returns {Promise<Object>} - Kết quả upload
+ */
+exports.uploadVideoWithStreaming = async (filePath, folder = FOLDERS.VIDEOS, options = {}) => {
+    try {
+        const result = await cloudinary.uploader.upload(filePath, {
+            folder: getFolderPath(folder),
+            resource_type: 'video',
+            use_filename: true,
+            unique_filename: true,
+            eager: [
+                { width: 640, height: 360, crop: 'limit', format: 'mp4' },
+                { width: 1280, height: 720, crop: 'limit', format: 'mp4' },
+                { width: 1920, height: 1080, crop: 'limit', format: 'mp4' }
+            ],
+            eager_async: true,
+            eager_notification_url: options.notification_url,
+            ...options
+        });
+
+        // Xóa file tạm
+        fs.unlinkSync(filePath);
+        return result;
+    } catch (error) {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        throw error;
+    }
+};
+
+/**
+ * Tạo signed URL cho video (bảo mật)
+ * @param {string} publicId - Public ID của video
+ * @param {number} expiresAt - Thời gian hết hạn (timestamp)
+ * @returns {string} - Signed URL
+ */
+exports.generateSignedVideoUrl = (publicId, expiresAt = Math.round(Date.now() / 1000) + 3600) => {
+    return cloudinary.url(publicId, {
+        resource_type: 'video',
+        sign_url: true,
+        type: 'upload',
+        expires_at: expiresAt,
+        secure: true
+    });
+};
+
+/**
+ * Tạo thumbnail cho video
+ * @param {string} publicId - Public ID của video
+ * @param {Object} options - Tùy chọn thumbnail
+ * @returns {string} - URL thumbnail
+ */
+exports.generateVideoThumbnail = (publicId, options = {}) => {
+    const defaultOptions = {
+        width: 320,
+        height: 180,
+        crop: 'fill',
+        gravity: 'auto',
+        quality: 'auto',
+        format: 'jpg'
+    };
+    
+    return cloudinary.url(publicId, {
+        resource_type: 'video',
+        transformation: { ...defaultOptions, ...options },
+        secure: true
+    });
+};
+
+// Export constants
+exports.FOLDERS = FOLDERS;
