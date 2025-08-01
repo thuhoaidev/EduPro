@@ -1,19 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-
+import { useParams } from 'react-router-dom';
 import {
   Heart,
   MessageCircle,
   Send,
-  User,
   Calendar,
   Eye,
   ArrowLeft,
   Reply,
   Bookmark,
   BookmarkCheck,
-  Share2,
-  ThumbsUp,
-  MoreHorizontal,
   Search,
   Filter,
   Sparkles,
@@ -23,21 +19,10 @@ import {
 import { toast } from 'react-hot-toast';
 import { marked } from 'marked';
 import { Pagination } from 'antd';
-// Nếu dùng TypeScript và gặp lỗi thiếu types cho leo-profanity, thêm khai báo sau vào đầu file hoặc tạo file leo-profanity.d.ts
-// @ts-ignore
 import leoProfanity from 'leo-profanity';
 import { useNavigate } from 'react-router-dom';
 const API_BASE = 'http://localhost:5000/api';
 
-const getAuthorAvatar = (author) => {
-  if (author?.avatar && author.avatar.trim() !== '') {
-    return author.avatar;
-  }
-  if (author?.profilePic && author.profilePic.trim() !== '') {
-    return author.profilePic;
-  }
-  return '/images/default-avatar.png';
-};
 const axiosClient = {
   get: async (url: string) => {
     const res = await fetch(`${API_BASE}${url}`, {
@@ -107,10 +92,18 @@ const BlogPage = () => {
   const [commentWarning, setCommentWarning] = useState('');
   const [replyWarning, setReplyWarning] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
+  const { id: blogId } = useParams();
   
   
-  
-  
+  const getAuthorAvatar = (author) => {
+  if (author?.avatar && author.avatar.trim() !== '') {
+    return author.avatar;
+  }
+  if (author?.profilePic && author.profilePic.trim() !== '') {
+    return author.profilePic;
+  }
+  return '/images/default-avatar.png';
+};
   const commentEndRef = useRef<HTMLDivElement>(null);
  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
   const target = e.currentTarget;
@@ -187,7 +180,7 @@ const loadDetail = async (id: string) => {
     // ✅ Xử lý like cho cả comment và reply
     const all = flattenComments(mappedComments);
     for (const cmt of all) {
-      const check = await axiosClient.get(`/comment-likes/check/${cmt._id}`);
+      const check = await axiosClient.get(`/comment-likes/has-liked/${cmt._id}`);
       const count = await axiosClient.get(`/comment-likes/count/${cmt._id}`);
 
       setLikedComments(prev => {
@@ -524,38 +517,44 @@ useEffect(() => {
   if (comments.length > 0) fetchCommentLikeCount();
 }, [comments]);
 
+
 useEffect(() => {
+  if (!blogId) return;
+
   const fetchComments = async () => {
     try {
       const res = await axiosClient.get(`/blog-comments/${blogId}`);
       const commentData = res.data;
-
       setComments(commentData);
 
-      // Fetch số lượng tym cho từng comment
       const likeCounts = await Promise.all(
         commentData.map((cmt: any) =>
-          axiosClient.get(`/comment-likes/count/${cmt._id}`).then(res => ({
-            commentId: cmt._id,
-            count: res.data.count
-          }))
+          axiosClient
+            .get(`/comment-likes/count/${cmt._id}`)
+            .then((res) => ({
+              commentId: cmt._id,
+              count: res?.data && typeof res.data.count === 'number' ? res.data.count : 0
+            }))
+            .catch(() => ({
+              commentId: cmt._id,
+              count: 0,
+            }))
         )
       );
 
       const countMap: Record<string, number> = {};
-      likeCounts.forEach(item => {
+      likeCounts.forEach((item) => {
         countMap[item.commentId] = item.count;
       });
 
       setCommentLikesCount(countMap);
-
     } catch (err) {
-      console.error(err);
+      console.error('Lỗi fetch comments:', err);
     }
   };
 
   fetchComments();
-}, []);
+}, [blogId]);
 
   useEffect(() => {
     loadBlogs();
