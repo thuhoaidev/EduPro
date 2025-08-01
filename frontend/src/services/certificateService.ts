@@ -1,4 +1,4 @@
-import axios from '../api/axios';
+import { config } from '../api/axios';
 
 export const issueCertificate = (courseId: string) =>
   axios.post(`/certificates/${courseId}/issue`).then(res => res.data.data);

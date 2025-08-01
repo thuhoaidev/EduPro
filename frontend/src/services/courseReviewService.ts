@@ -1,4 +1,4 @@
-import axios from '../api/axios';
+import { config } from '../api/axios';
 
 export const addOrUpdateReview = (courseId: string, rating: number, comment: string) =>
   axios.post(`/course-reviews/${courseId}/review`, { rating, comment }).then(res => res.data.data);
