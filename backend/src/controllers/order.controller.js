@@ -273,8 +273,7 @@ class OrderController {
           content: `Đơn hàng của bạn đã được thanh toán thành công. Cảm ơn bạn đã mua hàng!`,
           type: 'success',
           receiver: userId,
-          icon: 'credit-card',
-          meta: { link: `/orders/${order._id}` }
+          icon: 'credit-card'
         });
       } else {
         // Đơn hàng đã được tạo, chờ thanh toán
@@ -284,7 +283,7 @@ class OrderController {
           type: 'info',
           receiver: userId,
           icon: 'shopping-cart',
-          meta: { link: `/orders/${order._id}` }
+          meta: { link: `/orders` }
         });
       }
       

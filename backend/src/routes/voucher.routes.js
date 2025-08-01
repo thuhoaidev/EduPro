@@ -53,6 +53,12 @@ const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
     if (voucher.maxAccountAge && days > voucher.maxAccountAge) {
       return { valid: false, reason: `Chỉ áp dụng cho tài khoản mới tạo trong ${voucher.maxAccountAge} ngày` };
     }
+    
+    // Kiểm tra xem user đã sử dụng voucher new-user này chưa
+    const used = await VoucherUsage.findOne({ userId: user._id, voucherId: voucher._id });
+    if (used) {
+      return { valid: false, reason: "Bạn đã sử dụng voucher tài khoản mới này rồi" };
+    }
   }
   if (voucher.type === 'birthday') {
     console.log('DEBUG birthday:', { userId: user._id, dob: user.dob });
@@ -62,6 +68,17 @@ const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
     if (!(dob.date() === nowVN.date() && dob.month() === nowVN.month())) {
       return { valid: false, reason: "Chỉ áp dụng đúng ngày sinh nhật" };
     }
+    
+    // Kiểm tra xem user đã sử dụng voucher birthday này trong năm nay chưa
+    const startOfYear = dayjs().startOf('year');
+    const used = await VoucherUsage.findOne({ 
+      userId: user._id, 
+      voucherId: voucher._id,
+      usedAt: { $gte: startOfYear.toDate() }
+    });
+    if (used) {
+      return { valid: false, reason: "Bạn đã sử dụng voucher sinh nhật này trong năm nay rồi" };
+    }
   }
   if (voucher.type === 'first-order') {
     const Order = require('../models/Order');
@@ -69,6 +86,12 @@ const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
     console.log('DEBUG first-order:', { userId: user._id, paidOrderCount: count });
     if (count > 0) {
       return { valid: false, reason: "Chỉ áp dụng cho đơn hàng đầu tiên" };
+    }
+    
+    // Kiểm tra xem user đã sử dụng voucher first-order này chưa
+    const used = await VoucherUsage.findOne({ userId: user._id, voucherId: voucher._id });
+    if (used) {
+      return { valid: false, reason: "Bạn đã sử dụng voucher đơn hàng đầu tiên này rồi" };
     }
   }
   if (voucher.type === 'order-count') {
@@ -81,6 +104,12 @@ const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
     if (voucher.maxOrderCount && count > voucher.maxOrderCount) {
       return { valid: false, reason: `Chỉ áp dụng cho khách có tối đa ${voucher.maxOrderCount} đơn hàng` };
     }
+    
+    // Kiểm tra xem user đã sử dụng voucher order-count này chưa
+    const used = await VoucherUsage.findOne({ userId: user._id, voucherId: voucher._id });
+    if (used) {
+      return { valid: false, reason: "Bạn đã sử dụng voucher này rồi" };
+    }
   }
   if (voucher.type === 'order-value') {
     const Order = require('../models/Order');
@@ -89,6 +118,26 @@ const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
     console.log('DEBUG order-value:', { userId: user._id, total, minOrderValue: voucher.minOrderValue });
     if (voucher.minOrderValue && total < voucher.minOrderValue) {
       return { valid: false, reason: `Bạn cần có tổng giá trị đơn hàng đã thanh toán tối thiểu ${voucher.minOrderValue.toLocaleString()}đ để nhận voucher này` };
+    }
+    
+    // Kiểm tra xem user đã sử dụng voucher order-value này chưa
+    const used = await VoucherUsage.findOne({ userId: user._id, voucherId: voucher._id });
+    if (used) {
+      return { valid: false, reason: "Bạn đã sử dụng voucher này rồi" };
+    }
+  }
+  
+  // Kiểm tra voucher default: giới hạn số lần sử dụng cho mỗi user
+  if (voucher.type === 'default') {
+    const userUsageCount = await VoucherUsage.countDocuments({ 
+      userId: user._id, 
+      voucherId: voucher._id 
+    });
+    
+    // Giả sử mỗi user chỉ được sử dụng voucher default tối đa 1 lần
+    // Có thể thay đổi logic này tùy theo yêu cầu
+    if (userUsageCount >= 1) {
+      return { valid: false, reason: "Bạn đã sử dụng voucher này rồi" };
     }
   }
   if (voucher.type === 'flash-sale') {
@@ -100,7 +149,12 @@ const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
       return { valid: false, reason: "Chỉ áp dụng từ 0h đến 1h sáng mỗi ngày" };
     }
     console.log('DEBUG flash-sale: trong khung giờ 0h-1h VN', { hour });
-    // Đã kiểm tra startDate, endDate, usedCount ở trên, không cần điều kiện user đặc biệt
+    
+    // Kiểm tra xem user đã sử dụng voucher flash sale này chưa
+    const used = await VoucherUsage.findOne({ userId: user._id, voucherId: voucher._id });
+    if (used) {
+      return { valid: false, reason: "Bạn đã sử dụng voucher flash sale này rồi" };
+    }
   }
   return { valid: true };
 };
@@ -186,7 +240,8 @@ router.get("/available", async (req, res) => {
       if (start && now.isBefore(start)) continue;
       if (end && now.isAfter(end)) continue;
       if (v.usedCount >= v.usageLimit) continue;
-      if (v.usageLimit <= 1 && user) {
+      // Kiểm tra xem user đã sử dụng voucher này chưa
+      if (user) {
         const used = await VoucherUsage.findOne({ userId: user._id, voucherId: v._id });
         if (used) continue;
       }

@@ -43,6 +43,7 @@ import InstructorsPage from './pages/client/InstructorsPage';
 import CartPage from './pages/client/CartPage';
 import CheckoutPage from './pages/client/CheckoutPage';
 import OrdersPage from './pages/client/OrdersPage';
+import OrderDetailPage from './pages/client/OrderDetailPage';
 import CourseDetailPage from "./pages/client/CourseDetailPage";
 import Dashboard from './pages/admin/Dashboard/Dashboard';
 import AdminStatistics from './pages/admin/Statistics/AdminStatistics';
@@ -68,6 +69,7 @@ import RoleDetailPage from './pages/admin/roles/RoleDetailPage';
 import TestRoleUpdate from './pages/admin/roles/TestRoleUpdate';
 
 import BlogPage from "./pages/client/BlogPage";
+import BlogDetailPage from "./pages/client/BlogDetailPage";
 
 
 import ModeratorDashboard from "./pages/Moderator/Dashboard";
@@ -149,11 +151,12 @@ function App() {
         { path: "courses/id/:id", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
-        {path:  "/blog/:id", element: <BlogPage />},
+        { path: "blogs/:id", element: <BlogDetailPage /> },
         { path: "/blog/post/:id", element: <BlogPage /> },
         { path: "cart", element: <CartPage /> },
         { path: "checkout", element: <CheckoutPage /> },
         { path: "orders", element: <OrdersPage /> },
+        { path: "orders/:id", element: <OrderDetailPage /> },
         { path: "/lessons/:lessonId/video", element: <LessonVideoPage /> },
         { path: "/lessons/:lessonId/quiz", element: <LessonQuizPage /> },
         { path: "report", element: <UserReportRoute /> },

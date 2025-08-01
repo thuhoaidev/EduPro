@@ -219,6 +219,12 @@ const AppHeader = () => {
   };
 
   const handleNotificationClick = (notification: Notification) => {
+    // Nếu là thông báo "Thanh toán thành công", không làm gì cả
+    if (notification.title === 'Thanh toán thành công') {
+      setNotificationsOpen(false);
+      return;
+    }
+
     const token = localStorage.getItem('token');
     // Đánh dấu đã đọc trên backend
     fetch(`/api/notifications/${notification.id}/read`, {
