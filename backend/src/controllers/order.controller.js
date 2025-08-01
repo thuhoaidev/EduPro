@@ -17,20 +17,47 @@ class OrderController {
     session.startTransaction();
 
     try {
+      console.log('🔍 CreateOrder - Request body:', req.body);
+      console.log('🔍 CreateOrder - User:', req.user);
+
       const {
         items,
         voucherCode,
         paymentMethod = 'bank_transfer',
         shippingInfo,
+        fullName,
+        phone,
+        email,
         notes
       } = req.body;
 
-      const { fullName, phone, email } = shippingInfo || {};
+      // Handle both shippingInfo object and direct fields
+      const orderFullName = fullName || (shippingInfo && shippingInfo.fullName);
+      const orderPhone = phone || (shippingInfo && shippingInfo.phone);
+      const orderEmail = email || (shippingInfo && shippingInfo.email);
+      
+      console.log('🔍 CreateOrder - Processed fields:', {
+        orderFullName,
+        orderPhone,
+        orderEmail,
+        paymentMethod,
+        itemsCount: items?.length
+      });
+      
       const userId = req.user.id;
 
       if (!items || items.length === 0) {
         await session.abortTransaction();
         return res.status(400).json({ success: false, message: 'Giỏ hàng trống' });
+      }
+
+      // Validate required fields
+      if (!orderFullName || !orderPhone || !orderEmail) {
+        await session.abortTransaction();
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Thiếu thông tin bắt buộc: họ tên, số điện thoại hoặc email' 
+        });
       }
 
       let totalAmount = 0;
@@ -115,11 +142,6 @@ class OrderController {
         await wallet.save({ session });
       }
 
-      // Nếu thanh toán bằng Momo, tạo đơn hàng với trạng thái pending
-      if (paymentMethod === 'momo') {
-        // Không cần xử lý gì ở đây, đơn hàng sẽ được cập nhật khi có callback từ Momo
-      }
-
       // Tạo đơn hàng
       const order = new Order({
         userId,
@@ -129,54 +151,45 @@ class OrderController {
         finalAmount,
         voucherId,
         paymentMethod,
-        fullName,
-        phone,
-        email,
+        fullName: orderFullName,
+        phone: orderPhone,
+        email: orderEmail,
         notes
       });
 
       await order.save({ session });
 
-      // Tự động chuyển trạng thái sang 'paid' và cộng tiền vào ví giảng viên (chỉ cho ví và bank_transfer)
-      if (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer') {
-        order.status = 'paid';
-        order.paymentStatus = 'paid';
-        order.paidAt = new Date();
-        await order.save({ session });
-      } else {
-        // Với Momo, VNPAY, ZaloPay: giữ trạng thái pending, sẽ cập nhật khi có callback
-        order.status = 'pending';
-        order.paymentStatus = 'pending';
-        await order.save({ session });
-      }
+      // Tự động chuyển trạng thái sang 'paid' và cộng tiền vào ví giảng viên
+      order.status = 'paid';
+      order.paymentStatus = 'paid';
+      order.paidAt = new Date();
+      await order.save({ session });
 
-      // Cộng tiền vào ví giáo viên cho từng khóa học trong đơn hàng (chỉ khi thanh toán thành công)
-      if (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer') {
-        for (const item of orderItems) {
-          const course = await Course.findById(item.courseId).session(session);
-          if (!course) continue;
-          if (!course.instructor) continue;
-          const instructorProfile = await InstructorProfile.findById(course.instructor).session(session);
-          if (!instructorProfile || !instructorProfile.user) continue;
-          let wallet = await TeacherWallet.findOne({ teacherId: instructorProfile.user }).session(session);
-          if (!wallet) {
-            wallet = new TeacherWallet({ teacherId: instructorProfile.user, balance: 0, history: [] });
-          }
-          // Giáo viên nhận 70% giá gốc
-          const earning = Math.round(course.price * 0.7 * (item.quantity || 1));
-          wallet.balance += earning;
-          wallet.history.push({
-            type: 'earning',
-            amount: earning,
-            orderId: order._id,
-            note: `Bán khóa học: ${course.title} (70% giá gốc)`
-          });
-          await wallet.save({ session });
+      // Cộng tiền vào ví giáo viên cho từng khóa học trong đơn hàng
+      for (const item of orderItems) {
+        const course = await Course.findById(item.courseId).session(session);
+        if (!course) continue;
+        if (!course.instructor) continue;
+        const instructorProfile = await InstructorProfile.findById(course.instructor).session(session);
+        if (!instructorProfile || !instructorProfile.user) continue;
+        let wallet = await TeacherWallet.findOne({ teacherId: instructorProfile.user }).session(session);
+        if (!wallet) {
+          wallet = new TeacherWallet({ teacherId: instructorProfile.user, balance: 0, history: [] });
         }
+        // Giáo viên nhận 40% giá gốc, không bị ảnh hưởng bởi voucher
+        const earning = Math.round(course.price * 0.7 * (item.quantity || 1));
+        wallet.balance += earning;
+        wallet.history.push({
+          type: 'earning',
+          amount: earning,
+          orderId: order._id,
+          note: `Bán khóa học: ${course.title} (70% giá gốc)`
+        });
+        await wallet.save({ session });
       }
 
-      // Ghi nhận voucher usage (chỉ khi thanh toán thành công)
-      if (voucherId && (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer')) {
+      // Ghi nhận voucher usage
+      if (voucherId) {
         await new VoucherUsage({
           userId,
           voucherId,
@@ -192,38 +205,34 @@ class OrderController {
         }
       }
 
-      // Xoá item đã mua khỏi giỏ hàng (chỉ khi thanh toán thành công)
-      if (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer') {
-        const cart = await Cart.findOne({ user: userId }).session(session);
-        if (cart) {
-          const courseIds = items.map(item => item.courseId.toString());
-          cart.items = cart.items.filter(item => !courseIds.includes(item.course.toString()));
-          await cart.save({ session });
+      // Xoá item đã mua khỏi giỏ hàng
+      const cart = await Cart.findOne({ user: userId }).session(session);
+      if (cart) {
+        const courseIds = items.map(item => item.courseId.toString());
+        cart.items = cart.items.filter(item => !courseIds.includes(item.course.toString()));
+        await cart.save({ session });
+      }
+
+      // Tạo enrollment cho tất cả khóa học trong đơn hàng
+      const enrollments = [];
+      for (const item of orderItems) {
+        // Kiểm tra xem user đã enrollment khóa học này chưa
+        const existingEnrollment = await Enrollment.findOne({
+          student: userId,
+          course: item.courseId
+        }).session(session);
+
+        if (!existingEnrollment) {
+          enrollments.push({
+            student: userId,
+            course: item.courseId,
+            enrolledAt: new Date()
+          });
         }
       }
 
-      // Tạo enrollment cho tất cả khóa học trong đơn hàng (chỉ khi thanh toán thành công)
-      if (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer') {
-        const enrollments = [];
-        for (const item of orderItems) {
-          // Kiểm tra xem user đã enrollment khóa học này chưa
-          const existingEnrollment = await Enrollment.findOne({
-            student: userId,
-            course: item.courseId
-          }).session(session);
-
-          if (!existingEnrollment) {
-            enrollments.push({
-              student: userId,
-              course: item.courseId,
-              enrolledAt: new Date()
-            });
-          }
-        }
-
-        if (enrollments.length > 0) {
-          await Enrollment.insertMany(enrollments, { session });
-        }
+      if (enrollments.length > 0) {
+        await Enrollment.insertMany(enrollments, { session });
       }
 
       await session.commitTransaction();
@@ -237,39 +246,22 @@ class OrderController {
           select: 'code title discountType discountValue'
         }
       ]);
-      // Gửi thông báo cho user
-      let notification;
-      if (paymentMethod === 'wallet' || paymentMethod === 'bank_transfer') {
-        // Thanh toán thành công ngay
-        notification = await Notification.create({
-          title: 'Thanh toán thành công',
-          content: `Đơn hàng của bạn đã được thanh toán thành công. Cảm ơn bạn đã mua hàng!`,
-          type: 'success',
-          receiver: userId,
-          icon: 'credit-card',
-          meta: { link: `/orders/${order._id}` }
-        });
-      } else {
-        // Đơn hàng đã được tạo, chờ thanh toán
-        notification = await Notification.create({
-          title: 'Đơn hàng đã được tạo',
-          content: `Đơn hàng #${order._id} đã được tạo thành công. Vui lòng hoàn thành thanh toán để truy cập khóa học.`,
-          type: 'info',
-          receiver: userId,
-          icon: 'shopping-cart',
-          meta: { link: `/orders/${order._id}` }
-        });
-      }
-      
+      // Gửi thông báo cho user khi thanh toán thành công
+      const notification = await Notification.create({
+        title: 'Thanh toán thành công',
+        content: `Đơn hàng của bạn đã được thanh toán thành công. Cảm ơn bạn đã mua hàng!`,
+        type: 'success',
+        receiver: userId,
+        icon: 'credit-card',
+        meta: { link: `/orders/${order._id}` }
+      });
       const io = req.app.get && req.app.get('io');
       if (io && notification.receiver) {
         io.to(notification.receiver.toString()).emit('new-notification', notification);
       }
       return res.status(201).json({
         success: true,
-        message: paymentMethod === 'wallet' || paymentMethod === 'bank_transfer' 
-          ? 'Tạo đơn hàng và thanh toán thành công' 
-          : 'Tạo đơn hàng thành công',
+        message: 'Tạo đơn hàng thành công',
         data: {
           order: {
             id: order._id,
@@ -288,7 +280,12 @@ class OrderController {
       });
     } catch (err) {
       await session.abortTransaction();
-      console.error('Create order error:', err);
+      console.error('❌ Create order error details:', {
+        message: err.message,
+        stack: err.stack,
+        body: req.body,
+        user: req.user
+      });
       res.status(500).json({ success: false, message: 'Lỗi tạo đơn hàng', error: err.message });
     } finally {
       session.endSession();
@@ -310,18 +307,7 @@ class OrderController {
       console.log('🔍 getUserOrders - Filter:', filter);
 
       const orders = await Order.find(filter)
-        .populate({
-          path: 'items.courseId',
-          select: 'title thumbnail price discount rating totalReviews views level language',
-          populate: {
-            path: 'instructor',
-            select: 'user bio expertise rating totalReviews totalStudents',
-            populate: {
-              path: 'user',
-              select: 'fullname avatar'
-            }
-          }
-        })
+        .populate('items.courseId', 'title thumbnail price')
         .populate('voucherId', 'code title')
         .sort({ createdAt: -1 })
         .limit(limit * 1)
@@ -331,100 +317,23 @@ class OrderController {
 
       const total = await Order.countDocuments(filter);
 
-      // Xử lý dữ liệu khóa học với thông tin chi tiết
-      const ordersWithDetails = await Promise.all(
-        orders.map(async (order) => {
-          const itemsWithDetails = await Promise.all(
-            order.items.map(async (item) => {
-              const course = item.courseId;
-              
-              // Lấy số học viên đã đăng ký khóa học
-              const studentCount = await Enrollment.countDocuments({ 
-                course: course._id,
-                status: 'completed'
-              });
-
-              // Lấy tổng thời gian khóa học từ các video
-              const Section = require('../models/Section');
-              const Lesson = require('../models/Lesson');
-              const Video = require('../models/Video');
-              
-              const sections = await Section.find({ course_id: course._id });
-              let totalDuration = 0;
-              
-              for (const section of sections) {
-                const lessons = await Lesson.find({ section_id: section._id });
-                for (const lesson of lessons) {
-                  const video = await Video.findOne({ lesson_id: lesson._id });
-                  if (video && video.duration) {
-                    totalDuration += video.duration;
-                  }
-                }
-              }
-
-              // Format duration
-              const formatDuration = (seconds) => {
-                const hours = Math.floor(seconds / 3600);
-                const minutes = Math.floor((seconds % 3600) / 60);
-                if (hours > 0) {
-                  return `${hours} giờ ${minutes} phút`;
-                }
-                return `${minutes} phút`;
-              };
-
-              return {
-                ...item.toObject(),
-                courseId: {
-                  ...course.toObject(),
-                  students: studentCount,
-                  duration: formatDuration(totalDuration),
-                  author: course.instructor ? {
-                    name: course.instructor.user?.fullname || 'EduPro',
-                    avatar: course.instructor.user?.avatar || null,
-                    bio: course.instructor.bio,
-                    expertise: course.instructor.expertise,
-                    rating: course.instructor.rating || 0,
-                    totalReviews: course.instructor.totalReviews || 0,
-                    totalStudents: course.instructor.totalStudents || 0
-                  } : {
-                    name: 'EduPro',
-                    avatar: null,
-                    bio: '',
-                    expertise: [],
-                    rating: 0,
-                    totalReviews: 0,
-                    totalStudents: 0
-                  }
-                }
-              };
-            })
-          );
-
-          return {
-            id: order._id,
-            items: itemsWithDetails,
-            totalAmount: order.totalAmount,
-            discountAmount: order.discountAmount,
-            finalAmount: order.finalAmount,
-            voucher: order.voucherId,
-            status: order.status,
-            paymentStatus: order.paymentStatus,
-            paymentMethod: order.paymentMethod,
-            fullName: order.fullName,
-            phone: order.phone,
-            email: order.email,
-            notes: order.notes,
-            createdAt: order.createdAt,
-            updatedAt: order.updatedAt
-          };
-        })
-      );
-
       return res.json({
         success: true,
         message: 'Lấy danh sách đơn hàng thành công',
         data: {
-          orders: ordersWithDetails,
+          orders: orders.map(order => ({
+            id: order._id,
+            items: order.items,
+            totalAmount: order.totalAmount,
+            discountAmount: order.discountAmount,
+            finalAmount: order.finalAmount,
+            voucher: order.voucherId,
+            paymentMethod: order.paymentMethod,
+            fullName: order.fullName,
+            phone: order.phone,
+            email: order.email,
+            createdAt: order.createdAt
+          })),
           pagination: {
             current: Number(page),
             total: Math.ceil(total / limit),
@@ -445,90 +354,12 @@ class OrderController {
       const userId = req.user.id;
 
       const order = await Order.findOne({ _id: id, userId })
-        .populate({
-          path: 'items.courseId',
-          select: 'title thumbnail price discount description rating totalReviews views level language',
-          populate: {
-            path: 'instructor',
-            select: 'user bio expertise rating totalReviews totalStudents',
-            populate: {
-              path: 'user',
-              select: 'fullname avatar'
-            }
-          }
-        })
+        .populate('items.courseId', 'title thumbnail price discount description')
         .populate('voucherId', 'code title discountType discountValue');
 
       if (!order) {
         return res.status(404).json({ success: false, message: 'Đơn hàng không tồn tại' });
       }
-
-      // Xử lý dữ liệu khóa học với thông tin chi tiết
-      const itemsWithDetails = await Promise.all(
-        order.items.map(async (item) => {
-          const course = item.courseId;
-          
-          // Lấy số học viên đã đăng ký khóa học
-          const studentCount = await Enrollment.countDocuments({ 
-            course: course._id,
-            status: 'completed'
-          });
-
-          // Lấy tổng thời gian khóa học từ các video
-          const Section = require('../models/Section');
-          const Lesson = require('../models/Lesson');
-          const Video = require('../models/Video');
-          
-          const sections = await Section.find({ course_id: course._id });
-          let totalDuration = 0;
-          
-          for (const section of sections) {
-            const lessons = await Lesson.find({ section_id: section._id });
-            for (const lesson of lessons) {
-              const video = await Video.findOne({ lesson_id: lesson._id });
-              if (video && video.duration) {
-                totalDuration += video.duration;
-              }
-            }
-          }
-
-          // Format duration
-          const formatDuration = (seconds) => {
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            if (hours > 0) {
-              return `${hours} giờ ${minutes} phút`;
-            }
-            return `${minutes} phút`;
-          };
-
-          return {
-            ...item.toObject(),
-            courseId: {
-              ...course.toObject(),
-              students: studentCount,
-              duration: formatDuration(totalDuration),
-              author: course.instructor ? {
-                name: course.instructor.user?.fullname || 'EduPro',
-                avatar: course.instructor.user?.avatar || null,
-                bio: course.instructor.bio,
-                expertise: course.instructor.expertise,
-                rating: course.instructor.rating || 0,
-                totalReviews: course.instructor.totalReviews || 0,
-                totalStudents: course.instructor.totalStudents || 0
-              } : {
-                name: 'EduPro',
-                avatar: null,
-                bio: '',
-                expertise: [],
-                rating: 0,
-                totalReviews: 0,
-                totalStudents: 0
-              }
-            }
-          };
-        })
-      );
 
       return res.json({
         success: true,
@@ -536,13 +367,11 @@ class OrderController {
         data: {
           order: {
             id: order._id,
-            items: itemsWithDetails,
+            items: order.items,
             totalAmount: order.totalAmount,
             discountAmount: order.discountAmount,
             finalAmount: order.finalAmount,
             voucher: order.voucherId,
-            status: order.status,
-            paymentStatus: order.paymentStatus,
             paymentMethod: order.paymentMethod,
             notes: order.notes,
             fullName: order.fullName,
@@ -770,73 +599,6 @@ class OrderController {
     } catch (err) {
       await session.abortTransaction();
       return res.status(500).json({ success: false, message: 'Lỗi hoàn tiền', error: err.message });
-    }
-  }
-
-  // Xử lý callback thanh toán Momo cho đơn hàng
-  static async handleMomoOrderCallback(req, res) {
-    try {
-      console.log('Momo order callback received:', {
-        method: req.method,
-        url: req.originalUrl,
-        query: req.query,
-        body: req.body
-      });
-
-      // Momo gửi callback qua query parameters
-      const resultCode = req.query.resultCode || req.body.resultCode;
-      const message = req.query.message || req.body.message;
-      const orderId = req.query.orderId || req.body.orderId;
-      const amount = req.query.amount || req.body.amount;
-      const transId = req.query.transId || req.body.transId;
-
-      console.log('Momo order callback params:', { 
-        resultCode, 
-        message, 
-        orderId, 
-        amount, 
-        transId 
-      });
-
-      // Kiểm tra nếu không có orderId
-      if (!orderId) {
-        console.log('No orderId provided in Momo order callback');
-        return res.status(400).json({ success: false, message: 'Thiếu orderId' });
-      }
-
-      // Xử lý kết quả thanh toán
-      if (resultCode === '0' || resultCode === 0) {
-        // Thành công - chỉ xác nhận thanh toán, không tạo đơn hàng
-        console.log('MoMo payment successful, orderId:', orderId);
-        
-        // Lưu thông tin thanh toán để frontend có thể sử dụng
-        // Có thể lưu vào cache hoặc database tạm thời
-        
-        res.json({ 
-          success: true, 
-          message: 'Thanh toán thành công',
-          orderId: orderId,
-          status: 'paid',
-          transactionId: transId
-        });
-      } else {
-        // Thất bại
-        console.log('MoMo payment failed:', { orderId, resultCode, message });
-
-        res.json({ 
-          success: false, 
-          message: 'Thanh toán thất bại',
-          orderId: orderId,
-          status: 'failed'
-        });
-      }
-    } catch (err) {
-      console.error('handleMomoOrderCallback error:', err);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Lỗi xử lý callback thanh toán đơn hàng', 
-        error: err.message 
-      });
     }
   }
 }

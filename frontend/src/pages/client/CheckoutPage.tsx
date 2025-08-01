@@ -28,6 +28,7 @@ interface FormValues {
 }
 
 interface CheckoutItem {
+  cartItemId: string; // ID của item trong giỏ hàng
   courseId: string;
   title: string;
   thumbnail: string;
@@ -54,7 +55,7 @@ const CheckoutPage: React.FC = () => {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState('');
   const { user, token } = useAuth();
-  const { clearCart } = useCart();
+  const { removeItemsFromCart } = useCart();
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
   const [walletBalance, setWalletBalance] = useState<number>(0);
@@ -156,7 +157,12 @@ const handleSubmit = async (values: FormValues) => {
 
     // ✅ Nếu chọn VNPAY
     if (values.paymentMethod === 'vnpay') {
-      localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
+      // Lưu cartItemIds để có thể xóa sau khi thanh toán thành công
+      const pendingOrderWithCartIds = {
+        ...orderPayload,
+        cartItemIds: checkoutData.items.map(item => item.cartItemId)
+      };
+      localStorage.setItem('pendingOrder', JSON.stringify(pendingOrderWithCartIds));
 
       const { data: res } = await config.get(
         `/create_payment?amount=${checkoutData.total}`
@@ -168,7 +174,12 @@ const handleSubmit = async (values: FormValues) => {
 
     // ✅ Nếu chọn MOMO
     if (values.paymentMethod === 'momo') {
-      localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
+      // Lưu cartItemIds để có thể xóa sau khi thanh toán thành công
+      const pendingOrderWithCartIds = {
+        ...orderPayload,
+        cartItemIds: checkoutData.items.map(item => item.cartItemId)
+      };
+      localStorage.setItem('pendingOrder', JSON.stringify(pendingOrderWithCartIds));
       
       const { data: res } = await config.post(
         `/payment-momo/create_momo_payment`,
@@ -186,7 +197,12 @@ const handleSubmit = async (values: FormValues) => {
 
     // ✅ Nếu chọn ZaloPay → chuyển thẳng luôn
     if (values.paymentMethod === 'zalopay') {
-      localStorage.setItem('pendingOrder', JSON.stringify(orderPayload));
+      // Lưu cartItemIds để có thể xóa sau khi thanh toán thành công
+      const pendingOrderWithCartIds = {
+        ...orderPayload,
+        cartItemIds: checkoutData.items.map(item => item.cartItemId)
+      };
+      localStorage.setItem('pendingOrder', JSON.stringify(pendingOrderWithCartIds));
 
       const { data: res } = await config.post(
         `/payment-zalo/create_zalopay_payment`,
@@ -213,11 +229,9 @@ const handleSubmit = async (values: FormValues) => {
         items: orderPayload.items,
         voucherCode: orderPayload.voucherCode,
         paymentMethod: 'wallet',
-        shippingInfo: {
-          fullName: values.fullName,
-          phone: values.phone,
-          email: values.email
-        },
+        fullName: values.fullName,
+        phone: values.phone,
+        email: values.email,
         notes: values.notes
       };
       const response = await orderService.createOrder(createOrderPayload, token);
@@ -226,7 +240,9 @@ const handleSubmit = async (values: FormValues) => {
              localStorage.removeItem('checkoutData');
        localStorage.removeItem('cart');
        localStorage.removeItem('cartVoucherData');
-       await clearCart();
+       // Chỉ xóa những món hàng đã thanh toán thành công
+       const cartItemIds = checkoutData.items.map(item => item.cartItemId);
+       await removeItemsFromCart(cartItemIds);
        message.success('Thanh toán bằng ví thành công!');
       
       // Chuyển hướng về trang OrdersPage sau 2 giây
@@ -243,11 +259,9 @@ const handleSubmit = async (values: FormValues) => {
       items: orderPayload.items,
       voucherCode: orderPayload.voucherCode,
       paymentMethod: values.paymentMethod,
-      shippingInfo: {
-        fullName: values.fullName,
-        phone: values.phone,
-        email: values.email
-      },
+      fullName: values.fullName,
+      phone: values.phone,
+      email: values.email,
       notes: values.notes
     };
 
@@ -257,7 +271,9 @@ const handleSubmit = async (values: FormValues) => {
          localStorage.removeItem('checkoutData');
      localStorage.removeItem('cart');
      localStorage.removeItem('cartVoucherData');
-     await clearCart(); // Xóa giỏ hàng ở context sau khi thanh toán thành công
+     // Chỉ xóa những món hàng đã thanh toán thành công
+     const cartItemIds = checkoutData.items.map(item => item.cartItemId);
+     await removeItemsFromCart(cartItemIds);
     // Cập nhật lại user sau khi thanh toán
     try {
       const token = localStorage.getItem('token');
