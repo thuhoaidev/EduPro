@@ -165,7 +165,7 @@ function App() {
         { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
         { path: "certificates/:courseId", element: <CertificatePage /> },
-        { path: "certificates", element: <Certificates /> },
+
         { path: '/social-callback', element: <SocialAuthCallback /> },
       ]
     },
@@ -177,6 +177,7 @@ function App() {
         { path: 'edit', element: <ProfileEdit /> },
         { path: 'change-password', element: <ChangePassword /> },
         { path: 'orders', element: <OrdersPage /> },
+        { path: 'certificates', element: <Certificates /> },
       ]
     },
     {
