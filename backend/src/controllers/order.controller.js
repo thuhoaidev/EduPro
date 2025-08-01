@@ -17,47 +17,20 @@ class OrderController {
     session.startTransaction();
 
     try {
-      console.log('🔍 CreateOrder - Request body:', req.body);
-      console.log('🔍 CreateOrder - User:', req.user);
-
       const {
         items,
         voucherCode,
         paymentMethod = 'bank_transfer',
         shippingInfo,
-        fullName,
-        phone,
-        email,
         notes
       } = req.body;
 
-      // Handle both shippingInfo object and direct fields
-      const orderFullName = fullName || (shippingInfo && shippingInfo.fullName);
-      const orderPhone = phone || (shippingInfo && shippingInfo.phone);
-      const orderEmail = email || (shippingInfo && shippingInfo.email);
-      
-      console.log('🔍 CreateOrder - Processed fields:', {
-        orderFullName,
-        orderPhone,
-        orderEmail,
-        paymentMethod,
-        itemsCount: items?.length
-      });
-      
+      const { fullName, phone, email } = shippingInfo || {};
       const userId = req.user.id;
 
       if (!items || items.length === 0) {
         await session.abortTransaction();
         return res.status(400).json({ success: false, message: 'Giỏ hàng trống' });
-      }
-
-      // Validate required fields
-      if (!orderFullName || !orderPhone || !orderEmail) {
-        await session.abortTransaction();
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Thiếu thông tin bắt buộc: họ tên, số điện thoại hoặc email' 
-        });
       }
 
       let totalAmount = 0;
@@ -156,9 +129,9 @@ class OrderController {
         finalAmount,
         voucherId,
         paymentMethod,
-        fullName: orderFullName,
-        phone: orderPhone,
-        email: orderEmail,
+        fullName,
+        phone,
+        email,
         notes
       });
 
@@ -315,12 +288,7 @@ class OrderController {
       });
     } catch (err) {
       await session.abortTransaction();
-      console.error('❌ Create order error details:', {
-        message: err.message,
-        stack: err.stack,
-        body: req.body,
-        user: req.user
-      });
+      console.error('Create order error:', err);
       res.status(500).json({ success: false, message: 'Lỗi tạo đơn hàng', error: err.message });
     } finally {
       session.endSession();

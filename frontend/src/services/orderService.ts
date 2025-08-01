@@ -12,9 +12,11 @@ export interface CreateOrderData {
   items: OrderItem[];
   voucherCode?: string;
   paymentMethod?: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay' | 'wallet';
-  fullName?: string;
-  phone?: string;
-  email?: string;
+  shippingInfo?: {
+    fullName: string;
+    phone: string;
+    email: string;
+  };
   notes?: string;
 }
 
@@ -29,6 +31,22 @@ export interface Order {
       thumbnail: string;
       price: number;
       discount?: number;
+      rating?: number;
+      totalReviews?: number;
+      views?: number;
+      level?: string;
+      language?: string;
+      students?: number;
+      duration?: string;
+      author?: {
+        name?: string;
+        avatar?: string;
+        bio?: string;
+        expertise?: string[];
+        rating?: number;
+        totalReviews?: number;
+        totalStudents?: number;
+      };
     };
     price: number;
     quantity: number;
@@ -45,7 +63,7 @@ export interface Order {
   };
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   paymentStatus: 'pending' | 'paid' | 'failed';
-  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
+  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay' | 'wallet';
   fullName?: string;
   phone?: string;
   email?: string;
@@ -67,24 +85,14 @@ class OrderService {
   // Tạo đơn hàng mới
   async createOrder(data: CreateOrderData, token: string): Promise<{ order: Order }> {
     try {
-      console.log('🔍 OrderService - Creating order with data:', data);
-      console.log('🔍 OrderService - Token present:', !!token);
-      
       const response = await axios.post(`${API_URL}/orders`, data, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
-      console.log('🔍 OrderService - Response:', response.data);
       return response.data.data;
     } catch (error: any) {
-      console.error('🔍 OrderService - Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
       throw new Error(error.response?.data?.message || 'Lỗi khi tạo đơn hàng');
     }
   }

@@ -18,7 +18,6 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 import orderService from '../../services/orderService';
-import Fireworks from '../../components/common/Fireworks';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -76,10 +75,6 @@ const CourseDetailPage: React.FC = () => {
     const [canRefund, setCanRefund] = useState(false);
     const [refundLoading, setRefundLoading] = useState(false);
     const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
-    
-    // State cho pháo hoa khi hoàn thành khóa học
-    const [showFireworks, setShowFireworks] = useState(false);
-    const [hasShownFireworks, setHasShownFireworks] = useState(false);
 
     // Function to calculate total duration from course content
     const calculateTotalDuration = (sections: Section[]): string => {
@@ -290,14 +285,7 @@ const CourseDetailPage: React.FC = () => {
                 const completedLessons = Object.values(progress || {}).filter((p: any) =>
                     p.completed === true && p.videoCompleted === true && p.quizPassed === true
                 ).length;
-                const allCompleted = totalLessons > 0 && completedLessons === totalLessons;
-                setIsCompleted(allCompleted);
-
-                // Kích hoạt pháo hoa nếu hoàn thành 100% và chưa hiển thị
-                if (allCompleted && !hasShownFireworks) {
-                    setShowFireworks(true);
-                    setHasShownFireworks(true);
-                }
+                setIsCompleted(totalLessons > 0 && completedLessons === totalLessons);
 
                 // Lấy bài học đang học dở gần nhất, đảm bảo tồn tại trong courseContent
                 let lessonId = progress && progress.lastWatchedLessonId;
@@ -1177,12 +1165,6 @@ const CourseDetailPage: React.FC = () => {
                 placeholder="Nhập lý do báo cáo..." 
               />
             </Modal>
-            
-            {/* Component pháo hoa khi hoàn thành khóa học */}
-            <Fireworks 
-              isVisible={showFireworks} 
-              onComplete={() => setShowFireworks(false)}
-            />
         </Content>
     );
 };
