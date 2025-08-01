@@ -92,7 +92,8 @@ config.interceptors.response.use(
             (requestUrl.match(/\/courses\/[^\/]+$/) || 
              requestUrl.match(/\/courses\/[^\/]+\/content$/) ||
              requestUrl.match(/\/courses\/[^\/]+\/reviews$/) ||
-             requestUrl.match(/\/courses\/[^\/]+\/sections$/));
+             requestUrl.match(/\/courses\/[^\/]+\/sections$/) ||
+             requestUrl.match(/\/courses\/[^\/]+\/stats$/));
         
         console.log('🔍 Request URL:', requestUrl);
         console.log('🔍 Is public route:', isPublicRoute);
