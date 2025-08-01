@@ -153,11 +153,17 @@ const ModeratorLayout = () => {
       console.log('ModeratorLayout - forceUpdate value:', forceUpdate);
       
       const permissions = (authUser?.role_id as any)?.permissions || [];
+      console.log('ModeratorLayout - User permissions:', permissions);
+      console.log('ModeratorLayout - User role:', authUser?.role_id?.name);
       
       // Import permission check functions
       const canAccessRoute = (permission: string) => {
         // Admin có toàn quyền
         if (authUser?.role_id?.name === 'admin' || authUser?.role_id?.name === 'quản trị viên') {
+          return true;
+        }
+        // Moderator có quyền truy cập các trang cơ bản
+        if (authUser?.role_id?.name === 'moderator' || authUser?.role_id?.name === 'kiểm duyệt viên') {
           return true;
         }
         return permissions.includes(permission);
@@ -172,29 +178,18 @@ const ModeratorLayout = () => {
         },
         {
           label: collapsed ? "KD" : "KIỂM DUYỆT NỘI DUNG",
-          type: "group",
+          type: "group" as const,
           children: [
-            // Chỉ hiển thị nếu có quyền duyệt bài viết hoặc từ chối bài viết
-            ...(canAccessRoute('duyệt bài viết') || canAccessRoute('từ chối bài viết') ? [
-              { key: "/moderator/blogs", icon: <FileSearchOutlined />, label: collapsed ? "BL" : "Duyệt Blog" }
-            ] : []),
-            // Chỉ hiển thị nếu có quyền quản lý khóa học (admin có thể duyệt khóa học)
-            ...(canAccessRoute('quản lý khóa học') ? [
-              { key: "/moderator/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Duyệt Khóa học" }
-            ] : []),
-            // Chỉ hiển thị nếu có quyền duyệt bình luận hoặc xóa bình luận
-            ...(canAccessRoute('duyệt bình luận') || canAccessRoute('xóa bình luận') ? [
-              { key: "/moderator/comments", icon: <CommentOutlined />, label: collapsed ? "BL" : "Danh sách Bình luận" }
-            ] : []),
-            // Chỉ hiển thị nếu có quyền xem báo cáo hoặc xử lý báo cáo
-            ...(canAccessRoute('xem báo cáo') || canAccessRoute('xử lý báo cáo') ? [
-              { key: "/moderator/reports", icon: <WarningOutlined />, label: collapsed ? "BC" : "Báo cáo vi phạm" }
-            ] : []),
+            // Hiển thị các trang cơ bản cho moderator
+            { key: "/moderator/blogs", icon: <FileSearchOutlined />, label: collapsed ? "BL" : "Duyệt Blog" },
+            { key: "/moderator/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Duyệt Khóa học" },
+            { key: "/moderator/comments", icon: <CommentOutlined />, label: collapsed ? "BL" : "Danh sách Bình luận" },
+            { key: "/moderator/reports", icon: <WarningOutlined />, label: collapsed ? "BC" : "Báo cáo vi phạm" },
           ].filter(Boolean),
         },
         {
           label: collapsed ? "TK" : "THỐNG KÊ",
-          type: "group",
+          type: "group" as const,
           children: [
             // Chỉ hiển thị nếu có quyền xem thống kê báo cáo
             ...(canAccessRoute('xem thống kê báo cáo') ? [

@@ -71,11 +71,11 @@ import BlogPage from "./pages/client/BlogPage";
 
 
 import ModeratorDashboard from "./pages/Moderator/Dashboard";
-import SimpleBlogModeration from "./pages/Moderator/SimpleBlogModeration";
-import SimpleCommentsModeration from "./pages/Moderator/SimpleCommentsModeration";
-import SimpleCoursesModeration from "./pages/Moderator/SimpleCoursesModeration";
+import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
+import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
+import CoursesModerationPage from "./pages/Moderator/Courses/CoursesModerationPage";
 import SimpleReportStatistics from "./pages/Moderator/SimpleReportStatistics";
-import SimpleModeratorReports from "./pages/Moderator/SimpleModeratorReports";
+import Reports from "./pages/Moderator/reports/Reports";
 
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
 import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
@@ -216,10 +216,10 @@ function App() {
       element: <ModeratorLayout />,
       children: [
         { path: "", element: <ModeratorDashboard /> },
-        { path: "reports", element: <SimpleModeratorReports /> },
-        { path: "blogs", element: <SimpleBlogModeration /> },
-        { path: "comments", element: <SimpleCommentsModeration /> },
-        { path: "courses", element: <SimpleCoursesModeration /> },
+        { path: "reports", element: <Reports /> },
+        { path: "blogs", element: <BlogModeration /> },
+        { path: "comments", element: <CommentsModerationPage /> },
+        { path: "courses", element: <CoursesModerationPage /> },
         { path: "statistics", element: <SimpleReportStatistics /> },
       ],
     },

@@ -22,6 +22,7 @@ const CommentStatus = {
   PENDING: "pending",
   APPROVED: "approved",
   HIDDEN: "hidden",
+  REJECTED: "rejected",
 } as const;
 
 type CommentStatus = typeof CommentStatus[keyof typeof CommentStatus];
@@ -40,6 +41,7 @@ const statusColors = {
   [CommentStatus.PENDING]: "orange",
   [CommentStatus.APPROVED]: "green",
   [CommentStatus.HIDDEN]: "red",
+  [CommentStatus.REJECTED]: "red",
 };
 
 const CommentsModerationPage: React.FC = () => {
@@ -89,6 +91,16 @@ const CommentsModerationPage: React.FC = () => {
     }
   };
 
+  const updateStatus = async (id: string, status: "approved" | "hidden") => {
+    try {
+      await updateCommentStatus(id, status);
+      setComments(prev => prev.map(c => c.id === id ? { ...c, status } : c));
+      message.success(`Đã ${status === 'approved' ? 'duyệt' : 'ẩn/từ chối'} bình luận.`);
+    } catch {
+      message.error('Lỗi cập nhật trạng thái bình luận.');
+    }
+  };
+
   const columns = [
     {
       title: "Người bình luận",
@@ -123,11 +135,55 @@ const CommentsModerationPage: React.FC = () => {
         }),
     },
     {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      render: (status: CommentStatus) => {
+        const statusText = {
+          [CommentStatus.PENDING]: "Chờ duyệt",
+          [CommentStatus.APPROVED]: "Đã duyệt",
+          [CommentStatus.HIDDEN]: "Đã ẩn",
+          [CommentStatus.REJECTED]: "Từ chối",
+        };
+        return (
+          <Tag color={statusColors[status]}>
+            {statusText[status]}
+          </Tag>
+        );
+      },
+    },
+    {
       title: "Hành động",
       key: "actions",
       align: "center" as const,
       render: (_: any, record: Comment) => (
         <Space size="small">
+          {record.status !== "approved" && (
+            <Popconfirm
+              title="Xác nhận duyệt bình luận này?"
+              onConfirm={() => updateStatus(record.id, "approved")}
+              okText="Duyệt"
+              cancelText="Hủy"
+            >
+              <Button
+                type="primary"
+                size="small"
+                icon={<CheckCircleOutlined />}
+              >
+                {record.status === "hidden" ? "Duyệt lại" : "Duyệt"}
+              </Button>
+            </Popconfirm>
+          )}
+          {record.status !== "hidden" && (
+            <Button
+              danger
+              size="small"
+              onClick={() => updateStatus(record.id, "hidden")}
+              icon={<EyeInvisibleOutlined />}
+            >
+              Ẩn
+            </Button>
+          )}
           <Popconfirm
             title="Xác nhận xóa bình luận này?"
             onConfirm={() => handleDelete(record.id)}
@@ -146,7 +202,7 @@ const CommentsModerationPage: React.FC = () => {
       <h2 className="text-xl font-semibold mb-4">Quản lý bình luận</h2>
       <div className="flex flex-col md:flex-row items-center gap-2 mb-4">
         <Input
-          placeholder="Tìm kiếm tiêu đề..."
+          placeholder="Tìm kiếm nội dung bình luận..."
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
           style={{ width: 240 }}
@@ -156,7 +212,7 @@ const CommentsModerationPage: React.FC = () => {
         columns={columns}
         dataSource={filtered}
         rowKey="id"
-        pagination={{ pageSize: 5 }}
+        pagination={{ pageSize: 10, showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} bình luận` }}
         className="users-table"
         loading={loading}
       />
