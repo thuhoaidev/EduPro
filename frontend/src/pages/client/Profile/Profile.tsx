@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { User, Mail, BookOpen, Users, Calendar } from "lucide-react";
+import { User, Mail, BookOpen, Users, Calendar, Award } from "lucide-react";
 import { motion } from "framer-motion";
 import { config } from "../../../api/axios";
 import { formatDistanceToNow, format } from 'date-fns';
@@ -586,6 +586,57 @@ const Profile = () => {
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.4 }}
         >
+          {/* Certificates Section */}
+          <motion.div
+            className="bg-white/90 rounded-3xl shadow-2xl p-10 border border-blue-100"
+            whileHover={{ y: -8, boxShadow: "0 24px 48px -8px rgba(56,189,248,0.12)" }}
+            transition={{ duration: 0.3 }}
+          >
+            <motion.div
+              className="flex items-center gap-4 mb-8"
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+            >
+              <motion.div
+                className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg"
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 0.5 }}
+              >
+                <Award className="w-6 h-6 text-white" />
+              </motion.div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Chứng Chỉ
+              </h2>
+            </motion.div>
+
+            <motion.div
+              className="text-center py-8"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+            >
+              <div className="w-20 h-20 bg-gradient-to-r from-yellow-100 to-orange-100 rounded-full mx-auto mb-6 flex items-center justify-center">
+                <Award className="w-10 h-10 text-yellow-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-4">
+                Xem chứng chỉ của bạn
+              </h3>
+              <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                Xem và tải xuống các chứng chỉ bạn đã nhận sau khi hoàn thành khóa học
+              </p>
+              <motion.button
+                onClick={() => navigate('/certificates')}
+                className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-8 py-3 rounded-xl font-semibold hover:from-yellow-500 hover:to-orange-600 transition-all duration-200 flex items-center gap-2 mx-auto"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Award className="w-5 h-5" />
+                Xem Chứng Chỉ
+              </motion.button>
+            </motion.div>
+          </motion.div>
+
           {/* Courses Section */}
           <motion.div
             className="bg-white/90 rounded-3xl shadow-2xl p-10 border border-blue-100"
