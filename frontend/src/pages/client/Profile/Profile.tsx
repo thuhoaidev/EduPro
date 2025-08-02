@@ -69,6 +69,7 @@ const Profile = () => {
   const [courseLessonsMap, setCourseLessonsMap] = useState<Record<string, number>>({});
   const [courseSectionsMap, setCourseSectionsMap] = useState<Record<string, any[]>>({});
   const [courseProgressMap, setCourseProgressMap] = useState<Record<string, any>>({});
+  const [progressLoading, setProgressLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -273,25 +274,33 @@ const Profile = () => {
   // Fetch progress cho từng course
   useEffect(() => {
     const fetchAllProgress = async () => {
+      if (enrolledCourses.length === 0) return;
+      
+      setProgressLoading(true);
       const progressMap: Record<string, any> = {};
-      await Promise.all(
-        enrolledCourses.map(async (enroll) => {
-          const course = enroll.course || {};
-          const courseId = course._id || course.id;
-          if (!courseId) return;
-          try {
-            const progress = await getProgress(courseId);
-            console.log('Fetched progress for', courseId, JSON.stringify(progress));
-            progressMap[courseId] = progress;
-          } catch {
-            progressMap[courseId] = {};
-          }
-        })
-      );
-      setCourseProgressMap(progressMap);
+      try {
+        await Promise.all(
+          enrolledCourses.map(async (enroll) => {
+            const course = enroll.course || {};
+            const courseId = course._id || course.id;
+            if (!courseId) return;
+            try {
+              const progress = await getProgress(courseId);
+              console.log('Fetched progress for', courseId, JSON.stringify(progress));
+              progressMap[courseId] = progress;
+            } catch (error) {
+              console.error('Error fetching progress for course', courseId, error);
+              progressMap[courseId] = {};
+            }
+          })
+        );
+        setCourseProgressMap(progressMap);
+      } finally {
+        setProgressLoading(false);
+      }
     };
-    if (enrolledCourses.length > 0) fetchAllProgress();
-  }, [enrolledCourses]);
+    fetchAllProgress();
+  }, [enrolledCourses, refreshKey]); // Thêm refreshKey để refresh khi cần
 
   if (loading) {
     return (
@@ -634,15 +643,29 @@ const Profile = () => {
                   });
                   console.log('lessonIds:', lessonIds);
                   console.log('progress:', progress);
-                  // Đảm bảo so sánh lessonId dạng string
+                  
+                  // Tính toán tiến độ dựa trên completed (đã hoàn thành cả video và quiz)
                   const completedCount = lessonIds.filter(
                     id => {
                       const p = progress[id];
-                      return p && (p.completed === true || p.videoCompleted === true);
+                      // Chỉ tính là hoàn thành khi completed = true (đã xem đủ video và qua quiz)
+                      const isCompleted = p && p.completed === true;
+                      console.log(`Lesson ${id}: completed=${p?.completed}, videoCompleted=${p?.videoCompleted}, isCompleted=${isCompleted}`);
+                      return isCompleted;
                     }
                   ).length;
+                  
+                  // Tính số bài học đã xem video (videoCompleted = true)
+                  const videoCompletedCount = lessonIds.filter(
+                    id => {
+                      const p = progress[id];
+                      return p && p.videoCompleted === true;
+                    }
+                  ).length;
+                  
                   const total = lessonIds.length;
                   const percent = total === 0 ? 0 : Math.round((completedCount / total) * 100);
+                  console.log(`Course ${courseId}: completedCount=${completedCount}, videoCompletedCount=${videoCompletedCount}, total=${total}, percent=${percent}`);
 
                   // Lấy sections từ courseSectionsMap để xác định bài học tiếp tục
                   let continueLessonId = null;
@@ -652,7 +675,8 @@ const Profile = () => {
                     outer: for (const section of sections) {
                       if (Array.isArray(section.lessons)) {
                         for (const lesson of section.lessons) {
-                          if (!progress[lesson._id]?.completed && !progress[lesson._id]?.videoCompleted) {
+                          // Tìm bài học chưa hoàn thành (completed !== true)
+                          if (!progress[lesson._id]?.completed) {
                             continueLessonId = lesson._id;
                             break outer;
                           }
@@ -665,61 +689,101 @@ const Profile = () => {
                     continueLessonId = sections[0].lessons[0]._id;
                   }
 
-                  return (
-                    <motion.div
-                      key={course._id || course.id}
-                      className="relative bg-white rounded-3xl shadow-xl overflow-hidden group border border-blue-100 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2"
-                      whileHover={{ scale: 1.03 }}
-                      transition={{ duration: 0.25 }}
-                    >
-                      {/* Course Image */}
-                      <div className="relative">
+                                     return (
+                     <motion.div
+                       key={course._id || course.id}
+                       className="relative bg-white rounded-3xl shadow-xl overflow-hidden group border border-blue-100 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 cursor-pointer hover:border-blue-300"
+                       whileHover={{ scale: 1.03 }}
+                       transition={{ duration: 0.25 }}
+                       onClick={() => {
+                         if (course.slug) {
+                           navigate(`/courses/slug/${course.slug}`);
+                         }
+                       }}
+                       title="Click để xem chi tiết khóa học"
+                     >
+                                             {/* Course Image */}
+                       <div className="relative group-hover:brightness-110 transition-all duration-300">
                         <img
                           src={course.thumbnail || '/default-course.jpg'}
                           alt={course.title}
                           className="w-full h-48 object-cover rounded-t-3xl group-hover:scale-105 transition-transform duration-300"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-t-3xl pointer-events-none" />
-                        {percent < 100 && (
-                          <Link
-                            to="#"
-                            onClick={e => {
-                              e.preventDefault();
-                              if (continueLessonId) {
-                                navigate(`/lessons/${continueLessonId}/video`);
-                              } else if (course.slug) {
-                                navigate(`/courses/slug/${course.slug}`);
-                              }
-                            }}
-                            className="absolute bottom-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white !text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg z-10"
-                          >
-                            Tiếp tục học <ArrowRightOutlined />
-                          </Link>
-                        )}
-                        {percent === 100 && (
-                          <span className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full font-semibold text-sm shadow-lg z-10">Hoàn thành</span>
-                        )}
+                                                 {percent < 100 && continueLessonId && (
+                           <button
+                             onClick={e => {
+                               e.stopPropagation();
+                               navigate(`/lessons/${continueLessonId}/video`);
+                             }}
+                             className="absolute bottom-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white !text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg z-10"
+                           >
+                             Tiếp tục học <ArrowRightOutlined />
+                           </button>
+                         )}
+                         {percent < 100 && !continueLessonId && (
+                           <button
+                             onClick={e => {
+                               e.stopPropagation();
+                               if (course.slug) {
+                                 navigate(`/courses/slug/${course.slug}`);
+                               }
+                             }}
+                             className="absolute bottom-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white !text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg z-10"
+                           >
+                             Xem khóa học <ArrowRightOutlined />
+                           </button>
+                         )}
+                                                 {percent === 100 && (
+                           <span className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full font-semibold text-sm shadow-lg z-10">Hoàn thành</span>
+                         )}
+                         {/* Click indicator */}
+                         <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                           <div className="bg-black/50 text-white p-2 rounded-full">
+                             <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                               <path d="M7 17l9.2-9.2M17 17V7H7"/>
+                             </svg>
+                           </div>
+                         </div>
                       </div>
-                      {/* Course Info */}
-                      <div className="p-6 flex flex-col gap-2">
-                        <h3 className="font-bold text-xl mb-1 text-gray-900 truncate" title={course.title}>{course.title}</h3>
+                                             {/* Course Info */}
+                       <div className="p-6 flex flex-col gap-2" onClick={e => e.stopPropagation()}>
+                                                 <h3 className="font-bold text-xl mb-1 text-gray-900 truncate" title={`${course.title} - Click để xem chi tiết`}>{course.title}</h3>
                         <div className="text-gray-500 text-base mb-2">
                           {total > 0 ? `${total} bài học` : 'Đang cập nhật'}
                         </div>
                         <div className="flex items-center gap-3 mb-2">
-                          <Progress
-                            percent={percent}
-                            size="small"
-                            strokeColor={{ '0%': '#4f8cff', '100%': '#16a34a' }}
-                            showInfo={false}
-                            className="flex-1"
-                          />
-                          <span className={`font-bold text-lg ${percent === 100 ? 'text-green-600' : 'text-blue-600'}`}>{percent}%</span>
+                          {progressLoading ? (
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div className="bg-blue-500 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                            </div>
+                          ) : (
+                            <Progress
+                              percent={percent}
+                              size="small"
+                              strokeColor={{ '0%': '#4f8cff', '100%': '#16a34a' }}
+                              showInfo={false}
+                              className="flex-1"
+                            />
+                          )}
+                          <span className={`font-bold text-lg ${percent === 100 ? 'text-green-600' : 'text-blue-600'}`}>
+                            {progressLoading ? '...' : `${percent}%`}
+                          </span>
                         </div>
 
                         <div className="text-gray-500 text-sm">
-                          {completedCount}/{total} bài học
+                          {completedCount}/{total} bài học đã hoàn thành
                         </div>
+                        {total > 0 && videoCompletedCount > completedCount && (
+                          <div className="text-xs text-blue-500 mt-1">
+                            {videoCompletedCount - completedCount} bài học đã xem video, chưa làm quiz
+                          </div>
+                        )}
+                        {total > 0 && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            {total - completedCount} bài học còn lại
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   );
