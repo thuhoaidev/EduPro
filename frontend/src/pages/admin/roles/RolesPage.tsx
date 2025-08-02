@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePermissions } from '../../../hooks/usePermissions';
+import PermissionGuard from '../../../components/common/PermissionGuard';
+import { useAuth } from '../../../contexts/AuthContext';
+import { getRoles, updateRole, createRole, deleteRole } from '../../../services/roleService';
+import type { Role as ApiRole } from '../../../services/roleService';
 import {
   Table,
   Card,
@@ -51,14 +56,14 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 interface Role {
-  id: string;
+  _id: string;
   name: string;
   description: string;
   permissions: string[];
-  userCount: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  userCount?: number;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Permission {
@@ -71,82 +76,10 @@ interface Permission {
 
 const RolesPage: React.FC = () => {
   const navigate = useNavigate();
-  const [roles, setRoles] = useState<Role[]>([
-    {
-      id: '1',
-      name: 'quản trị viên',
-      description: 'Quản trị viên hệ thống với toàn quyền',
-      permissions: [
-        'quản lý người dùng', 'phân quyền người dùng', 'khóa mở người dùng', 'duyệt giảng viên',
-        'quản lý khóa học', 'quản lý bài viết', 'quản lý bình luận', 'quản lý danh mục',
-        'quản lý vai trò', 'quản lý voucher', 'quản lý thanh toán', 'quản lý báo cáo',
-        'xem thống kê tổng quan', 'xem thống kê doanh thu', 'xem thống kê người dùng', 'xem thống kê khóa học'
-      ],
-      userCount: 3,
-      isActive: true,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-15',
-    },
-    {
-      id: '2',
-      name: 'giảng viên',
-      description: 'Giảng viên có thể tạo và quản lý khóa học',
-      permissions: [
-        'tạo khóa học', 'chỉnh sửa khóa học', 'xóa khóa học', 'xuất bản khóa học',
-        'tạo bài học', 'chỉnh sửa bài học', 'xóa bài học', 'upload video',
-        'tạo quiz', 'chỉnh sửa quiz',
-        'xem danh sách học viên', 'xem tiến độ học viên', 'gửi thông báo',
-        'xem thống kê thu nhập', 'rút tiền', 'xem lịch sử giao dịch'
-      ],
-      userCount: 25,
-      isActive: true,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-10',
-    },
-    {
-      id: '3',
-      name: 'học viên',
-      description: 'Học viên có thể đăng ký và học khóa học',
-      permissions: [
-        'xem khóa học', 'đăng ký khóa học', 'xem bài học', 'làm quiz',
-        'xem tiến độ', 'tạo ghi chú',
-        'bình luận bài học', 'đánh giá khóa học', 'báo cáo vấn đề',
-        'xem bài viết', 'bình luận bài viết', 'thích lưu bài viết',
-        'xem chứng chỉ', 'tải chứng chỉ'
-      ],
-      userCount: 150,
-      isActive: true,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-05',
-    },
-    {
-      id: '4',
-      name: 'kiểm duyệt viên',
-      description: 'Người kiểm duyệt nội dung',
-      permissions: [
-        'duyệt bài viết', 'từ chối bài viết', 'duyệt bình luận', 'xóa bình luận',
-        'xem báo cáo', 'xử lý báo cáo', 'cảnh cáo người dùng',
-        'quản lý từ khóa', 'xem thống kê báo cáo'
-      ],
-      userCount: 8,
-      isActive: true,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-12',
-    },
-    {
-      id: '5',
-      name: 'khách',
-      description: 'Người dùng chưa đăng nhập',
-      permissions: [
-        'xem khóa học công khai', 'xem bài viết công khai',
-        'tìm kiếm khóa học', 'xem giảng viên'
-      ],
-      userCount: 0,
-      isActive: true,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-01',
-    },
-  ]);
+  const { canManageRoles, isAdmin } = usePermissions();
+  const { user } = useAuth();
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [permissions] = useState<Permission[]>([
     {
@@ -154,360 +87,438 @@ const RolesPage: React.FC = () => {
       name: 'quản lý người dùng',
       description: 'Quản lý toàn bộ người dùng trong hệ thống',
       category: 'Quản lý người dùng',
+      isActive: true,
     },
     {
       id: '2',
       name: 'phân quyền người dùng',
       description: 'Gán vai trò và phân quyền cho người dùng',
       category: 'Quản lý người dùng',
+      isActive: true,
     },
     {
       id: '3',
       name: 'khóa mở người dùng',
       description: 'Khóa hoặc mở khóa tài khoản người dùng',
       category: 'Quản lý người dùng',
+      isActive: true,
     },
     {
       id: '4',
       name: 'duyệt giảng viên',
       description: 'Duyệt hồ sơ đăng ký giảng viên',
       category: 'Quản lý người dùng',
+      isActive: true,
     },
     {
       id: '5',
       name: 'quản lý khóa học',
       description: 'Duyệt, từ chối, xóa khóa học',
       category: 'Quản lý nội dung',
+      isActive: true,
     },
     {
       id: '6',
       name: 'quản lý bài viết',
       description: 'Duyệt, từ chối bài viết blog',
       category: 'Quản lý nội dung',
+      isActive: true,
     },
     {
       id: '7',
       name: 'quản lý bình luận',
       description: 'Xóa bình luận vi phạm',
       category: 'Quản lý nội dung',
+      isActive: true,
     },
     {
       id: '8',
       name: 'quản lý danh mục',
       description: 'Tạo, sửa, xóa danh mục khóa học',
       category: 'Quản lý nội dung',
+      isActive: true,
     },
     {
       id: '9',
       name: 'quản lý vai trò',
       description: 'Tạo, sửa, xóa vai trò và phân quyền',
       category: 'Quản lý hệ thống',
+      isActive: true,
     },
     {
       id: '10',
       name: 'quản lý voucher',
       description: 'Tạo, sửa, xóa mã giảm giá',
       category: 'Quản lý hệ thống',
+      isActive: true,
     },
     {
       id: '11',
       name: 'quản lý thanh toán',
       description: 'Xem lịch sử giao dịch',
       category: 'Quản lý hệ thống',
+      isActive: true,
     },
     {
       id: '12',
       name: 'quản lý báo cáo',
       description: 'Xử lý báo cáo vi phạm',
       category: 'Quản lý hệ thống',
+      isActive: true,
     },
     {
       id: '13',
       name: 'xem thống kê tổng quan',
       description: 'Xem dashboard tổng thể hệ thống',
       category: 'Thống kê và báo cáo',
+      isActive: true,
     },
     {
       id: '14',
       name: 'xem thống kê doanh thu',
       description: 'Xem báo cáo tài chính',
       category: 'Thống kê và báo cáo',
+      isActive: true,
     },
     {
       id: '15',
       name: 'xem thống kê người dùng',
       description: 'Xem thống kê người dùng',
       category: 'Thống kê và báo cáo',
+      isActive: true,
     },
     {
       id: '16',
       name: 'xem thống kê khóa học',
       description: 'Xem thống kê khóa học',
       category: 'Thống kê và báo cáo',
+      isActive: true,
     },
     {
       id: '17',
       name: 'tạo khóa học',
       description: 'Tạo khóa học mới',
       category: 'Quản lý khóa học',
+      isActive: true,
     },
     {
       id: '18',
       name: 'chỉnh sửa khóa học',
       description: 'Sửa khóa học của mình',
       category: 'Quản lý khóa học',
+      isActive: true,
     },
     {
       id: '19',
       name: 'xóa khóa học',
       description: 'Xóa khóa học của mình',
       category: 'Quản lý khóa học',
+      isActive: true,
     },
     {
       id: '20',
       name: 'xuất bản khóa học',
       description: 'Đăng khóa học',
       category: 'Quản lý khóa học',
+      isActive: true,
     },
     {
       id: '21',
       name: 'tạo bài học',
       description: 'Tạo bài học mới',
       category: 'Quản lý nội dung',
+      isActive: true,
     },
     {
       id: '22',
       name: 'chỉnh sửa bài học',
       description: 'Sửa bài học',
       category: 'Quản lý nội dung',
+      isActive: true,
     },
     {
       id: '23',
       name: 'xóa bài học',
       description: 'Xóa bài học',
       category: 'Quản lý nội dung',
+      isActive: true,
     },
     {
       id: '24',
       name: 'upload video',
       description: 'Upload video bài giảng',
       category: 'Quản lý nội dung',
+      isActive: true,
     },
     {
       id: '25',
       name: 'tạo quiz',
       description: 'Tạo bài kiểm tra',
       category: 'Quản lý nội dung',
+      isActive: true,
     },
     {
       id: '26',
       name: 'chỉnh sửa quiz',
       description: 'Sửa bài kiểm tra',
       category: 'Quản lý nội dung',
+      isActive: true,
     },
     {
       id: '27',
       name: 'xem danh sách học viên',
       description: 'Xem học viên đăng ký',
       category: 'Quản lý học viên',
+      isActive: true,
     },
     {
       id: '28',
       name: 'xem tiến độ học viên',
       description: 'Theo dõi tiến độ học',
       category: 'Quản lý học viên',
+      isActive: true,
     },
     {
       id: '29',
       name: 'gửi thông báo',
       description: 'Gửi thông báo cho học viên',
       category: 'Quản lý học viên',
+      isActive: true,
     },
     {
       id: '30',
       name: 'xem thống kê thu nhập',
       description: 'Xem doanh thu',
       category: 'Thu nhập',
+      isActive: true,
     },
     {
       id: '31',
       name: 'rút tiền',
       description: 'Tạo yêu cầu rút tiền',
       category: 'Thu nhập',
+      isActive: true,
     },
     {
       id: '32',
       name: 'xem lịch sử giao dịch',
       description: 'Xem giao dịch',
       category: 'Thu nhập',
+      isActive: true,
     },
     {
       id: '33',
       name: 'xem khóa học',
       description: 'Xem danh sách khóa học',
       category: 'Học tập',
+      isActive: true,
     },
     {
       id: '34',
       name: 'đăng ký khóa học',
       description: 'Đăng ký khóa học',
       category: 'Học tập',
+      isActive: true,
     },
     {
       id: '35',
       name: 'xem bài học',
       description: 'Xem video bài giảng',
       category: 'Học tập',
+      isActive: true,
     },
     {
       id: '36',
       name: 'làm quiz',
       description: 'Làm bài kiểm tra',
       category: 'Học tập',
+      isActive: true,
     },
     {
       id: '37',
       name: 'xem tiến độ',
       description: 'Xem tiến độ học tập',
       category: 'Học tập',
+      isActive: true,
     },
     {
       id: '38',
       name: 'tạo ghi chú',
       description: 'Tạo ghi chú khi học',
       category: 'Học tập',
+      isActive: true,
     },
     {
       id: '39',
       name: 'bình luận bài học',
       description: 'Bình luận bài học',
       category: 'Tương tác',
+      isActive: true,
     },
     {
       id: '40',
       name: 'đánh giá khóa học',
       description: 'Đánh giá khóa học',
       category: 'Tương tác',
+      isActive: true,
     },
     {
       id: '41',
       name: 'báo cáo vấn đề',
       description: 'Báo cáo vấn đề',
       category: 'Tương tác',
+      isActive: true,
     },
     {
       id: '42',
       name: 'xem bài viết',
       description: 'Xem bài viết blog',
       category: 'Cộng đồng',
+      isActive: true,
     },
     {
       id: '43',
       name: 'bình luận bài viết',
       description: 'Bình luận bài viết',
       category: 'Cộng đồng',
+      isActive: true,
     },
     {
       id: '44',
       name: 'thích lưu bài viết',
       description: 'Thích/lưu bài viết',
       category: 'Cộng đồng',
+      isActive: true,
     },
     {
       id: '45',
       name: 'xem chứng chỉ',
       description: 'Xem chứng chỉ đã đạt',
       category: 'Chứng chỉ',
+      isActive: true,
     },
     {
       id: '46',
       name: 'tải chứng chỉ',
       description: 'Tải chứng chỉ',
       category: 'Chứng chỉ',
+      isActive: true,
     },
     {
       id: '47',
       name: 'duyệt bài viết',
       description: 'Duyệt bài viết blog',
       category: 'Duyệt nội dung',
+      isActive: true,
     },
     {
       id: '48',
       name: 'từ chối bài viết',
       description: 'Từ chối bài viết',
       category: 'Duyệt nội dung',
+      isActive: true,
     },
     {
       id: '49',
       name: 'duyệt bình luận',
       description: 'Duyệt bình luận',
       category: 'Duyệt nội dung',
+      isActive: true,
     },
     {
       id: '50',
       name: 'xóa bình luận',
       description: 'Xóa bình luận vi phạm',
       category: 'Duyệt nội dung',
+      isActive: true,
     },
     {
       id: '51',
       name: 'xem báo cáo',
       description: 'Xem danh sách báo cáo',
       category: 'Xử lý báo cáo',
+      isActive: true,
     },
     {
       id: '52',
       name: 'xử lý báo cáo',
       description: 'Xử lý báo cáo vi phạm',
       category: 'Xử lý báo cáo',
+      isActive: true,
     },
     {
       id: '53',
       name: 'cảnh cáo người dùng',
       description: 'Cảnh cáo người dùng',
       category: 'Xử lý báo cáo',
+      isActive: true,
     },
     {
       id: '54',
       name: 'quản lý từ khóa',
       description: 'Quản lý từ khóa cấm',
       category: 'Quản lý cộng đồng',
+      isActive: true,
     },
     {
       id: '55',
       name: 'xem thống kê báo cáo',
       description: 'Thống kê báo cáo',
       category: 'Quản lý cộng đồng',
+      isActive: true,
     },
     {
       id: '56',
       name: 'xem khóa học công khai',
       description: 'Xem thông tin khóa học',
       category: 'Xem công khai',
+      isActive: true,
     },
     {
       id: '57',
       name: 'xem bài viết công khai',
       description: 'Xem bài viết blog',
       category: 'Xem công khai',
+      isActive: true,
     },
     {
       id: '58',
       name: 'tìm kiếm khóa học',
       description: 'Tìm kiếm khóa học',
       category: 'Xem công khai',
+      isActive: true,
     },
     {
       id: '59',
       name: 'xem giảng viên',
       description: 'Xem thông tin giảng viên',
       category: 'Xem công khai',
+      isActive: true,
     },
   ]);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [form] = Form.useForm();
+
+  // Load roles from API
+  useEffect(() => {
+    loadRoles();
+  }, []);
+
+  const loadRoles = async () => {
+    try {
+      setLoading(true);
+      const response = await getRoles();
+      setRoles(response.data || []);
+      console.log('Roles loaded:', response.data);
+    } catch (error) {
+      console.error('Error loading roles:', error);
+      message.error('Không thể tải danh sách vai trò');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const permissionCategories = Array.from(new Set(permissions.map(p => p.category)));
 
@@ -527,36 +538,47 @@ const RolesPage: React.FC = () => {
     setIsModalVisible(true);
   };
 
-  const handleDeleteRole = (roleId: string) => {
-    setRoles(roles.filter(role => role.id !== roleId));
-    message.success('Đã xóa vai trò thành công');
+  const handleDeleteRole = async (roleId: string) => {
+    try {
+      await deleteRole(roleId);
+      message.success('Đã xóa vai trò thành công');
+      await loadRoles(); // Reload roles after deletion
+    } catch (error) {
+      console.error('Error deleting role:', error);
+      message.error('Không thể xóa vai trò');
+    }
   };
 
-  const handleModalOk = () => {
-    form.validateFields().then(values => {
+  const handleModalOk = async () => {
+    try {
+      const values = await form.validateFields();
+      
       if (editingRole) {
         // Update existing role
-        setRoles(roles.map(role => 
-          role.id === editingRole.id 
-            ? { ...role, ...values, updatedAt: new Date().toISOString().split('T')[0] }
-            : role
-        ));
+        console.log('Updating role with data:', values);
+        await updateRole(editingRole._id, {
+          name: values.name,
+          description: values.description,
+          permissions: values.permissions
+        });
         message.success('Đã cập nhật vai trò thành công');
       } else {
         // Add new role
-        const newRole: Role = {
-          id: Date.now().toString(),
-          ...values,
-          userCount: 0,
-          isActive: true,
-          createdAt: new Date().toISOString().split('T')[0],
-          updatedAt: new Date().toISOString().split('T')[0],
-        };
-        setRoles([...roles, newRole]);
+        console.log('Creating new role with data:', values);
+        await createRole({
+          name: values.name,
+          description: values.description,
+          permissions: values.permissions
+        });
         message.success('Đã tạo vai trò mới thành công');
       }
+      
       setIsModalVisible(false);
-    });
+      await loadRoles(); // Reload roles after update/create
+    } catch (error) {
+      console.error('Error saving role:', error);
+      message.error('Không thể lưu vai trò');
+    }
   };
 
   const columns = [
@@ -617,11 +639,15 @@ const RolesPage: React.FC = () => {
       title: 'Trạng thái',
       dataIndex: 'isActive',
       key: 'isActive',
-      render: (isActive: boolean) => (
-        <Tag color={isActive ? 'green' : 'red'}>
-          {isActive ? 'Hoạt động' : 'Không hoạt động'}
-        </Tag>
-      ),
+      render: (isActive: boolean, record: Role) => {
+        // Mặc định là hoạt động nếu không có trường isActive hoặc isActive = true
+        const isRoleActive = isActive !== false; // Chỉ false mới là không hoạt động
+        return (
+          <Tag color={isRoleActive ? 'green' : 'red'}>
+            {isRoleActive ? 'Hoạt động' : 'Không hoạt động'}
+          </Tag>
+        );
+      },
     },
     {
       title: 'Cập nhật',
@@ -641,7 +667,7 @@ const RolesPage: React.FC = () => {
               type="text" 
               icon={<EyeOutlined />} 
               size="small"
-              onClick={() => navigate(`/admin/roles/${record.id}`)}
+              onClick={() => navigate(`/admin/roles/${record._id}`)}
             />
           </Tooltip>
           <Tooltip title="Chỉnh sửa">
@@ -654,7 +680,7 @@ const RolesPage: React.FC = () => {
           </Tooltip>
           <Popconfirm
             title="Bạn có chắc chắn muốn xóa vai trò này?"
-            onConfirm={() => handleDeleteRole(record.id)}
+                         onConfirm={() => handleDeleteRole(record._id)}
             okText="Có"
             cancelText="Không"
           >
@@ -664,7 +690,7 @@ const RolesPage: React.FC = () => {
                 danger 
                 icon={<DeleteOutlined />} 
                 size="small"
-                disabled={record.name === 'quản trị viên'}
+                disabled={record.name === 'admin' || record.name === 'quản trị viên'}
               />
             </Tooltip>
           </Popconfirm>
@@ -672,6 +698,16 @@ const RolesPage: React.FC = () => {
       ),
     },
   ];
+
+  // Check if user has permission to manage roles
+  if (!canManageRoles()) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <Title level={3}>Không có quyền truy cập</Title>
+        <Text type="secondary">Bạn không có quyền quản lý phân quyền trong hệ thống.</Text>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -704,14 +740,14 @@ const RolesPage: React.FC = () => {
             </Card>
           </Col>
           <Col span={6}>
-            <Card>
-              <Statistic
-                title="Vai trò đang hoạt động"
-                value={roles.filter(r => r.isActive).length}
-                prefix={<UserSwitchOutlined />}
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
+                         <Card>
+               <Statistic
+                 title="Vai trò đang hoạt động"
+                 value={roles.filter(r => r.isActive !== false).length}
+                 prefix={<UserSwitchOutlined />}
+                 valueStyle={{ color: '#52c41a' }}
+               />
+             </Card>
           </Col>
           <Col span={6}>
             <Card>
@@ -760,7 +796,8 @@ const RolesPage: React.FC = () => {
               <Table
                 columns={columns}
                 dataSource={roles}
-                rowKey="id"
+                rowKey="_id"
+                loading={loading}
                 pagination={{
                   pageSize: 10,
                   showSizeChanger: true,
@@ -831,13 +868,13 @@ const RolesPage: React.FC = () => {
                 <Card title="Thống kê vai trò">
                   <Descriptions column={1}>
                     <Descriptions.Item label="Vai trò được sử dụng nhiều nhất">
-                      {roles.reduce((max, role) => role.userCount > max.userCount ? role : max).name}
+                      {roles.length > 0 ? roles.reduce((max, role) => (role.userCount || 0) > (max.userCount || 0) ? role : max).name : 'Không có dữ liệu'}
                     </Descriptions.Item>
                     <Descriptions.Item label="Vai trò có nhiều quyền nhất">
-                      {roles.reduce((max, role) => role.permissions.length > max.permissions.length ? role : max).name}
+                      {roles.length > 0 ? roles.reduce((max, role) => role.permissions.length > max.permissions.length ? role : max).name : 'Không có dữ liệu'}
                     </Descriptions.Item>
                     <Descriptions.Item label="Vai trò mới nhất">
-                      {roles.reduce((max, role) => new Date(role.createdAt) > new Date(max.createdAt) ? role : max).name}
+                      {roles.length > 0 ? roles.reduce((max, role) => new Date(role.createdAt || 0) > new Date(max.createdAt || 0) ? role : max).name : 'Không có dữ liệu'}
                     </Descriptions.Item>
                   </Descriptions>
                 </Card>

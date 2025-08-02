@@ -1,0 +1,285 @@
+/* CheckoutPage.css - Background đồng bộ với website theme */
+
+.checkout-page-background {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  min-height: 100vh;
+}
+
+.checkout-page-background * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Đảm bảo background cho các trạng thái loading, error, success */
+.checkout-loading-container,
+.checkout-error-container,
+.checkout-success-container {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== HIỆU ỨNG PHƯƠNG THỨC THANH TOÁN ===== */
+
+.payment-method-card {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  background: white;
+  padding: 16px;
+}
+
+.payment-method-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  border-color: #d1d5db;
+}
+
+.payment-method-card.selected {
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  animation: selectedPulse 0.6s ease-out;
+}
+
+.payment-method-card.selected::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 12px;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 2s infinite;
+  pointer-events: none;
+}
+
+.payment-method-card .check-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #52c41a, #73d13d);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  opacity: 0;
+  transform: scale(0) rotate(-180deg);
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow: 0 2px 8px rgba(82, 196, 26, 0.3);
+}
+
+.payment-method-card.selected .check-icon {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+  animation: checkBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.payment-method-card .logo-container {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.payment-method-card:hover .logo-container {
+  transform: scale(1.1) rotate(2deg);
+}
+
+.payment-method-card.selected .logo-container {
+  transform: scale(1.05);
+  animation: logoGlow 0.6s ease-out;
+}
+
+.payment-method-card .logo-container::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.3s ease;
+  opacity: 0;
+}
+
+.payment-method-card:hover .logo-container::after {
+  width: 60px;
+  height: 60px;
+  opacity: 0.6;
+}
+
+/* Hiệu ứng ripple khi click */
+.payment-method-card .ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+
+/* Hiệu ứng cho ví khi số dư thấp */
+.wallet-balance-low {
+  animation: walletPulse 2s infinite;
+}
+
+.wallet-balance-low .logo-container {
+  animation: walletShake 0.5s ease-in-out;
+}
+
+.wallet-balance-low .logo-container::before {
+  content: '⚠️';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 16px;
+  animation: warningBounce 1s infinite;
+}
+
+/* Hiệu ứng cho từng phương thức thanh toán */
+.payment-method-card.vnpay:hover {
+  border-color: #dc2626;
+  box-shadow: 0 12px 30px rgba(220, 38, 38, 0.15);
+}
+
+.payment-method-card.vnpay.selected {
+  border-color: #dc2626 !important;
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+}
+
+.payment-method-card.vnpay.selected:hover {
+  border-color: #dc2626 !important;
+  box-shadow: 0 12px 30px rgba(220, 38, 38, 0.15);
+}
+
+.payment-method-card.momo:hover {
+  border-color: #ec4899;
+  box-shadow: 0 12px 30px rgba(236, 72, 153, 0.15);
+}
+
+.payment-method-card.momo.selected {
+  border-color: #ec4899 !important;
+  background: linear-gradient(135deg, #fdf2f8, #fce7f3);
+}
+
+.payment-method-card.momo.selected:hover {
+  border-color: #ec4899 !important;
+  box-shadow: 0 12px 30px rgba(236, 72, 153, 0.15);
+}
+
+.payment-method-card.zalopay:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15);
+}
+
+.payment-method-card.zalopay.selected {
+  border-color: #3b82f6 !important;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+}
+
+.payment-method-card.zalopay.selected:hover {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15);
+}
+
+.payment-method-card.wallet:hover {
+  border-color: #10b981;
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.15);
+}
+
+.payment-method-card.wallet.selected {
+  border-color: #10b981 !important;
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+}
+
+.payment-method-card.wallet.selected:hover {
+  border-color: #10b981 !important;
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.15);
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes checkBounce {
+  0% { transform: scale(0) rotate(-180deg); }
+  50% { transform: scale(1.2) rotate(-90deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes logoGlow {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.2) drop-shadow(0 0 8px rgba(59, 130, 246, 0.3)); }
+  100% { filter: brightness(1); }
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes selectedPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1.02); }
+}
+
+@keyframes walletPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes walletShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+@keyframes warningBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+/* Hiệu ứng loading cho logo */
+.payment-method-card .logo-loading {
+  animation: logoSpin 1s linear infinite;
+}
+
+@keyframes logoSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Hiệu ứng hover cho text */
+.payment-method-card:hover .payment-title {
+  color: #1f2937;
+  transform: translateY(-1px);
+}
+
+.payment-method-card .payment-title {
+  transition: all 0.3s ease;
+}
+
+/* Hiệu ứng cho description */
+.payment-method-card:hover .payment-description {
+  color: #6b7280;
+}
+
+.payment-method-card .payment-description {
+  transition: color 0.3s ease;
+} 

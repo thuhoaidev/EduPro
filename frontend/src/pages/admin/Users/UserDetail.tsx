@@ -180,7 +180,10 @@ const UserDetail = () => {
 
       <Card variant="outlined" className="shadow-lg rounded-xl">
         <div className="flex items-center gap-6 mb-6">
-          <Avatar size={100} src={user.avatar} />
+          <Avatar 
+            size={100} 
+            src={user.avatar && user.avatar !== 'default-avatar.jpg' && user.avatar !== '' && (user.avatar.includes('googleusercontent.com') || user.avatar.startsWith('http')) ? user.avatar : undefined} 
+          />
           <div>
             <h2 className="text-2xl font-semibold">{user.fullname}</h2>
             <p className="text-gray-500">{user.email}</p>
@@ -189,7 +192,7 @@ const UserDetail = () => {
 
         <Descriptions title="Thông tin cơ bản" column={1} bordered>
           <Descriptions.Item label="Vai trò">
-            <Tag color={getRoleColor(user.role)}>{getRoleName(user.role)}</Tag>
+            <Tag color={getRoleColor(user.role_id)}>{getRoleName(user.role_id)}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="Trạng thái">
             <Tag color={getStatusColor(user.status)}>
@@ -217,7 +220,7 @@ const UserDetail = () => {
           </Descriptions.Item>
         </Descriptions>
 
-        {typeof user.role === 'object' && user.role.name === UserRole.INSTRUCTOR && (
+        {typeof user.role_id === 'object' && user.role_id.name === UserRole.INSTRUCTOR && (
           <>
             <Divider />
             <Descriptions title="Thông tin giảng viên" column={1} bordered>

@@ -26,7 +26,10 @@ import {
   Switch,
   Progress,
   Timeline,
+  Checkbox,
 } from 'antd';
+import { getRoleById, updateRole } from '../../../services/roleService';
+import { useAuth } from '../../../contexts/AuthContext';
 import {
   ArrowLeftOutlined,
   EditOutlined,
@@ -57,14 +60,14 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 interface Role {
-  id: string;
+  _id: string;
   name: string;
   description: string;
   permissions: string[];
-  userCount: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  userCount?: number;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface User {
@@ -88,8 +91,12 @@ interface Permission {
 const RoleDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { forceReloadUser } = useAuth();
   const [role, setRole] = useState<Role | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [form] = Form.useForm();
   const [permissions] = useState<Permission[]>([
     {
       id: '1',
@@ -448,57 +455,27 @@ const RoleDetailPage: React.FC = () => {
   ]);
 
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [form] = Form.useForm();
 
-  // Mock data - trong thực tế sẽ fetch từ API
+  // Load role data from API
   useEffect(() => {
-    const mockRole: Role = {
-      id: id || '1',
-      name: 'giảng viên',
-      description: 'Giảng viên có thể tạo và quản lý khóa học',
-      permissions: [
-        'tạo khóa học', 'chỉnh sửa khóa học', 'xóa khóa học', 'xuất bản khóa học',
-        'tạo bài học', 'chỉnh sửa bài học', 'xóa bài học', 'upload video',
-        'tạo quiz', 'chỉnh sửa quiz',
-        'xem danh sách học viên', 'xem tiến độ học viên', 'gửi thông báo',
-        'xem thống kê thu nhập', 'rút tiền', 'xem lịch sử giao dịch'
-      ],
-      userCount: 25,
-      isActive: true,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-10',
-    };
-
-    const mockUsers: User[] = [
-      {
-        id: '1',
-        fullname: 'Nguyễn Văn A',
-        email: 'nguyenvana@example.com',
-        status: 'hoạt_động',
-        joinedAt: '2024-01-01',
-        lastLogin: '2024-01-15',
-      },
-      {
-        id: '2',
-        fullname: 'Trần Thị B',
-        email: 'tranthib@example.com',
-        status: 'hoạt_động',
-        joinedAt: '2024-01-02',
-        lastLogin: '2024-01-14',
-      },
-      {
-        id: '3',
-        fullname: 'Lê Văn C',
-        email: 'levanc@example.com',
-        status: 'không_hoạt_động',
-        joinedAt: '2024-01-03',
-        lastLogin: '2024-01-10',
-      },
-    ];
-
-    setRole(mockRole);
-    setUsers(mockUsers);
+    if (id) {
+      loadRole();
+    }
   }, [id]);
+
+  const loadRole = async () => {
+    try {
+      setLoading(true);
+      const response = await getRoleById(id!);
+      setRole(response.data);
+      console.log('Role loaded:', response.data);
+    } catch (error) {
+      console.error('Error loading role:', error);
+      message.error('Không thể tải thông tin vai trò');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEditRole = () => {
     if (role) {
@@ -512,18 +489,41 @@ const RoleDetailPage: React.FC = () => {
     }
   };
 
-  const handleEditModalOk = () => {
-    form.validateFields().then(values => {
+  const handleEditModalOk = async () => {
+    try {
+      const values = await form.validateFields();
       if (role) {
-        setRole({
-          ...role,
-          ...values,
-          updatedAt: new Date().toISOString().split('T')[0],
+        setEditLoading(true);
+        console.log('RoleDetailPage - Updating role with data:', values);
+        console.log('RoleDetailPage - Role ID:', role._id);
+        
+        const response = await updateRole(role._id, {
+          name: values.name,
+          description: values.description,
+          permissions: values.permissions
         });
+
+        console.log('RoleDetailPage - Role updated successfully:', response);
         message.success('Đã cập nhật vai trò thành công');
+
+        // Force reload user data để cập nhật sidebar
+        console.log('RoleDetailPage - Force reloading user data...');
+        await forceReloadUser();
+        console.log('RoleDetailPage - Force reload completed');
+        message.info('Đã reload user data. Hãy kiểm tra sidebar!');
+
+        // Reload role data
+        console.log('RoleDetailPage - Reloading role data...');
+        await loadRole();
+        console.log('RoleDetailPage - Role data reloaded');
         setIsEditModalVisible(false);
       }
-    });
+    } catch (error) {
+      console.error('RoleDetailPage - Error updating role:', error);
+      message.error('Không thể cập nhật vai trò');
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const getPermissionCategory = (permissionName: string) => {
@@ -538,7 +538,10 @@ const RoleDetailPage: React.FC = () => {
       key: 'fullname',
       render: (name: string, record: User) => (
         <Space>
-          <Avatar src={record.avatar} icon={<UserOutlined />} />
+          <Avatar 
+            src={record.avatar && record.avatar !== 'default-avatar.jpg' && record.avatar !== '' && (record.avatar.includes('googleusercontent.com') || record.avatar.startsWith('http')) ? record.avatar : undefined} 
+            icon={<UserOutlined />} 
+          />
           <div>
             <Text strong>{name}</Text>
             <br />
@@ -591,8 +594,20 @@ const RoleDetailPage: React.FC = () => {
     },
   ];
 
+  if (loading) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <div>Đang tải thông tin vai trò...</div>
+      </div>
+    );
+  }
+
   if (!role) {
-    return <div>Đang tải...</div>;
+    return (
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <div>Không tìm thấy vai trò</div>
+      </div>
+    );
   }
 
   const permissionCategories = Array.from(new Set(role.permissions.map(p => getPermissionCategory(p))));
@@ -875,9 +890,10 @@ const RoleDetailPage: React.FC = () => {
           open={isEditModalVisible}
           onOk={handleEditModalOk}
           onCancel={() => setIsEditModalVisible(false)}
-          width={600}
+          width={800}
           okText="Cập nhật"
           cancelText="Hủy"
+          confirmLoading={editLoading}
         >
           <Form
             form={form}
@@ -907,34 +923,32 @@ const RoleDetailPage: React.FC = () => {
               label="Quyền hạn"
               rules={[{ required: true, message: 'Vui lòng chọn ít nhất một quyền!' }]}
             >
-              <Select
-                mode="multiple"
-                placeholder="Chọn quyền hạn"
-                style={{ width: '100%' }}
-                optionLabelProp="label"
-              >
-                {Array.from(new Set(permissions.map(p => p.category))).map(category => (
-                  <Select.OptGroup key={category} label={category}>
-                    {permissions
-                      .filter(p => p.category === category)
-                      .map(permission => (
-                        <Option 
-                          key={permission.id} 
-                          value={permission.name}
-                          label={permission.name}
-                        >
-                          <div>
-                            <Text strong>{permission.name}</Text>
-                            <br />
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                              {permission.description}
-                            </Text>
-                          </div>
-                        </Option>
-                      ))}
-                  </Select.OptGroup>
-                ))}
-              </Select>
+              <Checkbox.Group style={{ width: '100%' }}>
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {Array.from(new Set(permissions.map(p => p.category))).map(category => (
+                    <div key={category} style={{ marginBottom: '16px' }}>
+                      <Text strong style={{ display: 'block', marginBottom: '8px', color: '#1890ff' }}>
+                        {category}
+                      </Text>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                        {permissions
+                          .filter(p => p.category === category)
+                          .map(permission => (
+                            <Checkbox key={permission.id} value={permission.name}>
+                              <div>
+                                <Text strong>{permission.name}</Text>
+                                <br />
+                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                  {permission.description}
+                                </Text>
+                              </div>
+                            </Checkbox>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Checkbox.Group>
             </Form.Item>
 
             <Form.Item

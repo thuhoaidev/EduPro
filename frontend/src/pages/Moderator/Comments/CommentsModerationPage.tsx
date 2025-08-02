@@ -13,34 +13,18 @@ import {
   Col,
   Statistic,
 } from "antd";
-import { SearchOutlined, EyeInvisibleOutlined, DeleteOutlined, CheckCircleOutlined } from "@ant-design/icons";
+import { SearchOutlined, EyeInvisibleOutlined, DeleteOutlined } from "@ant-design/icons";
 import { fetchComments, updateCommentStatus, deleteComment } from '../../../services/commentModerationService';
 
 const { Option } = Select;
-
-const CommentStatus = {
-  PENDING: "pending",
-  APPROVED: "approved",
-  HIDDEN: "hidden",
-} as const;
-
-type CommentStatus = typeof CommentStatus[keyof typeof CommentStatus];
-
 
 interface Comment {
   id: string;
   content: string;
   userName: string;
   postTitle: string;
-  status: CommentStatus;
   createdAt: string;
 }
-
-const statusColors = {
-  [CommentStatus.PENDING]: "orange",
-  [CommentStatus.APPROVED]: "green",
-  [CommentStatus.HIDDEN]: "red",
-};
 
 const CommentsModerationPage: React.FC = () => {
   const [comments, setComments] = useState<Comment[]>([]);
@@ -89,6 +73,16 @@ const CommentsModerationPage: React.FC = () => {
     }
   };
 
+  const updateStatus = async (id: string, status: "approved" | "hidden") => {
+    try {
+      await updateCommentStatus(id, status);
+      setComments(prev => prev.map(c => c.id === id ? { ...c, status } : c));
+      message.success(`Đã ${status === 'approved' ? 'duyệt' : 'ẩn/từ chối'} bình luận.`);
+    } catch {
+      message.error('Lỗi cập nhật trạng thái bình luận.');
+    }
+  };
+
   const columns = [
     {
       title: "Người bình luận",
@@ -128,6 +122,14 @@ const CommentsModerationPage: React.FC = () => {
       align: "center" as const,
       render: (_: any, record: Comment) => (
         <Space size="small">
+          <Button
+            danger
+            size="small"
+            onClick={() => updateStatus(record.id, "hidden")}
+            icon={<EyeInvisibleOutlined />}
+          >
+            Ẩn
+          </Button>
           <Popconfirm
             title="Xác nhận xóa bình luận này?"
             onConfirm={() => handleDelete(record.id)}
@@ -146,7 +148,7 @@ const CommentsModerationPage: React.FC = () => {
       <h2 className="text-xl font-semibold mb-4">Quản lý bình luận</h2>
       <div className="flex flex-col md:flex-row items-center gap-2 mb-4">
         <Input
-          placeholder="Tìm kiếm tiêu đề..."
+          placeholder="Tìm kiếm nội dung bình luận..."
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
           style={{ width: 240 }}
@@ -156,7 +158,7 @@ const CommentsModerationPage: React.FC = () => {
         columns={columns}
         dataSource={filtered}
         rowKey="id"
-        pagination={{ pageSize: 5 }}
+        pagination={{ pageSize: 10, showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} bình luận` }}
         className="users-table"
         loading={loading}
       />

@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import orderService from "../../services/orderService";
 import { useAuth } from "../../hooks/Auths/useAuth";
-import { useCart } from "../../contexts/CartContext"; // ✅ Import đúng vị trí
+import { useCart } from "../../contexts/CartContext";
 
 interface PendingOrderItem {
   courseId: string;
@@ -16,17 +16,21 @@ function CheckPayment() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { token } = useAuth();
-  const { clearCart } = useCart(); // ✅ Hook phải gọi ở top-level
+  const { clearCart } = useCart();
 
   const [status, setStatus] = useState<"success" | "error">("error");
   const [title, setTitle] = useState("Đang xác minh thanh toán...");
   const [subTitle, setSubTitle] = useState("Vui lòng đợi trong giây lát...");
   const [isProcessing, setIsProcessing] = useState(true);
+  const [hasProcessed, setHasProcessed] = useState(false);
 
   const paymentMethod = searchParams.get("paymentMethod");
 
   useEffect(() => {
+    if (hasProcessed) return; // Tránh gọi nhiều lần
+    
     const handlePayment = async () => {
+      setHasProcessed(true); // Đánh dấu đã xử lý
       try {
         let isPaid = false;
 
@@ -35,11 +39,27 @@ function CheckPayment() {
           const status = searchParams.get("status");
           if (Number(status) === 1) {
             isPaid = true;
-            setStatus("success"); // Thêm dòng này để hiển thị thành công ngay
+            setStatus("success");
             setTitle("Thanh toán thành công");
           } else {
             setStatus("error");
             setTitle("Khách hàng đã hủy thanh toán");
+            return;
+          }
+        } else if (paymentMethod === "momo") {
+          // Xử lý callback từ MoMo
+          const resultCode = searchParams.get("resultCode");
+          const orderId = searchParams.get("orderId");
+          
+          if (resultCode === "0") {
+            isPaid = true;
+            setStatus("success");
+            setTitle("Thanh toán thành công");
+            console.log("MoMo payment successful, orderId:", orderId);
+          } else {
+            setStatus("error");
+            setTitle("Thanh toán thất bại");
+            setSubTitle("Mã lỗi: " + resultCode);
             return;
           }
         } else {
@@ -50,7 +70,7 @@ function CheckPayment() {
 
           if (code === "00") {
             isPaid = true;
-            setStatus("success"); // Thêm dòng này để hiển thị thành công ngay
+            setStatus("success");
             setTitle("Thanh toán thành công");
           } else if (code === "24") {
             setStatus("error");
@@ -64,7 +84,7 @@ function CheckPayment() {
           }
         }
 
-        // ✅ BƯỚC 2: Gửi đơn hàng
+        // ✅ BƯỚC 2: Xử lý đơn hàng sau khi thanh toán thành công
         if (isPaid) {
           const rawOrder = localStorage.getItem("pendingOrder");
 
@@ -85,6 +105,74 @@ function CheckPayment() {
             throw new Error("Khóa học không hợp lệ hoặc thiếu courseId!");
           }
 
+          // Kiểm tra xem đã có đơn hàng pending chưa
+          let existingOrder = null;
+          try {
+            console.log("🔍 Checking for existing pending orders...");
+            const ordersResponse = await config.get("/orders?status=pending");
+            console.log("🔍 Orders response:", ordersResponse.data);
+            
+            if (ordersResponse.data.success && ordersResponse.data.data.orders.length > 0) {
+              console.log("🔍 Found pending orders:", ordersResponse.data.data.orders.length);
+              
+              // Tìm đơn hàng pending có cùng items
+              existingOrder = ordersResponse.data.data.orders.find((order: any) => {
+                const orderItemIds = order.items.map((item: any) => item.courseId);
+                const pendingItemIds = validItems.map(item => item.courseId);
+                const isMatch = orderItemIds.length === pendingItemIds.length &&
+                       orderItemIds.every((id: string) => pendingItemIds.includes(id));
+                
+                console.log("🔍 Comparing order:", {
+                  orderId: order.id,
+                  orderItemIds,
+                  pendingItemIds,
+                  isMatch
+                });
+                
+                return isMatch;
+              });
+              
+              if (existingOrder) {
+                console.log("🔍 Found matching existing order:", existingOrder.id);
+              } else {
+                console.log("🔍 No matching existing order found");
+              }
+            } else {
+              console.log("🔍 No pending orders found");
+            }
+          } catch (error) {
+            console.log("Error checking existing orders:", error);
+          }
+
+          if (existingOrder) {
+            // Cập nhật trạng thái đơn hàng hiện có
+            console.log("Updating existing order:", existingOrder.id);
+            try {
+              await config.put(`/orders/${existingOrder.id}/complete-payment`);
+              
+              // Xóa giỏ hàng và localStorage
+              await clearCart();
+              localStorage.removeItem("pendingOrder");
+              localStorage.removeItem("checkoutData");
+              localStorage.removeItem("cart");
+              localStorage.removeItem("cartVoucherData");
+
+              setStatus("success");
+              setTitle("Thanh toán thành công!");
+              setSubTitle(`Mã đơn hàng: ${existingOrder.id}`);
+              
+              // Chuyển hướng về trang OrdersPage sau 2 giây
+              setTimeout(() => {
+                navigate("/profile/orders");
+              }, 2000);
+              return;
+            } catch (error) {
+              console.error("Error updating existing order:", error);
+              // Tiếp tục với logic tạo đơn hàng mới nếu cập nhật thất bại
+            }
+          }
+
+          // Tạo đơn hàng mới nếu không có đơn hàng pending
           const orderData = {
             items: validItems.map((item) => ({
               courseId: item.courseId,
@@ -100,12 +188,16 @@ function CheckPayment() {
             notes: parsed.notes,
           };
 
+          console.log("🔍 Creating new order with data:", orderData);
           const res = await orderService.createOrder(orderData, token);
+          console.log("🔍 New order created:", res.order.id);
 
-          // ✅ Xóa giỏ hàng và localStorage
-          clearCart();
-          localStorage.removeItem("pendingOrder");
-          localStorage.removeItem("checkoutData");
+                     // ✅ Xóa giỏ hàng và localStorage
+           await clearCart();
+           localStorage.removeItem("pendingOrder");
+           localStorage.removeItem("checkoutData");
+           localStorage.removeItem("cart");
+           localStorage.removeItem("cartVoucherData");
 
           // ✅ Load lại dữ liệu khóa học đã mua
           try {
@@ -114,9 +206,14 @@ function CheckPayment() {
             console.log("Refresh enrollment data failed:", error);
           }
 
-          setStatus("success");
-          setTitle("Đơn hàng đã được ghi nhận!");
-          setSubTitle(`Mã đơn hàng: ${res.order.id}`);
+                     setStatus("success");
+           setTitle("Thanh toán thành công!");
+           setSubTitle(`Mã đơn hàng: ${res.order.id}`);
+           
+           // Chuyển hướng về trang OrdersPage sau 2 giây
+           setTimeout(() => {
+             navigate("/profile/orders");
+           }, 2000);
         }
       } catch (error: unknown) {
         console.error("❌ Payment processing error:", error);
@@ -134,7 +231,7 @@ function CheckPayment() {
     };
 
     handlePayment();
-  }, [searchParams, paymentMethod, token, clearCart]);
+  }, [searchParams, paymentMethod, token, navigate, hasProcessed]);
 
   if (isProcessing) {
     return (
@@ -161,12 +258,23 @@ function CheckPayment() {
             </svg>
           )
         }
-        title={<span style={{ fontSize: 28, fontWeight: 700 }}>{title}</span>}
-        subTitle={<span style={{ fontSize: 18 }}>{subTitle}</span>}
-        extra={[
-          <Button type="primary" key="orders" size="large" onClick={() => navigate("/profile/orders")}>Xem đơn hàng</Button>,
-          <Button key="home" size="large" onClick={() => navigate("/")}>Về trang chủ</Button>,
-        ]}
+                 title={<span style={{ fontSize: 28, fontWeight: 700 }}>{title}</span>}
+         subTitle={
+           <span style={{ fontSize: 18 }}>
+             {subTitle}
+             {status === "success" && (
+               <div style={{ marginTop: '12px', fontSize: '14px', color: '#52c41a' }}>
+                 ⏱️ Tự động chuyển hướng về trang đơn hàng sau 2 giây...
+               </div>
+             )}
+           </span>
+         }
+         extra={[
+           <Button type="primary" key="orders" size="large" onClick={() => navigate("/profile/orders")}>
+             {status === "success" ? "Xem đơn hàng ngay" : "Xem đơn hàng"}
+           </Button>,
+           <Button key="home" size="large" onClick={() => navigate("/")}>Về trang chủ</Button>,
+         ]}
         style={{ width: 480, background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.08)', padding: 32 }}
       />
       {/* Hiệu ứng confetti khi thành công */}

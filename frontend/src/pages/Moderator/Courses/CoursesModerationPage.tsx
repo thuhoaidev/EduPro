@@ -46,9 +46,12 @@ const CoursesModerationPage: React.FC = () => {
     const fetchCourses = async () => {
       setLoading(true);
       try {
+        console.log('CoursesModerationPage - Fetching courses...');
         const data = await courseService.getAllCourses();
-        const pendingCourses = Array.isArray(data) ? data.filter(course => course.status === 'pending') : [];
-        setCourses(pendingCourses);
+        console.log('CoursesModerationPage - API response:', data);
+        const allCourses = Array.isArray(data) ? data : [];
+        console.log('CoursesModerationPage - Processed courses:', allCourses);
+        setCourses(allCourses);
       } catch (error) {
         message.error('Không thể tải danh sách khóa học');
       } finally {
@@ -89,8 +92,8 @@ const CoursesModerationPage: React.FC = () => {
           await courseService.approveCourse(courseId, 'approve');
           message.success('Đã duyệt khóa học thành công!');
           const data = await courseService.getAllCourses();
-          const pendingCourses = Array.isArray(data) ? data.filter(course => course.status === 'pending') : [];
-          setCourses(pendingCourses);
+          const allCourses = Array.isArray(data) ? data : [];
+          setCourses(allCourses);
         } catch (error) {
           message.error('Duyệt khóa học thất bại!');
         }
@@ -110,8 +113,8 @@ const CoursesModerationPage: React.FC = () => {
           await courseService.approveCourse(courseId, 'reject');
           message.success('Đã từ chối khóa học!');
           const data = await courseService.getAllCourses();
-          const pendingCourses = Array.isArray(data) ? data.filter(course => course.status === 'pending') : [];
-          setCourses(pendingCourses);
+          const allCourses = Array.isArray(data) ? data : [];
+          setCourses(allCourses);
         } catch (error) {
           message.error('Từ chối khóa học thất bại!');
         }
@@ -191,28 +194,28 @@ const CoursesModerationPage: React.FC = () => {
       width: '20%',
       render: (_, record) => (
         <Space size="small">
-          {record.status === 'pending' && (
-            <>
-              <Tooltip title="Duyệt">
-                <Button
-                  type="primary"
-                  onClick={() => handleApprove(record.id)}
-                  size="small"
-                  className="bg-green-500"
-                >
-                  Duyệt
-                </Button>
-              </Tooltip>
-              <Tooltip title="Từ chối">
-                <Button
-                  danger
-                  onClick={() => handleReject(record.id)}
-                  size="small"
-                >
-                  Từ chối
-                </Button>
-              </Tooltip>
-            </>
+          {record.status !== 'approved' && (
+            <Tooltip title="Duyệt">
+              <Button
+                type="primary"
+                onClick={() => handleApprove(record.id)}
+                size="small"
+                className="bg-green-500"
+              >
+                Duyệt
+              </Button>
+            </Tooltip>
+          )}
+          {record.status !== 'rejected' && (
+            <Tooltip title="Từ chối">
+              <Button
+                danger
+                onClick={() => handleReject(record.id)}
+                size="small"
+              >
+                Từ chối
+              </Button>
+            </Tooltip>
           )}
         </Space>
       ),
@@ -222,9 +225,9 @@ const CoursesModerationPage: React.FC = () => {
   // Calculate statistics
   const stats = {
     totalCourses: courses.length,
-    freeCourses: courses.filter(course => course.isFree).length,
-    paidCourses: courses.filter(course => !course.isFree).length,
-    totalStudents: courses.reduce((sum, course) => sum + (course.reviews || 0), 0),
+    pendingCourses: courses.filter(course => course.status === 'pending').length,
+    approvedCourses: courses.filter(course => course.status === 'approved').length,
+    rejectedCourses: courses.filter(course => course.status === 'rejected').length,
   };
 
   return (
@@ -249,30 +252,30 @@ const CoursesModerationPage: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card className="shadow-sm hover:shadow-md transition-all border-none">
             <Statistic
-              title="Khóa học miễn phí"
-              value={stats.freeCourses}
-              prefix={<BookOutlined className="text-[#34a853]" />}
-              valueStyle={{ color: '#34a853' }}
+              title="Chờ duyệt"
+              value={stats.pendingCourses}
+              prefix={<BookOutlined className="text-[#faad14]" />}
+              valueStyle={{ color: '#faad14' }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card className="shadow-sm hover:shadow-md transition-all border-none">
             <Statistic
-              title="Khóa học tính phí"
-              value={stats.paidCourses}
-              prefix={<DollarOutlined className="text-[#fbbc05]" />}
-              valueStyle={{ color: '#fbbc05' }}
+              title="Đã duyệt"
+              value={stats.approvedCourses}
+              prefix={<BookOutlined className="text-[#52c41a]" />}
+              valueStyle={{ color: '#52c41a' }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card className="shadow-sm hover:shadow-md transition-all border-none">
             <Statistic
-              title="Tổng học viên"
-              value={stats.totalStudents}
-              prefix={<UserOutlined className="text-[#ea4335]" />}
-              valueStyle={{ color: '#ea4335' }}
+              title="Bị từ chối"
+              value={stats.rejectedCourses}
+              prefix={<BookOutlined className="text-[#ff4d4f]" />}
+              valueStyle={{ color: '#ff4d4f' }}
             />
           </Card>
         </Col>

@@ -7,6 +7,14 @@ import {
   SettingOutlined,
   UserOutlined,
   BookOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  LogoutOutlined,
+  DashboardOutlined,
+  EyeOutlined,
+  MessageOutlined,
+  FlagOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -14,28 +22,31 @@ import {
   Dropdown,
   Breadcrumb,
   message,
+  Avatar,
+  Button,
+  Divider,
+  Popover,
 } from "antd";
 import type { MenuProps } from "antd";
-import React, { useState, useEffect } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react";
+import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import styles from "../../styles/ModeratorLayout.module.css";
-import { config } from "../../api/axios";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "../../contexts/AuthContext";
 
 const { Header, Sider, Content } = Layout;
 
-interface User {
+// Simple interface for moderator layout
+interface ModeratorUser {
   avatar?: string;
-  fullname: string;
+  fullname?: string;
+  name?: string;
   email: string;
-  role?: {
-    name: string;
-    description: string;
-    permissions: string[];
-  };
+  role_id?: any;
   approval_status?: string;
 }
 
-const getRoleName = (user: User): string => {
+const getRoleName = (user: ModeratorUser): string => {
   if (!user) {
     return 'user';
   }
@@ -56,206 +67,360 @@ const getRoleName = (user: User): string => {
   return 'user';
 };
 
-const checkRole = (user: User, requiredRole: string): boolean => {
-  return user?.role?.name === requiredRole;
+const checkRole = (user: ModeratorUser, requiredRole: string): boolean => {
+  if (!user) return false;
+  
+  // Lấy role name từ user
+  let roleName = '';
+  if (typeof user.role_id === 'string') {
+    roleName = user.role_id;
+  } else if (user.role_id && user.role_id.name) {
+    roleName = user.role_id.name;
+  } else {
+    roleName = getRoleName(user);
+  }
+  
+  // Kiểm tra role với mapping
+  const roleMapping: { [key: string]: string[] } = {
+    'moderator': ['moderator', 'kiểm duyệt viên'],
+    'admin': ['admin', 'quản trị viên'],
+    'instructor': ['instructor', 'giảng viên'],
+    'student': ['student', 'học viên'],
+  };
+  
+  const allowedRoles = roleMapping[requiredRole] || [requiredRole];
+  return allowedRoles.includes(roleName);
 };
 
 const ModeratorLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [forceUpdate, setForceUpdate] = useState(0);
+  const { user: authUser, isAuthenticated, forceReloadUser } = useAuth();
 
+  // --- Check Authentication ---
   useEffect(() => {
-    const fetchUser = async () => {
-      const token = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    
+    if (!isAuthenticated) {
+      // Nếu chưa authenticated, đợi AuthContext load xong
+      return;
+    }
+    
+    if (!authUser) {
+      // Nếu đã authenticated nhưng không có user, có thể token lỗi
+      navigate('/login');
+    }
+  }, [isAuthenticated, authUser, navigate]);
 
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-        setLoading(false);
-        return;
+  // --- Auto reload user data when component mounts (only once) ---
+  useEffect(() => {
+    if (isAuthenticated && authUser) {
+      // Force reload user data to get latest permissions (only on mount)
+      const timer = setTimeout(() => {
+        forceReloadUser();
+      }, 1000); // Delay 1 second to avoid infinite loop
+      
+      return () => clearTimeout(timer);
+    }
+  }, []); // Empty dependency array - only run once on mount
+
+  // --- Role Check ---
+  useEffect(() => {
+    console.log('ModeratorLayout - isAuthenticated:', isAuthenticated);
+    console.log('ModeratorLayout - authUser:', authUser);
+    if (isAuthenticated && authUser) {
+      const hasRole = checkRole(authUser, 'moderator') || checkRole(authUser, 'admin');
+      console.log('ModeratorLayout - hasRole:', hasRole);
+      if (!hasRole) {
+        message.error('Bạn không có quyền truy cập trang kiểm duyệt');
+        navigate('/');
       }
+    }
+  }, [authUser, isAuthenticated, navigate]);
 
-      if (!token) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await config.get('/auth/me', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setUser(response.data);
-        localStorage.setItem('user', JSON.stringify(response.data));
-      } catch (error) {
-        console.error('Lỗi lấy thông tin user:', error);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, [navigate]);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!user) {
-    navigate('/login');
-    return null;
-  }
-
-  // Kiểm tra role
-  if (!checkRole(user, 'moderator')) {
-    message.error('Bạn không có quyền truy cập trang kiểm duyệt');
-    navigate('/');
-    return null;
-  }
-
-  const breadcrumbItems = location.pathname
-    .split("/")
-    .filter((i) => i)
-    .map((path, index, array) => {
-      const url = `/${array.slice(0, index + 1).join("/")}`;
-      const name = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, " ");
-      return {
-        key: url,
-        title: <a href={url}>{name}</a>,
+  // --- Menu Items ---
+  const menuItems: MenuProps["items"] = useMemo(
+    () => {
+      console.log('ModeratorLayout - Rendering menu items');
+      console.log('ModeratorLayout - authUser:', authUser);
+      console.log('ModeratorLayout - permissions:', (authUser?.role_id as any)?.permissions);
+      console.log('ModeratorLayout - forceUpdate value:', forceUpdate);
+      
+      const permissions = (authUser?.role_id as any)?.permissions || [];
+      console.log('ModeratorLayout - User permissions:', permissions);
+      console.log('ModeratorLayout - User role:', authUser?.role_id?.name);
+      
+      // Import permission check functions
+      const canAccessRoute = (permission: string) => {
+        // Admin có toàn quyền
+        if (authUser?.role_id?.name === 'admin' || authUser?.role_id?.name === 'quản trị viên') {
+          return true;
+        }
+        // Moderator có quyền truy cập các trang cơ bản
+        if (authUser?.role_id?.name === 'moderator' || authUser?.role_id?.name === 'kiểm duyệt viên') {
+          return true;
+        }
+        return permissions.includes(permission);
       };
-    });
+      
+      // Tạo menu items dựa trên permissions
+      const allMenuItems = [
+        {
+          key: "/moderator",
+          icon: <DashboardOutlined />,
+          label: collapsed ? "TQ" : "Bảng điều khiển",
+        },
+        {
+          label: collapsed ? "KD" : "KIỂM DUYỆT NỘI DUNG",
+          type: "group" as const,
+          children: [
+            // Hiển thị các trang cơ bản cho moderator
+            { key: "/moderator/blogs", icon: <FileSearchOutlined />, label: collapsed ? "BL" : "Duyệt Blog" },
+            { key: "/moderator/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Duyệt Khóa học" },
+            { key: "/moderator/comments", icon: <CommentOutlined />, label: collapsed ? "BL" : "Danh sách Bình luận" },
+            { key: "/moderator/reports", icon: <WarningOutlined />, label: collapsed ? "BC" : "Báo cáo vi phạm" },
+          ].filter(Boolean),
+        },
+        {
+          label: collapsed ? "TK" : "THỐNG KÊ",
+          type: "group" as const,
+          children: [
+            // Chỉ hiển thị nếu có quyền xem thống kê báo cáo
+            ...(canAccessRoute('xem thống kê báo cáo') ? [
+              { key: "/moderator/statistics", icon: <BarChartOutlined />, label: collapsed ? "TK" : "Thống kê báo cáo" }
+            ] : []),
+          ].filter(Boolean),
+        },
+      ];
+      
+      // Lọc bỏ các group không có children
+      const filteredMenuItems = allMenuItems.filter(item => {
+        if (item.children) {
+          return item.children.length > 0;
+        }
+        return true;
+      });
+      
+      console.log('ModeratorLayout - Final menu items:', filteredMenuItems);
+      console.log('ModeratorLayout - Available permissions:', permissions);
+      return filteredMenuItems;
+    },
+    [collapsed, authUser, forceUpdate]
+  );
+
+  // --- Breadcrumb ---
+  const breadcrumbNameMap: { [key: string]: string } = {
+    '/moderator': 'Bảng điều khiển',
+    '/moderator/blogs': 'Duyệt Blog',
+    '/moderator/courses': 'Duyệt Khóa học',
+    '/moderator/comments': 'Danh sách Bình luận',
+    '/moderator/reports': 'Báo cáo vi phạm',
+    '/moderator/statistics': 'Thống kê báo cáo',
+  };
+
+  const pathSnippets = location.pathname.split("/").filter((i) => i);
+  const breadcrumbItems = pathSnippets.map((_, index) => {
+    const url = `/${pathSnippets.slice(0, index + 1).join("/")}`;
+    let title = breadcrumbNameMap[url] || url.split('/').pop();
+    
+    return {
+      key: url,
+      title: <Link to={url}>{title}</Link>,
+    };
+  });
 
   const finalBreadcrumbItems = [
-    {
-      key: "/moderator",
-      title: <HomeOutlined />,
-    },
+    { key: 'home', title: <Link to="/moderator"><HomeOutlined /></Link> },
     ...breadcrumbItems,
   ];
 
-  const renderLabel = (title: string, caption?: string) => {
-    if (collapsed) return title;
-    return (
-      <div className={styles.menuItemLabel}>
-        <span>{title}</span>
-        {caption && (
-          <span>{caption}</span>
-        )}
-      </div>
-    );
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    message.success('Đã đăng xuất!');
+    navigate('/login');
   };
 
-  const menuItems: MenuProps["items"] = [
+  // --- Dropdown Menu ---
+  const userMenuItems: MenuProps["items"] = [
     {
-      type: "group",
-      label: collapsed ? null : (
-        <div className={styles.menuItemGroupTitle}>
-          Kiểm duyệt nội dung
-        </div>
-      ),
-      children: [
-        {
-          key: "/moderator/blogs",
-          icon: <FileSearchOutlined />,
-          label: renderLabel("Duyệt Blog"),
-        },
-        {
-          key: "/moderator/courses",
-          icon: <BookOutlined />,
-          label: renderLabel("Duyệt Khóa học"),
-        },
-        {
-          key: "/moderator/comments",
-          icon: <CommentOutlined />,
-          label: renderLabel("Danh sách Bình luận"),
-        },
-        {
-          key: "/moderator/reports",
-          icon: <WarningOutlined />,
-          label: renderLabel("Báo cáo vi phạm"),
-        },
-      ],
-    },
-    {
-      type: "group",
-      label: collapsed ? null : (
-        <div className={styles.menuItemGroupTitle}>
-          Thống kê
-        </div>
-      ),
-      children: [
-        {
-          key: "/moderator/statistics",
-          icon: <BarChartOutlined />,
-          label: renderLabel("Thống kê báo cáo"),
-        },
-      ],
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "Đăng xuất",
+      onClick: handleLogout,
     },
   ];
 
-  const profileMenuItems: MenuProps["items"] = [
-    {
-      key: "home",
-      icon: <HomeOutlined />,
-      label: "Quay lại trang chủ",
-      onClick: () => navigate('/'),
-    },
-  ];
+  // Show loading while AuthContext is initializing
+  if (!isAuthenticated && localStorage.getItem('token')) {
+    return (
+      <div className={styles.loadingScreen}>
+        <div className={styles.loadingContent}>
+          <div className={styles.loadingSpinner}></div>
+          <div className={styles.loadingText}>Đang tải...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user has moderator role
+  if (!authUser || (!checkRole(authUser, 'moderator') && !checkRole(authUser, 'admin'))) {
+    return (
+      <div className={styles.loadingScreen}>
+        <div className={styles.loadingContent}>
+          <div className={styles.errorIcon}>⚠️</div>
+          <div className={styles.loadingText}>Bạn không có quyền truy cập</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
+    <Layout className={styles.moderatorLayout}>
       <Sider
+        trigger={null}
         collapsible
         collapsed={collapsed}
-        onCollapse={setCollapsed}
         width={280}
-        collapsedWidth={80}
         className={styles.sider}
+        theme="light"
+        style={{ position: 'fixed', height: '100vh', left: 0, top: 0, bottom: 0, zIndex: 1000 }}
       >
-        <div className={styles.logo}>
-          {collapsed ? "MP" : "Moderator Panel"}
-        </div>
-        <Menu
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          onClick={({ key }) => navigate(key)}
-          items={menuItems}
-          className={styles.customModeratorMenu}
-          style={{
-            height: "100%",
-            borderRight: 0,
-            overflowY: "auto",
-            paddingTop: 16,
-          }}
-        />
-      </Sider>
-
-      <Layout style={{ marginLeft: collapsed ? 80 : 280, transition: "margin-left 0.2s" }}>
-        <Header
-          className={styles.header}
+        <motion.div
+          layout
+          className={`${styles.logoArea} ${collapsed ? styles.collapsed : ""}`}
         >
-          <Dropdown menu={{ items: profileMenuItems }} trigger={["click"]} placement="bottomRight">
-            <div
-              className={styles.profileDropdown}
+          {!collapsed && (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2, duration: 0.3 }}
+              className={styles.logoContainer}
             >
-              {/* <Avatar size={36} src="https://i.imgur.com/xsKJ4Eh.png" /> */}
-              <SettingOutlined className={styles.profileSettingIcon} />
+              <div className={styles.logoIcon}>🛡️</div>
+              <div className={styles.logoTextContainer}>
+                <span className={styles.logoText}>Moderator</span>
+                <span className={styles.logoSubtitle}>Content Panel</span>
+              </div>
+            </motion.div>
+          )}
+          {collapsed && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1, duration: 0.2 }}
+              className={styles.logoIconCollapsed}
+            >
+              🛡️
+            </motion.div>
+          )}
+        </motion.div>
+        
+        <div className={styles.menuContainer}>
+          <Menu
+            mode="inline"
+            theme="light"
+            className={styles.menu}
+            items={menuItems}
+            selectedKeys={[location.pathname]}
+            onClick={({ key }) => navigate(key)}
+            expandIcon={({ isOpen }) => (
+              <motion.div
+                animate={{ rotate: isOpen ? 90 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                ▶
+              </motion.div>
+            )}
+          />
+        </div>
+        
+        {!collapsed && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.3 }}
+            className={styles.siderFooter}
+          >
+            <Divider style={{ margin: '8px 0' }} />
+            <div className={styles.userInfo}>
+              <Avatar 
+                src={(authUser as any)?.avatar} 
+                size="small" 
+                className={styles.userAvatar}
+              >
+                {(authUser as any)?.fullname?.charAt(0)?.toUpperCase() || 'U'}
+              </Avatar>
+              <div className={styles.userDetails}>
+                <div className={styles.userName}>{(authUser as any)?.fullname || 'User'}</div>
+                <div className={styles.userRole}>Kiểm duyệt viên</div>
+              </div>
             </div>
-          </Dropdown>
+          </motion.div>
+        )}
+      </Sider>
+      
+      <Layout className={styles.siteLayout} style={{ marginLeft: collapsed ? 80 : 280, transition: 'margin-left 0.2s' }}>
+        <Header className={styles.header} style={{ position: 'sticky', top: 0, zIndex: 999 }}>
+          <div className={styles.headerLeft}>
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              className={styles.toggleButton}
+            />
+            <Breadcrumb items={finalBreadcrumbItems} className={styles.breadcrumb} />
+          </div>
+          
+          <div className={styles.headerRight}>
+            <Popover
+              content={
+                <Menu items={userMenuItems} onClick={({ key }) => {
+                  if (key === 'home') {
+                    navigate('/');
+                  } else if (key === 'logout') {
+                    handleLogout();
+                  }
+                }} />
+              }
+              trigger="click"
+              placement="bottomRight"
+            >
+              <a onClick={(e) => e.preventDefault()} className={styles.profileDropdown}>
+                <Avatar 
+                  src={(authUser as any)?.avatar} 
+                  size="small" 
+                  className={styles.headerAvatar}
+                >
+                  {(authUser as any)?.fullname?.charAt(0)?.toUpperCase() || 'U'}
+                </Avatar>
+                {!collapsed && (
+                  <span className={styles.headerUserName}>{(authUser as any)?.fullname || 'User'}</span>
+                )}
+              </a>
+            </Popover>
+          </div>
         </Header>
-
-        <Content
-          className={styles.contentArea}
-        >
-          <Breadcrumb items={finalBreadcrumbItems} className={styles.breadcrumb} />
-          <Outlet />
+        
+        <Content className={styles.content} style={{ overflowY: 'auto', height: 'calc(100vh - 72px)' }}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className={styles.pageContainer}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </Content>
       </Layout>
     </Layout>

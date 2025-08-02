@@ -125,8 +125,8 @@ const MessagesPage: React.FC = () => {
         .catch(() => setMessages([]));
     };
     fetchMessages();
-    // Polling mỗi 3s để cập nhật tin nhắn mới
-    const interval = setInterval(fetchMessages, 3000);
+    // Polling mỗi 10s thay vì 3s để giảm tải backend
+    const interval = setInterval(fetchMessages, 10000);
     return () => clearInterval(interval);
   }, [userId, currentUser]);
 

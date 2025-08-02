@@ -16,10 +16,6 @@ const UserSchema = new mongoose.Schema({
     trim: true,
     minlength: [2, 'Họ và tên phải có ít nhất 2 ký tự'],
   },
-  avatar: {
-    type: String,
-    default: ''
-  },
   slug: {
     type: String,
     unique: true,
@@ -118,117 +114,76 @@ const UserSchema = new mongoose.Schema({
   },
   reset_password_token: {
     type: String,
-    required: function () {
-      return this.reset_password_expires;
-    },
-    expires: '10m',
+    required: false,
+    default: null,
   },
   reset_password_expires: {
     type: Date,
-    required: function () {
-      return this.reset_password_token;
-    },
+    required: false,
+    default: null,
   },
-  last_login: {
-    type: Date,
-    default: Date.now,
-  },
-
-  // Thông tin học vấn
-  education: [
-    {
-      degree: { type: String, trim: true, required: true },
-      institution: { type: String, trim: true, required: true },
-      year: {
-        type: Number,
-        required: true,
-        min: [1950, 'Năm tốt nghiệp không hợp lệ'],
-        max: [new Date().getFullYear(), 'Năm tốt nghiệp không thể là tương lai'],
-      },
-      major: { type: String, trim: true, required: true },
-    },
-  ],
-
-  // Hồ sơ giảng viên
   instructorInfo: {
-    is_approved: { type: Boolean, default: false },
+    is_approved: {
+      type: Boolean,
+      default: false,
+    },
+    specializations: [{
+      type: String,
+      trim: true,
+    }],
     experience_years: {
       type: Number,
       min: [0, 'Số năm kinh nghiệm không thể âm'],
-      max: [50, 'Số năm kinh nghiệm không thể quá 50'],
     },
-    specializations: [{ type: String, trim: true }],
     teaching_experience: {
-      years: {
-        type: Number,
-        min: [0, 'Số năm kinh nghiệm không thể âm'],
-        max: [50, 'Số năm kinh nghiệm không thể quá 50'],
-      },
       description: {
         type: String,
         trim: true,
-        maxlength: [2000, 'Mô tả kinh nghiệm không được quá 2000 ký tự'],
+        maxlength: [1000, 'Mô tả kinh nghiệm giảng dạy không được quá 1000 ký tự'],
       },
     },
-    certificates: [
-      {
-        name: { type: String, trim: true },
-        file: { type: String, required: [true, 'File scan bằng cấp là bắt buộc'] },
-        original_name: { type: String, trim: true },
-        uploaded_at: { type: Date, default: Date.now },
+    education: [{
+      degree: {
+        type: String,
+        required: true,
+        trim: true,
       },
-    ],
-    demo_video: { type: String, trim: true },
-    cv_file: { type: String, trim: true },
-    other_documents: [
-      {
-        name: { type: String, required: true, trim: true },
-        file: { type: String, required: true },
-        description: {
-          type: String,
-          trim: true,
-          maxlength: [500, 'Mô tả không được quá 500 ký tự'],
-        },
+      institution: {
+        type: String,
+        required: true,
+        trim: true,
       },
-    ],
-    instructor_profile_status: {
+      year: {
+        type: Number,
+        required: true,
+        min: [1900, 'Năm tốt nghiệp không hợp lệ'],
+        max: [new Date().getFullYear(), 'Năm tốt nghiệp không thể là tương lai'],
+      },
+    }],
+    cv_file: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending',
+      trim: true,
     },
-    approval_date: { type: Date },
-    approved_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    demo_video: {
+      type: String,
+      trim: true,
+    },
+    application_date: {
+      type: Date,
+      default: Date.now,
+    },
+    approval_date: {
+      type: Date,
+    },
     rejection_reason: {
       type: String,
       trim: true,
-      maxlength: [1000, 'Lý do từ chối không được quá 1000 ký tự'],
     },
-    application_date: { type: Date, default: Date.now },
   },
-
-  // ✅ savedPosts - lưu bài viết
-  savedPosts: [
-    {
-      post: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Blog',
-        required: true,
-      },
-      savedAt: {
-        type: Date,
-        default: Date.now,
-      },
-    },
-  ],
-},
-{
-  timestamps: {
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
-  },
+}, {
+  timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true },
-  suppressReservedKeysWarning: true,
 });
 
 module.exports = UserSchema;

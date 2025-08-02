@@ -20,7 +20,11 @@ const defaultRoles = [
       'approve_courses',
       'approve_instructors',
       'view_statistics',
-      'manage_moderators'
+      'manage_moderators',
+      'xem đơn hàng của mình',
+      'hủy đơn hàng của mình',
+      'quản lý đơn hàng',
+      'hoàn tiền đơn hàng'
     ],
   },
   {
@@ -52,7 +56,9 @@ const defaultRoles = [
       'edit_own_questions',
       'delete_own_questions',
       'view_own_statistics',
-      'manage_own_announcements'
+      'manage_own_announcements',
+      'xem đơn hàng của mình',
+      'hủy đơn hàng của mình'
     ],
   },
   {
@@ -65,7 +71,9 @@ const defaultRoles = [
       'view_own_progress',
       'view_own_certificates',
       'create_discussions',
-      'comment_on_discussions'
+      'comment_on_discussions',
+      'xem đơn hàng của mình',
+      'hủy đơn hàng của mình'
     ],
   },
   {

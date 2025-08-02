@@ -57,19 +57,25 @@ exports.updateRole = async (req, res) => {
     const { id } = req.params;
     const { name, description, permissions } = req.body;
 
+    console.log('Backend - updateRole called with:', { id, name, description, permissions });
+
     // Kiểm tra vai trò có tồn tại không
     const role = await Role.findById(id);
     if (!role) {
+      console.log('Backend - Role not found with ID:', id);
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy vai trò'
       });
     }
 
+    console.log('Backend - Found role:', role);
+
     // Nếu đổi tên, kiểm tra tên mới có bị trùng không
     if (name && name !== role.name) {
       const existingRole = await Role.findOne({ name });
       if (existingRole) {
+        console.log('Backend - Role name already exists:', name);
         return res.status(400).json({
           success: false,
           message: 'Tên vai trò này đã tồn tại'
@@ -77,18 +83,23 @@ exports.updateRole = async (req, res) => {
       }
     }
 
+    console.log('Backend - Updating role with data:', { name, description, permissions });
+
     const updatedRole = await Role.findByIdAndUpdate(
       id,
       { name, description, permissions },
       { new: true, runValidators: true }
     );
 
+    console.log('Backend - Role updated successfully:', updatedRole);
+    console.log('Backend - Updated permissions:', updatedRole.permissions);
+
     res.status(200).json({
       success: true,
       data: updatedRole
     });
   } catch (error) {
-    console.error('Lỗi cập nhật vai trò:', error);
+    console.error('Backend - Lỗi cập nhật vai trò:', error);
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi cập nhật vai trò'

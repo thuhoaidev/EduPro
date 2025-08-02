@@ -1,15 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Result, Button, Spin, Alert } from 'antd';
+import { Result, Button, Spin, Alert, notification, message } from 'antd';
 import { CheckCircleOutlined, ExclamationCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { instructorService } from '../../../services/apiService';
+import { verifyInstructorEmail } from '../../../services/authService';
+import socket from '../../../services/socket';
 
 export function VerifyInstructorEmail() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
+  const [countdown, setCountdown] = useState(5);
+
+  // Kết nối socket cho realtime (ẩn UI)
+  useEffect(() => {
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    // Listen cho realtime events (ẩn UI)
+    socket.on('email-verified', (data) => {
+      console.log('Realtime email verified:', data);
+      if (data.token === token) {
+        setStatus('success');
+        setMessage('Email giảng viên đã được xác minh thành công!');
+      }
+    });
+
+    socket.on('instructor-approved', (data) => {
+      console.log('Realtime instructor approved:', data);
+    });
+
+    return () => {
+      socket.off('email-verified');
+      socket.off('instructor-approved');
+    };
+  }, [token]);
 
   useEffect(() => {
     const verifyEmail = async () => {
@@ -20,30 +48,57 @@ export function VerifyInstructorEmail() {
       }
 
       try {
-        const result = await instructorService.verifyInstructorEmail(token);
+        console.log('🔍 Bắt đầu xác minh email giảng viên...', { token });
+        
+        // Sử dụng service chính thay vì instructorService
+        const result = await verifyInstructorEmail(token);
+        
+        console.log('✅ Response từ API:', result);
         
         if (result.success) {
           setStatus('success');
-          setMessage(result.message);
+          setMessage(result.message || 'Email giảng viên đã được xác minh thành công!');
+          
+          // Emit realtime event (ẩn UI)
+          socket.emit('email-verification-completed', {
+            token,
+            isInstructor: true,
+            userEmail: result.data?.user?.email
+          });
+          
+          // Hiển thị thông báo thành công
+          message.success('Email giảng viên đã được xác minh thành công!');
+          
+          // Bắt đầu đếm ngược để chuyển hướng
+          const timer = setInterval(() => {
+            setCountdown((prev) => {
+              if (prev <= 1) {
+                clearInterval(timer);
+                navigate('/login');
+              }
+              return prev - 1;
+            });
+          }, 1000);
+          
         } else {
           setStatus('error');
           setMessage(result.message || 'Xác minh email thất bại');
         }
       } catch (error: any) {
+        console.error('❌ Lỗi xác minh email giảng viên:', error);
         setStatus('error');
         setMessage(error.message || 'Lỗi xác minh email');
+        
+        notification.error({
+          message: 'Lỗi xác minh email',
+          description: error.message || 'Lỗi xác minh email',
+          duration: 5,
+        });
       }
     };
 
     verifyEmail();
-  }, [token]);
-
-  useEffect(() => {
-    if (status === 'success') {
-      const timer = setTimeout(() => navigate('/login'), 2500);
-      return () => clearTimeout(timer);
-    }
-  }, [status, navigate]);
+  }, [token, navigate]);
 
   const handleGoHome = () => {
     navigate('/');
@@ -76,12 +131,12 @@ export function VerifyInstructorEmail() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center fixed inset-0 z-50">
         <motion.div
           initial="hidden"
           animate="visible"
           variants={containerVariants}
-          className="text-center"
+          className="text-center bg-white rounded-2xl p-8 shadow-2xl max-w-md mx-4"
         >
           <motion.div variants={itemVariants}>
             <Spin 
@@ -93,7 +148,7 @@ export function VerifyInstructorEmail() {
             variants={itemVariants}
             className="text-2xl font-bold text-gray-800 mt-6 mb-4"
           >
-            Đang xác minh email...
+            Đang xác minh email giảng viên...
           </motion.h2>
           <motion.p 
             variants={itemVariants}
@@ -107,14 +162,14 @@ export function VerifyInstructorEmail() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center fixed inset-0 z-50 p-4">
       <motion.div
         initial="hidden"
         animate="visible"
         variants={containerVariants}
-        className="w-full max-w-2xl"
+        className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden"
       >
-        <motion.div variants={itemVariants}>
+        <motion.div variants={itemVariants} className="p-8">
           <Result
             status={status === 'success' ? 'success' : 'error'}
             icon={
@@ -126,10 +181,19 @@ export function VerifyInstructorEmail() {
             }
             title={
               status === 'success' 
-                ? 'Xác minh email thành công!' 
+                ? 'Xác minh email giảng viên thành công!' 
                 : 'Xác minh email thất bại'
             }
-            subTitle={message}
+            subTitle={
+              status === 'success' ? (
+                <>
+                  {message}<br />
+                  Bạn sẽ được tự động chuyển hướng về trang đăng nhập trong {countdown} giây.
+                </>
+              ) : (
+                message
+              )
+            }
             extra={[
               <Button 
                 key="home" 
@@ -147,7 +211,7 @@ export function VerifyInstructorEmail() {
                   onClick={handleGoLogin}
                   className="ml-4"
                 >
-                  Đăng nhập
+                  Đăng nhập ngay
                 </Button>
               )
             ]}
@@ -155,7 +219,7 @@ export function VerifyInstructorEmail() {
         </motion.div>
 
         {status === 'success' && (
-          <motion.div variants={itemVariants} className="mt-8">
+          <motion.div variants={itemVariants} className="px-8 pb-8">
             <Alert
               message="Quy trình tiếp theo"
               description={
@@ -175,7 +239,7 @@ export function VerifyInstructorEmail() {
         )}
 
         {status === 'error' && (
-          <motion.div variants={itemVariants} className="mt-8">
+          <motion.div variants={itemVariants} className="px-8 pb-8">
             <Alert
               message="Hướng dẫn khắc phục"
               description={

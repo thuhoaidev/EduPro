@@ -34,6 +34,11 @@ const sectionVariants: Variants = {
 
 const CourseDetailPage: React.FC = () => {
     const { slug, id } = useParams<{ slug?: string; id?: string }>();
+    
+    // Debug: log thông tin params
+    console.log('CourseDetailPage - Received slug:', slug);
+    console.log('CourseDetailPage - Received id:', id);
+    console.log('CourseDetailPage - URL params:', useParams());
     const [course, setCourse] = useState<Course | null>(null);
     const [courseContent, setCourseContent] = useState<Section[]>([]);
     const [loading, setLoading] = useState(true);
@@ -145,26 +150,22 @@ const CourseDetailPage: React.FC = () => {
                 setLoading(true);
                 let courseObj: Course | null = null;
                 let contentData: Section[] = [];
-                if (id) {
-                    // Lấy chi tiết bằng id
+                
+                // Thử lấy bằng slug trước
+                if (slug) {
+                    courseObj = await courseService.getCourseBySlug(slug);
+                }
+                
+                // Nếu không tìm thấy bằng slug, thử lấy bằng ID
+                if (!courseObj && id) {
                     const apiRes = await courseService.getCourseById(id);
                     if (apiRes) {
-                        // Map sang type Course
                         courseObj = courseService.mapApiCourseToAppCourse(apiRes);
-                        // Nếu backend trả về sections kèm theo
-                        if (apiRes.sections) {
-                            contentData = apiRes.sections;
-                        } else {
-                            contentData = await courseService.getCourseContent(apiRes._id || id);
-                        }
-                    }
-                } else if (slug) {
-                    courseObj = await courseService.getCourseBySlug(slug);
-                    if (courseObj) {
-                        contentData = await courseService.getCourseContent(courseObj.id);
                     }
                 }
+                
                 if (courseObj) {
+                    contentData = await courseService.getCourseContent(courseObj.id);
                     setCourse(courseObj);
                     setCourseContent(contentData);
                     console.log('📚 Course content loaded:', contentData);
@@ -317,16 +318,16 @@ const CourseDetailPage: React.FC = () => {
         checkCompleted();
     }, [course, isEnrolled, courseContent]);
 
-    // Force re-render when cart changes
-    useEffect(() => {
-        // This will trigger re-render when cart state changes
-        const interval = setInterval(() => {
-            // Force re-render by updating a state
-            setReviewValue(prev => prev);
-        }, 1000);
+    // Force re-render when cart changes (removed unnecessary interval)
+    // useEffect(() => {
+    //     // This will trigger re-render when cart state changes
+    //     const interval = setInterval(() => {
+    //         // Force re-render by updating a state
+    //         setReviewValue(prev => prev);
+    //     }, 1000);
         
-        return () => clearInterval(interval);
-    }, []);
+    //     return () => clearInterval(interval);
+    // }, []);
 
     // Tính toán dữ liệu tổng quan đánh giá
     const ratingStats = React.useMemo(() => {
@@ -535,7 +536,10 @@ const CourseDetailPage: React.FC = () => {
                         <Paragraph className="text-gray-700 text-lg md:text-xl max-w-4xl">{course.subtitle}</Paragraph>
                         <div className="flex items-center gap-x-6 gap-y-2 mt-6 flex-wrap">
                             <div className="flex items-center gap-2">
-                                <Avatar src={course.author.avatar} icon={<UserOutlined />} />
+                                <Avatar 
+                                    src={course.author.avatar && course.author.avatar !== 'default-avatar.jpg' && course.author.avatar !== '' && (course.author.avatar.includes('googleusercontent.com') || course.author.avatar.startsWith('http')) ? course.author.avatar : undefined} 
+                                    icon={<UserOutlined />} 
+                                />
                                 <Text className="!text-gray-800 font-semibold">{course.author.name}</Text>
                             </div>
                             <div className="flex items-center gap-2 text-amber-400">
@@ -692,7 +696,12 @@ const CourseDetailPage: React.FC = () => {
                                 <div className="flex items-center gap-6 mt-8">
                                     <div className="relative">
                                         <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 blur opacity-60"></div>
-                                        <Avatar src={course.author.avatar} size={96} icon={<UserOutlined />} className="border-4 border-white shadow-lg relative z-10"/>
+                                        <Avatar 
+                                            src={course.author.avatar && course.author.avatar !== 'default-avatar.jpg' && course.author.avatar !== '' && (course.author.avatar.includes('googleusercontent.com') || course.author.avatar.startsWith('http')) ? course.author.avatar : undefined} 
+                                            size={96} 
+                                            icon={<UserOutlined />} 
+                                            className="border-4 border-white shadow-lg relative z-10"
+                                        />
                                     </div>
                                     <div>
                                         <Title level={4} className="!text-transparent !bg-clip-text !bg-gradient-to-r !from-cyan-600 !to-purple-600 !m-0">{course.author.name}</Title>
@@ -777,7 +786,7 @@ const CourseDetailPage: React.FC = () => {
                                                     <List.Item className="!items-start !border-0 !bg-transparent !py-6">
                                                         <div className="flex items-start gap-5 w-full">
                                                             <Avatar 
-                                                                src={item.user?.avatar} 
+                                                                src={item.user?.avatar && item.user.avatar !== 'default-avatar.jpg' && item.user.avatar !== '' && (item.user.avatar.includes('googleusercontent.com') || item.user.avatar.startsWith('http')) ? item.user.avatar : undefined} 
                                                                 icon={<UserOutlined />} 
                                                                 size={48}
                                                                 style={{ 

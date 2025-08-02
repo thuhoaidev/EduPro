@@ -16,20 +16,43 @@ import {
   Table,
   Image,
   Form,
+  Typography,
+  Badge,
+  Divider,
+  Progress,
+  Alert,
+  Spin,
 } from "antd";
 import {
   BookOutlined,
   DollarOutlined,
   UserOutlined,
   PlusOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
+  EyeOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  TrophyOutlined,
+  RiseOutlined,
+  FallOutlined,
+  CalendarOutlined,
+  TagsOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { courseService } from '../../../services/apiService';
 import type { Course } from '../../../services/apiService';
 import type { ColumnsType } from 'antd/es/table';
+import styles from '../../admin/Users/UserPage.module.css';
 
 const { Search } = Input;
-const PAGE_SIZE = 10;
+const { Title, Text, Paragraph } = Typography;
+const PAGE_SIZE = 15;
 
 // Thêm mapping màu cho trạng thái
 const statusColorMap: Record<string, string> = {
@@ -39,11 +62,157 @@ const statusColorMap: Record<string, string> = {
   rejected: 'red',
 };
 
+// FilterSection component
+interface FilterSectionProps {
+  searchInput: string;
+  setSearchInput: (value: string) => void;
+  setSearch: (value: string) => void;
+  selectedFilter: string;
+  setSelectedFilter: (filter: string) => void;
+  search: string;
+}
+
+const FilterSection = ({
+  searchInput,
+  setSearchInput,
+  setSearch,
+  selectedFilter,
+  setSelectedFilter,
+  search,
+}: FilterSectionProps) => (
+  <Card className={styles.filterCard} bordered={false}>
+    <div className={styles.filterGroup}>
+      <Input
+        placeholder="Tìm kiếm khóa học..."
+        prefix={<SearchOutlined />}
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        onPressEnter={() => setSearch(searchInput)}
+        className={styles.filterInput}
+        allowClear
+      />
+      <Select
+        placeholder="Lọc theo loại khóa học"
+        value={selectedFilter}
+        onChange={setSelectedFilter}
+        className={styles.filterSelect}
+        allowClear
+      >
+        <Select.Option value="all">Tất cả khóa học</Select.Option>
+        <Select.Option value="free">Khóa học miễn phí</Select.Option>
+        <Select.Option value="paid">Khóa học tính phí</Select.Option>
+      </Select>
+    </div>
+  </Card>
+);
+
+// StatCards component
+interface StatCardsProps {
+  courseStats: {
+    total: number;
+    free: number;
+    paid: number;
+    totalStudents: number;
+  };
+}
+
+const StatCards = ({ courseStats }: StatCardsProps) => {
+  const freePercentage = courseStats.total > 0 ? (courseStats.free / courseStats.total) * 100 : 0;
+  const paidPercentage = courseStats.total > 0 ? (courseStats.paid / courseStats.total) * 100 : 0;
+
+  return (
+    <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#1890ff' }}>
+              <BookOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Tổng số khóa học" 
+                value={courseStats.total} 
+                valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary">Tất cả khóa học</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#52c41a' }}>
+              <BookOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Khóa học miễn phí" 
+                value={courseStats.free} 
+                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary">{freePercentage.toFixed(1)}%</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#fbbc05' }}>
+              <DollarOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Khóa học tính phí" 
+                value={courseStats.paid} 
+                valueStyle={{ color: '#fbbc05', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#fbbc05' }} />
+                <Text type="secondary">{paidPercentage.toFixed(1)}%</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#ea4335' }}>
+              <UserOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Tổng học viên" 
+                value={courseStats.totalStudents} 
+                valueStyle={{ color: '#ea4335', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#ea4335' }} />
+                <Text type="secondary">Tổng cộng</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+    </Row>
+  );
+};
+
 const CourseList: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(false);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -109,25 +278,22 @@ const CourseList: React.FC = () => {
       ['pending', 'approved', 'rejected'].includes(course.status)
     );
 
-    if (searchTerm) {
+    if (search) {
       result = result.filter((course) =>
-        course.title.toLowerCase().includes(searchTerm.toLowerCase())
+        course.title.toLowerCase().includes(search.toLowerCase())
       );
     }
 
-    if (filterType === "free") {
+    if (selectedFilter === "free") {
       result = result.filter((course) => course.isFree);
-    } else if (filterType === "paid") {
+    } else if (selectedFilter === "paid") {
       result = result.filter((course) => !course.isFree);
     }
 
     return result;
-  }, [courses, searchTerm, filterType]);
+  }, [courses, search, selectedFilter]);
 
-  const paginatedCourses = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredCourses.slice(start, start + PAGE_SIZE);
-  }, [filteredCourses, currentPage]);
+
 
   const handleApprove = async (courseId: string) => {
     Modal.confirm({
@@ -199,20 +365,20 @@ const CourseList: React.FC = () => {
   };
 
   const handleSearch = (value: string) => {
-    setSearchTerm(value);
+    setSearch(value);
     setCurrentPage(1);
   };
 
   const handleFilterChange = (value: string) => {
-    setFilterType(value);
+    setSelectedFilter(value);
     setCurrentPage(1);
   };
 
   // Calculate statistics
-  const stats = {
-    totalCourses: courses.length,
-    freeCourses: courses.filter(course => course.isFree).length,
-    paidCourses: courses.filter(course => !course.isFree).length,
+  const courseStats = {
+    total: courses.length,
+    free: courses.filter(course => course.isFree).length,
+    paid: courses.filter(course => !course.isFree).length,
     totalStudents: courses.reduce((sum, course) => sum + (course.reviews || 0), 0), // Using reviews as proxy for students
   };
 
@@ -246,9 +412,19 @@ const CourseList: React.FC = () => {
   // Định nghĩa columns cho table
   const columns: ColumnsType<Course> = [
     {
+      title: 'STT',
+      dataIndex: 'number',
+      key: 'number',
+      width: 70,
+      align: 'center',
+      render: (_, __, index) => (
+        <Badge count={index + 1} showZero style={{ backgroundColor: '#1890ff' }} />
+      ),
+    },
+    {
       title: 'Khóa học',
       key: 'course',
-      width: '50%',
+      width: 400,
       render: (_, record) => (
         <div 
           className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
@@ -269,11 +445,11 @@ const CourseList: React.FC = () => {
         </div>
       ),
     },
-
     {
       title: 'Giá',
       key: 'price',
-      width: '15%',
+      width: 120,
+      align: 'center',
       render: (_, record) => (
         <div>
           {record.isFree ? (
@@ -289,7 +465,8 @@ const CourseList: React.FC = () => {
     {
       title: 'Trạng thái',
       key: 'status',
-      width: '15%',
+      width: 150,
+      align: 'center',
       render: (_, record) => {
         const statusText: Record<string, string> = {
           'draft': 'Bản nháp',
@@ -313,38 +490,11 @@ const CourseList: React.FC = () => {
         );
       },
     },
-    // Đã ẩn cột trạng thái hiển thị
-    // {
-    //   title: 'Trạng thái hiển thị',
-    //   key: 'displayStatus',
-    //   width: '15%',
-    //   render: (_, record) => {
-    //     const isApproved = record.status === 'approved';
-    //     const isHidden = record.displayStatus === 'hidden';
-    //     return (
-    //       <Space>
-    //         <Tag color={isHidden ? 'gray' : 'blue'} className="text-xs">
-    //           {isHidden ? 'Ẩn' : 'Hiển thị'}
-    //         </Tag>
-    //         {isApproved && (
-    //           <Button
-    //             type="link"
-    //             size="small"
-    //             onClick={() => handleToggleDisplay(record.id, record.displayStatus || 'hidden')}
-    //             style={{ padding: 0, height: 'auto', fontSize: '12px' }}
-    //           >
-    //             {isHidden ? 'Hiển thị' : 'Ẩn'}
-    //           </Button>
-    //         )}
-    //       </Space>
-    //     );
-    //   },
-    // },
-
     {
       title: 'Thao tác',
       key: 'actions',
-      width: '20%',
+      width: 200,
+      align: 'center',
       render: (_, record) => (
         <Space size="small">
           {record.status === 'pending' && (
@@ -388,122 +538,107 @@ const CourseList: React.FC = () => {
     },
   ];
 
-  return (
-    <div className="p-6">
-      {/* Header Section */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-800">Quản lý Khóa học</h2>
-          <p className="text-gray-500 mt-2">Tạo và quản lý các khóa học của bạn trên EduPro</p>
+  if (loading && courses.length === 0) {
+    return (
+      <div className={styles.userPageContainer}>
+        <div className={styles.loadingContainer}>
+          <Spin size="large" />
+          <Text style={{ marginTop: 16 }}>Đang tải dữ liệu...</Text>
         </div>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />}
-          onClick={() => navigate('/instructor/courses/add')}
-          size="large"
-          className="bg-[#1a73e8] hover:bg-[#1557b0]"
-        >
-          Tạo khóa học mới
-        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.userPageContainer}>
+      {/* Page Header */}
+      <div className={styles.pageHeader}>
+        <div className={styles.headerLeft}>
+          <Title level={2} className={styles.pageTitle}>
+            <TrophyOutlined className={styles.titleIcon} />
+            Quản lý Khóa học
+          </Title>
+          <Paragraph className={styles.pageSubtitle}>
+            Tạo và quản lý các khóa học của bạn trên EduPro
+          </Paragraph>
+        </div>
+        <div className={styles.headerRight}>
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/instructor/courses/add')}
+            className={styles.addUserBtn}
+          >
+            Tạo khóa học mới
+          </Button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <Row gutter={[24, 24]} className="mb-8">
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-all border-none">
-            <Statistic
-              title="Tổng số khóa học"
-              value={stats.totalCourses}
-              prefix={<BookOutlined className="text-[#1a73e8]" />}
-              valueStyle={{ color: '#1a73e8' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-all border-none">
-            <Statistic
-              title="Khóa học miễn phí"
-              value={stats.freeCourses}
-              prefix={<BookOutlined className="text-[#34a853]" />}
-              valueStyle={{ color: '#34a853' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-all border-none">
-            <Statistic
-              title="Khóa học tính phí"
-              value={stats.paidCourses}
-              prefix={<DollarOutlined className="text-[#fbbc05]" />}
-              valueStyle={{ color: '#fbbc05' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="shadow-sm hover:shadow-md transition-all border-none">
-            <Statistic
-              title="Tổng học viên"
-              value={stats.totalStudents}
-              prefix={<UserOutlined className="text-[#ea4335]" />}
-              valueStyle={{ color: '#ea4335' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {/* Statistics Cards */}
+      <StatCards courseStats={courseStats} />
 
-      {/* Search and Filter Card */}
-      <Card className="shadow-sm mb-8 border-none">
-        <Space className="w-full flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <Search
-            placeholder="Tìm kiếm khóa học..."
-            onSearch={handleSearch}
-            onChange={(e) => handleSearch(e.target.value)}
-            style={{ width: 320 }}
-            allowClear
-            className="text-base"
-          />
-          <Select
-            value={filterType}
-            onChange={handleFilterChange}
-            options={[
-              { value: "all", label: "Tất cả khóa học" },
-              { value: "free", label: "Khóa học miễn phí" },
-              { value: "paid", label: "Khóa học tính phí" },
-            ]}
-            style={{ width: 200 }}
-            className="text-base"
-          />
-        </Space>
-      </Card>
+      {/* Filter Section */}
+      <FilterSection
+        searchInput={searchInput}
+        setSearchInput={setSearchInput}
+        setSearch={setSearch}
+        selectedFilter={selectedFilter}
+        setSelectedFilter={setSelectedFilter}
+        search={search}
+      />
 
       {/* Course List Table */}
-      <Card className="shadow-sm border-none">
+      <Card className={styles.userTableCard} bordered={false}>
+        <div className={styles.tableHeader}>
+          <div className={styles.tableTitleSection}>
+            <BookOutlined className={styles.tableIcon} />
+            <Title level={4} className={styles.tableTitle}>
+              Danh sách khóa học
+            </Title>
+            <Badge count={filteredCourses.length} className={styles.userCountBadge} />
+          </div>
+          <div className={styles.tableActions}>
+            <Text type="secondary">
+              Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, filteredCourses.length)} của {filteredCourses.length} khóa học
+            </Text>
+          </div>
+        </div>
+        
         <Table
           columns={columns}
-          dataSource={paginatedCourses}
+          dataSource={filteredCourses}
           rowKey="id"
           loading={loading}
-          pagination={false}
-          className="course-table"
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: filteredCourses.length,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} khóa học`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            size: 'small',
+            onChange: (page, newPageSize) => {
+              setCurrentPage(page);
+              if (newPageSize) {
+                setPageSize(newPageSize);
+              }
+            }
+          }}
+          className={styles.userTable}
+          scroll={{ x: 900 }}
+          size="small"
         />
-        
-        {/* Pagination */}
-        <div className="mt-6 text-center">
-          <Pagination
-            current={currentPage}
-            pageSize={PAGE_SIZE}
-            total={filteredCourses.length}
-            onChange={(page) => setCurrentPage(page)}
-            showSizeChanger={false}
-            showTotal={(total) => `Tổng số ${total} khóa học`}
-            className="custom-pagination"
-          />
-        </div>
       </Card>
 
       {/* Modal từ chối khóa học */}
       <Modal
-        title="Từ chối khóa học"
+        title={
+          <div className={styles.modalTitle}>
+            <ExclamationCircleOutlined className={styles.modalIcon} />
+            Từ chối khóa học
+          </div>
+        }
         open={rejectModalVisible}
         onCancel={() => {
           setRejectModalVisible(false);
@@ -512,11 +647,13 @@ const CourseList: React.FC = () => {
         }}
         footer={null}
         width={500}
+        className={styles.userModal}
       >
         <Form
           form={rejectForm}
           layout="vertical"
           onFinish={handleRejectSubmit}
+          className={styles.userForm}
         >
           <Form.Item
             label="Lý do từ chối"
@@ -525,12 +662,14 @@ const CourseList: React.FC = () => {
               { required: true, message: 'Vui lòng nhập lý do từ chối!' },
               { min: 10, message: 'Lý do từ chối phải có ít nhất 10 ký tự!' }
             ]}
+            className={styles.formItem}
           >
             <Input.TextArea
               rows={4}
               placeholder="Nhập lý do từ chối khóa học..."
               maxLength={500}
               showCount
+              className={styles.input}
             />
           </Form.Item>
           
@@ -558,26 +697,7 @@ const CourseList: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* Custom styles */}
-      <style>
-        {`
-          .course-table .ant-table-thead > tr > th {
-            background: #fafafa;
-            font-weight: 600;
-            color: #262626;
-          }
-          .course-table .ant-table-tbody > tr:hover > td {
-            background: #f5f5f5;
-          }
-          .custom-pagination .ant-pagination-item-active {
-            background-color: #1a73e8;
-            border-color: #1a73e8;
-          }
-          .custom-pagination .ant-pagination-item-active a {
-            color: white;
-          }
-        `}
-      </style>
+
     </div>
   );
 };

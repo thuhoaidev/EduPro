@@ -82,6 +82,74 @@ exports.auth = async (req, res, next) => {
   }
 };
 
+// Middleware xác thực tùy chọn - cho phép route hoạt động mà không cần authentication
+exports.optionalAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // Không có token, tiếp tục với req.user = null
+      req.user = null;
+      return next();
+    }
+
+    const token = authHeader.split(' ')[1];
+    if (!token || token.trim() === '' || token.split('.').length !== 3) {
+      // Token không hợp lệ, tiếp tục với req.user = null
+      req.user = null;
+      return next();
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id || decoded._id || decoded.sub).populate('role_id');
+
+      if (!user) {
+        req.user = null;
+        return next();
+      }
+
+      let roles = user.roles || [];
+      if (user.isInstructor) {
+        roles.push('instructor');
+      }
+      if (user.role_id && user.role_id.name) {
+        roles.push(user.role_id.name);
+      }
+      if (roles.length === 0) {
+        roles = ['guest'];
+      }
+
+      req.user = {
+        ...user.toObject(),
+        _id: user._id,
+        roles: [...new Set(roles)],
+        id: user._id.toString(),
+        userRoleName: roles.includes('admin') ? 'admin'
+                      : roles.includes('instructor') ? 'instructor'
+                      : roles.includes('student') ? 'student' : 'guest',
+        role_id: user.role_id,
+      };
+
+      console.log('✅ Optional auth - Authenticated user:', {
+        id: req.user.id,
+        roles: req.user.roles,
+        userRoleName: req.user.userRoleName,
+      });
+    } catch (error) {
+      // Token không hợp lệ, tiếp tục với req.user = null
+      console.log('⚠️ Optional auth - Invalid token, continuing as guest');
+      req.user = null;
+    }
+
+    next();
+  } catch (error) {
+    console.error('Optional auth error:', error);
+    req.user = null;
+    next();
+  }
+};
+
 // Middleware kiểm tra quyền
 exports.checkPermission = (requiredPermission) => {
   return async (req, res, next) => {

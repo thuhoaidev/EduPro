@@ -73,7 +73,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgres
         try {
             await config.post(`/courses/${course._id || course.id}/enroll`);
             alert('Đăng ký học thành công!');
-            window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`;
+            window.location.href = course.slug ? `/courses/${course.slug}` : `/courses/id/${course._id || course.id}`;
         } catch (error: any) {
             alert(error.response?.data?.message || 'Có lỗi xảy ra khi đăng ký học!');
         }
@@ -121,7 +121,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgres
             whileHover={{ y: -8, scale: 1.03, boxShadow: '0 12px 32px 0 rgba(56,189,248,0.12)' }}
             transition={{ duration: 0.3 }}
         >
-            <Link to={isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`} className={styles.cardLink}>
+            <Link to={course.slug ? `/courses/${course.slug}` : `/courses/id/${course._id || course.id}`} className={styles.cardLink}>
                 <div className={styles.imageContainer} style={{ borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden', position: 'relative' }}>
                     <img alt={course.title} src={course.Image} className={styles.cardImage} style={{ borderTopLeftRadius: 20, borderTopRightRadius: 20 }} />
                     <div className={styles.imageOverlay} style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 60%)', borderTopLeftRadius: 20, borderTopRightRadius: 20 }}></div>
@@ -187,7 +187,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgres
                                         type="button" 
                                         onClick={e => {
                                             e.preventDefault();
-                                            window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`;
+                                            window.location.href = course.slug ? `/courses/${course.slug}` : `/courses/id/${course._id || course.id}`;
                                         }}
                                         style={{ background: '#22c55e', color: '#fff' }}
                                     >
@@ -202,7 +202,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgres
                                             if (continueLessonId) {
                                                 navigate(`/lessons/${continueLessonId}/video`);
                                             } else {
-                                                window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`; 
+                                                window.location.href = course.slug ? `/courses/${course.slug}` : `/courses/id/${course._id || course.id}`; 
                                             }
                                         }}
                                     >

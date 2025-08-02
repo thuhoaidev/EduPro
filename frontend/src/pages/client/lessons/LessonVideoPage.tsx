@@ -9,6 +9,7 @@ import {
 import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress, markCourseCompleted } from '../../../services/progressService';
 import { getComments, addComment, replyComment } from '../../../services/lessonCommentService';
 import { getNotesByLesson, createNote, deleteNote, updateNote, type Note } from '../../../services/noteService';
+
 import SectionSidebar from './SectionSidebar';
 import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
@@ -78,6 +79,8 @@ const LessonVideoPage: React.FC = () => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [courseOverview, setCourseOverview] = useState<{ title: string; subtitle: string; requirements: string[] }>({ title: '', subtitle: '', requirements: [] });
 
+
+
   // Thêm các state cho like/reply comment
   const [likeStates, setLikeStates] = useState<{ [commentId: string]: { liked: boolean; count: number } }>({});
   const [replyInput, setReplyInput] = useState<{ [commentId: string]: string }>({});
@@ -85,6 +88,10 @@ const LessonVideoPage: React.FC = () => {
   const [replyLoading, setReplyLoading] = useState<{ [commentId: string]: boolean }>({});
   // Thêm loading cho like comment
   const [likeLoading, setLikeLoading] = useState<{ [commentId: string]: boolean }>({});
+
+  // Certificate states
+  const [certificate, setCertificate] = useState<any>(null);
+  const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
 
   // Debounce function để tránh gọi API liên tục
   const debouncedUpdateProgress = useCallback((courseId: string, lessonId: string, time: number, duration: number) => {
@@ -142,14 +149,10 @@ const LessonVideoPage: React.FC = () => {
       const progressRatio = video.currentTime / video.duration;
       setVideoProgress(progressRatio);
 
-      // Debug log
-      if (video.currentTime % 10 < 0.1) { // Log mỗi 10 giây
-        console.log('Video progress:', { currentTime: video.currentTime, duration: video.duration, ratio: progressRatio });
-      }
+
 
       // Đánh dấu đã xem hết video khi đạt 90%
       if (progressRatio >= 0.9 && !videoWatched) {
-        console.log('Video watched 90%, marking as completed');
         updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration).catch(e => console.error("Failed to update progress", e));
         setVideoWatched(true);
       }
@@ -162,8 +165,7 @@ const LessonVideoPage: React.FC = () => {
     if (courseId && lessonId) {
       getVideoProgress(courseId, lessonId)
         .then(progress => {
-          console.log('Loaded video progress:', progress);
-          if (progress && progress.watchedSeconds && progress.watchedSeconds > 0) {
+                  if (progress && progress.watchedSeconds && progress.watchedSeconds > 0) {
             setSavedVideoTime(progress.watchedSeconds);
             // Cũng cập nhật videoProgress UI nếu có
             const progressData = progress as any;
@@ -191,7 +193,6 @@ const LessonVideoPage: React.FC = () => {
   const handleVideoLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     const video = e.currentTarget;
     if (video && savedVideoTime > 0) {
-      console.log('Setting video time to:', savedVideoTime);
       video.currentTime = savedVideoTime;
     }
   };
@@ -203,7 +204,6 @@ const LessonVideoPage: React.FC = () => {
       const timer = setTimeout(() => {
         const videoElement = document.querySelector('video');
         if (videoElement && videoElement.readyState >= 1) {
-          console.log('Setting video time from useEffect:', savedVideoTime);
           videoElement.currentTime = savedVideoTime;
         }
       }, 100);
@@ -226,7 +226,6 @@ const LessonVideoPage: React.FC = () => {
     }
 
     if (courseId && currentLessonId && video) {
-      console.log('Video ended, updating final progress');
       updateVideoProgress(courseId, currentLessonId, video.duration, video.duration)
         .catch(e => console.error("Failed to update final progress", e));
       // Đảm bảo cập nhật videoCompleted: true vào progress
@@ -234,7 +233,15 @@ const LessonVideoPage: React.FC = () => {
         watchedSeconds: video.duration,
         videoDuration: video.duration,
         videoCompleted: true
-      } as any).catch(e => console.error("Failed to set videoCompleted", e));
+      } as any).then(async () => {
+        // Reload progress sau khi cập nhật
+        try {
+          const progressData = await getProgress(courseId);
+          setProgress(progressData || {});
+        } catch (e) {
+          console.error("Failed to reload progress", e);
+        }
+      }).catch(e => console.error("Failed to set videoCompleted", e));
     }
     // Nếu có quiz thì tự động chuyển sang tab quiz
     if (quiz) {
@@ -248,32 +255,68 @@ const LessonVideoPage: React.FC = () => {
     const fetchLessonVideo = async () => {
       try {
         setLoading(true);
-        // Lấy video
-        const videoRes = await config.get(`/videos/lesson/${lessonId}`);
-        setVideoUrl(videoRes.data.data.url);
-        setVideoId(videoRes.data.data._id || videoRes.data.data.id || null);
+        setError(null); // Reset error state
+        
+        if (!lessonId) {
+          setError('ID bài học không hợp lệ.');
+        } else {
+          // Lấy video
+          const videoRes = await config.get(`/videos/lesson/${lessonId}`);
+          if (videoRes.data && videoRes.data.data) {
+            setVideoUrl(videoRes.data.data.url);
+            setVideoId(videoRes.data.data._id || videoRes.data.data.id || null);
+            
+            // Lấy tên bài học từ lesson
+            const lessonRes = await config.get(`/lessons/${lessonId}`);
+            if (lessonRes.data && lessonRes.data.data) {
+              setLessonTitle(lessonRes.data.data.title || 'Bài học');
+            }
+          } else {
+            setError('Không tìm thấy video cho bài học này.');
+          }
+        }
+        
         // Lấy tên bài học từ lesson
         const lessonRes = await config.get(`/lessons/${lessonId}`);
-        setLessonTitle(lessonRes.data.data.title || '');
-      } catch (e) {
-        setError('Không tìm thấy video cho bài học này.');
+        if (lessonRes.data && lessonRes.data.data) {
+          setLessonTitle(lessonRes.data.data.title || 'Bài học');
+        }
+      } catch (e: any) {
+        console.error('Error fetching lesson video:', e);
+        const errorMessage = e?.response?.data?.message || e?.message || 'Không tìm thấy video cho bài học này.';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
     };
-    fetchLessonVideo();
+    
+    if (lessonId) {
+      fetchLessonVideo();
+    } else {
+      setError('ID bài học không hợp lệ.');
+      setLoading(false);
+    }
   }, [lessonId]);
 
   useEffect(() => {
-    if (!lessonId) return;
+    if (!lessonId) {
+      setComments([]);
+      setCommentLoading(false);
+      return;
+    }
+    
     (async () => {
       try {
         setCommentLoading(true);
         const commentsData = await getComments(lessonId);
         setComments(commentsData || []);
-      } catch (e) { }
-      setCommentLoading(false);
-    })().catch(() => { });
+      } catch (e) {
+        console.error('Error loading comments:', e);
+        setComments([]);
+      } finally {
+        setCommentLoading(false);
+      }
+    })();
   }, [lessonId]);
 
   useEffect(() => {
@@ -290,6 +333,29 @@ const LessonVideoPage: React.FC = () => {
   useEffect(() => {
     setCurrentLessonId(lessonId || null);
   }, [lessonId]);
+
+  // Reload progress khi chuyển bài học
+  useEffect(() => {
+    if (courseId && lessonId) {
+      reloadProgress();
+    }
+  }, [courseId, lessonId]);
+
+  // Force reload progress sau khi hoàn thành quiz hoặc video
+  useEffect(() => {
+    if (quizCompleted || videoWatched) {
+      setTimeout(() => {
+        reloadProgress();
+      }, 1000); // Delay 1 giây để đảm bảo backend đã cập nhật
+    }
+  }, [quizCompleted, videoWatched]);
+
+  // Reload progress khi component mount
+  useEffect(() => {
+    if (courseId) {
+      reloadProgress();
+    }
+  }, [courseId]);
 
 
   useEffect(() => {
@@ -317,7 +383,13 @@ const LessonVideoPage: React.FC = () => {
   }, [lessonId]);
 
   useEffect(() => {
-    if (!courseId) return;
+    if (!courseId) {
+      setProgress({ completedLessons: [] });
+      setUnlockedLessons([]);
+      setIsFree(false);
+      return;
+    }
+    
     (async () => {
       try {
         const progressData = await getProgress(courseId);
@@ -336,13 +408,43 @@ const LessonVideoPage: React.FC = () => {
           setIsFree(false);
         }
       } catch (e) {
+        console.error('Error loading course data:', e);
+        setProgress({ completedLessons: [] });
+        setUnlockedLessons([]);
         setIsFree(false);
       }
-    })().catch(() => { });
+    })();
   }, [courseId, lessonId]);
 
+  // Thêm useEffect để reload progress khi có thay đổi
   useEffect(() => {
-    if (!videoId) return;
+    if (!courseId) return;
+    const reloadProgress = async () => {
+      try {
+        const progressData = await getProgress(courseId);
+        setProgress(progressData || {});
+        const unlocked = await getUnlockedLessons(courseId);
+        setUnlockedLessons(unlocked || []);
+      } catch (e) {
+        console.error('Error reloading progress:', e);
+      }
+    };
+    
+    // Reload progress sau khi hoàn thành quiz hoặc video
+    if (quizCompleted || videoWatched) {
+      reloadProgress();
+    }
+  }, [courseId, quizCompleted, videoWatched]);
+
+  useEffect(() => {
+    if (!videoId) {
+      setQuiz(null);
+      setQuizLoading(false);
+      setQuizError(null);
+      setAnswers([]);
+      return;
+    }
+    
     const fetchQuiz = async () => {
       try {
         setQuizLoading(true);
@@ -351,6 +453,8 @@ const LessonVideoPage: React.FC = () => {
         setQuiz(res.data.data);
         setAnswers(new Array(res.data.data.questions.length).fill(-1));
       } catch (e) {
+        console.error('Error loading quiz:', e);
+        setQuiz(null);
         setQuizError(e instanceof Error ? e.message : 'Không tìm thấy quiz cho video này.');
       } finally {
         setQuizLoading(false);
@@ -393,8 +497,6 @@ const LessonVideoPage: React.FC = () => {
       const lessonKey = String(currentLessonId);
       const prevAnswers = progress && progress[lessonKey] && progress[lessonKey].quizAnswers;
       const quizPassed = progress && progress[lessonKey] && progress[lessonKey].quizPassed;
-      // Log debug
-      console.log('progress:', progress, 'lessonKey:', lessonKey, 'prevAnswers:', prevAnswers, 'quizPassed:', quizPassed, 'quiz:', quiz, 'quizLen:', quiz.questions.length);
       if (Array.isArray(prevAnswers) && prevAnswers.length === quiz.questions.length) {
         setQuizAnswers(prevAnswers);
         // Tự động chấm lại quizResult khi reload
@@ -419,6 +521,21 @@ const LessonVideoPage: React.FC = () => {
   // Hàm kiểm tra bài học có được mở không
   const canAccessLesson = (lessonId: string) => {
     return unlockedLessons.map(String).includes(String(lessonId));
+  };
+
+  // Hàm reload progress
+  const reloadProgress = async () => {
+    if (!courseId) return;
+    try {
+      const [progressData, unlocked] = await Promise.all([
+        getProgress(courseId),
+        getUnlockedLessons(courseId)
+      ]);
+      setProgress(progressData || {});
+      setUnlockedLessons(unlocked || []);
+    } catch (e) {
+      console.error('Error reloading progress:', e);
+    }
   };
 
   // Hàm gửi bình luận
@@ -468,7 +585,12 @@ const LessonVideoPage: React.FC = () => {
         });
 
         if (res.data.success) {
-          const unlocked = await getUnlockedLessons(courseId);
+          // Reload progress và unlocked lessons
+          const [progressData, unlocked] = await Promise.all([
+            getProgress(courseId),
+            getUnlockedLessons(courseId)
+          ]);
+          setProgress(progressData || {});
           setUnlockedLessons(unlocked || []);
           message.success('Bạn đã hoàn thành bài học, bài tiếp theo sẽ được mở...');
           goToNextLesson(); // <-- Tự động chuyển sang bài tiếp theo khi quiz đạt
@@ -544,21 +666,17 @@ const LessonVideoPage: React.FC = () => {
 
       try {
         const progress = await getProgress(courseId);
-        console.log('Progress data:', progress);
 
         // Tính tổng số bài học từ courseContent
         const totalLessons = courseSections.reduce((total, section) => total + section.lessons.length, 0);
-        console.log('Total lessons:', totalLessons);
 
         // Đếm số bài học đã hoàn thành
         const completedLessons = Object.values(progress || {}).filter((p: any) =>
           p.completed === true && p.videoCompleted === true && p.quizPassed === true
         ).length;
-        console.log('Completed lessons:', completedLessons);
 
         // Kiểm tra hoàn thành
         const allCompleted = totalLessons > 0 && completedLessons === totalLessons;
-        console.log('All completed:', allCompleted);
 
         setIsCompleted(allCompleted);
 
@@ -587,10 +705,8 @@ const LessonVideoPage: React.FC = () => {
     checkCompleted();
   }, [courseSections, courseId]);
 
-  // Nếu chưa enroll và không phải khóa học free
-  if (isEnrolled === false && !isFree) {
-    return <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />;
-  }
+  // Kiểm tra điều kiện enroll sau khi tất cả hooks đã được gọi
+  const shouldShowEnrollmentAlert = isEnrolled === false && !isFree;
 
   // Hàm load like state cho tất cả comment và reply
   const loadLikeStates = async (comments: any[]) => {
@@ -703,7 +819,11 @@ const LessonVideoPage: React.FC = () => {
               borderBottom: '1px solid #f0f0f0',
               background: 'transparent'
             }}>
-              <Avatar src={reply.user?.avatar} size={24} style={{ marginRight: 8, marginTop: 2, background: '#e6f7ff', color: '#1890ff' }} />
+              <Avatar 
+                src={reply.user?.avatar && reply.user.avatar !== 'default-avatar.jpg' && reply.user.avatar !== '' && (reply.user.avatar.includes('googleusercontent.com') || reply.user.avatar.startsWith('http')) ? reply.user.avatar : undefined} 
+                size={24} 
+                style={{ marginRight: 8, marginTop: 2, background: '#e6f7ff', color: '#1890ff' }} 
+              />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{reply.user?.fullname || reply.user?.name || 'Anonymous'}</div>
                 <div style={{ fontSize: 14, color: '#444', margin: '2px 0 4px 0' }}>{reply.content}</div>
@@ -1063,6 +1183,8 @@ const LessonVideoPage: React.FC = () => {
     setIsLoadingCertificate(false);
   };
 
+
+
   // Render danh sách bình luận chuyên nghiệp hơn
   const renderCommentItem = (item: any) => (
     <div style={{
@@ -1074,7 +1196,12 @@ const LessonVideoPage: React.FC = () => {
       background: '#fff',
       borderRadius: 12
     }}>
-      <Avatar src={item.user?.avatar} icon={<UserOutlined />} size={44} style={{ background: '#e6f7ff', color: '#1890ff', marginRight: 18, marginTop: 2 }} />
+      <Avatar 
+        src={item.user?.avatar && item.user.avatar !== 'default-avatar.jpg' && item.user.avatar !== '' && (item.user.avatar.includes('googleusercontent.com') || item.user.avatar.startsWith('http')) ? item.user.avatar : undefined} 
+        icon={<UserOutlined />} 
+        size={44} 
+        style={{ background: '#e6f7ff', color: '#1890ff', marginRight: 18, marginTop: 2 }} 
+      />
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
           <span style={{ fontWeight: 700, fontSize: 17, color: '#222' }}>{item.user?.fullname || item.user?.name || 'Anonymous'}</span>
@@ -1126,10 +1253,15 @@ const LessonVideoPage: React.FC = () => {
       </div>
     </div>
   );
-  const [certificate, setCertificate] = useState<any>(null);
-  const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
+
   const cloudName = 'dxsilzscb';
   const publicId = 'edupor/videos/ovyuqhtkjutcgcdrfage';
+
+  // Hiển thị thông báo enroll nếu cần
+  if (shouldShowEnrollmentAlert) {
+    return <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />;
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
       <div style={{
@@ -1183,6 +1315,8 @@ const LessonVideoPage: React.FC = () => {
           <div className="flex justify-center items-center min-h-screen"><Spin size="large" /></div>
         ) : error ? (
           <Alert message="Lỗi" description={error} type="error" showIcon style={{ margin: 32 }} />
+        ) : isEnrolled === false && !isFree ? (
+          <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />
         ) : (
           <>
             <Divider style={{ margin: '12px 0 24px 0' }} />
@@ -1206,20 +1340,70 @@ const LessonVideoPage: React.FC = () => {
                     >
                       Trình duyệt không hỗ trợ video tag.
                     </video> */}
-                    <CustomVideoPlayer
-                      sources={{
-                        '360p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_640,h_360,c_limit/${publicId}.mp4`,
-                        '720p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1280,h_720,c_limit/${publicId}.mp4`,
-                        '1080p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1920,h_1080,c_limit/${publicId}.mp4`,
-                      }}
-                      onTimeUpdate={handleVideoTimeUpdate}
-                      onEnded={handleVideoEnded}
-                      onLoadedMetadata={handleVideoLoadedMetadata}
-                      onPlay={() => setIsVideoPlaying(true)}
-                      onPause={() => setIsVideoPlaying(false)}
-                      initialTime={savedVideoTime}
-                      isLessonCompleted={!!progress && !!currentLessonId && (progress[currentLessonId]?.completed === true || progress[currentLessonId]?.videoCompleted === true)}
-                    />
+                    {(() => {
+                      // Extract cloudName and publicId from videoUrl
+                      let cloudName = '';
+                      let publicId = '';
+                      
+                      if (videoUrl) {
+                        try {
+                          const url = new URL(videoUrl);
+                          const pathParts = url.pathname.split('/');
+                          
+                          // For Cloudinary URLs: https://res.cloudinary.com/[cloudName]/video/upload/...
+                          if (url.hostname === 'res.cloudinary.com' && pathParts.length >= 3) {
+                            cloudName = pathParts[1];
+                            // Find the public_id (usually after 'upload/')
+                            const uploadIndex = pathParts.indexOf('upload');
+                            if (uploadIndex !== -1 && uploadIndex + 1 < pathParts.length) {
+                              publicId = pathParts.slice(uploadIndex + 1).join('/').replace(/\.[^/.]+$/, ''); // Remove extension
+                            }
+                          }
+                        } catch (e) {
+                          console.error('Error parsing video URL:', e);
+                        }
+                      }
+                      
+                      // If we have cloudName and publicId, use CustomVideoPlayer with multiple qualities
+                      if (cloudName && publicId) {
+                        return (
+                          <CustomVideoPlayer
+                            sources={{
+                              '360p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_640,h_360,c_limit/${publicId}.mp4`,
+                              '720p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1280,h_720,c_limit/${publicId}.mp4`,
+                              '1080p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1920,h_1080,c_limit/${publicId}.mp4`,
+                            }}
+                            onTimeUpdate={handleVideoTimeUpdate}
+                            onEnded={handleVideoEnded}
+                            onLoadedMetadata={handleVideoLoadedMetadata}
+                            onPlay={() => setIsVideoPlaying(true)}
+                            onPause={() => setIsVideoPlaying(false)}
+                            initialTime={savedVideoTime}
+                            isLessonCompleted={!!progress && !!currentLessonId && (progress[currentLessonId]?.completed === true || progress[currentLessonId]?.videoCompleted === true)}
+                          />
+                        );
+                      } else {
+                        // Fallback to regular video element if not Cloudinary or parsing failed
+                        return (
+                          <video
+                            ref={videoRef}
+                            key={videoUrl}
+                            src={videoUrl}
+                            controls
+                            controlsList="nodownload noplaybackrate"
+                            onContextMenu={(e) => e.preventDefault()}
+                            style={{ width: '100%', borderRadius: 0, background: '#000', display: 'block', maxHeight: 480 }}
+                            onTimeUpdate={handleVideoTimeUpdate}
+                            onEnded={handleVideoEnded}
+                            onLoadedMetadata={handleVideoLoadedMetadata}
+                            onPlay={() => setIsVideoPlaying(true)}
+                            onPause={() => setIsVideoPlaying(false)}
+                          >
+                            Trình duyệt không hỗ trợ video tag.
+                          </video>
+                        );
+                      }
+                    })()}
 
 
                     {videoWatched && !quiz && (
@@ -1877,6 +2061,10 @@ const LessonVideoPage: React.FC = () => {
           placeholder="Nhập lý do báo cáo..."
         />
       </Modal>
+
+
+
+
     </div>
   );
 };

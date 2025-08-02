@@ -26,6 +26,7 @@ export interface Voucher {
   isValid?: boolean;
   status?: 'available' | 'unavailable';
   statusMessage?: string;
+  type?: string; // Add the missing type property
 }
 
 export interface CreateVoucherData {

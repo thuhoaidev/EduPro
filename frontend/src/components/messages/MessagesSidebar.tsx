@@ -47,7 +47,7 @@ const MessagesSidebar: React.FC<MessagesSidebarProps> = ({ selectedUserId, onUse
       console.log('Conversations response:', response.data);
       return response.data.data || [];
     },
-    refetchInterval: 5000 // Refresh mỗi 5 giây để cập nhật tin nhắn mới
+    refetchInterval: 30000 // Refresh mỗi 30 giây thay vì 5 giây để giảm tải backend
   });
 
   useEffect(() => {

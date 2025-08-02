@@ -2,7 +2,7 @@ import { Table, Button, Tag, Space, message, Input, Card, Row, Col, Statistic, P
 import type { ColumnsType } from "antd/es/table";
 import { useState, useEffect } from "react";
 import { CheckCircleOutlined, EyeInvisibleOutlined } from "@ant-design/icons";
-import { fetchPendingBlogs, updateBlogStatus } from "../../../services/blogModerationService";
+import { fetchBlogs, updateBlogStatus } from "../../../services/blogModerationService";
 
 export interface BlogPost {
   _id: string;
@@ -24,6 +24,7 @@ const BlogModeration = () => {
   const pending = blogs.filter(b => b.status === "pending").length;
   const approved = blogs.filter(b => b.status === "approved").length;
   const hidden = blogs.filter(b => b.status === "hidden").length;
+  const rejected = blogs.filter(b => b.status === "rejected").length;
 
   const filteredBlogs = blogs.filter(blog =>
     blog.title.toLowerCase().includes(searchText.toLowerCase())
@@ -32,9 +33,12 @@ const BlogModeration = () => {
   const getBlogs = async () => {
     setLoading(true);
     try {
-      const res = await fetchPendingBlogs();
+      const res = await fetchBlogs();
       console.log("API response:", res.data.data);
       setBlogs(res.data.data);
+    } catch (error) {
+      console.error("Error fetching blogs:", error);
+      message.error("Không thể tải danh sách bài viết!");
     } finally {
       setLoading(false);
     }
@@ -109,10 +113,21 @@ const BlogModeration = () => {
       align: "center",
       render: (status) => {
         let color = "default";
-        if (status === "approved") color = "green";
-        else if (status === "pending") color = "orange";
-        else if (status === "hidden") color = "red";
-        return <Tag color={color} style={{ margin: 0 }}>{status.toUpperCase()}</Tag>;
+        let text = status.toUpperCase();
+        if (status === "approved") {
+          color = "green";
+          text = "ĐÃ DUYỆT";
+        } else if (status === "pending") {
+          color = "orange";
+          text = "CHỜ DUYỆT";
+        } else if (status === "hidden") {
+          color = "red";
+          text = "ĐÃ ẨN";
+        } else if (status === "rejected") {
+          color = "red";
+          text = "TỪ CHỐI";
+        }
+        return <Tag color={color} style={{ margin: 0 }}>{text}</Tag>;
       },
     },
     {
@@ -131,7 +146,9 @@ const BlogModeration = () => {
                 type="primary"
                 size="small"
                 icon={<CheckCircleOutlined />}
-              />
+              >
+                {record.status === "rejected" ? "Duyệt lại" : "Duyệt"}
+              </Button>
             </Popconfirm>
           )}
           {record.status !== "rejected" && (
@@ -152,16 +169,19 @@ const BlogModeration = () => {
     <div>
       <h2 className="text-xl font-semibold mb-4">Duyệt bài viết Blog</h2>
       <Row gutter={[16, 16]} className="mb-4">
-        <Col xs={12} sm={6}>
+        <Col xs={12} sm={6} md={4}>
           <Card><Statistic title="Tổng số bài viết" value={total} /></Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col xs={12} sm={6} md={4}>
           <Card><Statistic title="Chờ duyệt" value={pending} valueStyle={{ color: '#faad14' }} /></Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col xs={12} sm={6} md={4}>
           <Card><Statistic title="Đã duyệt" value={approved} valueStyle={{ color: '#52c41a' }} /></Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col xs={12} sm={6} md={4}>
+          <Card><Statistic title="Từ chối" value={rejected} valueStyle={{ color: '#ff4d4f' }} /></Card>
+        </Col>
+        <Col xs={12} sm={6} md={4}>
           <Card><Statistic title="Đã ẩn" value={hidden} valueStyle={{ color: '#ff4d4f' }} /></Card>
         </Col>
       </Row>
@@ -177,7 +197,8 @@ const BlogModeration = () => {
         rowKey="_id"
         columns={columns}
         dataSource={filteredBlogs}
-        pagination={{ pageSize: 5 }}
+        pagination={{ pageSize: 10, showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} bài viết` }}
+        loading={loading}
         className="users-table"
       />
       <Modal

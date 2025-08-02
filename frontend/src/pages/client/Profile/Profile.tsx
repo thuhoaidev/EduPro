@@ -4,11 +4,16 @@ import { motion } from "framer-motion";
 import { config } from "../../../api/axios";
 import { formatDistanceToNow, format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Progress } from 'antd';
 import { ArrowRightOutlined } from '@ant-design/icons';
 import { courseService, getCourseById } from '../../../services/courseService';
 import { getProgress } from '../../../services/progressService';
+import { debugAvatar, forceRefreshUser as debugForceRefreshUser } from '../../../utils/debugUserData';
+import { testAvatarLoading } from '../../../utils/testAvatarLoading';
+import { clearCacheAndRefresh } from '../../../utils/clearCacheAndRefresh';
+import { testAllAvatarFunctions } from '../../../utils/testAllAvatarFunctions';
+import { autoFixAvatar } from '../../../utils/autoFixAvatar';
 
 interface User {
   id: number;
@@ -65,13 +70,49 @@ const Profile = () => {
   const [courseSectionsMap, setCourseSectionsMap] = useState<Record<string, any[]>>({});
   const [courseProgressMap, setCourseProgressMap] = useState<Record<string, any>>({});
   const navigate = useNavigate();
+  const location = useLocation();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [lastLocationKey, setLastLocationKey] = useState(location.key);
+
+  // Force refresh user data khi cần thiết
+  const forceRefreshUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Profile: Fresh user data from API:', data.user);
+
+        // Cập nhật localStorage
+        localStorage.setItem('user', JSON.stringify(data.user));
+
+        // Cập nhật state
+        setUser(data.user);
+
+        // Trigger event
+        window.dispatchEvent(new CustomEvent('user-updated', { detail: { user: data.user } }));
+      }
+    } catch (error) {
+      console.error('Profile: Error refreshing user data:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
+        setLoading(true);
         const response = await config.get('/users/me');
         setUser(response.data.data);
         setError(null);
+        console.log('Fetched user data:', response.data.data);
+        console.log('User bio:', response.data.data.bio);
       } catch (error: unknown) {
         console.error('Error fetching user profile:', error);
         let errorMessage = 'Không thể tải thông tin người dùng';
@@ -100,6 +141,90 @@ const Profile = () => {
 
     fetchUserProfile();
     fetchEnrolledCourses();
+    // Nếu có ?refresh=1 thì xóa nó khỏi URL sau khi fetch
+    const urlParams = new URLSearchParams(location.search);
+    if (urlParams.get('refresh') === '1') {
+      urlParams.delete('refresh');
+      const newUrl = location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, [location.search]); // Re-fetch when location changes, refreshKey changes, or location key changes
+
+  // Force refresh when coming back from edit page
+  useEffect(() => {
+    const handleFocus = () => {
+      // Check if we're coming back from edit page
+      if (location.pathname === '/profile') {
+        setRefreshKey(prev => prev + 1);
+      }
+    };
+
+    // Check if we're coming back from edit page via location state
+    if (location.state?.from === 'edit') {
+      setRefreshKey(prev => prev + 1);
+      // Clear the state to prevent infinite refresh
+      window.history.replaceState({}, document.title);
+    }
+
+    // Check if we're coming back from edit page via URL search params
+    const urlParams = new URLSearchParams(location.search);
+    if (urlParams.get('refresh') === 'true') {
+      setRefreshKey(prev => prev + 1);
+      // Remove the refresh parameter from URL
+      const newUrl = location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+
+    // Check if location key changed (indicating navigation)
+    if (location.key !== lastLocationKey) {
+      setLastLocationKey(location.key);
+      // If we're on profile page and location key changed, refresh data
+      if (location.pathname === '/profile') {
+        setRefreshKey(prev => prev + 1);
+      }
+    }
+
+    // Custom event listener để cập nhật user data khi có thay đổi từ Header
+    const handleUserUpdate = (event: CustomEvent) => {
+      console.log('Profile: Received user-updated event', event.detail);
+      if (event.detail && event.detail.user) {
+        setUser(event.detail.user);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('user-updated', handleUserUpdate as EventListener);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('user-updated', handleUserUpdate as EventListener);
+    };
+  }, [location.pathname, location.state, location.search, location.key, lastLocationKey]);
+
+  // Additional refresh trigger when component mounts or location changes
+  useEffect(() => {
+    // Refresh data when component mounts or when we're on profile page
+    if (location.pathname === '/profile') {
+      setRefreshKey(prev => prev + 1);
+    }
+  }, [location.pathname]);
+
+  // Auto refresh user data nếu avatar không hợp lệ
+  useEffect(() => {
+    if (user && user.avatar && !user.avatar.includes('googleusercontent.com') && !user.avatar.startsWith('http')) {
+      console.log('Profile: Invalid avatar detected, refreshing user data...');
+      forceRefreshUser();
+    }
+  }, [user]);
+
+  // Export debug functions to window for console access
+  useEffect(() => {
+    (window as any).debugAvatar = debugAvatar;
+    (window as any).forceRefreshUser = debugForceRefreshUser;
+    (window as any).profileForceRefresh = forceRefreshUser;
+    (window as any).testAvatarLoading = testAvatarLoading;
+    (window as any).clearCacheAndRefresh = clearCacheAndRefresh;
+    (window as any).testAllAvatarFunctions = testAllAvatarFunctions;
+    (window as any).autoFixAvatar = autoFixAvatar;
   }, []);
 
   // Fetch chi tiết từng khóa học để lấy số lượng bài học
@@ -293,7 +418,7 @@ const Profile = () => {
               >
                 <motion.div className="w-36 h-36 rounded-full p-1 bg-gradient-to-tr from-blue-400 via-purple-400 to-pink-400 shadow-xl mx-auto">
                   <img
-                    src={user?.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.fullname || '') + '&background=4f8cff&color=fff&size=256'}
+                    src={user?.avatar && user.avatar !== 'default-avatar.jpg' && user.avatar !== '' && (user.avatar.includes('googleusercontent.com') || user.avatar.startsWith('http')) ? user.avatar : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.fullname || '') + '&background=4f8cff&color=fff&size=256'}
                     alt="avatar"
                     className="w-full h-full rounded-full border-4 border-white object-cover"
                   />
@@ -338,8 +463,8 @@ const Profile = () => {
                 <span className="text-base">{user?.email ?? ''}</span>
               </motion.div>
 
-              {/* Bio Section */}
-              {user?.bio && user?.role?.name !== 'instructor' && (
+              {/* Bio Section - Hiển thị cho tất cả user */}
+              {user?.bio && (
                 <motion.div
                   className="text-center mb-4"
                   initial={{ y: 20, opacity: 0 }}
@@ -402,6 +527,9 @@ const Profile = () => {
                   ) : 'Chưa cập nhật'}</div>
                   <div><b>Kinh nghiệm giảng dạy:</b> {typeof user?.instructorInfo?.experience_years === 'number' ? user.instructorInfo.experience_years : 'Chưa cập nhật'} năm</div>
                   <div><b>Giới thiệu:</b> {user?.instructorInfo?.teaching_experience?.description ? user.instructorInfo.teaching_experience.description : 'Không có mô tả'}</div>
+                  {/* {user?.bio && (
+                    <div><b>Giới thiệu cá nhân:</b> <span className="text-gray-600">{user.bio}</span></div>
+                  )} */}
                 </div>
               </motion.div>
             )}
@@ -458,6 +586,9 @@ const Profile = () => {
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.4 }}
         >
+
+            
+
           {/* Courses Section */}
           <motion.div
             className="bg-white/90 rounded-3xl shadow-2xl p-10 border border-blue-100"
@@ -579,15 +710,13 @@ const Profile = () => {
                           <Progress
                             percent={percent}
                             size="small"
-                            strokeColor={{
-                              '0%': '#4f8cff',
-                              '100%': '#16a34a',
-                            }}
+                            strokeColor={{ '0%': '#4f8cff', '100%': '#16a34a' }}
                             showInfo={false}
                             className="flex-1"
                           />
                           <span className={`font-bold text-lg ${percent === 100 ? 'text-green-600' : 'text-blue-600'}`}>{percent}%</span>
                         </div>
+
                         <div className="text-gray-500 text-sm">
                           {completedCount}/{total} bài học
                         </div>
@@ -597,6 +726,7 @@ const Profile = () => {
                 })}
               </div>
             )}
+
           </motion.div>
         </motion.div>
       </div>

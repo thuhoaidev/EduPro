@@ -67,6 +67,7 @@ export interface Course {
   type: string;
   duration: string;
   lessons: number;
+  lessonsCount?: number;
   requirements: string[];
   isFree: boolean;
   hasDiscount: boolean;

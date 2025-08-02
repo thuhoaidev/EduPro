@@ -11,7 +11,7 @@ export interface OrderItem {
 export interface CreateOrderData {
   items: OrderItem[];
   voucherCode?: string;
-  paymentMethod?: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
+  paymentMethod?: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay' | 'wallet';
   shippingInfo?: {
     fullName: string;
     phone: string;
@@ -31,6 +31,22 @@ export interface Order {
       thumbnail: string;
       price: number;
       discount?: number;
+      rating?: number;
+      totalReviews?: number;
+      views?: number;
+      level?: string;
+      language?: string;
+      students?: number;
+      duration?: string;
+      author?: {
+        name?: string;
+        avatar?: string;
+        bio?: string;
+        expertise?: string[];
+        rating?: number;
+        totalReviews?: number;
+        totalStudents?: number;
+      };
     };
     price: number;
     quantity: number;
@@ -47,7 +63,7 @@ export interface Order {
   };
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   paymentStatus: 'pending' | 'paid' | 'failed';
-  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
+  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay' | 'wallet';
   fullName?: string;
   phone?: string;
   email?: string;

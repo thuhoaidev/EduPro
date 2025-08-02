@@ -65,10 +65,17 @@ import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
 import UserWithdrawRequestsAdmin from './pages/admin/earnings/UserWithdrawRequestsAdmin';
 import RolesPage from './pages/admin/roles/RolesPage';
 import RoleDetailPage from './pages/admin/roles/RoleDetailPage';
+import TestRoleUpdate from './pages/admin/roles/TestRoleUpdate';
 
 import BlogPage from "./pages/client/BlogPage";
+
+
+import ModeratorDashboard from "./pages/Moderator/Dashboard";
 import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
 import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
+import CoursesModerationPage from "./pages/Moderator/Courses/CoursesModerationPage";
+import SimpleReportStatistics from "./pages/Moderator/SimpleReportStatistics";
+import Reports from "./pages/Moderator/reports/Reports";
 
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
 import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
@@ -76,12 +83,14 @@ import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
 import LessonEdit from './pages/instructor/lessons/LessonEdit';
 import VideoManager from './pages/instructor/videos/VideoManager';
 import QuizManager from './pages/instructor/quiz/QuizManager';
-import CoursesModerationPage from './pages/Moderator/Courses/CoursesModerationPage';
+import InstructorVouchersPage from './pages/instructor/vouchers/InstructorVouchersPage';
+
 import WalletPage from "./pages/client/WalletPage";
 import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
 import MessagesPage from './pages/client/MessagesPage';
 import MessagesLayout from './pages/client/MessagesLayout';
 import CertificatePage from "./pages/client/CertificatePage";
+import Certificates from "./pages/client/Profile/Certificates";
 import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
 import InstructorDashboard from './pages/instructor/Dashboard/InstructorDashboard';
 
@@ -110,10 +119,7 @@ class ErrorBoundary extends React.Component<
       return (
         <div style={{ padding: '20px', textAlign: 'center' }}>
           <h1>Đã xảy ra lỗi!</h1>
-          <p>Lỗi: {this.state.error?.message}</p>
-          <button onClick={() => window.location.reload()}>
-            Tải lại trang
-          </button>
+          <p>Vui lòng tải lại trang hoặc liên hệ hỗ trợ.</p>
         </div>
       );
     }
@@ -140,6 +146,7 @@ function App() {
         { path: "courses", element: <CoursesPage /> },
         { path: "courses/:slug", element: <CourseDetailPage /> },
         { path: "courses/slug/:slug", element: <CourseDetailPage /> },
+        { path: "courses/id/:id", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
         {path:  "/blog/:id", element: <BlogPage />},
@@ -158,6 +165,7 @@ function App() {
         { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
         { path: "certificates/:courseId", element: <CertificatePage /> },
+
         { path: '/social-callback', element: <SocialAuthCallback /> },
       ]
     },
@@ -169,6 +177,7 @@ function App() {
         { path: 'edit', element: <ProfileEdit /> },
         { path: 'change-password', element: <ChangePassword /> },
         { path: 'orders', element: <OrdersPage /> },
+        { path: 'certificates', element: <Certificates /> },
       ]
     },
     {
@@ -202,16 +211,19 @@ function App() {
         { path: "user-withdraw-requests", element: <UserWithdrawRequestsAdmin /> },
         { path: "roles", element: <RolesPage /> },
         { path: "roles/:id", element: <RoleDetailPage /> },
+        { path: "roles/test", element: <TestRoleUpdate /> },
       ],
     },
     {
       path: "/moderator",
       element: <ModeratorLayout />,
       children: [
-        { path: "reports", element: <ReportsPage /> },
+        { path: "", element: <ModeratorDashboard /> },
+        { path: "reports", element: <Reports /> },
         { path: "blogs", element: <BlogModeration /> },
         { path: "comments", element: <CommentsModerationPage /> },
         { path: "courses", element: <CoursesModerationPage /> },
+        { path: "statistics", element: <SimpleReportStatistics /> },
       ],
     },
     {
@@ -229,6 +241,7 @@ function App() {
         { path: "income", element: <MyEarnings /> },
         { path: "videos", element: <VideoManager /> },
         { path: "quiz", element: <QuizManager /> },
+        { path: "vouchers", element: <InstructorVouchersPage /> },
       ],
     },
     { path: '/login', element: <LoginPage /> },

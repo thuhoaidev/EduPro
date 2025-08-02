@@ -1,0 +1,147 @@
+/* CoursesPage.css - Custom pagination styling */
+
+.custom-pagination .ant-pagination-item {
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.custom-pagination .ant-pagination-item:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.custom-pagination .ant-pagination-item-active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+.custom-pagination .ant-pagination-item-active a {
+  color: white;
+  font-weight: 600;
+}
+
+.custom-pagination .ant-pagination-prev,
+.custom-pagination .ant-pagination-next {
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.custom-pagination .ant-pagination-prev:hover,
+.custom-pagination .ant-pagination-next:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.custom-pagination .ant-pagination-prev:hover .ant-pagination-item-link,
+.custom-pagination .ant-pagination-next:hover .ant-pagination-item-link {
+  color: #667eea;
+}
+
+.custom-pagination .ant-pagination-jump-prev,
+.custom-pagination .ant-pagination-jump-next {
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.custom-pagination .ant-pagination-jump-prev:hover,
+.custom-pagination .ant-pagination-jump-next:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.custom-pagination .ant-pagination-options {
+  margin-left: 16px;
+}
+
+.custom-pagination .ant-pagination-options-quick-jumper {
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.custom-pagination .ant-pagination-options-quick-jumper:hover {
+  border-color: #667eea;
+}
+
+.custom-pagination .ant-pagination-options-quick-jumper input {
+  border: none;
+  outline: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+.custom-pagination .ant-select {
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.custom-pagination .ant-select:hover {
+  border-color: #667eea;
+}
+
+.custom-pagination .ant-select-focused {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+/* Pagination container styles */
+.pagination-container {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 16px 24px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.pagination-info {
+  color: #64748b;
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .custom-pagination .ant-pagination-options {
+    margin-left: 8px;
+  }
+  
+  .custom-pagination .ant-pagination-total-text {
+    display: none;
+  }
+  
+  .custom-pagination .ant-pagination-options-quick-jumper {
+    display: none;
+  }
+  
+  .pagination-container {
+    padding: 12px 16px;
+    margin: 0 8px;
+  }
+  
+  .pagination-info {
+    font-size: 12px;
+  }
+}
+
+/* Animation for page transitions */
+.courses-grid {
+  transition: opacity 0.3s ease;
+}
+
+.courses-grid.loading {
+  opacity: 0.6;
+}
+
+/* Smooth scroll to top when changing pages */
+html {
+  scroll-behavior: smooth;
+} 
