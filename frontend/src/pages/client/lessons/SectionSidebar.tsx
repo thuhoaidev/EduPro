@@ -35,6 +35,7 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
   const [openSections, setOpenSections] = useState<{ [sectionId: string]: boolean }>({});
   const [userToggled, setUserToggled] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [forceUpdate, setForceUpdate] = useState(0); // Force re-render when progress changes
 
   const completedLessons = Array.isArray(progress?.completedLessons) ? progress.completedLessons : [];
   const lastWatched = progress?.lastWatched;
@@ -64,6 +65,11 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
   useEffect(() => {
     setUserToggled(false);
   }, [currentLessonId]);
+
+  // Force re-render when currentVideoProgress changes
+  useEffect(() => {
+    setForceUpdate(prev => prev + 1);
+  }, [currentVideoProgress, currentLessonId]); // Thêm currentLessonId để re-render khi chuyển bài
 
   const toggleSection = (sectionId: string) => {
     setOpenSections((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
@@ -178,6 +184,7 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                 background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
                 letterSpacing: 0.5,
                 borderRadius: 12,
                 padding: '8px 10px',
@@ -205,7 +212,22 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
               >
                 {openSections[section._id] ? <DownOutlined /> : <RightOutlined />}
               </span>
-              <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{section.title}</span>
+              <span
+                style={{
+                  flex: 1,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  color: '#333',
+                  fontWeight: 600,
+                  background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                {section.title}
+              </span>
             </div>
             {openSections[section._id] && (
               <ul className="pl-2">
@@ -227,8 +249,15 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
 
                   const isCurrent = lessonIdStr === currentLessonId;
                   let progressValue = getLessonVideoPercent(lessonIdStr);
+
+                  // Ưu tiên currentVideoProgress cho bài học hiện tại để đồng bộ real-time
                   if (isCurrent && typeof currentVideoProgress === 'number') {
                     progressValue = currentVideoProgress;
+                    console.log('Using currentVideoProgress for current lesson:', progressValue);
+                  } else if (isCurrent) {
+                    // Nếu là bài học hiện tại, luôn sử dụng progress từ backend hoặc 0
+                    progressValue = getLessonVideoPercent(lessonIdStr);
+                    console.log('Using backend progress for current lesson:', progressValue);
                   }
 
                   let progressColor = '#d9d9d9';
@@ -290,6 +319,7 @@ const SectionSidebar: React.FC<Props> = ({ sections, unlockedLessons, currentLes
                           showInfo={false}
                           strokeWidth={7}
                           style={{ position: 'absolute', top: 0, left: 0, zIndex: 0 }}
+                          key={`progress-${lessonIdStr}-${progressValue}`} // Force re-render when progress changes
                         />
                         <span
                           style={{

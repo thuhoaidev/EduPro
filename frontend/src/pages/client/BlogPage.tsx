@@ -1,15 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import {
   Heart,
   MessageCircle,
   Send,
+  User,
   Calendar,
   Eye,
   ArrowLeft,
   Reply,
   Bookmark,
   BookmarkCheck,
+  Share2,
+  ThumbsUp,
+  MoreHorizontal,
   Search,
   Filter,
   Sparkles,
@@ -19,6 +22,8 @@ import {
 import { toast } from 'react-hot-toast';
 import { marked } from 'marked';
 import { Pagination } from 'antd';
+// Nếu dùng TypeScript và gặp lỗi thiếu types cho leo-profanity, thêm khai báo sau vào đầu file hoặc tạo file leo-profanity.d.ts
+// @ts-ignore
 import leoProfanity from 'leo-profanity';
 import { useNavigate } from 'react-router-dom';
 const API_BASE = 'http://localhost:5000/api';
@@ -92,18 +97,7 @@ const BlogPage = () => {
   const [commentWarning, setCommentWarning] = useState('');
   const [replyWarning, setReplyWarning] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
-  const { id: blogId } = useParams();
-  
-  
-  const getAuthorAvatar = (author) => {
-  if (author?.avatar && author.avatar.trim() !== '') {
-    return author.avatar;
-  }
-  if (author?.profilePic && author.profilePic.trim() !== '') {
-    return author.profilePic;
-  }
-  return '/images/default-avatar.png';
-};
+
   const commentEndRef = useRef<HTMLDivElement>(null);
  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
   const target = e.currentTarget;
@@ -180,7 +174,7 @@ const loadDetail = async (id: string) => {
     // ✅ Xử lý like cho cả comment và reply
     const all = flattenComments(mappedComments);
     for (const cmt of all) {
-      const check = await axiosClient.get(`/comment-likes/has-liked/${cmt._id}`);
+      const check = await axiosClient.get(`/comment-likes/check/${cmt._id}`);
       const count = await axiosClient.get(`/comment-likes/count/${cmt._id}`);
 
       setLikedComments(prev => {
@@ -474,87 +468,6 @@ const handleSave = async (blogId: string) => {
     }
     console.log('replyWarning:', replyWarning); // Debug giá trị replyWarning
   };
-  useEffect(() => {
-  const fetchLikedComments = async () => {
-    try {
-      const liked = new Set<string>();
-
-      await Promise.all(
-        comments.map(async (cmt) => {
-          const res = await axiosClient.get(`/comment-likes/has-liked/${cmt._id}`);
-          if (res?.liked) {
-            liked.add(cmt._id);
-          }
-        })
-      );
-
-      setLikedComments(liked);
-    } catch (error) {
-      console.error('Lỗi khi check liked comments:', error);
-    }
-  };
-
-  if (comments.length > 0) {
-    fetchLikedComments();
-  }
-}, [comments]);
-useEffect(() => {
-  const fetchCommentLikeCount = async () => {
-    const newCounts: { [key: string]: number } = {};
-    await Promise.all(
-      comments.map(async (comment) => {
-        try {
-          const res = await axiosClient.get(`/comment-likes/count/${comment._id}`);
-          newCounts[comment._id] = res.data.count;
-        } catch (err) {
-          console.error(`Error fetching like count for comment ${comment._id}`, err);
-        }
-      })
-    );
-    setCommentLikesCount(newCounts);
-  };
-
-  if (comments.length > 0) fetchCommentLikeCount();
-}, [comments]);
-
-
-useEffect(() => {
-  if (!blogId) return;
-
-  const fetchComments = async () => {
-    try {
-      const res = await axiosClient.get(`/blog-comments/${blogId}`);
-      const commentData = res.data;
-      setComments(commentData);
-
-      const likeCounts = await Promise.all(
-        commentData.map((cmt: any) =>
-          axiosClient
-            .get(`/comment-likes/count/${cmt._id}`)
-            .then((res) => ({
-              commentId: cmt._id,
-              count: res?.data && typeof res.data.count === 'number' ? res.data.count : 0
-            }))
-            .catch(() => ({
-              commentId: cmt._id,
-              count: 0,
-            }))
-        )
-      );
-
-      const countMap: Record<string, number> = {};
-      likeCounts.forEach((item) => {
-        countMap[item.commentId] = item.count;
-      });
-
-      setCommentLikesCount(countMap);
-    } catch (err) {
-      console.error('Lỗi fetch comments:', err);
-    }
-  };
-
-  fetchComments();
-}, [blogId]);
 
   useEffect(() => {
     loadBlogs();
@@ -609,33 +522,6 @@ const extractFirstImageFromContent = (content: string): string | null => {
   const match = content.match(/!\[.*?\]\((.*?)\)/);
   return match ? match[1] : null;
 };
-const onLike = async (commentId: string) => {
-  try {
-    await axiosClient.post(`/comment-likes/toggle/${commentId}`);
-
-    const isLikedBefore = likedComments.has(commentId);
-
-    // cập nhật lại set likedComments
-    setLikedComments((prev) => {
-      const newSet = new Set(prev);
-      if (isLikedBefore) {
-        newSet.delete(commentId);
-      } else {
-        newSet.add(commentId);
-      }
-      return newSet;
-    });
-
-    // cập nhật lại số like dựa vào trạng thái trước đó
-    setCommentLikesCount((prev) => ({
-      ...prev,
-      [commentId]: (prev[commentId] || 0) + (isLikedBefore ? -1 : 1),
-    }));
-  } catch (err) {
-    console.error('Lỗi khi toggle like comment:', err);
-  }
-};
-
 
   return (
     <div className="min-h-screen bg-[#fafbfc]">
@@ -887,27 +773,12 @@ const onLike = async (commentId: string) => {
                 <div className="flex items-center gap-6">
                   <div className="relative">
                     <div className="w-20 h-20 md:w-24 md:h-24 rounded-full p-1 bg-gradient-to-tr from-blue-400 to-purple-400 shadow-xl">
-                      {selectedBlog && (
-  <>
-    <img
-      src={
-        selectedBlog?.author?.avatar?.startsWith('http')
-          ? selectedBlog.author.avatar
-          : selectedBlog.author?.avatar
-          ? `${import.meta.env.VITE_BASE_URL}/uploads/avatar/${selectedBlog.author.avatar}`
-          : '/images/default-avatar.png'
-      }
-      alt="avatar"
-      className="w-full h-full rounded-full border-4 border-white object-cover"
-      onError={(e) => {
-        e.currentTarget.onerror = null;
-        e.currentTarget.src = '/images/default-avatar.png';
-      }}
-    />
-  </>
-)}
-
-
+                      <img
+                        src={selectedBlog.author?.avatar || '/images/default-avatar.png'}
+                        alt="avatar"
+                        className="w-full h-full rounded-full border-4 border-white object-cover"
+                        onError={handleImageError}
+                      />
                     </div>
                   </div>
                   <div>

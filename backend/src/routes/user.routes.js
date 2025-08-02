@@ -13,6 +13,7 @@ const {
   deleteUser,
   updateInstructorApproval,
   getInstructors,
+  getAllInstructors,
   getApprovedInstructors,
   getApprovedInstructorDetail,
   getInstructorDetail,
@@ -79,12 +80,19 @@ router.get('/test-role', (req, res) => {
 router.get('/me', getCurrentUser);
 
 // Cập nhật thông tin người dùng hiện tại (với upload avatar)
-router.put('/me', uploadAvatar, processAvatarUpload, deleteOldAvatar, handleUploadError, updateCurrentUser);
+router.put(
+  '/me',
+  uploadAvatar,
+  processAvatarUpload,
+  deleteOldAvatar,
+  handleUploadError,
+  updateCurrentUser,
+);
 
 // Thêm route GET /me/enrollments
 router.get('/me/enrollments', getMyEnrollments);
 
-// Lấy danh sách hồ sơ giảng viên chờ duyệt (cần đăng nhập)
+// Lấy danh sách tất cả giảng viên (cần đăng nhập)
 router.get('/instructors', getInstructors);
 // Lấy thông tin chi tiết hồ sơ giảng viên chờ duyệt (cần đăng nhập)
 router.get('/instructors/:id/detail', getInstructorDetail);
@@ -101,6 +109,9 @@ router.use(checkRole(['admin']));
 // Lấy danh sách tất cả người dùng
 router.get('/', getAllUsers);
 
+// Lấy danh sách tất cả giảng viên (bao gồm cả đã duyệt) - cho admin
+router.get('/all-instructors', getAllInstructors);
+
 // Lấy thông tin chi tiết một người dùng theo ID (admin)
 router.get('/:id', getUserById);
 
@@ -108,7 +119,14 @@ router.get('/:id', getUserById);
 router.post('/', uploadAvatar, processAvatarUpload, handleUploadError, createUser);
 
 // Cập nhật thông tin người dùng theo ID (với upload avatar)
-router.put('/:id', uploadAvatar, processAvatarUpload, deleteOldAvatar, handleUploadError, updateUser);
+router.put(
+  '/:id',
+  uploadAvatar,
+  processAvatarUpload,
+  deleteOldAvatar,
+  handleUploadError,
+  updateUser,
+);
 
 // Xóa người dùng theo ID
 router.delete('/:id', deleteUser);
@@ -122,6 +140,9 @@ router.post('/upload-avatar', auth, uploadAvatar, processAvatarUpload, (req, res
 });
 
 // Cập nhật hồ sơ giảng viên (và đồng bộ sang User)
-router.put('/instructor-profiles/:id', require('./../controllers/user.controller').updateInstructorProfile);
+router.put(
+  '/instructor-profiles/:id',
+  require('./../controllers/user.controller').updateInstructorProfile,
+);
 
-module.exports = router; 
+module.exports = router;

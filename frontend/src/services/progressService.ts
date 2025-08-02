@@ -1,4 +1,4 @@
-import axios from '../api/axios';
+import { config } from '../api/axios';
 
 export const getProgress = (courseId: string) =>
   axios.get(`/progress/${courseId}/progress`).then(res => res.data.data);

@@ -3,9 +3,9 @@ const fs = require('fs');
 const path = require('path');
 // Cấu hình Cloudinary với các biến môi trường riêng lẻ
 cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 // Log thông tin tài khoản Cloudinary (không log api_secret)
@@ -19,31 +19,28 @@ console.log('[Cloudinary] api_key:', process.env.CLOUDINARY_API_KEY);
  * @returns {Promise<Object>} - Kết quả upload
  */
 exports.uploadBufferToCloudinary = async (fileBuffer, folder = 'misc') => {
-    return new Promise((resolve, reject) => {
-        const options = {
-            folder: `edupor/${folder}`,
-            resource_type: 'auto',
-        };
-        if (folder !== 'videos') {
-            options.transformation = [
-                { width: 1920, height: 1080, crop: 'limit' },
-                { quality: 'auto:good' },
-                { fetch_format: 'auto' },
-            ];
-        }
+  return new Promise((resolve, reject) => {
+    const options = {
+      folder: `edupor/${folder}`,
+      resource_type: 'auto',
+    };
+    if (folder !== 'videos') {
+      options.transformation = [
+        { width: 1920, height: 1080, crop: 'limit' },
+        { quality: 'auto:good' },
+        { fetch_format: 'auto' },
+      ];
+    }
 
-        const uploadStream = cloudinary.uploader.upload_stream(
-            options,
-            (error, result) => {
-                if (error) {
-                    console.error('[Cloudinary] Upload error:', error); // Bổ sung log chi tiết lỗi
-                    return reject(error);
-                }
-                resolve(result);
-            },
-        );
-        uploadStream.end(fileBuffer);
+    const uploadStream = cloudinary.uploader.upload_stream(options, (error, result) => {
+      if (error) {
+        console.error('[Cloudinary] Upload error:', error); // Bổ sung log chi tiết lỗi
+        return reject(error);
+      }
+      resolve(result);
     });
+    uploadStream.end(fileBuffer);
+  });
 };
 
 /**
@@ -53,31 +50,31 @@ exports.uploadBufferToCloudinary = async (fileBuffer, folder = 'misc') => {
  * @returns {Promise<Object>} - Kết quả upload
  */
 exports.uploadToCloudinary = async (filePath, folder = 'misc') => {
-    try {
-        // Upload file với cấu hình resize
-        const result = await cloudinary.uploader.upload(filePath, {
-            folder: `edupor/${folder}`,
-            resource_type: 'auto',
-            use_filename: true,
-            unique_filename: true,
-            transformation: [
-                { width: 1920, height: 1080, crop: 'limit' }, // Giới hạn kích thước tối đa
-                { quality: 'auto:good' }, // Tự động tối ưu chất lượng
-                { fetch_format: 'auto' }, // Tự động chọn định dạng tốt nhất
-            ],
-        });
+  try {
+    // Upload file với cấu hình resize
+    const result = await cloudinary.uploader.upload(filePath, {
+      folder: `edupor/${folder}`,
+      resource_type: 'auto',
+      use_filename: true,
+      unique_filename: true,
+      transformation: [
+        { width: 1920, height: 1080, crop: 'limit' }, // Giới hạn kích thước tối đa
+        { quality: 'auto:good' }, // Tự động tối ưu chất lượng
+        { fetch_format: 'auto' }, // Tự động chọn định dạng tốt nhất
+      ],
+    });
 
-        // Xóa file tạm sau khi upload
-        fs.unlinkSync(filePath);
+    // Xóa file tạm sau khi upload
+    fs.unlinkSync(filePath);
 
-        return result;
-    } catch (error) {
-        // Xóa file tạm nếu có lỗi
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
-        throw error;
+    return result;
+  } catch (error) {
+    // Xóa file tạm nếu có lỗi
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
     }
+    throw error;
+  }
 };
 
 /**
@@ -85,8 +82,8 @@ exports.uploadToCloudinary = async (filePath, folder = 'misc') => {
  * @param {string} publicId - Public ID của file trên Cloudinary
  * @returns {Promise<Object>} - Kết quả xóa
  */
-exports.deleteFromCloudinary = async (publicId) => {
-    return cloudinary.uploader.destroy(publicId);
+exports.deleteFromCloudinary = async publicId => {
+  return cloudinary.uploader.destroy(publicId);
 };
 
 /**
@@ -94,12 +91,12 @@ exports.deleteFromCloudinary = async (publicId) => {
  * @param {string} url - URL của file trên Cloudinary
  * @returns {string} - Public ID
  */
-exports.getPublicIdFromUrl = (url) => {
-    if (!url) return null;
+exports.getPublicIdFromUrl = url => {
+  if (!url) return null;
 
-    const matches = url.match(/\/v\d+\/([^/]+)\./);
-    return matches ? matches[1] : null;
-}; 
+  const matches = url.match(/\/v\d+\/([^/]+)\./);
+  return matches ? matches[1] : null;
+};
 // Upload 1 video và chuyển đổi nhiều độ phân giải
 exports.uploadVideoWithQualitiesToCloudinary = async (filePath, folder = 'videos') => {
   const baseFolder = `edupor/${folder}`;
@@ -152,6 +149,58 @@ exports.uploadVideoWithQualitiesToCloudinary = async (filePath, folder = 'videos
     return result;
   } catch (error) {
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    throw error;
+  }
+};
+
+/**
+ * Upload video với nhiều chất lượng từ buffer
+ * @param {Buffer} fileBuffer - Buffer của file video
+ * @param {string} folder - Thư mục lưu trữ trên Cloudinary
+ * @returns {Promise<Object>} - Kết quả upload với các chất lượng
+ */
+exports.uploadMultipleQualitiesToCloudinary = async (fileBuffer, folder = 'videos') => {
+  const baseFolder = `edupor/${folder}`;
+  const resolutions = [
+    { label: '360p', transformation: { width: 640, height: 360, crop: 'limit' } },
+    { label: '720p', transformation: { width: 1280, height: 720, crop: 'limit' } },
+    { label: '1080p', transformation: { width: 1920, height: 1080, crop: 'limit' } },
+  ];
+
+  const result = {};
+
+  try {
+    // Upload từng bản chuyển đổi
+    for (const { label, transformation } of resolutions) {
+      const variant = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: baseFolder,
+            resource_type: 'video',
+            transformation,
+            use_filename: true,
+            unique_filename: true,
+          },
+          (error, result) => {
+            if (error) {
+              console.error(`[Cloudinary] Upload error for ${label}:`, error);
+              return reject(error);
+            }
+            resolve(result);
+          },
+        );
+        uploadStream.end(fileBuffer);
+      });
+
+      result[label] = {
+        url: variant.secure_url,
+        public_id: variant.public_id,
+      };
+    }
+
+    return result;
+  } catch (error) {
+    console.error('[Cloudinary] Error uploading multiple qualities:', error);
     throw error;
   }
 };

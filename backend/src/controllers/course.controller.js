@@ -1265,3 +1265,46 @@ exports.getInstructorCourses = async (req, res, next) => {
         next(error);
     }
 };
+
+// Lấy thống kê khóa học
+exports.getCourseStats = async (req, res, next) => {
+    try {
+        const { course_id } = req.params;
+
+        // Tìm khóa học
+        const course = await Course.findById(course_id);
+        if (!course) {
+            throw new ApiError(404, 'Không tìm thấy khóa học');
+        }
+
+        // Đếm số lượng học viên đã đăng ký
+        const enrolledCount = await Enrollment.countDocuments({ course: course_id });
+
+        // Tính điểm đánh giá trung bình và số lượng đánh giá
+        const CourseReview = require('../models/CourseReview');
+        const reviewStats = await CourseReview.aggregate([
+            { $match: { course: course._id } },
+            {
+                $group: {
+                    _id: null,
+                    averageRating: { $avg: '$rating' },
+                    reviewCount: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const stats = {
+            enrolledCount: enrolledCount || 0,
+            averageRating: reviewStats.length > 0 ? Math.round(reviewStats[0].averageRating * 10) / 10 : 0,
+            reviewCount: reviewStats.length > 0 ? reviewStats[0].reviewCount : 0
+        };
+
+        res.json({
+            success: true,
+            data: stats
+        });
+    } catch (error) {
+        console.error('Lỗi khi lấy thống kê khóa học:', error);
+        next(error);
+    }
+};
