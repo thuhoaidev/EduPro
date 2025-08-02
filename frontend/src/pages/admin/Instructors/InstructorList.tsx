@@ -233,14 +233,14 @@ const InstructorList = () => {
   const [viewingInstructor, setViewingInstructor] = useState<Instructor | null>(null);
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 15,
+    pageSize: 50,
     total: 0,
   });
 
   const [selectedApprovalStatus, setSelectedApprovalStatus] = useState<string | undefined>(undefined);
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 
-  // Stats
+  // Stats - tính toán từ dữ liệu thực tế
   const stats = {
     total: instructors.length,
     approved: instructors.filter((u) => u.approvalStatus === 'approved').length,
@@ -249,13 +249,54 @@ const InstructorList = () => {
   };
 
   // Handlers
-  const handleViewDetails = (inst: Instructor) => {
-    setViewingInstructor(inst);
-    setIsDetailsModalVisible(true);
+  const handleViewDetails = async (inst: Instructor) => {
+    try {
+      setLoading(true);
+      const response = await config.get(`/users/instructors/${inst.id}/detail`);
+      console.log("Instructor detail response:", response.data);
+
+      if (response.data.success) {
+        const detailedInstructor = response.data.data;
+        // Map the detailed data to match our interface
+        const mappedInstructor: Instructor = {
+          ...inst,
+          ...detailedInstructor,
+          approvalStatus: detailedInstructor.approvalStatus || inst.approvalStatus,
+          // Sử dụng dữ liệu trực tiếp từ cấp cao nhất trước, sau đó fallback về cấp lồng nhau
+          degree: detailedInstructor.degree || detailedInstructor.instructorProfile?.instructorInfo?.degree || inst.degree,
+          university: detailedInstructor.university || detailedInstructor.instructorProfile?.instructorInfo?.university || inst.university,
+          major: detailedInstructor.major || detailedInstructor.instructorProfile?.instructorInfo?.major || inst.major,
+          graduationYear: detailedInstructor.graduationYear || detailedInstructor.instructorProfile?.instructorInfo?.graduationYear || inst.graduationYear,
+          expertise: detailedInstructor.expertise || detailedInstructor.instructorProfile?.instructorInfo?.specializations || inst.expertise,
+          experienceYears: detailedInstructor.experienceYears || detailedInstructor.instructorProfile?.instructorInfo?.experience_years || inst.experienceYears,
+          experienceDescription: detailedInstructor.experienceDescription || detailedInstructor.instructorProfile?.instructorInfo?.teaching_experience?.description || inst.experienceDescription,
+          cvUrl: detailedInstructor.cvUrl || detailedInstructor.instructorProfile?.instructorInfo?.cv_file || inst.cvUrl,
+          certificates: detailedInstructor.certificates || detailedInstructor.instructorProfile?.instructorInfo?.certificates || inst.certificates,
+          demoVideoUrl: detailedInstructor.demoVideoUrl || detailedInstructor.instructorProfile?.instructorInfo?.demo_video || inst.demoVideoUrl,
+          bio: detailedInstructor.bio || detailedInstructor.instructorProfile?.bio || inst.bio,
+          github: detailedInstructor.github || detailedInstructor.instructorProfile?.social_links?.github || inst.github,
+          facebook: detailedInstructor.facebook || detailedInstructor.instructorProfile?.social_links?.facebook || inst.facebook,
+          website: detailedInstructor.website || detailedInstructor.instructorProfile?.social_links?.website || inst.website,
+          applicationDate: detailedInstructor.applicationDate || inst.applicationDate,
+        };
+        setViewingInstructor(mappedInstructor);
+        setIsDetailsModalVisible(true);
+      } else {
+        message.error("Không thể lấy thông tin chi tiết giảng viên");
+      }
+    } catch (error) {
+      console.error("Error fetching instructor details:", error);
+      message.error("Không thể lấy thông tin chi tiết giảng viên");
+      // Fallback to basic info
+      setViewingInstructor(inst);
+      setIsDetailsModalVisible(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTableChange = (pag: TablePaginationConfig) => {
-    setPagination((prev) => ({ ...prev, current: pag.current || 1, pageSize: pag.pageSize || 10 }));
+    setPagination((prev) => ({ ...prev, current: pag.current || 1, pageSize: pag.pageSize || 50 }));
   };
 
   const fetchInstructors = useCallback(async () => {
@@ -264,7 +305,7 @@ const InstructorList = () => {
       const params: any = {};
       if (search) params.search = search;
       if (selectedApprovalStatus) params.approvalStatus = selectedApprovalStatus;
-      
+
       // Xử lý date range filter
       if (dateRange?.[0]) {
         params.from = dateRange[0].startOf('day').toISOString();
@@ -294,7 +335,7 @@ const InstructorList = () => {
   // Realtime updates - fetch data every 30 seconds
   useEffect(() => {
     fetchInstructors();
-    
+
     const interval = setInterval(() => {
       fetchInstructors();
     }, 30000); // 30 seconds
@@ -314,13 +355,13 @@ const InstructorList = () => {
             status: "approved",
           });
           message.success(`Đã duyệt giảng viên: ${instructor.fullname}`);
-          
-          setInstructors(prev => prev.map(inst => 
-            inst.id === instructor.id 
+
+          setInstructors(prev => prev.map(inst =>
+            inst.id === instructor.id
               ? { ...inst, approvalStatus: 'approved' }
               : inst
           ));
-          
+
           await fetchInstructors();
         } catch (error) {
           console.error("Error approving instructor:", error);
@@ -360,13 +401,13 @@ const InstructorList = () => {
             rejection_reason: rejectReasonRef.current,
           });
           message.success(`Đã từ chối giảng viên: ${instructor.fullname}`);
-          
-          setInstructors(prev => prev.map(inst => 
-            inst.id === instructor.id 
+
+          setInstructors(prev => prev.map(inst =>
+            inst.id === instructor.id
               ? { ...inst, approvalStatus: 'rejected' }
               : inst
           ));
-          
+
           await fetchInstructors();
         } catch (error) {
           console.error("Lỗi từ chối:", error);
@@ -406,13 +447,13 @@ const InstructorList = () => {
             Quản lý giảng viên
           </Title>
           <Text type="secondary" className={styles.pageSubtitle}>
-            Quản lý và theo dõi thông tin giảng viên hệ thống
+            Quản lý và theo dõi thông tin tất cả giảng viên hệ thống
           </Text>
         </div>
       </div>
 
       <StatCards stats={stats} />
-      
+
       <FilterSection
         searchInput={searchInput}
         setSearchInput={setSearchInput}
@@ -427,7 +468,7 @@ const InstructorList = () => {
           <div className={styles.tableTitleSection}>
             <Title level={4} className={styles.tableTitle}>
               <BookOutlined className={styles.tableIcon} />
-              Danh sách hồ sơ giảng viên
+              Danh sách tất cả giảng viên
             </Title>
             <Badge count={instructors.length} showZero className={styles.userCountBadge} />
           </div>
@@ -447,12 +488,12 @@ const InstructorList = () => {
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} giảng viên`,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['10', '15', '20', '50', '100', '200'],
             size: 'small',
           }}
           onChange={handleTableChange}
           className={styles.userTable}
-          scroll={{ x: 900 }}
+          scroll={{ x: 1100 }}
           size="small"
           onRow={(record) => {
             return {
@@ -479,9 +520,9 @@ const InstructorList = () => {
               align: 'left' as const,
               render: (_: unknown, record: Instructor) => (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Avatar 
-                    src={record.avatar} 
-                    icon={<UserOutlined />} 
+                  <Avatar
+                    src={record.avatar}
+                    icon={<UserOutlined />}
                     size={40}
                     style={{ border: '2px solid #f0f0f0' }}
                   />
@@ -611,10 +652,10 @@ const InstructorList = () => {
         {viewingInstructor && (
           <div className={styles.userDetailWrapper}>
             <div className={styles.userDetailHeaderBox}>
-              <Avatar 
-                size={96} 
-                src={viewingInstructor.avatar && viewingInstructor.avatar !== 'default-avatar.jpg' && viewingInstructor.avatar !== '' && (viewingInstructor.avatar.includes('googleusercontent.com') || viewingInstructor.avatar.startsWith('http')) ? viewingInstructor.avatar : undefined} 
-                className={styles.userDetailAvatar} 
+              <Avatar
+                size={96}
+                src={viewingInstructor.avatar && viewingInstructor.avatar !== 'default-avatar.jpg' && viewingInstructor.avatar !== '' && (viewingInstructor.avatar.includes('googleusercontent.com') || viewingInstructor.avatar.startsWith('http')) ? viewingInstructor.avatar : undefined}
+                className={styles.userDetailAvatar}
               />
               <div className={styles.userDetailHeaderInfo}>
                 <div className={styles.userDetailName}>{viewingInstructor.fullname}</div>
@@ -684,8 +725,8 @@ const InstructorList = () => {
                   <ul style={{ paddingLeft: 16, margin: 0 }}>
                     {viewingInstructor.certificates.map((cert, index) => (
                       <li key={index}>
-                        <AntdLink href={cert.url} target="_blank" rel="noopener noreferrer">
-                          {cert.name || `Chứng chỉ ${index + 1}`}
+                        <AntdLink href={typeof cert === 'string' ? cert : cert.url} target="_blank" rel="noopener noreferrer">
+                          {typeof cert === 'string' ? `Chứng chỉ ${index + 1}` : (cert.name || `Chứng chỉ ${index + 1}`)}
                         </AntdLink>
                       </li>
                     ))}
