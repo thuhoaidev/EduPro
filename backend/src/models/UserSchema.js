@@ -128,6 +128,11 @@ const UserSchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
+      instructor_profile_status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending',
+      },
       specializations: [
         {
           type: String,
