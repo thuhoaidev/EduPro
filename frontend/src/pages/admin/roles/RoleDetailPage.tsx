@@ -12,7 +12,6 @@ import {
   Statistic,
   Divider,
   List,
-  Badge,
   Descriptions,
   Alert,
   Tabs,
@@ -25,7 +24,6 @@ import {
   message,
   Switch,
   Progress,
-  Timeline,
   Checkbox,
 } from 'antd';
 import { getRoleById, updateRole } from '../../../services/roleService';
@@ -38,19 +36,13 @@ import {
   SafetyCertificateOutlined,
   LockOutlined,
   TeamOutlined,
-  SettingOutlined,
   EyeOutlined,
-  KeyOutlined,
   CrownOutlined,
-  UserSwitchOutlined,
-  AuditOutlined,
   GlobalOutlined,
   CalendarOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined,
   InfoCircleOutlined,
-  PhoneOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 
@@ -530,11 +522,7 @@ const RoleDetailPage: React.FC = () => {
 
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isUserDetailModalVisible, setIsUserDetailModalVisible] = useState(false);
-  const [isUserPermissionModalVisible, setIsUserPermissionModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [userPermissionForm] = Form.useForm();
-  const [userPermissionLoading, setUserPermissionLoading] = useState(false);
-  const [permissionHistory, setPermissionHistory] = useState<any[]>([]);
 
   // Load role data from API
   useEffect(() => {
@@ -630,81 +618,7 @@ const RoleDetailPage: React.FC = () => {
     setIsUserDetailModalVisible(true);
   };
 
-  const handleEditUserPermissions = (user: User) => {
-    setSelectedUser(user);
-    // Sử dụng role permissions làm mặc định (tất cả quyền của role đều được bật)
-    const userPermissions = role?.permissions || [];
-    userPermissionForm.setFieldsValue({
-      permissions: userPermissions
-    });
-    setIsUserPermissionModalVisible(true);
-  };
 
-  const handleUserPermissionModalOk = async () => {
-    try {
-      const values = await userPermissionForm.validateFields();
-      if (selectedUser) {
-        setUserPermissionLoading(true);
-        
-        // Tính toán quyền bị tắt và quyền được bật
-        const removedPermissions = (role?.permissions || []).filter(p => !values.permissions.includes(p));
-        const addedPermissions = values.permissions.filter(p => !(role?.permissions || []).includes(p));
-        
-        // Gọi API để cập nhật quyền của user
-        // const response = await updateUserPermissions(selectedUser._id, {
-        //   permissions: values.permissions
-        // });
-        
-        // Cập nhật ngay lập tức trong state để người dùng mất quyền
-        setUsers(prevUsers => 
-          prevUsers.map(user => 
-            user._id === selectedUser._id 
-              ? { ...user, permissions: values.permissions }
-              : user
-          )
-        );
-        
-        // Hiển thị thông báo chi tiết về quyền đã thay đổi
-        if (removedPermissions.length > 0) {
-          message.warning(`Đã tắt ${removedPermissions.length} quyền cho ${selectedUser.fullname}: ${removedPermissions.join(', ')}`);
-        }
-        if (addedPermissions.length > 0) {
-          message.success(`Đã bật ${addedPermissions.length} quyền cho ${selectedUser.fullname}: ${addedPermissions.join(', ')}`);
-        }
-        if (removedPermissions.length === 0 && addedPermissions.length === 0) {
-          message.info(`Không có thay đổi quyền cho ${selectedUser.fullname}`);
-        }
-        
-        // Thêm vào lịch sử thay đổi quyền
-        const historyEntry = {
-          id: Date.now(),
-          type: 'user_permission_update',
-          user: selectedUser.fullname,
-          action: 'Cập nhật quyền người dùng',
-          description: `Thay đổi quyền cho ${selectedUser.fullname}`,
-          timestamp: new Date().toISOString(),
-          oldPermissions: role?.permissions || [],
-          newPermissions: values.permissions,
-          removedPermissions: removedPermissions,
-          addedPermissions: addedPermissions
-        };
-        
-        setPermissionHistory(prev => [historyEntry, ...prev]);
-        
-        // Reload users để cập nhật dữ liệu từ server
-        if (role) {
-          await loadUsers(role._id);
-        }
-        
-        setIsUserPermissionModalVisible(false);
-      }
-    } catch (error) {
-      console.error('Error updating user permissions:', error);
-      message.error('Không thể cập nhật quyền người dùng');
-    } finally {
-      setUserPermissionLoading(false);
-    }
-  };
 
   const userColumns = [
     {
@@ -792,14 +706,6 @@ const RoleDetailPage: React.FC = () => {
               onClick={() => handleViewUserDetail(record)}
             />
           </Tooltip>
-                     <Tooltip title="Sửa quyền (tắt/bật ngay lập tức)">
-             <Button 
-               type="text" 
-               icon={<KeyOutlined />} 
-               size="small"
-               onClick={() => handleEditUserPermissions(record)}
-             />
-           </Tooltip>
         </Space>
       ),
     },
@@ -1067,85 +973,7 @@ const RoleDetailPage: React.FC = () => {
             </Card>
           </TabPane>
 
-                     <TabPane 
-             tab={
-               <span>
-                 <AuditOutlined />
-                 Lịch sử
-               </span>
-             } 
-             key="history"
-           >
-             <Card title="Lịch sử thay đổi">
-               <Timeline>
-                 {/* Hiển thị lịch sử thay đổi quyền người dùng */}
-                 {permissionHistory.map(entry => (
-                   <Timeline.Item 
-                     key={entry.id}
-                     dot={<KeyOutlined style={{ fontSize: '16px' }} />}
-                     color="purple"
-                   >
-                     <p><Text strong>{entry.action}</Text></p>
-                     <p>{entry.description}</p>
-                     <p><Text type="secondary">
-                       {new Date(entry.timestamp).toLocaleDateString('vi-VN', {
-                         year: 'numeric',
-                         month: 'long',
-                         day: 'numeric',
-                         hour: '2-digit',
-                         minute: '2-digit'
-                       })}
-                     </Text></p>
-                                           <div style={{ marginTop: '8px' }}>
-                        <Text type="secondary">Quyền đã thay đổi:</Text>
-                        <div style={{ marginTop: '4px' }}>
-                          <Text type="secondary">Trước: {entry.oldPermissions.length} quyền</Text>
-                          <br />
-                          <Text type="secondary">Sau: {entry.newPermissions.length} quyền</Text>
-                          {entry.removedPermissions && entry.removedPermissions.length > 0 && (
-                            <>
-                              <br />
-                              <Text type="danger">Đã tắt: {entry.removedPermissions.join(', ')}</Text>
-                            </>
-                          )}
-                          {entry.addedPermissions && entry.addedPermissions.length > 0 && (
-                            <>
-                              <br />
-                              <Text type="success">Đã bật: {entry.addedPermissions.join(', ')}</Text>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                   </Timeline.Item>
-                 ))}
-                 
-                 <Timeline.Item 
-                   dot={<ClockCircleOutlined style={{ fontSize: '16px' }} />}
-                   color="blue"
-                 >
-                   <p><Text strong>Cập nhật vai trò</Text></p>
-                   <p>Thay đổi quyền hạn và mô tả</p>
-                   <p><Text type="secondary">{role.updatedAt}</Text></p>
-                 </Timeline.Item>
-                 <Timeline.Item 
-                   dot={<UserSwitchOutlined style={{ fontSize: '16px' }} />}
-                   color="green"
-                 >
-                   <p><Text strong>Thêm người dùng mới</Text></p>
-                   <p>Nguyễn Văn A được gán vai trò này</p>
-                   <p><Text type="secondary">2024-01-15</Text></p>
-                 </Timeline.Item>
-                 <Timeline.Item 
-                   dot={<SafetyCertificateOutlined style={{ fontSize: '16px' }} />}
-                   color="green"
-                 >
-                   <p><Text strong>Tạo vai trò</Text></p>
-                   <p>Vai trò được tạo với các quyền cơ bản</p>
-                   <p><Text type="secondary">{role.createdAt}</Text></p>
-                 </Timeline.Item>
-               </Timeline>
-             </Card>
-           </TabPane>
+
         </Tabs>
 
         {/* Edit Role Modal */}
@@ -1322,77 +1150,7 @@ const RoleDetailPage: React.FC = () => {
            )}
                    </Modal>
 
-          {/* User Permission Modal */}
-          <Modal
-            title={
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <KeyOutlined style={{ marginRight: '12px', color: '#1890ff' }} />
-                <span>Sửa quyền người dùng</span>
-              </div>
-            }
-            open={isUserPermissionModalVisible}
-            onOk={handleUserPermissionModalOk}
-            onCancel={() => setIsUserPermissionModalVisible(false)}
-            width={800}
-            okText="Cập nhật"
-            cancelText="Hủy"
-            confirmLoading={userPermissionLoading}
-          >
-            {selectedUser && (
-              <div>
-                                 <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>
-                   <Text strong>Người dùng: {selectedUser.fullname}</Text>
-                   <br />
-                   <Text type="secondary">Email: {selectedUser.email}</Text>
-                   <br />
-                   <Text type="secondary">Vai trò: {role?.name}</Text>
-                   <br />
-                   <Text type="warning">⚠️ Lưu ý: Quyền bị bỏ chọn sẽ bị tắt ngay lập tức và người dùng sẽ mất quyền đó!</Text>
-                 </div>
-                
-                <Form
-                  form={userPermissionForm}
-                  layout="vertical"
-                >
-                                     <Form.Item
-                     name="permissions"
-                     label="Quyền hạn"
-                     rules={[{ required: true, message: 'Vui lòng chọn ít nhất một quyền!' }]}
-                   >
-                     <Checkbox.Group style={{ width: '100%' }}>
-                       <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                         {Array.from(new Set(role?.permissions.map(p => getPermissionCategory(p)) || [])).map(category => (
-                           <div key={category} style={{ marginBottom: '16px' }}>
-                             <Text strong style={{ display: 'block', marginBottom: '8px', color: '#1890ff' }}>
-                               {category}
-                             </Text>
-                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                               {role?.permissions
-                                 .filter(p => getPermissionCategory(p) === category)
-                                 .map(permissionName => {
-                                   const permission = permissions.find(p => p.name === permissionName);
-                                   return (
-                                     <Checkbox key={permissionName} value={permissionName}>
-                                       <div>
-                                         <Text strong>{permissionName}</Text>
-                                         <br />
-                                         <Text type="secondary" style={{ fontSize: '12px' }}>
-                                           {permission?.description || 'Không có mô tả'}
-                                         </Text>
-                                       </div>
-                                     </Checkbox>
-                                   );
-                                 })}
-                             </div>
-                           </div>
-                         ))}
-                       </div>
-                     </Checkbox.Group>
-                   </Form.Item>
-                </Form>
-              </div>
-            )}
-          </Modal>
+
         </div>
       </motion.div>
     );
