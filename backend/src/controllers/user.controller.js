@@ -13,6 +13,54 @@ const Enrollment = require('../models/Enrollment');
 const Follow = require('../models/Follow');
 const Notification = require('../models/Notification');
 
+// Lấy danh sách người dùng theo vai trò
+exports.getUsersByRole = async (req, res) => {
+  try {
+    const { roleId } = req.params;
+    
+    console.log('🔍 Lấy người dùng theo role ID:', roleId);
+    
+    // Kiểm tra role có tồn tại không
+    const role = await Role.findById(roleId);
+    if (!role) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vai trò không tồn tại',
+      });
+    }
+    
+    // Lấy danh sách người dùng có role_id trùng khớp
+    const users = await User.find({ role_id: roleId })
+      .select('fullname email avatar status createdAt lastLoginAt')
+      .sort({ createdAt: -1 });
+    
+    console.log(`✅ Tìm thấy ${users.length} người dùng với vai trò "${role.name}"`);
+    
+    res.status(200).json({
+      success: true,
+      data: users.map(user => ({
+        id: user._id,
+        fullname: user.fullname,
+        email: user.email,
+        avatar: user.avatar,
+        status: user.status === 'active' ? 'hoạt_động' : 
+                user.status === 'inactive' ? 'không_hoạt_động' : 
+                user.status === 'pending' ? 'chờ_duyệt' : 
+                user.status === 'blocked' ? 'bị_chặn' : 'không_hoạt_động',
+        joinedAt: user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : 'Không xác định',
+        lastLogin: user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('vi-VN') : 'Chưa đăng nhập'
+      }))
+    });
+    
+  } catch (error) {
+    console.error('❌ Lỗi lấy người dùng theo vai trò:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách người dùng',
+    });
+  }
+};
+
 // Lấy thông tin người dùng hiện tại
 exports.getCurrentUser = async (req, res) => {
   try {
