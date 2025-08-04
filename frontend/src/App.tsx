@@ -66,6 +66,7 @@ import UserWithdrawRequestsAdmin from './pages/admin/earnings/UserWithdrawReques
 import RolesPage from './pages/admin/roles/RolesPage';
 import RoleDetailPage from './pages/admin/roles/RoleDetailPage';
 import TestRoleUpdate from './pages/admin/roles/TestRoleUpdate';
+import AdminDeviceViolationsPage from './pages/admin/DeviceSecurity/AdminDeviceViolationsPage';
 
 import BlogPage from "./pages/client/BlogPage";
 
@@ -92,6 +93,7 @@ import CertificatePage from "./pages/client/CertificatePage";
 import Certificates from "./pages/client/Profile/Certificates";
 import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
 import InstructorDashboard from './pages/instructor/Dashboard/InstructorDashboard';
+import DeviceSecuritySettings from './pages/client/Settings/DeviceSecuritySettings';
 
 const queryClient = new QueryClient();
 
@@ -177,6 +179,7 @@ function App() {
         { path: 'change-password', element: <ChangePassword /> },
         { path: 'orders', element: <OrdersPage /> },
         { path: 'certificates', element: <Certificates /> },
+        { path: 'device-security', element: <DeviceSecuritySettings /> },
       ]
     },
     {
@@ -211,6 +214,7 @@ function App() {
         { path: "roles", element: <RolesPage /> },
         { path: "roles/:id", element: <RoleDetailPage /> },
         { path: "roles/test", element: <TestRoleUpdate /> },
+        { path: "device-security", element: <AdminDeviceViolationsPage /> },
       ],
     },
     {

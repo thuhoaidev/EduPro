@@ -128,6 +128,15 @@ io.on('connection', (socket) => {
   });
 });
 
+// Khởi động device security cleanup job
+try {
+  const deviceSecurityCleanup = require('./src/jobs/deviceSecurityCleanup');
+  deviceSecurityCleanup.start();
+  console.log('✅ Device security cleanup job started');
+} catch (error) {
+  console.error('❌ Failed to start device security cleanup job:', error);
+}
+
 httpServer.listen(PORT, () => {
   console.log(`Server đang chạy trên port ${PORT}`);
 });

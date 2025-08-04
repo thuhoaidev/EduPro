@@ -1,4 +1,3 @@
-const { Op } = require('sequelize');
 const UserDevice = require('../models/UserDevice');
 const DeviceViolation = require('../models/DeviceViolation');
 const User = require('../models/User');
@@ -72,19 +71,12 @@ class DeviceSecurityService {
   async checkForViolations(deviceId, userId, courseId, req) {
     try {
       // Tìm tất cả user khác đang sử dụng cùng device cho cùng course
-      const existingUsers = await UserDevice.findAll({
-        where: {
-          device_id: deviceId,
-          course_id: courseId,
-          user_id: { [Op.ne]: userId },
-          is_active: true
-        },
-        include: [{
-          model: User,
-          as: 'user',
-          attributes: ['id', 'username', 'email']
-        }]
-      });
+      const existingUsers = await UserDevice.find({
+        device_id: deviceId,
+        course_id: courseId,
+        user_id: { $ne: userId },
+        is_active: true
+      }).populate('user_id', 'username email fullname');
 
       if (existingUsers.length > 0) {
         // Có vi phạm - tạo báo cáo
@@ -92,10 +84,8 @@ class DeviceSecurityService {
         
         // Kiểm tra xem đã có báo cáo cho device này chưa
         const existingViolation = await DeviceViolation.findOne({
-          where: {
-            device_id: deviceId,
-            status: 'pending'
-          }
+          device_id: deviceId,
+          status: 'pending'
         });
 
         if (!existingViolation) {
@@ -118,11 +108,10 @@ class DeviceSecurityService {
           const updatedUserIds = [...new Set([...existingViolation.user_ids, userId])];
           const updatedCourseIds = [...new Set([...existingViolation.course_ids, courseId])];
           
-          await existingViolation.update({
-            user_ids: updatedUserIds,
-            course_ids: updatedCourseIds,
-            severity: updatedUserIds.length > 3 ? 'high' : 'medium'
-          });
+          existingViolation.user_ids = updatedUserIds;
+          existingViolation.course_ids = updatedCourseIds;
+          existingViolation.severity = updatedUserIds.length > 3 ? 'high' : 'medium';
+          await existingViolation.save();
         }
 
         throw new Error(`Device sharing detected. This device is already registered for ${existingUsers.length} other account(s) in this course.`);
@@ -135,15 +124,9 @@ class DeviceSecurityService {
   // Lấy danh sách thiết bị của user
   async getUserDevices(userId) {
     try {
-      const devices = await UserDevice.findAll({
-        where: { user_id: userId },
-        include: [{
-          model: Course,
-          as: 'course',
-          attributes: ['id', 'title']
-        }],
-        order: [['registered_at', 'DESC']]
-      });
+      const devices = await UserDevice.find({ user_id: userId })
+        .populate('course_id', 'title')
+        .sort({ registered_at: -1 });
 
       return devices;
     } catch (error) {
@@ -155,21 +138,19 @@ class DeviceSecurityService {
   // Lấy danh sách vi phạm cho admin
   async getViolations(filters = {}) {
     try {
-      const where = {};
+      const query = {};
       
       if (filters.status) {
-        where.status = filters.status;
+        query.status = filters.status;
       }
       
       if (filters.severity) {
-        where.severity = filters.severity;
+        query.severity = filters.severity;
       }
 
-      const violations = await DeviceViolation.findAll({
-        where,
-        order: [['created_at', 'DESC']],
-        limit: filters.limit || 50
-      });
+      const violations = await DeviceViolation.find(query)
+        .sort({ created_at: -1 })
+        .limit(filters.limit || 50);
 
       return violations;
     } catch (error) {
@@ -181,31 +162,30 @@ class DeviceSecurityService {
   // Admin xử lý vi phạm
   async handleViolation(violationId, adminId, action, notes = '') {
     try {
-      const violation = await DeviceViolation.findByPk(violationId);
+      const violation = await DeviceViolation.findById(violationId);
       
       if (!violation) {
         throw new Error('Violation not found');
       }
 
       // Cập nhật trạng thái vi phạm
-      await violation.update({
-        status: action === 'block_users' ? 'resolved' : 'dismissed',
-        admin_notes: notes,
-        reviewed_by: adminId,
-        reviewed_at: new Date()
-      });
+      violation.status = action === 'block_users' ? 'resolved' : 'dismissed';
+      violation.admin_notes = notes;
+      violation.reviewed_by = adminId;
+      violation.reviewed_at = new Date();
+      await violation.save();
 
       // Nếu admin quyết định khóa tài khoản
       if (action === 'block_users') {
-        await User.update(
-          { status: 'blocked' },
-          { where: { id: { [Op.in]: violation.user_ids } } }
+        await User.updateMany(
+          { _id: { $in: violation.user_ids } },
+          { status: 'blocked' }
         );
 
         // Vô hiệu hóa tất cả thiết bị của các user bị khóa
-        await UserDevice.update(
-          { is_active: false },
-          { where: { user_id: { [Op.in]: violation.user_ids } } }
+        await UserDevice.updateMany(
+          { user_id: { $in: violation.user_ids } },
+          { is_active: false }
         );
       }
 
