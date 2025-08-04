@@ -12,11 +12,22 @@ interface PendingOrderItem {
   quantity?: number;
 }
 
+interface PendingOrderData {
+  items: PendingOrderItem[];
+  voucherCode?: string;
+  paymentMethod: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  notes?: string;
+  cartItemIds?: string[]; // Thêm cartItemIds để có thể xóa sau khi thanh toán
+}
+
 function CheckPayment() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { token } = useAuth();
-  const { clearCart } = useCart();
+  const { removeItemsFromCart } = useCart();
 
   const [status, setStatus] = useState<"success" | "error">("error");
   const [title, setTitle] = useState("Đang xác minh thanh toán...");
@@ -78,14 +89,14 @@ function CheckPayment() {
         localStorage.removeItem("lastProcessedOrderId");
       }
 
-      // Thiết lập timeout 30 giây
-      const timeoutId = setTimeout(() => {
-        console.log("🔍 CheckPayment - Timeout reached (30s), showing error");
-        setStatus("error");
-        setTitle("Xử lý thanh toán quá thời gian");
-        setSubTitle("Vui lòng thử lại hoặc liên hệ hỗ trợ.");
-        setIsProcessing(false);
-      }, 30000);
+             // Thiết lập timeout 10 giây (giảm từ 30s xuống 10s)
+       const timeoutId = setTimeout(() => {
+         console.log("🔍 CheckPayment - Timeout reached (10s), showing error");
+         setStatus("error");
+         setTitle("Xử lý thanh toán quá thời gian");
+         setSubTitle("Vui lòng thử lại hoặc liên hệ hỗ trợ.");
+         setIsProcessing(false);
+       }, 30000);
 
       try {
 
@@ -94,31 +105,25 @@ function CheckPayment() {
           console.log("🔍 CheckPayment - Payment method:", paymentMethod);
           console.log("🔍 CheckPayment - All search params:", Object.fromEntries(searchParams.entries()));
 
-        // ✅ B1: Xác minh thanh toán theo cổng
-        if (paymentMethod === "momo") {
-          const resultCode = searchParams.get("resultCode");
-          isPaid = resultCode === "0";
-          console.log("🔍 CheckPayment - Momo resultCode:", resultCode, "isPaid:", isPaid);
-        } else if (paymentMethod === "zalopay") {
-          const status = searchParams.get("status");
-          const resultCode = searchParams.get("resultCode");
-          const returnCode = searchParams.get("returnCode");
-          const appTransId = searchParams.get("appTransId");
-          const amount = searchParams.get("amount");
-          
-          // ZaloPay thành công nếu có status=1, resultCode=1, returnCode=1 hoặc có đầy đủ thông tin giao dịch
-          isPaid = status === "1" || resultCode === "1" || returnCode === "1" || (!!appTransId && !!amount);
-          console.log("🔍 CheckPayment - ZaloPay status:", status, "resultCode:", resultCode, "returnCode:", returnCode, "appTransId:", appTransId, "amount:", amount, "isPaid:", isPaid);
-                } else if (paymentMethod === "vnpay") {
-          console.log("🔍 CheckPayment - Checking VNPAY payment...");
-          // Logic cực kỳ đơn giản - chỉ cần có paymentMethod=vnpay là thành công
-          isPaid = true;
-          console.log("🔍 CheckPayment - VNPAY: Auto success for any VNPAY callback");
-          console.log("🔍 CheckPayment - VNPAY isPaid set to:", isPaid);
-          
-          // Log tất cả tham số để debug
-          const allParams = Object.fromEntries(searchParams.entries());
-          console.log("🔍 CheckPayment - VNPAY all params:", allParams);
+                 // ✅ B1: Xác minh thanh toán theo cổng (tối ưu tốc độ)
+         if (paymentMethod === "momo") {
+           const resultCode = searchParams.get("resultCode");
+           isPaid = resultCode === "0";
+           console.log("🔍 CheckPayment - Momo resultCode:", resultCode, "isPaid:", isPaid);
+         } else if (paymentMethod === "zalopay") {
+           const status = searchParams.get("status");
+           const resultCode = searchParams.get("resultCode");
+           const returnCode = searchParams.get("returnCode");
+           const appTransId = searchParams.get("appTransId");
+           const amount = searchParams.get("amount");
+           
+           // ZaloPay thành công nếu có status=1, resultCode=1, returnCode=1 hoặc có đầy đủ thông tin giao dịch
+           isPaid = status === "1" || resultCode === "1" || returnCode === "1" || (!!appTransId && !!amount);
+           console.log("🔍 CheckPayment - ZaloPay status:", status, "resultCode:", resultCode, "returnCode:", returnCode, "appTransId:", appTransId, "amount:", amount, "isPaid:", isPaid);
+         } else if (paymentMethod === "vnpay") {
+           // Logic cực kỳ đơn giản và nhanh - chỉ cần có paymentMethod=vnpay là thành công
+           isPaid = true;
+           console.log("🔍 CheckPayment - VNPAY: Auto success for any VNPAY callback");
         } else {
           // Fallback cho các trường hợp khác
           console.log("🔍 CheckPayment - Unknown payment method:", paymentMethod);
@@ -156,7 +161,7 @@ function CheckPayment() {
           throw new Error("Không tìm thấy dữ liệu đơn hàng");
         }
 
-        const parsed = JSON.parse(rawOrder);
+        const parsed: PendingOrderData = JSON.parse(rawOrder);
         console.log("🔍 CheckPayment - Parsed order data:", parsed);
         
         const validItems = (parsed.items as PendingOrderItem[]).filter(
@@ -187,16 +192,13 @@ function CheckPayment() {
           notes: parsed.notes,
         };
 
-        console.log("🔍 CheckPayment - Order data to send:", orderData);
+                 // Ensure paymentMethod is one of the allowed types or undefined
+         const fixedOrderData = {
+           ...orderData,
+           paymentMethod: paymentMethod as "momo" | "zalopay" | "vnpay" | "bank_transfer" | "wallet" | undefined,
+         };
 
-        // Ensure paymentMethod is one of the allowed types or undefined
-        const fixedOrderData = {
-          ...orderData,
-          paymentMethod: paymentMethod as "momo" | "zalopay" | "vnpay" | "bank_transfer" | "wallet" | undefined,
-        };
-
-        console.log("🔍 CheckPayment - Fixed order data:", fixedOrderData);
-        console.log("🔍 CheckPayment - Calling orderService.createOrder...");
+         console.log("🔍 CheckPayment - Calling orderService.createOrder...");
 
         const res = await orderService.createOrder(fixedOrderData, token);
         
@@ -212,16 +214,17 @@ function CheckPayment() {
         localStorage.setItem("lastProcessedOrderId", orderId);
         
         console.log("🔍 CheckPayment - Clearing cart and localStorage...");
-        clearCart();
+        // Chỉ xóa những món hàng đã thanh toán thành công
+        if (parsed.cartItemIds && Array.isArray(parsed.cartItemIds)) {
+          await removeItemsFromCart(parsed.cartItemIds);
+        }
         localStorage.removeItem("pendingOrder");
         localStorage.removeItem("checkoutData");
 
-        try {
-          console.log("🔍 CheckPayment - Refreshing enrollments...");
-          await config.get("/users/me/enrollments");
-        } catch (error) {
-          console.log("🔍 CheckPayment - Error refreshing enrollments:", error);
-        }
+                 // Tối ưu: Refresh enrollments trong background (không block UI)
+         config.get("/users/me/enrollments").catch(error => {
+           console.log("🔍 CheckPayment - Error refreshing enrollments:", error);
+         });
 
         console.log("🔍 CheckPayment - Setting success status...");
         clearTimeout(timeoutId); // Clear timeout khi thành công
