@@ -72,21 +72,6 @@ const CourseAccessWrapper: React.FC<CourseAccessWrapperProps> = ({
 
   return (
     <>
-      {/* Debug button - chỉ hiện trong development */}
-      {process.env.NODE_ENV === 'development' && (
-        <div style={{ position: 'fixed', top: 10, right: 10, zIndex: 9999, background: 'red', color: 'white', padding: '5px' }}>
-          <button 
-            onClick={() => {
-              console.log('🔧 Manual test clicked');
-              checkDeviceStatus && checkDeviceStatus(courseId);
-            }}
-            style={{ background: 'blue', color: 'white', border: 'none', padding: '5px' }}
-          >
-            🔧 Test Device Security
-          </button>
-        </div>
-      )}
-      
       {/* Render children - nội dung course */}
       {children}
       
