@@ -21,6 +21,7 @@ import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, tog
 import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
 import { issueCertificate, getCertificate } from '../../../services/certificateService';
 import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
+import CourseAccessWrapper from '../../../components/DeviceSecurity/CourseAccessWrapper';
 dayjs.extend(relativeTime);
 
 
@@ -1668,7 +1669,12 @@ const LessonVideoPage: React.FC = () => {
   const lessonStatus = getLessonCompletionStatus();
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
+    <CourseAccessWrapper 
+      courseId={courseId ? parseInt(courseId) : 0} 
+      courseName={courseOverview.title || 'Khóa học'}
+      requireDeviceCheck={true}
+    >
+      <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
       <div style={{
         width: '30%',
         minWidth: 280,
@@ -2556,7 +2562,8 @@ const LessonVideoPage: React.FC = () => {
           placeholder="Nhập lý do báo cáo..."
         />
       </Modal>
-    </div>
+      </div>
+    </CourseAccessWrapper>
   );
 };
 
