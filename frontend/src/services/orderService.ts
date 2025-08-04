@@ -169,6 +169,26 @@ class OrderService {
       throw new Error(error.response?.data?.message || 'Lỗi khi hoàn tiền');
     }
   }
+
+  // Kiểm tra điều kiện hoàn tiền cho một khóa học
+  async checkRefundEligibility(courseId: string, token: string): Promise<{
+    eligible: boolean;
+    reason?: string;
+    orderId?: string;
+    progressPercentage?: number;
+    daysRemaining?: number;
+  }> {
+    try {
+      const response = await axios.get(`${API_URL}/orders/check-refund/${courseId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi kiểm tra điều kiện hoàn tiền');
+    }
+  }
 }
 
 export default new OrderService(); 

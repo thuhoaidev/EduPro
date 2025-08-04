@@ -27,4 +27,7 @@ router.post('/:id/complete-payment', OrderController.completePayment);
 // [POST] /api/orders/:id/refund - Hoàn thành thanh toán (admin)
 router.post('/:id/refund', auth, OrderController.refundOrder);
 
+// [GET] /api/orders/check-refund/:courseId - Kiểm tra điều kiện hoàn tiền cho khóa học
+router.get('/check-refund/:courseId', auth, OrderController.checkRefundEligibility);
+
 module.exports = router; 
