@@ -165,13 +165,6 @@ const AdminLayout = () => {
             { key: "/admin/reports", icon: <WarningOutlined />, label: collapsed ? "BC" : "Báo cáo & khiếu nại" },
           ],
         },
-        {
-          label: collapsed ? "BM" : "BẢO MẬT",
-          type: "group",
-          children: [
-            { key: "/admin/device-security", icon: <SafetyCertificateOutlined />, label: collapsed ? "TB" : "Bảo mật thiết bị" },
-          ],
-        },
       ];
 
       // Chỉ sử dụng user từ context
@@ -239,7 +232,6 @@ const AdminLayout = () => {
     '/admin/user-withdraw-requests': 'Rút tiền học viên',
     '/admin/statistics': 'Thống kê tổng quan',
     '/admin/reports': 'Báo cáo & khiếu nại',
-    '/admin/device-security': 'Bảo mật thiết bị',
   };
 
   const pathSnippets = location.pathname.split("/").filter((i) => i);
