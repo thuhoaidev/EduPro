@@ -12,20 +12,20 @@ export interface DeviceInfo {
 }
 
 export interface DeviceViolation {
-  id: number;
+  _id: string;
   device_id: string;
   violation_type: 'multiple_accounts' | 'suspicious_activity' | 'account_sharing';
-  user_ids: number[];
-  course_ids: number[];
+  user_ids: string[];
+  course_ids: string[];
   device_info: any;
   ip_address: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
   admin_notes?: string;
-  reviewed_by?: number;
+  reviewed_by?: string;
   reviewed_at?: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ViolationStats {
@@ -104,7 +104,7 @@ class DeviceSecurityService {
   }
 
   // Admin: Xử lý vi phạm
-  async handleViolation(violationId: number, action: 'block_users' | 'dismiss', notes?: string) {
+  async handleViolation(violationId: string, action: 'block_users' | 'dismiss', notes?: string) {
     try {
       const response = await config.post(`/device-security/violations/${violationId}/handle`, {
         action,

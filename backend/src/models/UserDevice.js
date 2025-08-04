@@ -7,8 +7,7 @@ const userDeviceSchema = new mongoose.Schema({
     required: true
   },
   course_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Course',
+    type: String,
     required: true
   },
   device_id: {

@@ -16,14 +16,14 @@ const checkRole = require('../middlewares/checkRole');
 // Validation rules
 const registerDeviceValidation = [
   body('courseId')
-    .isInt({ min: 1 })
-    .withMessage('Course ID must be a positive integer')
+    .isMongoId()
+    .withMessage('Course ID must be a valid MongoDB ObjectId')
 ];
 
 const handleViolationValidation = [
   param('violationId')
-    .isInt({ min: 1 })
-    .withMessage('Violation ID must be a positive integer'),
+    .isMongoId()
+    .withMessage('Violation ID must be a valid MongoDB ObjectId'),
   body('action')
     .isIn(['block_users', 'dismiss'])
     .withMessage('Action must be either "block_users" or "dismiss"'),

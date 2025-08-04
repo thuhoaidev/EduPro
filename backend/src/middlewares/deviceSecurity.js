@@ -14,14 +14,18 @@ const checkDeviceAccess = async (req, res, next) => {
     const userId = req.user.id;
     const deviceId = deviceSecurityService.generateDeviceFingerprint(req);
 
+    console.log('🔍 Device Security Middleware Check:', {
+      userId,
+      courseId,
+      deviceId: deviceId.substring(0, 16) + '...'
+    });
+
     // Kiểm tra xem thiết bị đã được đăng ký chưa
     const existingDevice = await UserDevice.findOne({
-      where: {
-        user_id: userId,
-        course_id: courseId,
-        device_id: deviceId,
-        is_active: true
-      }
+      user_id: userId,
+      course_id: courseId,
+      device_id: deviceId,
+      is_active: true
     });
 
     if (!existingDevice) {
@@ -35,9 +39,8 @@ const checkDeviceAccess = async (req, res, next) => {
     }
 
     // Cập nhật last_activity
-    await existingDevice.update({
-      last_activity: new Date()
-    });
+    existingDevice.last_activity = new Date();
+    await existingDevice.save();
 
     // Thêm thông tin device vào request
     req.deviceInfo = {

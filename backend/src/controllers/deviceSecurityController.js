@@ -1,21 +1,7 @@
 const { validationResult } = require('express-validator');
 const UserDevice = require('../models/UserDevice');
 const DeviceViolation = require('../models/DeviceViolation');
-const crypto = require('crypto');
-
-// Tạo device fingerprint từ request headers
-const generateDeviceFingerprint = (req) => {
-  const userAgent = req.headers['user-agent'] || '';
-  const acceptLanguage = req.headers['accept-language'] || '';
-  const acceptEncoding = req.headers['accept-encoding'] || '';
-  
-  const fingerprint = crypto
-    .createHash('sha256')
-    .update(`${userAgent}${acceptLanguage}${acceptEncoding}`)
-    .digest('hex');
-  
-  return fingerprint;
-};
+const deviceSecurityService = require('../services/deviceSecurityService');
 
 // Đăng ký thiết bị khi user truy cập course
 const registerDevice = async (req, res) => {
@@ -30,92 +16,22 @@ const registerDevice = async (req, res) => {
     }
 
     const { courseId } = req.body;
-    const userId = req.user?.id || 'mock-user-id';
-    const deviceId = generateDeviceFingerprint(req);
-    
-    // Tạm thời trả về mock response để frontend hoạt động
-    console.log('🔧 Returning mock registerDevice response');
-    return res.json({
-      success: true,
-      message: 'Device registered successfully (mock)',
-      data: {
-        user_id: userId,
-        course_id: courseId,
-        device_id: deviceId,
-        registered_at: new Date()
-      }
-    });
+    const userId = req.user?.id;
 
-    // Kiểm tra thiết bị đã đăng ký chưa
-    const existingDevice = await UserDevice.findOne({
-      user_id: userId,
-      course_id: courseId,
-      device_id: deviceId
-    });
-
-    if (existingDevice) {
-      // Cập nhật thời gian hoạt động cuối
-      existingDevice.last_activity = new Date();
-      await existingDevice.save();
-
-      return res.json({
-        success: true,
-        message: 'Device already registered',
-        data: existingDevice
-      });
-    }
-
-    // Kiểm tra có user khác đang dùng thiết bị này không
-    const otherUsers = await UserDevice.find({
-      device_id: deviceId,
-      course_id: courseId,
-      user_id: { $ne: userId }
-    });
-
-    if (otherUsers.length > 0) {
-      // Tạo báo cáo vi phạm
-      const violation = new DeviceViolation({
-        device_id: deviceId,
-        violation_type: 'multiple_accounts',
-        user_ids: [userId, ...otherUsers.map(u => u.user_id)],
-        course_ids: [courseId],
-        device_info: {
-          userAgent: req.headers['user-agent'],
-          acceptLanguage: req.headers['accept-language']
-        },
-        ip_address: req.ip,
-        severity: 'medium'
-      });
-
-      await violation.save();
-
-      return res.status(403).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: 'Device sharing detected. Violation reported to admin.',
-        code: 'DEVICE_SHARING_DETECTED'
+        message: 'User not authenticated'
       });
     }
 
-    // Đăng ký thiết bị mới
-    const newDevice = new UserDevice({
-      user_id: userId,
-      course_id: courseId,
-      device_id: deviceId,
-      device_info: {
-        userAgent: req.headers['user-agent'],
-        acceptLanguage: req.headers['accept-language']
-      },
-      ip_address: req.ip,
-      user_agent: req.headers['user-agent'],
-      last_activity: new Date()
-    });
-
-    await newDevice.save();
+    console.log('🔧 Registering device via service...');
+    const result = await deviceSecurityService.registerDevice(userId, courseId, req);
 
     res.json({
       success: true,
       message: 'Device registered successfully',
-      data: newDevice
+      data: result
     });
 
   } catch (error) {
@@ -132,25 +48,21 @@ const getUserDevices = async (req, res) => {
   try {
     const userId = req.user.id;
     const { courseId } = req.query;
-
-    const query = { user_id: userId, is_active: true };
-    if (courseId) {
-      query.course_id = courseId;
-    }
-
-    const devices = await UserDevice.find(query)
-      .sort({ last_activity: -1 });
-
+    
+    console.log('📱 Getting user devices:', { userId, courseId });
+    
+    const devices = await deviceSecurityService.getUserDevices(userId, courseId);
+    
     res.json({
       success: true,
       data: devices
     });
-
   } catch (error) {
-    console.error('Get user devices error:', error);
+    console.error('❌ Get user devices error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get user devices'
+      message: 'Failed to get user devices',
+      error: error.message
     });
   }
 };
@@ -160,31 +72,28 @@ const checkDeviceStatus = async (req, res) => {
   console.log('🔍 checkDeviceStatus called');
   try {
     const { courseId } = req.params;
-    const userId = req.user?.id || 'mock-user-id';
-    console.log('📝 Extracted params:', { courseId, userId });
-    
-    const deviceId = generateDeviceFingerprint(req);
-    console.log('🔑 Generated deviceId:', deviceId);
-    
-    // Tạm thởi trả về mock response để frontend hoạt động
-    console.log('🔧 Returning mock response (device not registered)');
-    res.json({
-      success: true,
-      data: {
-        isRegistered: false,
-        device: null
-      }
-    });
-    
-    // TODO: Uncomment when database is ready
-    /*
-    console.log('💾 Querying UserDevice...');
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+
+    console.log('📝 Checking device status:', { courseId, userId });
+
+    const deviceId = deviceSecurityService.generateDeviceFingerprint(req);
+    console.log('🔑 Generated deviceId:', deviceId.substring(0, 16) + '...');
+
     const device = await UserDevice.findOne({
       user_id: userId,
       course_id: courseId,
-      device_id: deviceId
+      device_id: deviceId,
+      is_active: true
     });
-    console.log('💾 UserDevice query result:', device);
+
+    console.log('💾 Device found:', !!device);
 
     res.json({
       success: true,
@@ -193,7 +102,6 @@ const checkDeviceStatus = async (req, res) => {
         device: device || null
       }
     });
-    */
   } catch (error) {
     console.error('❌ Check device status error:', error);
     console.error('❌ Error stack:', error.stack);
@@ -209,7 +117,7 @@ const checkDeviceStatus = async (req, res) => {
 const getViolations = async (req, res) => {
   try {
     const { status, severity, limit = 50 } = req.query;
-    
+
     const query = {};
     if (status) query.status = status;
     if (severity) query.severity = severity;
@@ -256,8 +164,8 @@ const handleViolation = async (req, res) => {
     }
 
     violation.status = action === 'block_users' ? 'resolved' : 'dismissed';
-    violation.handled_by = adminId;
-    violation.handled_at = new Date();
+    violation.reviewed_by = adminId;
+    violation.reviewed_at = new Date();
     violation.admin_notes = notes;
 
     await violation.save();

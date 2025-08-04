@@ -16,9 +16,9 @@ interface DeviceSecurityState {
   violationMessage: string;
 }
 
-export const useDeviceSecurity = ({ 
-  courseId, 
-  autoCheck = true 
+export const useDeviceSecurity = ({
+  courseId,
+  autoCheck = true
 }: UseDeviceSecurityProps = {}) => {
   const [state, setState] = useState<DeviceSecurityState>({
     isRegistered: false,
@@ -32,7 +32,7 @@ export const useDeviceSecurity = ({
   const checkDeviceStatus = useCallback(async (targetCourseId?: number) => {
     const checkCourseId = targetCourseId || courseId;
     console.log('🔍 Checking device status for course:', checkCourseId);
-    
+
     if (!checkCourseId) {
       console.log('⚠️ No courseId provided');
       return;
@@ -44,7 +44,7 @@ export const useDeviceSecurity = ({
       console.log('🚀 Calling deviceSecurityService.checkDeviceStatus...');
       const response = await deviceSecurityService.checkDeviceStatus(checkCourseId);
       console.log('✅ Device status response:', response);
-      
+
       if (!response.data.isRegistered) {
         // Tự động đăng ký thiết bị thay vì hiện modal
         await registerDevice(checkCourseId);
@@ -71,7 +71,7 @@ export const useDeviceSecurity = ({
   const registerDevice = useCallback(async (targetCourseId?: number) => {
     const registerCourseId = targetCourseId || courseId;
     console.log('📝 Registering device for course:', registerCourseId);
-    
+
     if (!registerCourseId) {
       console.log('⚠️ No courseId for registration');
       return false;
@@ -83,7 +83,7 @@ export const useDeviceSecurity = ({
       console.log('🚀 Calling deviceSecurityService.registerDevice...');
       const result = await deviceSecurityService.registerDevice(registerCourseId);
       console.log('✅ Device registration result:', result);
-      
+
       setState(prev => ({
         ...prev,
         isRegistered: true,
@@ -95,7 +95,7 @@ export const useDeviceSecurity = ({
       return true;
     } catch (error: any) {
       console.error('Register device error:', error);
-      
+
       if (error.message.includes('Device sharing detected')) {
         setState(prev => ({
           ...prev,
@@ -121,10 +121,10 @@ export const useDeviceSecurity = ({
   }, []);
 
   const closeViolationAlert = useCallback(() => {
-    setState(prev => ({ 
-      ...prev, 
-      showViolationAlert: false, 
-      violationMessage: '' 
+    setState(prev => ({
+      ...prev,
+      showViolationAlert: false,
+      violationMessage: ''
     }));
   }, []);
 
@@ -141,13 +141,13 @@ export const useDeviceSecurity = ({
 
   // Auto check device status when courseId changes
   useEffect(() => {
-    console.log('🔄 useEffect triggered:', { 
-      autoCheck, 
-      courseId, 
+    console.log('🔄 useEffect triggered:', {
+      autoCheck,
+      courseId,
       courseIdType: typeof courseId,
-      courseIdValue: courseId 
+      courseIdValue: courseId
     });
-    
+
     // Force check nếu có courseId (bỏ qua autoCheck)
     if (courseId) {
       console.log('🚀 Force checking device status for courseId:', courseId);
