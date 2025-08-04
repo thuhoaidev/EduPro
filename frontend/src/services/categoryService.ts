@@ -19,6 +19,9 @@ export const getAllCategories = async (params?: {
   page?: number;
   limit?: number;
   search?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
 }): Promise<CategoryResponse> => {
   try {
     const response = await axios.get(API_URL, {
@@ -26,6 +29,9 @@ export const getAllCategories = async (params?: {
         page: params?.page || 1,
         limit: params?.limit || 100,
         search: params?.search,
+        status: params?.status,
+        startDate: params?.startDate,
+        endDate: params?.endDate,
       },
     });
     return response.data;

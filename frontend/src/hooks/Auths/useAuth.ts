@@ -18,6 +18,8 @@ export const useAuth = () => {
       setUser(userData);
     } catch (error) {
       console.error('Error fetching user data:', error);
+      // Nếu lỗi 401, có thể token đã hết hạn, nhưng không logout ở đây
+      // để tránh redirect không mong muốn
     }
   };
 

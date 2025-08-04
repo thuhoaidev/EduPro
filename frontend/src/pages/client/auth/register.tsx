@@ -11,6 +11,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { EyeInvisibleOutlined, EyeTwoTone, UserOutlined as UserIcon, LockOutlined, MailOutlined, TeamOutlined, BookOutlined, TrophyOutlined, SafetyCertificateOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import AuthNotification from "../../../components/common/AuthNotification";
+import ToastNotification from "../../../components/common/ToastNotification";
+import { useNotification } from "../../../hooks/useNotification";
+import socket from '../../../services/socket';
 
 // Custom CSS for reCAPTCHA
 const recaptchaStyles = `
@@ -36,27 +39,22 @@ export function RegisterPage() {
       const { mutate } = useRegister({ resource: "register" });
       const [captchaToken, setCaptchaToken] = useState<string | null>(null);
       const [loading, setLoading] = useState(false);
-      const [notification, setNotification] = useState<{
-        isVisible: boolean;
-        type: 'success' | 'error' | 'info' | 'warning';
-        title: string;
-        message: string;
-      }>({
-        isVisible: false,
-        type: 'success',
-        title: '',
-        message: ''
-      });
+      
+      // Sử dụng hook notification mới
+      const { 
+        notification, 
+        toast,
+        showRegisterSuccess, 
+        showRegisterError, 
+        showErrorToast,
+        hideNotification, 
+        hideToast 
+      } = useNotification();
 
       const onFinish = (formData: { fullName: string; nickname: string; email: string; password: string }) => {
             console.log('Form submit data:', formData);
             if (!captchaToken) {
-                  setNotification({
-                    isVisible: true,
-                    type: 'error',
-                    title: 'Lỗi xác thực!',
-                    message: 'Vui lòng xác nhận bạn không phải robot!'
-                  });
+                  showErrorToast('Lỗi xác thực!', 'Vui lòng xác nhận bạn không phải robot!');
                   return;
             }
 
@@ -72,32 +70,25 @@ export function RegisterPage() {
 
             mutate(newObject, {
                   onSuccess: (data) => {
-                        setNotification({
-                          isVisible: true,
-                          type: 'success',
-                          title: 'Tạo tài khoản thành công!',
-                          message: 'Tài khoản của bạn đã được tạo thành công! Vui lòng xác minh email để đăng nhập.'
-                        });
+                        showRegisterSuccess();
                         // Nếu backend trả về token và user, lưu vào localStorage
                         if (data?.token) {
                               localStorage.setItem('token', data.token);
                         }
                         if (data?.user) {
                               localStorage.setItem('user', JSON.stringify(data.user));
+                              // Emit realtime event
+                              socket.connect();
+                              socket.emit('auth-event', { type: 'register', user: data.user });
                         }
                         setTimeout(() => {
                               navigate("/");
-                        }, 2500);
+                        }, 4000);
                   },
                   onError: (error: unknown) => {
                         const err = error as { response?: { data?: { message?: string } } };
                         const errorMessage = err?.response?.data?.message || "Đã xảy ra lỗi.";
-                        setNotification({
-                          isVisible: true,
-                          type: 'error',
-                          title: 'Lỗi đăng ký!',
-                          message: errorMessage
-                        });
+                        showRegisterError(errorMessage);
                   },
                   onSettled: () => {
                         setLoading(false);
@@ -483,13 +474,25 @@ export function RegisterPage() {
                   {/* Shared Auth Notification */}
                   <AuthNotification 
                     isVisible={notification.isVisible}
-                    onComplete={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+                    onComplete={hideNotification}
                     type={notification.type}
                     title={notification.title}
                     message={notification.message}
-                    autoClose={true}
-                    duration={2500}
-                    showProgress={notification.type === 'success'}
+                    autoClose={notification.autoClose}
+                    duration={notification.duration}
+                    showProgress={notification.showProgress}
+                  />
+
+                  {/* Toast Notification */}
+                  <ToastNotification
+                    isVisible={toast.isVisible}
+                    onComplete={hideToast}
+                    type={toast.type}
+                    title={toast.title}
+                    message={toast.message}
+                    autoClose={toast.autoClose}
+                    duration={toast.duration}
+                    position={toast.position}
                   />
             </div>
       );

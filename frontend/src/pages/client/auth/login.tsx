@@ -6,7 +6,11 @@ import { config } from "../../../api/axios";
 import { motion } from "framer-motion";
 import { EyeInvisibleOutlined, EyeTwoTone, UserOutlined, LockOutlined, MailOutlined, ReadOutlined, TeamOutlined, BookOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import AuthNotification from "../../../components/common/AuthNotification";
+import ToastNotification from "../../../components/common/ToastNotification";
 import AccountTypeModal from "../../../components/common/AccountTypeModal";
+import { useNotification } from "../../../hooks/useNotification";
+import { useAuth } from "../../../contexts/AuthContext";
+import socket from '../../../services/socket';
 
 export default function LoginPage(): React.ReactElement {
   console.log('🔍 LoginPage component is rendering...');
@@ -14,22 +18,24 @@ export default function LoginPage(): React.ReactElement {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const { mutate } = useLogin({ resource: "login" });
+  const { login: authLogin } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
   const [resendingVerification, setResendingVerification] = useState(false);
   const [accountTypeModalVisible, setAccountTypeModalVisible] = useState(false);
-  const [notification, setNotification] = useState<{
-    isVisible: boolean;
-    type: 'success' | 'error' | 'info' | 'warning';
-    title: string;
-    message: string;
-  }>({
-    isVisible: false,
-    type: 'success',
-    title: '',
-    message: ''
-  });
+  
+  // Sử dụng hook notification mới
+  const { 
+    notification, 
+    toast,
+    showLoginSuccess, 
+    showLoginError, 
+    showVerificationRequired,
+    showSuccessToast,
+    hideNotification, 
+    hideToast 
+  } = useNotification();
 
   const onFinish = (values: { identifier: string; password: string }) => {
     console.log('🔍 Form submitted:', values);
@@ -55,32 +61,53 @@ export default function LoginPage(): React.ReactElement {
           console.log('Token after login:', localStorage.getItem('token'));
           
           // Lưu user info nếu có
-          if (data?.user) {
-            localStorage.setItem('user', JSON.stringify(data.user));
-            console.log('User info saved:', data.user);
-          } else if (data?.data?.user) {
-            localStorage.setItem('user', JSON.stringify(data.data.user));
-            console.log('User info saved:', data.data.user);
+          const userData = data?.user || data?.data?.user;
+          if (userData) {
+            // Chuyển đổi format để phù hợp với frontend
+            const formattedUserData = {
+              ...userData,
+              role_id: {
+                name: userData.role || userData.role_id?.name || 'student'
+              }
+            };
+            localStorage.setItem('user', JSON.stringify(formattedUserData));
+            // Cập nhật AuthContext
+            authLogin(token, formattedUserData);
+            // Emit realtime event
+            socket.connect();
+            socket.emit('auth-event', { type: 'login', user: formattedUserData });
           }
           
-          // Hiển thị thông báo thành công
-          setNotification({
-            isVisible: true,
-            type: 'success',
-            title: 'Đăng nhập thành công!',
-            message: 'Chào mừng bạn trở lại!'
-          });
+          // Hiển thị thông báo thành công với giao diện mới
+          showLoginSuccess();
           
-          // Không chuyển hướng ngay, để thông báo tự động chuyển hướng
+          // Chuyển hướng dựa trên role
+          console.log('Full response data:', data);
+          console.log('User data extracted:', userData);
+          if (userData) {
+            // Backend trả về role là string, không phải object
+            const roleName = userData.role || userData.role_id?.name || userData.role?.name;
+            console.log('User role after login:', roleName);
+            
+            // Chuyển hướng dựa trên role
+            if (roleName === 'admin' || roleName === 'quản trị viên') {
+              setTimeout(() => navigate('/admin'), 1500);
+            } else if (roleName === 'moderator' || roleName === 'kiểm duyệt viên') {
+              setTimeout(() => navigate('/moderator'), 1500);
+            } else {
+              // Instructor, Student hoặc role khác - chuyển về trang chủ
+              setTimeout(() => navigate('/'), 1500);
+            }
+          } else {
+            // Không có user data - chuyển về trang chủ
+            setTimeout(() => navigate('/'), 1500);
+          }
         } else {
           console.warn('Không tìm thấy token trong response!', data);
           // Nếu không có token, vẫn hiển thị thông báo thành công
-          setNotification({
-            isVisible: true,
-            type: 'success',
-            title: 'Đăng nhập thành công!',
-            message: 'Chào mừng bạn trở lại!'
-          });
+          showLoginSuccess();
+          // Chuyển về trang chủ nếu không có token
+          setTimeout(() => navigate('/'), 1500);
         }
         
         // Kiểm tra email verification nếu cần
@@ -93,13 +120,9 @@ export default function LoginPage(): React.ReactElement {
       },
       onError: (error: { response?: { data?: { message?: string } } }) => {
         // Luôn hiển thị thông báo chung khi đăng nhập sai
-        setNotification({
-          isVisible: true,
-          type: 'error',
-          title: 'Lỗi đăng nhập!',
-          message: 'Sai email hoặc mật khẩu!'
-        });
+        showLoginError();
         setIsLoading(false);
+        // Không chuyển hướng khi lỗi, để user có thể thử lại
       }
     });
   };
@@ -108,20 +131,10 @@ export default function LoginPage(): React.ReactElement {
     setResendingVerification(true);
     try {
       await config.post("/auth/resend-verification", { email: verificationEmail });
-      setNotification({
-        isVisible: true,
-        type: 'success',
-        title: 'Gửi lại email thành công!',
-        message: 'Vui lòng kiểm tra hộp thư của bạn.'
-      });
+      showSuccessToast('Gửi lại email thành công!', 'Vui lòng kiểm tra hộp thư của bạn.');
     } catch (error: unknown) {
       const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Không thể gửi lại email. Vui lòng thử lại.";
-      setNotification({
-        isVisible: true,
-        type: 'error',
-        title: 'Lỗi gửi email!',
-        message: errorMessage
-      });
+      showSuccessToast('Lỗi gửi email!', errorMessage, { type: 'error' });
     } finally {
       setResendingVerification(false);
     }
@@ -169,9 +182,32 @@ export default function LoginPage(): React.ReactElement {
 
   useEffect(() => {
     if (notification.isVisible && notification.type === 'success' && notification.title.includes('Đăng nhập thành công')) {
-      // Chuyển hướng sau khi thông báo đăng nhập thành công
+      // Lấy user từ localStorage
+      const storedUser = localStorage.getItem('user');
+      let role = '';
+      if (storedUser) {
+        try {
+          const userObj = JSON.parse(storedUser);
+          // Có thể là user.role hoặc user.role.name hoặc user.role_id.name
+          if (typeof userObj.role === 'string') {
+            role = userObj.role;
+          } else if (userObj.role && userObj.role.name) {
+            role = userObj.role.name;
+          } else if (userObj.role_id && userObj.role_id.name) {
+            role = userObj.role_id.name;
+          }
+        } catch (e) {
+          // fallback
+        }
+      }
+      let redirectPath = '/';
+      if (role === 'admin') {
+        redirectPath = '/admin';
+      } else if (role === 'moderator') {
+        redirectPath = '/moderator';
+      }
       const timer = setTimeout(() => {
-        navigate('/');
+        navigate(redirectPath);
       }, 1200); // Đợi animation hoặc thông báo hoàn thành
       return () => clearTimeout(timer);
     }
@@ -306,13 +342,37 @@ export default function LoginPage(): React.ReactElement {
               </motion.div>
 
               <motion.div variants={itemVariants}>
+                <motion.div
+                  className="mb-6"
+                  variants={itemVariants}
+                >
+                  <Button
+                    size="large"
+                    onClick={() => window.location.href = 'http://localhost:5000/api/auth/google'}
+                    className="w-full h-12 bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-800 font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-center gap-3"
+                    style={{
+                      background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                    }}
+                  >
+                    <div className="flex items-center justify-center w-6 h-6">
+                      <svg viewBox="0 0 24 24" className="w-5 h-5">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium">Đăng nhập với Google</span>
+                  </Button>
+                </motion.div>
                 <Form.Item>
                   <Button
                     type="primary"
-                    size="large"
                     htmlType="submit"
+                    style={{ width: '100%' }}
                     loading={isLoading}
-                    className="w-full h-12 rounded-lg !bg-gradient-to-r !from-cyan-500 !to-purple-500 !text-white !font-semibold hover:opacity-90 border-none shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
                   >
                     {isLoading ? "Đang đăng nhập..." : "Đăng Nhập"}
                   </Button>
@@ -353,6 +413,10 @@ export default function LoginPage(): React.ReactElement {
             >
               Chào mừng trở lại!
             </motion.h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+              {/* Xóa đoạn code nút Đăng nhập với Google ở phần bên phải (giao diện chào mừng) */}
+            </div>
 
             <div className="grid grid-cols-1 gap-6">
               <motion.div
@@ -468,13 +532,25 @@ export default function LoginPage(): React.ReactElement {
       {/* Shared Auth Notification */}
       <AuthNotification
         isVisible={notification.isVisible}
-        onComplete={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+        onComplete={hideNotification}
         type={notification.type}
         title={notification.title}
         message={notification.message}
-        autoClose={true}
-        duration={2500}
-        showProgress={notification.type === 'success'}
+        autoClose={notification.autoClose}
+        duration={notification.duration}
+        showProgress={notification.showProgress}
+      />
+
+      {/* Toast Notification */}
+      <ToastNotification
+        isVisible={toast.isVisible}
+        onComplete={hideToast}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        autoClose={toast.autoClose}
+        duration={toast.duration}
+        position={toast.position}
       />
 
       {/* Account Type Modal */}

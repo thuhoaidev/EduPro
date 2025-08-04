@@ -24,4 +24,7 @@ router.put('/:id/cancel', OrderController.cancelOrder);
 // [POST] /api/orders/:id/complete-payment - Hoàn thành thanh toán (admin)
 router.post('/:id/complete-payment', OrderController.completePayment);
 
+// [POST] /api/orders/:id/refund - Hoàn thành thanh toán (admin)
+router.post('/:id/refund', auth, OrderController.refundOrder);
+
 module.exports = router; 

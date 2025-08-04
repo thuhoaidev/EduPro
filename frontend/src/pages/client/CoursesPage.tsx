@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Layout, Row, Col, Typography, Spin, Alert, Empty } from 'antd';
+import { Layout, Row, Col, Typography, Spin, Alert, Empty, Pagination } from 'antd';
 import { courseService } from '../../services/apiService';
 import type { Course } from '../../services/apiService';
 import SearchBar from '../../components/common/SearchBar';
 import CourseCard from '../../components/course/CourseCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { config } from '../../api/axios';
+import { getProgress } from '../../services/progressService';
+import './CoursesPage.css';
 
 const { Content } = Layout;
 const { Text, Paragraph } = Typography;
@@ -23,6 +25,14 @@ const CoursesPage: React.FC = () => {
     const categoryId = searchParams.get('category');
     const searchTerm = searchParams.get('search') || '';
     const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+    const [courseProgress, setCourseProgress] = useState<{ [courseId: string]: boolean }>({});
+    const [courseContinueLesson, setCourseContinueLesson] = useState<{ [courseId: string]: string | null }>({});
+    const [courseCompletedStatus, setCourseCompletedStatus] = useState<{ [courseId: string]: boolean }>({});
+    
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(12); // 12 courses per page (3 rows of 4 cards)
+    const pageSizeOptions = ['12', '24', '48'];
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -36,7 +46,17 @@ const CoursesPage: React.FC = () => {
                 } else {
                     fetchedCourses = await courseService.getAllCourses();
                 }
-                setCourses(fetchedCourses);
+                // Bổ sung trường lessonsCount cho từng course
+                const coursesWithLessons = await Promise.all(fetchedCourses.map(async (course) => {
+                    try {
+                        const sections = await courseService.getCourseContent(course.id);
+                        const lessonsCount = sections.reduce((sum: number, section: any) => sum + (section.lessons?.length || 0), 0);
+                        return { ...course, lessonsCount };
+                    } catch {
+                        return { ...course, lessonsCount: 0 };
+                    }
+                }));
+                setCourses(coursesWithLessons);
             } catch (err) {
                 setError('Không thể tải danh sách khóa học. Vui lòng thử lại sau.');
                 console.error(err);
@@ -47,20 +67,86 @@ const CoursesPage: React.FC = () => {
         fetchCourses();
     }, [categoryId, searchTerm]);
 
+    // Handle pagination from URL parameters
+    useEffect(() => {
+        const pageParam = searchParams.get('page');
+        const sizeParam = searchParams.get('size');
+        
+        if (pageParam) {
+            const page = parseInt(pageParam);
+            if (page > 0) {
+                setCurrentPage(page);
+            }
+        } else {
+            setCurrentPage(1);
+        }
+        
+        if (sizeParam && pageSizeOptions.includes(sizeParam)) {
+            setPageSize(parseInt(sizeParam));
+        }
+    }, [searchParams, pageSizeOptions]);
+
     useEffect(() => {
         // Lấy danh sách khóa học đã đăng ký
         const fetchEnrollments = async () => {
             const token = localStorage.getItem('token');
             if (!token) {
                 setEnrolledCourseIds([]);
+                setCourseProgress({});
+                setCourseContinueLesson({});
+                setCourseCompletedStatus({});
                 return;
             }
             try {
                 const response = await config.get('/users/me/enrollments');
                 const ids = (response.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
                 setEnrolledCourseIds(ids);
+                // Lấy progress từng khóa học và lesson tiếp tục học
+                const progressObj: { [courseId: string]: boolean } = {};
+                const continueLessonObj: { [courseId: string]: string | null } = {};
+                const completedObj: { [courseId: string]: boolean } = {};
+                await Promise.all((response.data.data || []).map(async (enroll: any) => {
+                    const courseId = enroll.course?._id || enroll.course?.id;
+                    completedObj[courseId] = !!enroll.completed;
+                    try {
+                        const progress = await getProgress(courseId);
+                        if (!progress || Object.keys(progress).length === 0) {
+                            progressObj[courseId] = false;
+                            continueLessonObj[courseId] = null;
+                            return;
+                        }
+                        const allCompleted = Object.values(progress).every((p: any) => p.completed === true);
+                        progressObj[courseId] = allCompleted;
+                        let continueLessonId = null;
+                        if (progress.lastWatchedLessonId) {
+                            continueLessonId = progress.lastWatchedLessonId;
+                        } else {
+                            const sections = await courseService.getCourseContent(courseId);
+                            outer: for (const section of sections) {
+                                for (const lesson of section.lessons) {
+                                    if (!progress[lesson._id]?.completed && !progress[lesson._id]?.videoCompleted) {
+                                        continueLessonId = lesson._id;
+                                        break outer;
+                                    }
+                                }
+                            }
+                            if (!continueLessonId && sections[0]?.lessons?.[0]?._id) {
+                                continueLessonId = sections[0].lessons[0]._id;
+                            }
+                        }
+                        continueLessonObj[courseId] = continueLessonId;
+                    } catch {
+                        progressObj[courseId] = false;
+                        continueLessonObj[courseId] = null;
+                    }
+                }));
+                setCourseProgress(progressObj);
+                setCourseContinueLesson(continueLessonObj);
+                setCourseCompletedStatus(completedObj);
             } catch {
-                // Không cần xử lý lỗi ở đây
+                setCourseProgress({});
+                setCourseContinueLesson({});
+                setCourseCompletedStatus({});
             }
         };
         fetchEnrollments();
@@ -74,8 +160,33 @@ const CoursesPage: React.FC = () => {
             params.delete('search');
         }
         params.delete('category'); // Clear category when searching
+        params.delete('page'); // Reset to first page when searching
         navigate(`/courses?${params.toString()}`);
     };
+
+    // Calculate paginated courses
+    const getPaginatedCourses = () => {
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        return courses.slice(startIndex, endIndex);
+    };
+
+    // Handle page change
+    const handlePageChange = (page: number, size?: number) => {
+        const params = new URLSearchParams(searchParams);
+        params.set('page', page.toString());
+        if (size) {
+            params.set('size', size.toString());
+        }
+        navigate(`/courses?${params.toString()}`);
+        
+        // Scroll to top smoothly when changing pages
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Calculate total pages
+    const totalPages = Math.ceil(courses.length / pageSize);
+    const paginatedCourses = getPaginatedCourses();
 
     return (
         <Content className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -127,6 +238,9 @@ const CoursesPage: React.FC = () => {
                         </Text>
                         <Text className="block text-slate-500 mt-1 text-base">
                             Tìm thấy <span className="font-bold text-indigo-600">{courses.length}</span> khóa học
+                            {totalPages > 1 && (
+                                <span> (Hiển thị {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, courses.length)} trong tổng số {courses.length})</span>
+                            )}
                         </Text>
                     </motion.div>
                 )}
@@ -144,9 +258,16 @@ const CoursesPage: React.FC = () => {
                     />
                 )}
 
+                {!loading && !error && courses.length > 0 && paginatedCourses.length === 0 && (
+                    <Empty 
+                        description="Không có khóa học nào ở trang này."
+                        className="my-16"
+                    />
+                )}
+
                 <AnimatePresence>
-                    <Row gutter={[32, 32]} className="mt-2 md:mt-8">
-                        {courses.map((course, idx) => (
+                    <Row gutter={[32, 32]} className={`courses-grid mt-2 md:mt-8 ${loading ? 'loading' : ''}`}>
+                        {paginatedCourses.map((course, idx) => (
                             <Col key={course.id} xs={24} sm={12} md={8} lg={6}>
                                 <motion.div
                                     initial={{ opacity: 0, y: 30 }}
@@ -156,12 +277,65 @@ const CoursesPage: React.FC = () => {
                                     whileHover={{ scale: 1.035, boxShadow: '0 8px 32px 0 rgba(80,80,180,0.10)' }}
                                     className="h-full"
                                 >
-                                    <CourseCard course={course} isEnrolled={enrolledCourseIds.includes(course.id)} />
+                                    <CourseCard 
+                                        course={course} 
+                                        isEnrolled={enrolledCourseIds.includes(course.id)}
+                                        isInProgress={enrolledCourseIds.includes(course.id) && !courseProgress[course.id]}
+                                        continueLessonId={courseContinueLesson[course.id] || undefined}
+                                        isCompleted={courseCompletedStatus[course.id]}
+                                        lessons={course.lessonsCount || course.lessons}
+                                        rating={course.rating}
+                                        reviews={course.reviews}
+                                    />
                                 </motion.div>
                             </Col>
                         ))}
                     </Row>
                 </AnimatePresence>
+
+                {totalPages > 1 && (
+                    <>
+                        {/* Top pagination */}
+                        <div className="pagination-container flex flex-col items-center mt-10 mb-8 space-y-4">
+                            <div className="pagination-info text-sm">
+                                Hiển thị {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, courses.length)} trong tổng số {courses.length} khóa học
+                            </div>
+                            <Pagination
+                                current={currentPage}
+                                total={courses.length}
+                                pageSize={pageSize}
+                                pageSizeOptions={pageSizeOptions}
+                                onChange={handlePageChange}
+                                onShowSizeChange={handlePageChange}
+                                showTotal={(total, range) => `${range[0]}-${range[1]} của ${total} khóa học`}
+                                showSizeChanger
+                                showQuickJumper
+                                size="default"
+                                className="custom-pagination"
+                            />
+                        </div>
+
+                        {/* Bottom pagination */}
+                        <div className="pagination-container flex flex-col items-center mt-10 space-y-4">
+                            <div className="pagination-info text-sm">
+                                Hiển thị {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, courses.length)} trong tổng số {courses.length} khóa học
+                            </div>
+                            <Pagination
+                                current={currentPage}
+                                total={courses.length}
+                                pageSize={pageSize}
+                                pageSizeOptions={pageSizeOptions}
+                                onChange={handlePageChange}
+                                onShowSizeChange={handlePageChange}
+                                showTotal={(total, range) => `${range[0]}-${range[1]} của ${total} khóa học`}
+                                showSizeChanger
+                                showQuickJumper
+                                size="default"
+                                className="custom-pagination"
+                            />
+                        </div>
+                    </>
+                )}
             </div>
         </Content>
     );

@@ -4,6 +4,7 @@ const ApiError = require('../utils/ApiError');
 const { validateSchema } = require('../utils/validateSchema');
 // const { createQuizSchema, updateQuizSchema } = require('../validations/quiz.validation');
 const Video = require('../models/Video');
+const Notification = require('../models/Notification');
 
 // Tạo bài quiz mới
 exports.createQuiz = async (req, res, next) => {
@@ -146,6 +147,24 @@ exports.submitQuiz = async (req, res, next) => {
     quiz.questions.forEach((q, idx) => {
       if (answers[idx] !== q.correctIndex) wrongQuestions.push(idx);
     });
+    // Gửi thông báo cho user
+/*
+    const userId = req.user?._id || req.user?.id;
+    if (userId) {
+      const notification = await Notification.create({
+        title: 'Hoàn thành quiz',
+        content: wrongQuestions.length === 0 ? 'Bạn đã hoàn thành quiz với tất cả đáp án đúng!' : `Bạn đã hoàn thành quiz. Số câu sai: ${wrongQuestions.length}`,
+        type: wrongQuestions.length === 0 ? 'success' : 'info',
+        receiver: userId,
+        icon: 'check-square',
+        meta: { link: `/quizzes/${quiz_id}` }
+      });
+      const io = req.app.get && req.app.get('io');
+      if (io && notification.receiver) {
+        io.to(notification.receiver.toString()).emit('new-notification', notification);
+      }
+    }
+*/
     if (wrongQuestions.length === 0) {
       return res.json({ success: true, message: 'Tất cả đáp án đều đúng!' });
     } else {

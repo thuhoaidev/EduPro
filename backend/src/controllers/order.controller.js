@@ -7,6 +7,8 @@ const Enrollment = require('../models/Enrollment');
 const TeacherWallet = require('../models/TeacherWallet');
 const Course = require('../models/Course'); // Nên thêm rõ ràng
 const InstructorProfile = require('../models/InstructorProfile');
+const Notification = require('../models/Notification');
+const UserWallet = require('../models/UserWallet');
 
 class OrderController {
   // Tạo đơn hàng
@@ -15,20 +17,47 @@ class OrderController {
     session.startTransaction();
 
     try {
+      console.log('🔍 CreateOrder - Request body:', req.body);
+      console.log('🔍 CreateOrder - User:', req.user);
+
       const {
         items,
         voucherCode,
         paymentMethod = 'bank_transfer',
         shippingInfo,
+        fullName,
+        phone,
+        email,
         notes
       } = req.body;
 
-      const { fullName, phone, email } = shippingInfo || {};
+      // Handle both shippingInfo object and direct fields
+      const orderFullName = fullName || (shippingInfo && shippingInfo.fullName);
+      const orderPhone = phone || (shippingInfo && shippingInfo.phone);
+      const orderEmail = email || (shippingInfo && shippingInfo.email);
+      
+      console.log('🔍 CreateOrder - Processed fields:', {
+        orderFullName,
+        orderPhone,
+        orderEmail,
+        paymentMethod,
+        itemsCount: items?.length
+      });
+      
       const userId = req.user.id;
 
       if (!items || items.length === 0) {
         await session.abortTransaction();
         return res.status(400).json({ success: false, message: 'Giỏ hàng trống' });
+      }
+
+      // Validate required fields
+      if (!orderFullName || !orderPhone || !orderEmail) {
+        await session.abortTransaction();
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Thiếu thông tin bắt buộc: họ tên, số điện thoại hoặc email' 
+        });
       }
 
       let totalAmount = 0;
@@ -91,6 +120,28 @@ class OrderController {
 
       const finalAmount = totalAmount - discountAmount;
 
+      // Nếu thanh toán bằng ví, kiểm tra và trừ tiền ví trước khi tạo đơn hàng
+      if (paymentMethod === 'wallet') {
+        let wallet = await UserWallet.findOne({ userId }).session(session);
+        if (!wallet) {
+          wallet = new UserWallet({ userId, balance: 0, history: [] });
+        }
+        if (wallet.balance < finalAmount) {
+          await session.abortTransaction();
+          return res.status(400).json({ success: false, message: 'Số dư ví không đủ để thanh toán!' });
+        }
+        wallet.balance -= finalAmount;
+        wallet.history.push({
+          type: 'payment',
+          amount: -finalAmount,
+          method: 'wallet',
+          status: 'paid',
+          note: `Thanh toán đơn hàng khóa học`,
+          createdAt: new Date()
+        });
+        await wallet.save({ session });
+      }
+
       // Tạo đơn hàng
       const order = new Order({
         userId,
@@ -100,9 +151,9 @@ class OrderController {
         finalAmount,
         voucherId,
         paymentMethod,
-        fullName,
-        phone,
-        email,
+        fullName: orderFullName,
+        phone: orderPhone,
+        email: orderEmail,
         notes
       });
 
@@ -195,7 +246,19 @@ class OrderController {
           select: 'code title discountType discountValue'
         }
       ]);
-
+      // Gửi thông báo cho user khi thanh toán thành công
+      const notification = await Notification.create({
+        title: 'Thanh toán thành công',
+        content: `Đơn hàng của bạn đã được thanh toán thành công. Cảm ơn bạn đã mua hàng!`,
+        type: 'success',
+        receiver: userId,
+        icon: 'credit-card',
+        meta: { link: `/orders/${order._id}` }
+      });
+      const io = req.app.get && req.app.get('io');
+      if (io && notification.receiver) {
+        io.to(notification.receiver.toString()).emit('new-notification', notification);
+      }
       return res.status(201).json({
         success: true,
         message: 'Tạo đơn hàng thành công',
@@ -217,7 +280,12 @@ class OrderController {
       });
     } catch (err) {
       await session.abortTransaction();
-      console.error('Create order error:', err);
+      console.error('❌ Create order error details:', {
+        message: err.message,
+        stack: err.stack,
+        body: req.body,
+        user: req.user
+      });
       res.status(500).json({ success: false, message: 'Lỗi tạo đơn hàng', error: err.message });
     } finally {
       session.endSession();
@@ -460,6 +528,77 @@ class OrderController {
       });
     } catch (error) {
       res.status(500).json({ message: 'Lỗi lấy danh sách đơn hàng', error: error.message });
+    }
+  }
+
+  // Hoàn tiền 70% chi phí vào ví user nếu đơn hàng chứa courseId và mua dưới 7 ngày, chưa hoàn tiền trước đó
+  static async refundOrder(req, res) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const { id } = req.params; // orderId
+      const { courseId } = req.body;
+      const userId = req.user.id;
+      if (!id || !courseId) {
+        await session.abortTransaction();
+        return res.status(400).json({ success: false, message: 'Thiếu orderId hoặc courseId' });
+      }
+      // Tìm đơn hàng
+      const order = await Order.findOne({ _id: id, userId }).session(session);
+      if (!order) {
+        await session.abortTransaction();
+        return res.status(404).json({ success: false, message: 'Đơn hàng không tồn tại' });
+      }
+      // Kiểm tra đơn hàng có chứa khóa học này không
+      const item = order.items.find(i => String(i.courseId) === String(courseId));
+      if (!item) {
+        await session.abortTransaction();
+        return res.status(400).json({ success: false, message: 'Đơn hàng không chứa khóa học này' });
+      }
+      // Kiểm tra đã hoàn tiền chưa (dựa vào refundedAt hoặc status)
+      if (order.status === 'refunded' || order.refundedAt) {
+        await session.abortTransaction();
+        return res.status(400).json({ success: false, message: 'Đơn hàng đã hoàn tiền trước đó' });
+      }
+      // Kiểm tra thời gian mua
+      const now = new Date();
+      const created = new Date(order.createdAt);
+      const diffDays = (now.getTime() - created.getTime()) / (1000 * 3600 * 24);
+      if (diffDays > 7) {
+        await session.abortTransaction();
+        return res.status(400).json({ success: false, message: 'Đã quá thời gian hoàn tiền (7 ngày)' });
+      }
+      // Tính số tiền hoàn lại (70% giá đã trả cho khóa học này)
+      const refundAmount = Math.round(item.price * 0.7 * (item.quantity || 1));
+      // Cộng tiền vào ví user
+      let wallet = await UserWallet.findOne({ userId }).session(session);
+      if (!wallet) {
+        wallet = new UserWallet({ userId, balance: 0, history: [] });
+      }
+      wallet.balance += refundAmount;
+      wallet.history.push({
+        type: 'deposit',
+        amount: refundAmount,
+        method: 'refund',
+        status: 'approved',
+        note: `Hoàn tiền 70% cho khóa học ${courseId} từ đơn hàng ${id}`,
+        createdAt: new Date()
+      });
+      await wallet.save({ session });
+      // Đánh dấu đơn hàng đã hoàn tiền (nếu chỉ hoàn cho 1 khóa học, có thể cần flag riêng)
+      order.status = 'refunded';
+      order.refundedAt = new Date();
+      await order.save({ session });
+
+      // Xóa enrollment của user với khóa học này
+      const Enrollment = require('../models/Enrollment');
+      await Enrollment.deleteOne({ student: userId, course: courseId }).session(session);
+
+      await session.commitTransaction();
+      return res.json({ success: true, message: 'Hoàn tiền thành công', refundAmount });
+    } catch (err) {
+      await session.abortTransaction();
+      return res.status(500).json({ success: false, message: 'Lỗi hoàn tiền', error: err.message });
     }
   }
 }

@@ -5,6 +5,7 @@ const lessonCommentSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   content: { type: String, required: true, trim: true },
   parent: { type: mongoose.Schema.Types.ObjectId, ref: 'LessonComment', default: null }, // for replies
+  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // danh sách user đã like
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

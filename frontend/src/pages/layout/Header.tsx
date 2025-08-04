@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { config } from '../../api/axios';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Layout, Input, Space, Button, Avatar, Dropdown, Spin, Typography, Badge, Card, List, Tag, Divider, Popover, Select, message
+  Layout, Input, Space, Button, Avatar, Dropdown, Spin, Typography, Badge, Card, List, Tag, Divider, Popover, Select, message, Menu
 } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   SearchOutlined,
   BellOutlined,
+  MessageOutlined,
   ShoppingCartOutlined,
   LogoutOutlined,
   DashboardOutlined,
@@ -26,27 +27,30 @@ import {
   FireOutlined,
   StarOutlined,
   SettingOutlined,
-<<<<<<< Updated upstream
-=======
   DeleteOutlined,
   WalletOutlined,
->>>>>>> Stashed changes
 } from '@ant-design/icons';
 import AuthNotification from '../../components/common/AuthNotification';
+import ToastNotification from '../../components/common/ToastNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
 import { useCart } from '../../contexts/CartContext';
 import { courseService } from '../../services/apiService';
+import { useNotification } from '../../hooks/useNotification';
 import './Header.css';
+import { io } from 'socket.io-client';
+import socket from '../../services/socket';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
 const role = localStorage.getItem('role');
 
+
 interface User {
+  _id?: string;
   avatar?: string;
   fullname: string;
   email: string;
-  role?: { name: string };
+  role_id?: { name: string };
   isVerified?: boolean;
   nickname?: string;
 }
@@ -62,7 +66,24 @@ interface Notification {
 }
 
 const AppHeader = () => {
-  const getRoleName = (user: User): string => user?.role?.name || 'student';
+  const getRoleName = (user: User): string => {
+    const roleName = user?.role_id?.name || 'student';
+    console.log('Header - getRoleName:', roleName, 'for user:', user);
+    return roleName;
+  };
+
+  // Debug function để kiểm tra role
+  const debugUserRole = () => {
+    if (user) {
+      console.log('Current user:', user);
+      console.log('User role:', getRoleName(user));
+      console.log('Role check results:');
+      console.log('- Is admin:', getRoleName(user) === 'admin' || getRoleName(user) === 'quản trị viên');
+      console.log('- Is instructor:', getRoleName(user) === 'instructor' || getRoleName(user) === 'giảng viên');
+      console.log('- Is moderator:', getRoleName(user) === 'moderator' || getRoleName(user) === 'kiểm duyệt viên');
+      console.log('- Is student:', getRoleName(user) === 'student' || getRoleName(user) === 'học viên');
+    }
+  };
   const { cartCount } = useCart();
 
   const [user, setUser] = useState<User | null | false>(null);
@@ -70,67 +91,49 @@ const AppHeader = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [accountTypeModalVisible, setAccountTypeModalVisible] = useState(false);
   const navigate = useNavigate();
-  const [notification, setNotification] = useState<{
-    isVisible: boolean;
-    type: 'success' | 'error' | 'info' | 'warning';
-    title: string;
-    message: string;
-  }>({
-    isVisible: false,
-    type: 'success',
-    title: '',
-    message: ''
-  });
 
-<<<<<<< Updated upstream
-  // Mock notifications data
-  const [notifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'success',
-      title: 'Khóa học mới',
-      message: 'Khóa học ReactJS từ cơ bản đến nâng cao đã được phát hành',
-      time: '5 phút trước',
-      isRead: false,
-      link: '/courses'
-    },
-    {
-      id: '2',
-      type: 'warning',
-      title: 'Cập nhật hệ thống',
-      message: 'Hệ thống sẽ bảo trì từ 2:00 - 4:00 sáng ngày mai',
-      time: '1 giờ trước',
-      isRead: false
-    },
-    {
-      id: '3',
-      type: 'info',
-      title: 'Thông báo từ giảng viên',
-      message: 'Giảng viên Nguyễn Văn An đã trả lời câu hỏi của bạn',
-      time: '2 giờ trước',
-      isRead: true,
-      link: '/profile'
-    },
-    {
-      id: '4',
-      type: 'success',
-      title: 'Thanh toán thành công',
-      message: 'Bạn đã mua thành công khóa học Node.js với giá 450,000đ',
-      time: '1 ngày trước',
-      isRead: true,
-      link: '/courses'
-    },
-    {
-      id: '5',
-      type: 'info',
-      title: 'Nhắc nhở học tập',
-      message: 'Bạn có 3 bài học chưa hoàn thành trong tuần này',
-      time: '2 ngày trước',
-      isRead: true,
-      link: '/profile'
-=======
+  // Sử dụng hook notification mới
+  const {
+    notification,
+    toast,
+    showLogoutSuccess,
+    hideNotification,
+    hideToast
+  } = useNotification();
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
+  // Fetch unread messages count (only once when user changes)
+  useEffect(() => {
+    const fetchUnreadMessagesCount = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch('/api/messages/unread-count', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUnreadMessagesCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching unread messages count:', error);
+      }
+    };
+
+    if (user) {
+      fetchUnreadMessagesCount();
+      // Refresh count every 2 minutes instead of 30 seconds to reduce API calls
+      const interval = setInterval(fetchUnreadMessagesCount, 120000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   useEffect(() => {
     setLoadingNotifications(true);
@@ -142,7 +145,7 @@ const AppHeader = () => {
     })
       .then(res => res.json())
       .then(data => setNotifications(
-        (data.data || []).map((notification: { _id: any; id: any; type: any; title: any; content: any; created_at: string | number | Date; status: string; meta: string; }) => ({
+        (data.data || []).map((notification: any) => ({
           id: notification._id || notification.id,
           type: notification.type,
           title: notification.title,
@@ -176,22 +179,24 @@ const AppHeader = () => {
         socket.off('new-notification');
         socket.disconnect();
       };
->>>>>>> Stashed changes
     }
-  ]);
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleLogout = () => {
+    console.log('handleLogout called'); // Debug log
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    console.log('User from localStorage:', user); // Debug log
+    if (user && user._id) {
+      socket.connect();
+      socket.emit('auth-event', { type: 'logout', userId: user._id });
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(false);
-    setNotification({
-      isVisible: true,
-      type: 'success',
-      title: 'Đăng xuất thành công!',
-      message: 'Bạn đã đăng xuất khỏi hệ thống. Hẹn gặp lại!'
-    });
+    showLogoutSuccess();
+    console.log('Logout completed'); // Debug log
   };
 
   const handleRegisterClick = () => {
@@ -199,18 +204,47 @@ const AppHeader = () => {
   };
 
   const handleMenuClick = ({ key }: { key: string }) => {
+    console.log('Menu clicked:', key); // Debug log
+    if (user && typeof user === 'object') {
+      console.log('User role:', getRoleName(user as User)); // Debug log
+    }
     if (key === 'logout') {
       handleLogout();
       return;
     }
-    navigate(key);
+    // Đảm bảo key bắt đầu với / nếu không phải là logout
+    const path = key.startsWith('/') ? key : `/${key}`;
+    console.log('Navigating to:', path); // Debug log
+    navigate(path);
   };
 
   const handleNotificationClick = (notification: Notification) => {
+    const token = localStorage.getItem('token');
+    // Đánh dấu đã đọc trên backend
+    fetch(`/api/notifications/${notification.id}/read`, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    // Đánh dấu đã đọc trên frontend
+    setNotifications(prev =>
+      prev.map(n =>
+        n.id === notification.id ? { ...n, isRead: true } : n
+      )
+    );
     if (notification.link) {
       navigate(notification.link);
     }
     setNotificationsOpen(false);
+  };
+
+  const handleDeleteNotification = (notification: Notification) => {
+    const token = localStorage.getItem('token');
+    fetch(`/api/notifications/${notification.id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).then(() => {
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    });
   };
 
   const getNotificationIcon = (type: string) => {
@@ -252,6 +286,11 @@ const AppHeader = () => {
             localStorage.setItem('user', JSON.stringify(userData));
           }
           setUser(userData);
+          // Debug log khi user được set
+          if (userData) {
+            console.log('User set in Header:', userData);
+            debugUserRole();
+          }
         }
       } catch (err) {
         console.error('Lỗi parse user data:', err);
@@ -266,15 +305,50 @@ const AppHeader = () => {
       }
     };
 
+    // Custom event listener để cập nhật user data khi có thay đổi từ ProfileEdit
+    const handleUserUpdate = (event: CustomEvent) => {
+      console.log('Header: Received user-updated event', event.detail);
+      if (event.detail && event.detail.user) {
+        setUser(event.detail.user);
+      } else {
+        fetchUser(); // Fallback: fetch lại từ localStorage
+      }
+    };
+
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('user-updated', fetchUser);
+    window.addEventListener('user-updated', handleUserUpdate as EventListener);
     fetchUser();
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('user-updated', fetchUser);
+      window.removeEventListener('user-updated', handleUserUpdate as EventListener);
     };
   }, []);
+
+  // Thêm useEffect để lắng nghe thay đổi user data từ localStorage
+  useEffect(() => {
+    const checkUserUpdate = () => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          if (user && userData._id === (user as any)._id) {
+            // Chỉ cập nhật nếu có thay đổi
+            if (JSON.stringify(userData) !== JSON.stringify(user)) {
+              console.log('Header: User data changed, updating...');
+              setUser(userData);
+            }
+          }
+        } catch (err) {
+          console.error('Error parsing user data:', err);
+        }
+      }
+    };
+
+    // Kiểm tra thay đổi mỗi 1 giây
+    const interval = setInterval(checkUserUpdate, 1000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const userMenu = user
     ? {
@@ -282,82 +356,299 @@ const AppHeader = () => {
         {
           key: '/profile',
           label: (
-            <div className="user-menu-header">
-              <Avatar
-                src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
-                size={48}
-                className="user-avatar"
-              />
-              <div className="user-info">
-                <Text strong className="user-name">{user.fullname}</Text>
-                {user.nickname && (
-                  <Text className="user-nickname">@{user.nickname}</Text>
-                )}
-                <Text className="user-role">Xem hồ sơ của bạn</Text>
+            <motion.div 
+              className="user-menu-header"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="user-menu-avatar-container">
+                <Avatar
+                  src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                  size={56}
+                  className="user-menu-avatar"
+                />
+                <div className="user-menu-status-indicator" />
               </div>
-            </div>
+              <div className="user-menu-info">
+                <Text strong className="user-menu-name">{user.fullname}</Text>
+                {user.nickname && (
+                  <Text className="user-menu-nickname">@{user.nickname}</Text>
+                )}
+                <div className="user-menu-role-badge">
+                  <Text className="user-menu-role-text">
+                    {getRoleName(user) === 'admin' || getRoleName(user) === 'quản trị viên' ? 'Quản trị viên' :
+                     getRoleName(user) === 'moderator' || getRoleName(user) === 'kiểm duyệt viên' ? 'Kiểm duyệt viên' :
+                     getRoleName(user) === 'instructor' || getRoleName(user) === 'giảng viên' ? 'Giảng viên' : 'Học viên'}
+                  </Text>
+                </div>
+                <Text className="user-menu-subtitle">Xem hồ sơ của bạn</Text>
+              </div>
+            </motion.div>
           ) as React.ReactNode,
-          style: { height: 'auto', padding: '16px', cursor: 'pointer' },
+          style: { 
+            height: 'auto', 
+            padding: '20px', 
+            cursor: 'pointer',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '16px 16px 0 0',
+            margin: '0',
+            border: 'none'
+          },
+          onClick: () => {
+            console.log('Profile clicked directly');
+            navigate('/profile');
+          }
         },
-        { type: 'divider' as const },
-        ...(getRoleName(user) === 'admin'
+        { 
+          type: 'divider' as const,
+          style: { 
+            margin: '0',
+            borderColor: '#f0f0f0',
+            borderWidth: '1px'
+          }
+        },
+        ...(getRoleName(user) === 'admin' || getRoleName(user) === 'quản trị viên'
           ? [
-            { key: '/admin', icon: <DashboardOutlined />, label: 'Trang quản trị' },
-            { type: 'divider' as const },
+            { 
+              key: '/admin', 
+              icon: <DashboardOutlined style={{ fontSize: '18px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Trang quản trị</span>
+                  <span className="menu-item-description">Quản lý hệ thống</span>
+                </div>
+              ),
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Admin dashboard clicked directly');
+                navigate('/admin');
+              }
+            },
+            { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
           : []),
-        ...(getRoleName(user) === 'moderator'
+        ...(getRoleName(user) === 'moderator' || getRoleName(user) === 'kiểm duyệt viên'
           ? [
-            { key: '/moderator', icon: <DashboardOutlined />, label: 'Khu vực kiểm duyệt' },
-            { type: 'divider' as const },
+            { 
+              key: '/moderator', 
+              icon: <DashboardOutlined style={{ fontSize: '18px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Khu vực kiểm duyệt</span>
+                  <span className="menu-item-description">Duyệt nội dung</span>
+                </div>
+              ),
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Moderator dashboard clicked directly');
+                navigate('/moderator');
+              }
+            },
+            { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
           : []),
-        ...(getRoleName(user) === 'instructor'
+        ...(getRoleName(user) === 'instructor' || getRoleName(user) === 'giảng viên'
           ? [
-            { key: '/instructor', icon: <DashboardOutlined />, label: 'Khu vực giảng viên' },
-            { type: 'divider' as const },
+            { 
+              key: '/instructor', 
+              icon: <DashboardOutlined style={{ fontSize: '18px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Khu vực giảng viên</span>
+                  <span className="menu-item-description">Quản lý khóa học</span>
+                </div>
+              ),
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Instructor dashboard clicked directly');
+                navigate('/instructor');
+              }
+            },
+            { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
           : []),
         {
           type: 'group' as const,
-          label: 'Blog cá nhân',
+          label: (
+            <div className="menu-group-header">
+              <BookOutlined style={{ fontSize: '16px', color: '#666' }} />
+              <span>Blog cá nhân</span>
+            </div>
+          ),
           children: [
-            { key: '/blog/write', icon: <EditOutlined />, label: 'Viết blog' },
-            { key: '/blog/mine', icon: <ProfileOutlined />, label: 'Bài viết của tôi' },
-            { key: '/blog/saved', icon: <BookOutlined />, label: 'Bài viết đã lưu' },
+            { 
+              key: '/blog/write', 
+              icon: <EditOutlined style={{ fontSize: '16px', color: '#52c41a' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Viết blog</span>
+                  <span className="menu-item-description">Tạo bài viết mới</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Write blog clicked directly');
+                navigate('/blog/write');
+              }
+            },
+            { 
+              key: '/blog/mine', 
+              icon: <ProfileOutlined style={{ fontSize: '16px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Bài viết của tôi</span>
+                  <span className="menu-item-description">Quản lý bài viết</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('My blog posts clicked directly');
+                navigate('/blog/mine');
+              }
+            },
+            { 
+              key: '/blog/saved', 
+              icon: <BookOutlined style={{ fontSize: '16px', color: '#faad14' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Bài viết đã lưu</span>
+                  <span className="menu-item-description">Xem bài viết đã lưu</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Saved blog posts clicked directly');
+                navigate('/blog/saved');
+              }
+            },
           ],
         },
         {
           type: 'group' as const,
-          label: 'Đơn hàng',
+          label: (
+            <div className="menu-group-header">
+              <ShoppingCartOutlined style={{ fontSize: '16px', color: '#666' }} />
+              <span>Đơn hàng</span>
+            </div>
+          ),
           children: [
-            { key: '/orders', icon: <ShoppingCartOutlined />, label: 'Đơn hàng!' }
+            { 
+              key: '/orders', 
+              icon: <ShoppingCartOutlined style={{ fontSize: '16px', color: '#722ed1' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Đơn hàng</span>
+                  <span className="menu-item-description">Xem lịch sử mua hàng</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Orders clicked directly');
+                navigate('/orders');
+              }
+            }
           ],
         },
         {
           type: 'group' as const,
-          label: 'Báo cáo',
+          label: (
+            <div className="menu-group-header">
+              <BarChartOutlined style={{ fontSize: '16px', color: '#666' }} />
+              <span>Báo cáo</span>
+            </div>
+          ),
           children: [
-            { key: '/report', icon: <BarChartOutlined />, label: 'Báo cáo!' }
+            { 
+              key: '/report', 
+              icon: <BarChartOutlined style={{ fontSize: '16px', color: '#13c2c2' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Báo cáo</span>
+                  <span className="menu-item-description">Xem thống kê học tập</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Report clicked directly');
+                navigate('/report');
+              }
+            }
           ],
         },
-         ...(!['admin', 'instructor', 'moderator'].includes(getRoleName(user) || '') ? [{
+        ...(getRoleName(user) === 'student' || getRoleName(user) === 'học viên' ? [{
           type: 'group' as const,
-          label: 'Ví',
+          label: (
+            <div className="menu-group-header">
+              <WalletOutlined style={{ fontSize: '16px', color: '#666' }} />
+              <span>Ví</span>
+            </div>
+          ),
           children: [
-            { key: '/wallet', icon: <WalletOutlined />, label: 'Ví của tôi' }
+            { 
+              key: '/wallet', 
+              icon: <WalletOutlined style={{ fontSize: '16px', color: '#52c41a' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Ví của tôi</span>
+                  <span className="menu-item-description">Quản lý tài khoản</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Wallet clicked directly');
+                navigate('/wallet');
+              }
+            }
           ],
         }] : []),
-        { type: 'divider' as const },
-        { key: 'logout', icon: <LogoutOutlined />, label: <span className="logout-text">Đăng xuất</span> },
+        { 
+          type: 'divider' as const,
+          style: { 
+            margin: '8px 0',
+            borderColor: '#f0f0f0',
+            borderWidth: '1px'
+          }
+        },
+        { 
+          key: 'logout', 
+          icon: <LogoutOutlined style={{ fontSize: '16px', color: '#ff4d4f' }} />, 
+          label: (
+            <div className="menu-item-content">
+              <span className="menu-item-label logout-text">Đăng xuất</span>
+              <span className="menu-item-description">Thoát khỏi tài khoản</span>
+            </div>
+          ),
+          style: { 
+            padding: '12px 16px',
+            background: 'rgba(255, 77, 79, 0.05)',
+            borderRadius: '8px',
+            margin: '0 8px 8px 8px',
+            cursor: 'pointer'
+          },
+          onClick: () => {
+            console.log('Logout clicked directly');
+            handleLogout();
+          }
+        },
       ].filter((item, idx, arr) => {
         if (item.type === 'divider' && idx > 0 && arr[idx - 1].type === 'divider') return false;
         if (item.type === 'divider' && (idx === 0 || idx === arr.length - 1)) return false;
         return true;
       }),
       onClick: handleMenuClick,
-    }
+      style: {
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+        border: '1px solid #f0f0f0',
+        overflow: 'hidden'
+      }
+    } as any
     : undefined;
+
+  // Debug log để kiểm tra userMenu
+  console.log('userMenu created:', userMenu);
+  console.log('userMenu onClick:', userMenu?.onClick);
 
   const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
     fontWeight: isActive ? '600' : '500',
@@ -401,7 +692,15 @@ const AppHeader = () => {
         styles={{ body: { padding: 0, maxHeight: 400, overflowY: 'auto' } }}
       >
         <AnimatePresence>
-          {notifications.length > 0 ? (
+          {loadingNotifications ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="loading-notifications"
+            >
+              <Spin />
+            </motion.div>
+          ) : notifications.length > 0 ? (
             <List
               itemLayout="horizontal"
               dataSource={notifications}
@@ -416,6 +715,17 @@ const AppHeader = () => {
                   <List.Item
                     onClick={() => handleNotificationClick(notification)}
                     className={`notification-item ${notification.isRead ? 'read' : 'unread'}`}
+                    actions={[
+                      <Button
+                        type="text"
+                        icon={<DeleteOutlined />}
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleDeleteNotification(notification);
+                        }}
+                        danger
+                      />
+                    ]}
                   >
                     <List.Item.Meta
                       avatar={
@@ -513,7 +823,7 @@ const AppHeader = () => {
                 <span className="logo-text">EduPro</span>
               </NavLink>
             </motion.div>
-            
+
             <div className="nav-links">
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
@@ -525,7 +835,7 @@ const AppHeader = () => {
                   <span className="nav-text">Mã giảm giá</span>
                 </NavLink>
               </motion.div>
-              
+
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
@@ -536,7 +846,7 @@ const AppHeader = () => {
                   <span className="nav-text">Khóa học</span>
                 </NavLink>
               </motion.div>
-              
+
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
@@ -547,7 +857,7 @@ const AppHeader = () => {
                   <span className="nav-text">Giảng viên</span>
                 </NavLink>
               </motion.div>
-              
+
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
@@ -603,7 +913,29 @@ const AppHeader = () => {
                     </div>
                   </motion.div>
                 </Popover>
-                
+
+                <motion.div
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                  className="message-button"
+                >
+                  <div className="action-button-wrapper">
+                    <Button
+                      onClick={() => navigate('/messages')}
+                      className="action-button message-action"
+                      type="text"
+                      shape="circle"
+                      icon={<MessageOutlined className="action-icon" />}
+                    />
+                    {unreadMessagesCount > 0 && (
+                      <span className="corner-badge message-corner-badge">
+                        {unreadMessagesCount}
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   whileTap={{ scale: 0.9 }}
@@ -625,8 +957,188 @@ const AppHeader = () => {
                     )}
                   </div>
                 </motion.div>
-                
-                <Dropdown menu={userMenu} trigger={['click']} placement="bottomRight" arrow>
+
+                <Popover
+                  content={
+                    <div style={{ 
+                      borderRadius: '16px',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                      border: '1px solid #f0f0f0',
+                      overflow: 'hidden',
+                      background: 'white',
+                      minWidth: '320px',
+                      maxWidth: '380px'
+                    }}>
+                      {userMenu?.items?.map((item: any, index: number) => {
+                        if (item.type === 'divider') {
+                          return <Divider key={index} style={{ margin: '8px 0', borderColor: '#f0f0f0' }} />;
+                        }
+                        if (item.type === 'group') {
+                          return (
+                            <div key={index}>
+                              <div style={{ 
+                                padding: '12px 20px 8px 20px', 
+                                fontSize: '11px', 
+                                fontWeight: '700', 
+                                color: '#8c8c8c',
+                                background: '#fafafa',
+                                borderBottom: '1px solid #f0f0f0',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                              }}>
+                                {item.label?.props?.children?.[1] || item.label}
+                              </div>
+                              {item.children?.map((child: any, childIndex: number) => (
+                                <div
+                                  key={childIndex}
+                                  onClick={child.onClick}
+                                  style={{
+                                    padding: '12px 20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    borderBottom: '1px solid #fafafa'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f8f9fa';
+                                    e.currentTarget.style.transform = 'translateX(4px)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.transform = 'translateX(0)';
+                                  }}
+                                >
+                                  <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    width: '20px',
+                                    height: '20px'
+                                  }}>
+                                    {child.icon}
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ 
+                                      fontWeight: '500', 
+                                      color: '#262626',
+                                      fontSize: '14px',
+                                      lineHeight: '1.4'
+                                    }}>
+                                      {child.label?.props?.children?.[0]?.props?.children || child.label}
+                                    </div>
+                                    {child.label?.props?.children?.[1]?.props?.children && (
+                                      <div style={{ 
+                                        fontSize: '12px', 
+                                        color: '#8c8c8c',
+                                        marginTop: '2px',
+                                        lineHeight: '1.3'
+                                      }}>
+                                        {child.label.props.children[1].props.children}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        // Special handling for profile header
+                        if (item.key === '/profile') {
+                          return (
+                            <div 
+                              key={index} 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('Profile header clicked!');
+                                navigate('/profile');
+                              }}
+                              style={{ 
+                                ...item.style,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                position: 'relative',
+                                zIndex: 1
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.02)';
+                                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.15)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.12)';
+                              }}
+                            >
+                              {item.label}
+                            </div>
+                          );
+                        }
+                        // Regular menu items
+                        return (
+                          <div
+                            key={index}
+                            onClick={item.onClick}
+                            style={{
+                              padding: '12px 20px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              borderBottom: '1px solid #fafafa'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f8f9fa';
+                              e.currentTarget.style.transform = 'translateX(4px)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                              e.currentTarget.style.transform = 'translateX(0)';
+                            }}
+                          >
+                            <div style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              width: '20px',
+                              height: '20px'
+                            }}>
+                              {item.icon}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ 
+                                fontWeight: '500', 
+                                color: item.key === 'logout' ? '#ff4d4f' : '#262626',
+                                fontSize: '14px',
+                                lineHeight: '1.4'
+                              }}>
+                                {item.label?.props?.children?.[0]?.props?.children || item.label}
+                              </div>
+                              {item.label?.props?.children?.[1]?.props?.children && (
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  color: '#8c8c8c',
+                                  marginTop: '2px',
+                                  lineHeight: '1.3'
+                                }}>
+                                  {item.label.props.children[1].props.children}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  }
+                  trigger="click"
+                  placement="bottomRight"
+                  arrow={{ pointAtCenter: true }}
+                  overlayStyle={{ 
+                    paddingTop: '8px'
+                  }}
+                >
                   <motion.div
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -639,7 +1151,7 @@ const AppHeader = () => {
                       size={40}
                     />
                   </motion.div>
-                </Dropdown>
+                </Popover>
               </Space>
             ) : (
               <motion.div
@@ -661,7 +1173,7 @@ const AppHeader = () => {
                     Đăng nhập
                   </Button>
                 </motion.div>
-                
+
                 <motion.div
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
@@ -686,13 +1198,25 @@ const AppHeader = () => {
       {/* Shared Auth Notification */}
       <AuthNotification
         isVisible={notification.isVisible}
-        onComplete={() => setNotification(prev => ({ ...prev, isVisible: false }))}
-        type={notification.type}
+        onComplete={hideNotification}
+        type={notification.type as any}
         title={notification.title}
         message={notification.message}
-        autoClose={true}
-        duration={2000}
-        showProgress={notification.type === 'success'}
+        autoClose={notification.autoClose}
+        duration={notification.duration}
+        showProgress={notification.showProgress}
+      />
+
+      {/* Toast Notification */}
+      <ToastNotification
+        isVisible={toast.isVisible}
+        onComplete={hideToast}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        autoClose={toast.autoClose}
+        duration={toast.duration}
+        position={toast.position}
       />
 
       {/* Account Type Modal */}

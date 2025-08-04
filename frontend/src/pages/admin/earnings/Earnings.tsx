@@ -1,10 +1,172 @@
 import React, { useEffect, useState } from "react";
-import { Table, Button, Tag, message, Modal, Input, Card, Typography, Space, Row, Col, Statistic, Divider, Descriptions, Avatar } from "antd";
-import { DollarOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, EyeOutlined, BankOutlined, CalendarOutlined, PhoneOutlined, MailOutlined, SearchOutlined } from "@ant-design/icons";
+import { 
+  Table, 
+  Button, 
+  Tag, 
+  message, 
+  Modal, 
+  Input, 
+  Card, 
+  Typography, 
+  Space, 
+  Row, 
+  Col, 
+  Statistic, 
+  Divider, 
+  Descriptions, 
+  Avatar,
+  Badge,
+  Tooltip,
+  Spin,
+} from "antd";
+import { 
+  DollarOutlined, 
+  UserOutlined, 
+  ClockCircleOutlined, 
+  CheckCircleOutlined, 
+  CloseCircleOutlined, 
+  EyeOutlined, 
+  BankOutlined, 
+  CalendarOutlined, 
+  PhoneOutlined, 
+  MailOutlined, 
+  SearchOutlined,
+  TrophyOutlined,
+  RiseOutlined,
+  FallOutlined,
+} from "@ant-design/icons";
 import axios from "axios";
+import styles from '../Users/UserPage.module.css';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
+
+// FilterSection component
+interface FilterSectionProps {
+  searchText: string;
+  setSearchText: (value: string) => void;
+}
+
+const FilterSection = ({
+  searchText,
+  setSearchText,
+}: FilterSectionProps) => {
+  return (
+    <Card className={styles.filterCard} bordered={false}>
+      <div className={styles.filterGroup}>
+        <Search
+          placeholder="Tìm theo tên hoặc email giáo viên..."
+          prefix={<SearchOutlined />}
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          className={styles.filterInput}
+          allowClear
+        />
+      </div>
+    </Card>
+  );
+};
+
+// StatCards component
+interface StatCardsProps {
+  stats: {
+    totalRequests: number;
+    pendingRequests: number;
+    approvedRequests: number;
+    totalAmount: number;
+  };
+}
+
+const StatCards = ({ stats }: StatCardsProps) => {
+  const pendingPercentage = stats.totalRequests > 0 ? (stats.pendingRequests / stats.totalRequests) * 100 : 0;
+  const approvedPercentage = stats.totalRequests > 0 ? (stats.approvedRequests / stats.totalRequests) * 100 : 0;
+
+  return (
+    <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#1890ff' }}>
+              <UserOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Tổng yêu cầu" 
+                value={stats.totalRequests} 
+                valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary">Tất cả yêu cầu</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#faad14' }}>
+              <ClockCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Chờ duyệt" 
+                value={stats.pendingRequests} 
+                valueStyle={{ color: '#faad14', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#faad14' }} />
+                <Text type="secondary">{pendingPercentage.toFixed(1)}%</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#52c41a' }}>
+              <CheckCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Đã duyệt" 
+                value={stats.approvedRequests} 
+                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary">{approvedPercentage.toFixed(1)}%</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6}>
+        <Card className={styles.statCard} bordered={false}>
+          <div className={styles.statContent}>
+            <div className={styles.statIcon} style={{ backgroundColor: '#722ed1' }}>
+              <DollarOutlined style={{ color: 'white', fontSize: '24px' }} />
+            </div>
+            <div className={styles.statInfo}>
+              <Statistic 
+                title="Tổng tiền đã thanh toán" 
+                value={stats.totalAmount} 
+                suffix="đ"
+                valueStyle={{ color: '#722ed1', fontSize: '24px', fontWeight: 'bold' }}
+              />
+              <div className={styles.statTrend}>
+                <RiseOutlined style={{ color: '#722ed1' }} />
+                <Text type="secondary">Tổng doanh thu</Text>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+    </Row>
+  );
+};
 
 const WithdrawRequestsAdmin = () => {
   const [requests, setRequests] = useState<any[]>([]);
@@ -22,7 +184,11 @@ const WithdrawRequestsAdmin = () => {
       const res = await axios.get("http://localhost:5000/api/teacher-wallet/withdraw-requests", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setRequests(res.data.requests);
+      const requestsWithNumber = res.data.requests.map((request: any, index: number) => ({
+        ...request,
+        number: index + 1,
+      }));
+      setRequests(requestsWithNumber);
       setLoading(false);
     };
     fetchRequests();
@@ -74,56 +240,207 @@ const WithdrawRequestsAdmin = () => {
   };
 
   // Tính toán thống kê
-  const totalRequests = filteredRequests.length;
-  const pendingRequests = filteredRequests.filter(r => r.status === "pending").length;
-  const approvedRequests = filteredRequests.filter(r => r.status === "approved").length;
-  const rejectedRequests = filteredRequests.filter(r => r.status === "rejected").length;
-  const totalAmount = filteredRequests.filter(r => r.status === "approved").reduce((sum, r) => sum + (r.amount || 0), 0);
+  const stats = {
+    totalRequests: filteredRequests.length,
+    pendingRequests: filteredRequests.filter(r => r.status === "pending").length,
+    approvedRequests: filteredRequests.filter(r => r.status === "approved").length,
+    totalAmount: filteredRequests.filter(r => r.status === "approved").reduce((sum, r) => sum + (r.amount || 0), 0),
+  };
+
+  const columns = [
+    {
+      title: 'STT',
+      dataIndex: 'number',
+      key: 'number',
+      width: 70,
+      align: 'center' as const,
+      render: (number: number) => (
+        <Badge count={number} showZero style={{ backgroundColor: '#1890ff' }} />
+      ),
+    },
+    {
+      title: "Giáo viên",
+      dataIndex: ["teacherId", "fullname"],
+      width: 250,
+      render: (text: string, record: any) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Avatar 
+            size={40} 
+            src={record.teacherId?.avatar}
+            icon={<UserOutlined />}
+            style={{ border: "2px solid #e5e7eb" }}
+          />
+          <div>
+            <Text strong style={{ fontSize: '14px', display: 'block', marginBottom: '4px' }}>
+              {text}
+            </Text>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              {record.teacherId?.email}
+            </Text>
+            {record.teacherId?.phone && (
+              <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                <PhoneOutlined /> {record.teacherId.phone}
+              </Text>
+            )}
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Số tiền",
+      dataIndex: "amount",
+      width: 150,
+      align: 'right' as const,
+      render: (amount: number) => (
+        <Text strong style={{ color: "#22c55e", fontSize: 16 }}>{amount?.toLocaleString("vi-VN")} đ</Text>
+      ),
+      sorter: (a: any, b: any) => (Number(a.amount) || 0) - (Number(b.amount) || 0),
+    },
+    {
+      title: "Ngày yêu cầu",
+      dataIndex: "createdAt",
+      width: 150,
+      align: 'center' as const,
+      render: (d: string) => (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>
+            {new Date(d).toLocaleDateString('vi-VN')}
+          </div>
+          <div style={{ fontSize: '11px', color: '#999' }}>
+            {new Date(d).toLocaleTimeString('vi-VN')}
+          </div>
+        </div>
+      ),
+      sorter: (a: any, b: any) => new Date(String(a.createdAt)).getTime() - new Date(String(b.createdAt)).getTime(),
+      defaultSortOrder: 'descend' as const,
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      width: 120,
+      align: 'center' as const,
+      render: (status: string) => {
+        const statusConfig = {
+          approved: { color: "green", text: "Đã duyệt", icon: <CheckCircleOutlined /> },
+          rejected: { color: "red", text: "Từ chối", icon: <CloseCircleOutlined /> },
+          pending: { color: "orange", text: "Chờ duyệt", icon: <ClockCircleOutlined /> },
+          cancelled: { color: "gray", text: "Đã hủy", icon: <CloseCircleOutlined /> }
+        } as const;
+        type StatusKey = keyof typeof statusConfig;
+        const config = statusConfig[(status as StatusKey)] || statusConfig.pending;
+        return (
+          <Tag color={config.color} icon={config.icon} style={{ padding: "4px 10px", borderRadius: 8, fontWeight: 500, fontSize: 14 }}>{config.text}</Tag>
+        );
+      },
+      filters: [
+        { text: "Chờ duyệt", value: "pending" },
+        { text: "Đã duyệt", value: "approved" },
+        { text: "Từ chối", value: "rejected" },
+        { text: "Đã hủy", value: "cancelled" }
+      ],
+      onFilter: (value: any, record: any) => record.status === value,
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      width: 150,
+      align: 'center' as const,
+      render: (_: any, record: any) => (
+        <Space size="small">
+          <Tooltip title="Xem chi tiết">
+            <Button 
+              type="text" 
+              onClick={() => showDetail(record)} 
+              icon={<EyeOutlined />} 
+              style={{ color: "#2563eb", fontWeight: 600 }}
+              size="small"
+            >
+              Chi tiết
+            </Button>
+          </Tooltip>
+          {record.status === "pending" && (
+            <>
+              <Tooltip title="Duyệt yêu cầu">
+                <Button 
+                  type="primary" 
+                  onClick={() => handleApprove(record._id)} 
+                  icon={<CheckCircleOutlined />} 
+                  style={{ borderRadius: 8, background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", border: "none", fontWeight: 600 }}
+                  size="small"
+                >
+                  Duyệt
+                </Button>
+              </Tooltip>
+              <Tooltip title="Từ chối yêu cầu">
+                <Button 
+                  danger 
+                  onClick={() => setRejectModal({ open: true, id: record._id })} 
+                  icon={<CloseCircleOutlined />} 
+                  style={{ borderRadius: 8, fontWeight: 600 }}
+                  size="small"
+                >
+                  Từ chối
+                </Button>
+              </Tooltip>
+            </>
+          )}
+        </Space>
+      ),
+    },
+  ];
+
+  if (loading && requests.length === 0) {
+    return (
+      <div className={styles.userPageContainer}>
+        <div className={styles.loadingContainer}>
+          <Spin size="large" />
+          <Text style={{ marginTop: 16 }}>Đang tải dữ liệu...</Text>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div >
-      <Card style={{ marginBottom: 32, borderRadius: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
-        <Title level={2} style={{ marginBottom: 32, color: "#2563eb", fontWeight: 700, letterSpacing: 1 }}>
-          <DollarOutlined style={{ marginRight: 12 }} />
-          Quản lý yêu cầu rút tiền
-        </Title>
-        <Row gutter={[24, 24]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="shadow-none" style={{ textAlign: "center", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white", borderRadius: 12 }}>
-              <Statistic title={<span className="text-white">Tổng yêu cầu</span>} value={totalRequests} prefix={<UserOutlined />} valueStyle={{ color: "white", fontWeight: 600 }} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="shadow-none" style={{ textAlign: "center", background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", color: "white", borderRadius: 12 }}>
-              <Statistic title={<span className="text-white">Chờ duyệt</span>} value={pendingRequests} prefix={<ClockCircleOutlined />} valueStyle={{ color: "white", fontWeight: 600 }} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="shadow-none" style={{ textAlign: "center", background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", color: "white", borderRadius: 12 }}>
-              <Statistic title={<span className="text-white">Đã duyệt</span>} value={approvedRequests} prefix={<CheckCircleOutlined />} valueStyle={{ color: "white", fontWeight: 600 }} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="shadow-none" style={{ textAlign: "center", background: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", color: "white", borderRadius: 12 }}>
-              <Statistic title={<span className="text-white">Tổng tiền đã thanh toán</span>} value={totalAmount.toLocaleString("vi-VN")} suffix="đ" valueStyle={{ color: "white", fontWeight: 600, fontSize: 18 }} />
-            </Card>
-          </Col>
-        </Row>
-      </Card>
-      <Card style={{ borderRadius: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.08)", overflow: "hidden" }}
-        title={<Space><DollarOutlined style={{ color: "#2563eb" }} /><Text strong>Danh sách yêu cầu rút tiền</Text></Space>}
-      >
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={6}>
-            <Search
-              placeholder="Tìm theo tên hoặc email giáo viên..."
-              prefix={<SearchOutlined />}
-              style={{ borderRadius: 8 }}
-              onChange={(e) => setSearchText(e.target.value)}
-              allowClear
-            />
-          </Col>
-        </Row>
+    <div className={styles.userPageContainer}>
+      {/* Page Header */}
+      <div className={styles.pageHeader}>
+        <div className={styles.headerLeft}>
+          <Title level={2} className={styles.pageTitle}>
+            <TrophyOutlined className={styles.titleIcon} />
+            Quản lý yêu cầu rút tiền
+          </Title>
+          <Paragraph className={styles.pageSubtitle}>
+            Quản lý và duyệt các yêu cầu rút tiền từ giáo viên
+          </Paragraph>
+        </div>
+      </div>
+
+      {/* Statistics Cards */}
+      <StatCards stats={stats} />
+
+      {/* Filter Section */}
+      <FilterSection
+        searchText={searchText}
+        setSearchText={setSearchText}
+      />
+
+      {/* Withdraw Requests Table */}
+      <Card className={styles.userTableCard} bordered={false}>
+        <div className={styles.tableHeader}>
+          <div className={styles.tableTitleSection}>
+            <DollarOutlined className={styles.tableIcon} />
+            <Title level={4} className={styles.tableTitle}>
+              Danh sách yêu cầu rút tiền
+            </Title>
+            <Badge count={filteredRequests.length} className={styles.userCountBadge} />
+          </div>
+          <div className={styles.tableActions}>
+            <Text type="secondary">
+              Hiển thị {filteredRequests.length} yêu cầu rút tiền
+            </Text>
+          </div>
+        </div>
+        
         <Table
           dataSource={filteredRequests.slice().sort((a, b) => {
             const dateA = new Date(String(a.createdAt)).getTime();
@@ -132,82 +449,18 @@ const WithdrawRequestsAdmin = () => {
           })}
           rowKey="_id"
           loading={loading}
+          columns={columns}
           pagination={{
-            pageSize: 10,
+            pageSize: 15,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            size: 'small',
           }}
+          className={styles.userTable}
           scroll={{ x: 1200 }}
-          columns={[
-            {
-              title: "Giáo viên",
-              dataIndex: ["teacherId", "fullname"],
-              render: (text, record) => (
-                <Space direction="vertical" size={0}>
-                  <Text strong className="text-base">{text}</Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>{record.teacherId?.email}</Text>
-                  {record.teacherId?.phone && (
-                    <Text type="secondary" style={{ fontSize: 12 }}><PhoneOutlined /> {record.teacherId.phone}</Text>
-                  )}
-                </Space>
-              )
-            },
-            {
-              title: "Số tiền",
-              dataIndex: "amount",
-              render: (amount) => (
-                <Text strong style={{ color: "#22c55e", fontSize: 16 }}>{amount?.toLocaleString("vi-VN")} đ</Text>
-              ),
-              sorter: (a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0),
-            },
-            {
-              title: "Ngày yêu cầu",
-              dataIndex: "createdAt",
-              render: (d) => <Text type="secondary">{new Date(d).toLocaleString()}</Text>,
-              sorter: (a, b) => new Date(String(a.createdAt)).getTime() - new Date(String(b.createdAt)).getTime(),
-              defaultSortOrder: 'descend',
-            },
-            {
-              title: "Trạng thái",
-              dataIndex: "status",
-              render: (status) => {
-                const statusConfig = {
-                  approved: { color: "green", text: "Đã duyệt", icon: <CheckCircleOutlined /> },
-                  rejected: { color: "red", text: "Từ chối", icon: <CloseCircleOutlined /> },
-                  pending: { color: "orange", text: "Chờ duyệt", icon: <ClockCircleOutlined /> },
-                  cancelled: { color: "gray", text: "Đã hủy", icon: <CloseCircleOutlined /> }
-                } as const;
-                type StatusKey = keyof typeof statusConfig;
-                const config = statusConfig[(status as StatusKey)] || statusConfig.pending;
-                return (
-                  <Tag color={config.color} icon={config.icon} style={{ padding: "4px 10px", borderRadius: 8, fontWeight: 500, fontSize: 14 }}>{config.text}</Tag>
-                );
-              },
-              filters: [
-                { text: "Chờ duyệt", value: "pending" },
-                { text: "Đã duyệt", value: "approved" },
-                { text: "Từ chối", value: "rejected" },
-                { text: "Đã hủy", value: "cancelled" }
-              ],
-              onFilter: (value, record) => record.status === value,
-            },
-            {
-              title: "Thao tác",
-              key: "actions",
-              render: (_, record) => (
-                <Space>
-                  <Button type="text" onClick={() => showDetail(record)} icon={<EyeOutlined />} style={{ color: "#2563eb", fontWeight: 600 }}>Chi tiết</Button>
-                  {record.status === "pending" && (
-                    <>
-                      <Button type="primary" onClick={() => handleApprove(record._id)} icon={<CheckCircleOutlined />} style={{ borderRadius: 8, background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", border: "none", fontWeight: 600 }}>Duyệt</Button>
-                      <Button danger onClick={() => setRejectModal({ open: true, id: record._id })} icon={<CloseCircleOutlined />} style={{ borderRadius: 8, fontWeight: 600 }}>Từ chối</Button>
-                    </>
-                  )}
-                </Space>
-              ),
-            },
-          ]}
+          size="small"
           rowClassName={(record) => {
             if (record.status === "approved") return "table-row-approved";
             if (record.status === "rejected") return "table-row-rejected";
@@ -220,16 +473,16 @@ const WithdrawRequestsAdmin = () => {
       {/* Modal Chi tiết */}
       <Modal
         title={
-          <Space>
-            <EyeOutlined style={{ color: "#2563eb" }} />
-            <Text strong>Chi tiết yêu cầu rút tiền</Text>
-          </Space>
+          <div className={styles.modalTitle}>
+            <EyeOutlined className={styles.modalIcon} />
+            Chi tiết yêu cầu rút tiền
+          </div>
         }
         open={detailModal.open}
         onCancel={() => setDetailModal({ open: false })}
         footer={null}
         width={800}
-        style={{ borderRadius: 16 }}
+        className={styles.userModal}
       >
         {detailModal.data && (
           <div style={{ padding: "16px 0" }}>
@@ -398,10 +651,10 @@ const WithdrawRequestsAdmin = () => {
       {/* Modal Từ chối */}
       <Modal
         title={
-          <Space>
-            <CloseCircleOutlined style={{ color: "#ff4d4f" }} />
-            <Text strong>Lý do từ chối yêu cầu rút tiền</Text>
-          </Space>
+          <div className={styles.modalTitle}>
+            <CloseCircleOutlined className={styles.modalIcon} />
+            Lý do từ chối yêu cầu rút tiền
+          </div>
         }
         open={rejectModal.open}
         onCancel={() => setRejectModal({ open: false })}
@@ -416,7 +669,7 @@ const WithdrawRequestsAdmin = () => {
         cancelButtonProps={{ 
           style: { borderRadius: 8, fontWeight: 600 }
         }}
-        style={{ borderRadius: 16 }}
+        className={styles.userModal}
       >
         <div style={{ marginTop: 16 }}>
           <Text type="secondary" style={{ marginBottom: 8, display: "block" }}>

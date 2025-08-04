@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button, Modal, List, Avatar, message, Card, List as AntList, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 import { UserOutlined, TeamOutlined, BookOutlined, DownOutlined, UpOutlined, MessageOutlined, UserDeleteOutlined, UserAddOutlined, MoreOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getToken, isTokenValid } from '../../../utils/tokenUtils';
+import { EventEmitter } from '../../../utils/eventEmitter';
 
 // Tạo instance axios riêng cho file này
 const api = axios.create({
@@ -49,6 +51,7 @@ interface Course {
   totalReviews?: number;
   slug?: string;
   level?: string;
+  lessons_count?: number; // Added for new logic
 }
 
 function isAxiosErrorWithMessage(err: unknown): err is { response: { data: { message: string } } } {
@@ -65,7 +68,7 @@ function isAxiosErrorWithMessage(err: unknown): err is { response: { data: { mes
       response !== null &&
       'data' in response &&
       typeof (response as { data?: unknown }).data === 'object' &&
-      (response as { data?: unknown }).data !== null
+      (response as { data: unknown }).data !== null
     ) {
       const data = (response as { data: unknown }).data;
       return (
@@ -92,7 +95,6 @@ const UserProfile: React.FC = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [createdCourses, setCreatedCourses] = useState<Course[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
-  const [showAllCourses, setShowAllCourses] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(Boolean(getToken() && isTokenValid()));
 
   useEffect(() => {
@@ -184,6 +186,9 @@ const UserProfile: React.FC = () => {
         className: 'custom-follow-message',
         style: { boxShadow: '0 4px 24px 0 rgba(80,80,180,0.10)', borderRadius: 16, padding: 12 }
       });
+      
+      // Emit event để các component khác biết có thay đổi follow status
+      EventEmitter.emitFollowStatusChanged({ targetUserId: user?._id, action: 'follow' });
     } catch (err: unknown) {
       const msg = isAxiosErrorWithMessage(err)
         ? err.response.data.message
@@ -214,10 +219,40 @@ const UserProfile: React.FC = () => {
         className: 'custom-follow-message',
         style: { boxShadow: '0 4px 24px 0 rgba(180,80,180,0.10)', borderRadius: 16, padding: 12 }
       });
+      // Emit event để các component khác biết có thay đổi follow status
+      EventEmitter.emitFollowStatusChanged({ targetUserId: user._id, action: 'unfollow' });
     } catch {
       message.error('Bỏ theo dõi thất bại');
     }
   };
+
+  // Menu items cho dropdown
+  const menuItems: MenuProps['items'] = [
+    {
+      key: 'message',
+      label: (
+        <div className="flex items-center gap-4 px-2 py-2 font-semibold text-base cursor-pointer transition-all hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 group rounded-lg">
+          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-blue-100 to-purple-100 group-hover:from-blue-200 group-hover:to-purple-200 transition-all">
+            <MessageOutlined className="text-lg bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text" />
+          </span>
+          <span className="text-gray-900">Nhắn tin</span>
+        </div>
+      ),
+      onClick: () => navigate(`/messages/${user?._id}`)
+    },
+    {
+      key: 'unfollow',
+      label: (
+        <div className="flex items-center gap-4 px-2 py-2 font-semibold text-base cursor-pointer transition-all hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 group rounded-lg">
+          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-pink-100 to-purple-100 group-hover:from-pink-200 group-hover:to-purple-200 transition-all">
+            <UserDeleteOutlined className="text-lg bg-gradient-to-r from-pink-500 to-red-500 text-transparent bg-clip-text" />
+          </span>
+          <span className="text-red-600">Bỏ theo dõi</span>
+        </div>
+      ),
+      onClick: handleUnfollow
+    }
+  ];
 
   if (loading) return <div>Đang tải...</div>;
   if (!user) return <div>Không tìm thấy người dùng.</div>;
@@ -278,40 +313,10 @@ const UserProfile: React.FC = () => {
           {isLoggedIn && currentUserId && currentUserId !== user._id && (
             isFollowing ? (
               <Dropdown
-                overlay={
-                  <motion.ul
-                    initial={{ opacity: 0, y: -12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -12 }}
-                    transition={{ duration: 0.22, type: 'spring' }}
-                    className="rounded-2xl shadow-2xl bg-white/70 backdrop-blur-xl p-2 min-w-[220px] relative"
-                    style={{
-                      boxShadow: '0 8px 32px 0 rgba(80,80,180,0.13)',
-                    }}
-                  >
-                    <li
-                      className="flex items-center gap-4 px-5 py-4 rounded-xl font-semibold text-base cursor-pointer transition-all hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 group"
-                      onClick={() => message.info('Tính năng đang phát triển')}
-                    >
-                      <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-blue-100 to-purple-100 group-hover:from-blue-200 group-hover:to-purple-200 transition-all">
-                        <MessageOutlined className="text-2xl bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text" />
-                      </span>
-                      <span className="text-gray-900">Nhắn tin</span>
-                    </li>
-                    <div className="my-1 h-[1px] bg-gradient-to-r from-blue-100 via-purple-100 to-pink-100 opacity-60" />
-                    <li
-                      className="flex items-center gap-4 px-5 py-4 rounded-xl font-semibold text-base cursor-pointer transition-all hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 group"
-                      onClick={handleUnfollow}
-                    >
-                      <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-pink-100 to-purple-100 group-hover:from-pink-200 group-hover:to-purple-200 transition-all">
-                        <UserDeleteOutlined className="text-2xl bg-gradient-to-r from-pink-500 to-red-500 text-transparent bg-clip-text" />
-                      </span>
-                      <span className="text-red-600">Bỏ theo dõi</span>
-                    </li>
-                  </motion.ul>
-                }
+                menu={{ items: menuItems }}
                 trigger={['click']}
                 overlayClassName="!p-0 !bg-transparent !border-0"
+                placement="bottomRight"
               >
                 <Button
                   shape="round"
@@ -348,96 +353,242 @@ const UserProfile: React.FC = () => {
         <div className="md:w-2/3 w-full flex flex-col gap-10">
           {/* Khóa học đã tạo */}
           <div>
-            <h3 className="text-xl font-bold mb-4 text-blue-700 flex items-center gap-2"><BookOutlined />Khóa học </h3>
+            <h3 className="text-xl font-bold mb-6 text-gray-800 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <BookOutlined className="text-white text-sm" />
+              </div>
+              Khóa học đã tạo
+            </h3>
             {createdCourses.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <BookOutlined className="text-5xl text-gray-300 mb-4" />
-                <div className="text-gray-400 text-lg font-medium">Chưa có khóa học nào.</div>
+              <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl border border-gray-100">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mb-4">
+                  <BookOutlined className="text-3xl text-blue-500" />
+                </div>
+                <div className="text-gray-500 text-lg font-medium mb-2">Chưa có khóa học nào</div>
+                <div className="text-gray-400 text-sm">Bắt đầu tạo khóa học đầu tiên của bạn</div>
               </div>
             ) : (
-              <AnimatePresence initial={false}>
-                <motion.div
-                  key={showAllCourses ? 'all' : 'short'}
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.4, ease: 'easeInOut' }}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-                >
-                  <AnimatePresence initial={false}>
-                    {(showAllCourses ? createdCourses : createdCourses.slice(0, 3)).map((course, idx) => (
+              <div className="relative">
+                {/* Container với scroll ngang */}
+                <div className="overflow-x-auto scrollbar-hide">
+                  <div className="flex gap-6 pb-6" style={{ minWidth: 'max-content' }}>
+                    {createdCourses.map((course, idx) => (
                       <motion.div
                         key={course._id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 20 }}
-                        transition={{ duration: 0.3, delay: idx * 0.07 }}
-                        className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 group"
+                        transition={{ duration: 0.4, delay: idx * 0.1 }}
+                        className="group relative bg-white rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-500 flex-shrink-0 border border-gray-100 overflow-hidden cursor-pointer"
+                        style={{ width: '320px' }}
+                        onClick={() => {
+                          // Debug: log thông tin course
+                          console.log('Course data:', course);
+                          console.log('Course slug:', course.slug);
+                          console.log('Course _id:', course._id);
+                          
+                          // Sử dụng slug nếu có, nếu không thì sử dụng id với format /courses/id/id
+                          const courseUrl = course.slug ? `/courses/${course.slug}` : `/courses/id/${course._id}`;
+                          console.log('Generated URL:', courseUrl);
+                          window.open(courseUrl, '_blank');
+                        }}
                       >
-                        <div className="relative">
+                        {/* Gradient overlay on hover */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"></div>
+                        
+                        {/* Image container */}
+                        <div className="relative overflow-hidden">
                           <img
                             alt={course.title}
                             src={course.thumbnail || '/default-course.jpg'}
-                            className="rounded-t-3xl h-40 object-cover group-hover:scale-105 transition-transform duration-300 w-full"
+                            className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-700"
                           />
-                          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-purple-400"></div>
+                          {/* Overlay gradient */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
+                          
+                          {/* Price badge */}
+                          <div className="absolute top-4 right-4">
+                            <div className="px-3 py-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-lg">
+                              <span className="text-sm font-semibold text-gray-800">
+                                {course.finalPrice ? `${course.finalPrice.toLocaleString()}₫` : 'Miễn phí'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Rating badge */}
+                          <div className="absolute bottom-4 left-4">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-lg">
+                              <div className="flex items-center">
+                                {[...Array(5)].map((_, i) => (
+                                  <svg
+                                    key={i}
+                                    className={`w-3 h-3 ${i < (course.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                  </svg>
+                                ))}
+                              </div>
+                              <span className="text-xs font-medium text-gray-700">
+                                {course.rating || 0} ({course.totalReviews || 0})
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="p-5">
-                          <h3 className="font-bold text-lg text-gray-900 mb-1">{course.title}</h3>
-                          <div className="text-sm text-gray-600">Giá: {course.finalPrice ? `${course.finalPrice.toLocaleString()}₫` : 'Miễn phí'}</div>
-                          <div className="text-xs text-gray-500">Đánh giá: {course.rating || 0} ({course.totalReviews || 0} đánh giá)</div>
+                        
+                        {/* Content */}
+                        <div className="p-5 relative z-20">
+                          <h3 className="font-bold text-xl text-gray-900 mb-4 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300 leading-tight">
+                            {course.title}
+                          </h3>
+                          
+                          {/* Course stats */}
+                          <div className="flex items-center justify-between text-sm text-gray-500">
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                              </svg>
+                              <span className="font-medium text-gray-700">{course.lessons_count || 12} bài học</span>
+                            </div>
+                            <button 
+                              className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all duration-300 border border-gray-200 hover:border-blue-200"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isLoggedIn) {
+                                  // Logic thêm vào giỏ hàng sẽ được thêm ở đây
+                                  message.success('Đã thêm khóa học vào giỏ hàng');
+                                } else {
+                                  navigate('/login');
+                                }
+                              }}
+                              title={isLoggedIn ? "Thêm vào giỏ hàng" : "Đăng nhập để thêm vào giỏ hàng"}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
+                        
+                        {/* Hover effect border */}
+                        <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-blue-200 transition-all duration-500"></div>
                       </motion.div>
                     ))}
-                  </AnimatePresence>
-                </motion.div>
-              </AnimatePresence>
-            )}
-            {createdCourses.length > 3 && (
-              <div className="flex justify-center mt-4">
-                <button
-                  className="px-6 py-2 rounded-full bg-blue-100 text-blue-700 font-semibold hover:bg-blue-200 transition flex items-center gap-2 shadow-sm"
-                  onClick={() => setShowAllCourses(v => !v)}
-                >
-                  {showAllCourses ? 'Thu gọn' : 'Xem thêm'}
-                  {showAllCourses ? <UpOutlined /> : <DownOutlined />}
-                </button>
+                  </div>
+                </div>
+                
+                {/* Thanh scroll tùy chỉnh */}
+                <div className="mt-6 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500 shadow-sm"
+                    style={{ 
+                      width: `${Math.min(100, (createdCourses.length * 320) / (window.innerWidth * 0.6) * 100)}%` 
+                    }}
+                  ></div>
+                </div>
               </div>
             )}
           </div>
           {enrolledCourses.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <BookOutlined className="text-5xl text-gray-300 mb-4" />
-              <div className="text-gray-400 text-lg font-medium">Chưa tham gia khóa học nào.</div>
+            <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-green-50 rounded-2xl border border-gray-100">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center mb-4">
+                <BookOutlined className="text-3xl text-green-500" />
+              </div>
+              <div className="text-gray-500 text-lg font-medium mb-2">Chưa tham gia khóa học nào</div>
+              <div className="text-gray-400 text-sm">Khám phá và đăng ký khóa học đầu tiên</div>
             </div>
           ) : (
             <div>
-              <h3 className="text-xl font-bold mb-4 text-green-700 flex items-center gap-2"><BookOutlined />Khóa học đã tham gia</h3>
-              <AntList
-                grid={{ gutter: 24, column: 2 }}
-                dataSource={enrolledCourses}
-                locale={{ emptyText: 'Chưa tham gia khóa học nào.' }}
-                renderItem={course => (
-                  <AntList.Item>
-                    <Card
-                      hoverable
-                      cover={course.thumbnail ? <img alt={course.title} src={course.thumbnail} style={{ height: 140, objectFit: 'cover', borderRadius: 12 }} /> : null}
-                      onClick={() => window.open(`/courses/${course.slug || course._id}`, '_blank')}
-                      style={{ cursor: 'pointer', borderRadius: 20, boxShadow: '0 2px 12px rgba(16,185,129,0.08)' }}
-                    >
-                      <Card.Meta
-                        title={<span className="font-semibold text-green-700">{course.title}</span>}
-                        description={
-                          <>
-                            <div className="text-sm text-gray-600">Giá: {course.finalPrice ? `${course.finalPrice.toLocaleString()}₫` : 'Miễn phí'}</div>
-                            <div className="text-xs text-gray-500">Đánh giá: {course.rating || 0} ({course.totalReviews || 0} đánh giá)</div>
-                          </>
-                        }
+              <h3 className="text-xl font-bold mb-6 text-gray-800 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
+                  <BookOutlined className="text-white text-sm" />
+                </div>
+                Khóa học đã tham gia
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {enrolledCourses.map((course, idx) => (
+                  <motion.div
+                    key={course._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: idx * 0.1 }}
+                    className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-500 border border-gray-100 overflow-hidden cursor-pointer"
+                    onClick={() => window.open(`/courses/${course.slug || course._id}`, '_blank')}
+                  >
+                    {/* Image container */}
+                    <div className="relative overflow-hidden">
+                      <img
+                        alt={course.title}
+                        src={course.thumbnail || '/default-course.jpg'}
+                        className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
                       />
-                    </Card>
-                  </AntList.Item>
-                )}
-              />
+                      {/* Overlay gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
+                      
+                      {/* Progress badge */}
+                      <div className="absolute top-3 left-3">
+                        <div className="px-2.5 py-1 bg-green-500/90 backdrop-blur-sm rounded-full shadow-lg">
+                          <span className="text-xs font-semibold text-white">Đang học</span>
+                        </div>
+                      </div>
+                      
+                      {/* Price badge */}
+                      <div className="absolute top-3 right-3">
+                        <div className="px-2.5 py-1 bg-white/90 backdrop-blur-sm rounded-full shadow-lg">
+                          <span className="text-xs font-semibold text-gray-800">
+                            {course.finalPrice ? `${course.finalPrice.toLocaleString()}₫` : 'Miễn phí'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="p-5">
+                      <h3 className="font-bold text-lg text-gray-900 mb-3 line-clamp-2 group-hover:text-green-600 transition-colors duration-300 leading-tight">
+                        {course.title}
+                      </h3>
+                      
+                      {/* Rating */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center">
+                          {[...Array(5)].map((_, i) => (
+                            <svg
+                              key={i}
+                              className={`w-3 h-3 ${i < (course.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          ))}
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {course.rating || 0} ({course.totalReviews || 0} đánh giá)
+                        </span>
+                      </div>
+                      
+                      {/* Progress bar */}
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                          <span>Tiến độ học tập</span>
+                          <span>65%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-500" style={{ width: '65%' }}></div>
+                        </div>
+                      </div>
+                      
+                      {/* Action button */}
+                      <button className="w-full bg-gradient-to-r from-green-500 to-blue-600 text-white py-2.5 px-4 rounded-xl font-semibold text-sm hover:from-green-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                        Tiếp tục học
+                      </button>
+                    </div>
+                    
+                    {/* Hover effect border */}
+                    <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-green-200 transition-all duration-500"></div>
+                  </motion.div>
+                ))}
+              </div>
             </div>
           )}
         </div>

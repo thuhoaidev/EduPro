@@ -8,13 +8,63 @@ const { validateSchema } = require('../utils/validateSchema');
 const { loginSchema, registerSchema } = require('../validations/auth.validation');
 const slugify = require('slugify');
 
+console.log('JWT_SECRET:', process.env.JWT_SECRET);
 
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    res.json({ user });
+    console.log('getMe - fetching user with ID:', req.user.id);
+    const user = await User.findById(req.user.id).populate({
+      path: 'role_id',
+      select: 'name description permissions'
+    });
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Không tìm thấy người dùng' 
+      });
+    }
+    
+    // Trả về đầy đủ thông tin user bao gồm avatar
+    const userData = {
+      _id: user._id,
+      id: user._id,
+      email: user.email,
+      fullname: user.fullname,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      bio: user.bio,
+      gender: user.gender,
+      phone: user.phone,
+      address: user.address,
+      dob: user.dob,
+      status: user.status,
+      approval_status: user.approval_status,
+      email_verified: user.email_verified,
+      isInstructor: user.isInstructor,
+      created_at: user.createdAt,
+      updated_at: user.updatedAt,
+      role: user.role_id,
+      role_id: user.role_id,
+      social_links: user.social_links,
+      followers_count: user.followers_count,
+      following_count: user.following_count,
+      instructorInfo: user.instructorInfo
+    };
+    
+    console.log('getMe - returning user data:', userData);
+    res.json({ 
+      success: true,
+      message: 'Lấy thông tin người dùng thành công',
+      user: userData 
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Lỗi server khi lấy thông tin user' });
+    console.error('getMe error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Lỗi server khi lấy thông tin user',
+      error: err.message 
+    });
   }
 };
 
@@ -28,8 +78,8 @@ const createToken = (userId) => {
   console.log('Token ID:', id);
   
   try {
-    // Sử dụng Buffer và string literal cho secret
-    const token = jwt.sign({ id }, Buffer.from('your-secret-key'), {
+    // Sử dụng process.env.JWT_SECRET cho secret
+    const token = jwt.sign({ id }, process.env.JWT_SECRET, {
       expiresIn: '24h'
     });
     console.log('Token created:', token);
@@ -234,6 +284,24 @@ exports.verifyEmail = async (req, res, next) => {
     user.email_verification_expires = undefined;
 
     await user.save();
+
+    // Emit realtime event cho email verification
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('email-verified', {
+          token: token,
+          userId: user._id,
+          email: user.email,
+          fullname: user.fullname,
+          isInstructor: false,
+          timestamp: new Date()
+        });
+        console.log('Realtime email-verified event emitted');
+      }
+    } catch (socketError) {
+      console.error('Failed to emit realtime event:', socketError);
+    }
 
     // Tạo token đăng nhập mới
     const loginToken = jwt.sign(
@@ -580,3 +648,5 @@ exports.changePassword = async (req, res) => {
     });
   }
 };
+
+exports.createToken = createToken;

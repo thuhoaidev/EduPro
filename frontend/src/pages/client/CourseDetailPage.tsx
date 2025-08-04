@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb, message } from 'antd';
-import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb, message, Modal, Input } from 'antd';
+import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined, ClockCircleOutlined, LikeOutlined, DislikeOutlined, SaveOutlined } from '@ant-design/icons';
 import { courseService } from '../../services/apiService';
 import type { Course, Section, Lesson } from '../../services/apiService';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { config } from '../../api/axios';
-import { getCourseReviews, getMyReview, addOrUpdateReview } from '../../services/courseReviewService';
+import { getCourseReviews, getMyReview, addOrUpdateReview, 
+  toggleLikeReview, toggleDislikeReview, reportReview } from '../../services/courseReviewService';
 import TextArea from 'antd/lib/input/TextArea';
 import { useCart } from '../../contexts/CartContext';
+import { getProgress } from '../../services/progressService';
+import { useAuth } from '../../hooks/Auths/useAuth';
+import { Select } from 'antd';
+import { SearchOutlined, FlagOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+dayjs.extend(relativeTime);
+import orderService from '../../services/orderService';
 
 const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -25,6 +34,11 @@ const sectionVariants: Variants = {
 
 const CourseDetailPage: React.FC = () => {
     const { slug, id } = useParams<{ slug?: string; id?: string }>();
+    
+    // Debug: log thông tin params
+    console.log('CourseDetailPage - Received slug:', slug);
+    console.log('CourseDetailPage - Received id:', id);
+    console.log('CourseDetailPage - URL params:', useParams());
     const [course, setCourse] = useState<Course | null>(null);
     const [courseContent, setCourseContent] = useState<Section[]>([]);
     const [loading, setLoading] = useState(true);
@@ -33,8 +47,16 @@ const CourseDetailPage: React.FC = () => {
     const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [reviews, setReviews] = useState<{
-        user: { fullname?: string; avatar?: string }; rating: number; comment: string 
-}[]>([]);
+        _id: string;
+        user: { fullname?: string; avatar?: string };
+        rating: number;
+        comment: string;
+        createdAt?: string;
+        likes?: any[];
+        dislikes?: any[];
+    }[]>([]);
+    const [reviewFilter, setReviewFilter] = useState<number | 'all'>('all');
+    const [reviewSearch, setReviewSearch] = useState('');
     const [myReview, setMyReview] = useState<{ rating: number; comment: string } | null>(null);
     const [reviewLoading, setReviewLoading] = useState(false);
     const [reviewError, setReviewError] = useState<string | null>(null);
@@ -42,8 +64,18 @@ const CourseDetailPage: React.FC = () => {
     const [reviewComment, setReviewComment] = useState('');
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isInstructor, setIsInstructor] = useState(false);
+    const [isCompleted, setIsCompleted] = useState(false);
+    const [continueLessonId, setContinueLessonId] = useState<string | null>(null);
     const navigate = useNavigate();
     const { addToCart, isInCart, updateCartCount } = useCart();
+    const { user } = useAuth();
+    const [reportModalVisible, setReportModalVisible] = useState(false);
+    const [reportReason, setReportReason] = useState('');
+    const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+    const [canRefund, setCanRefund] = useState(false);
+    const [refundLoading, setRefundLoading] = useState(false);
+    const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
+    const [courseStats, setCourseStats] = useState<{ enrolledCount: number; averageRating: number; reviewCount: number }>({ enrolledCount: 0, averageRating: 0, reviewCount: 0 });
 
     // Function to calculate total duration from course content
     const calculateTotalDuration = (sections: Section[]): string => {
@@ -119,26 +151,22 @@ const CourseDetailPage: React.FC = () => {
                 setLoading(true);
                 let courseObj: Course | null = null;
                 let contentData: Section[] = [];
-                if (id) {
-                    // Lấy chi tiết bằng id
+                
+                // Thử lấy bằng slug trước
+                if (slug) {
+                    courseObj = await courseService.getCourseBySlug(slug);
+                }
+                
+                // Nếu không tìm thấy bằng slug, thử lấy bằng ID
+                if (!courseObj && id) {
                     const apiRes = await courseService.getCourseById(id);
                     if (apiRes) {
-                        // Map sang type Course
                         courseObj = courseService.mapApiCourseToAppCourse(apiRes);
-                        // Nếu backend trả về sections kèm theo
-                        if (apiRes.sections) {
-                            contentData = apiRes.sections;
-                        } else {
-                            contentData = await courseService.getCourseContent(apiRes._id || id);
-                        }
-                    }
-                } else if (slug) {
-                    courseObj = await courseService.getCourseBySlug(slug);
-                    if (courseObj) {
-                        contentData = await courseService.getCourseContent(courseObj.id);
                     }
                 }
+                
                 if (courseObj) {
+                    contentData = await courseService.getCourseContent(courseObj.id);
                     setCourse(courseObj);
                     setCourseContent(contentData);
                     console.log('📚 Course content loaded:', contentData);
@@ -167,22 +195,23 @@ const CourseDetailPage: React.FC = () => {
     useEffect(() => {
         const checkEnrolled = async () => {
             if (!course) return;
-            const token = localStorage.getItem('token');
-            if (!token) {
-                setIsEnrolled(false);
-                return;
-            }
             try {
-                const res = await config.get('/users/me/enrollments');
-                const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => enroll.course?._id || enroll.course?.id);
-                console.log('🔍 Course ID:', course.id);
-                console.log('🔍 Enrolled IDs:', enrolledIds);
-                console.log('🔍 Is enrolled:', enrolledIds.includes(course.id));
-                if (enrolledIds.includes(course.id)) {
-                    setIsEnrolled(true);
-                } else {
-                    setIsEnrolled(false);
+                const token = localStorage.getItem('token');
+                let enrolled = false;
+                if (token) {
+                    try {
+                        const res = await config.get('/users/me/enrollments');
+                        const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => String(enroll.course?._id || enroll.course?.id));
+                        console.log('🔍 Course ID:', course.id);
+                        console.log('🔍 Enrolled IDs:', enrolledIds);
+                        console.log('🔍 Is enrolled:', enrolledIds.includes(String(course.id)));
+                        enrolled = enrolledIds.includes(String(course.id));
+                    } catch (error) {
+                        console.log('Không thể kiểm tra enrollment, có thể chưa đăng nhập');
+                        enrolled = false;
+                    }
                 }
+                setIsEnrolled(enrolled);
             } catch {
                 setIsEnrolled(false);
             }
@@ -235,8 +264,8 @@ const CourseDetailPage: React.FC = () => {
                     try {
                         const my = await getMyReview(course.id);
                         setMyReview(my);
-                        setReviewValue(my.rating);
-                        setReviewComment(my.comment || '');
+                        setReviewValue(my?.rating || 0);
+                        setReviewComment(my?.comment || '');
                     } catch {
                         // ignore
                     }
@@ -248,20 +277,150 @@ const CourseDetailPage: React.FC = () => {
         })();
     }, [course, isEnrolled]);
 
-    // Force re-render when cart changes
+    // Kiểm tra hoàn thành 100% khóa học
     useEffect(() => {
-        // This will trigger re-render when cart state changes
-        const interval = setInterval(() => {
-            // Force re-render by updating a state
-            setReviewValue(prev => prev);
-        }, 1000);
+        const checkCompleted = async () => {
+            if (!course || !isEnrolled || !courseContent.length) {
+                setIsCompleted(false);
+                setContinueLessonId(null);
+                return;
+            }
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    setIsCompleted(false);
+                    setContinueLessonId(null);
+                    return;
+                }
+                
+                const progress = await getProgress(course.id);
+                const totalLessons = courseContent.reduce((acc, section) => acc + section.lessons.length, 0);
+                const completedLessons = Object.values(progress || {}).filter((p: any) =>
+                    p.completed === true && p.videoCompleted === true && p.quizPassed === true
+                ).length;
+                setIsCompleted(totalLessons > 0 && completedLessons === totalLessons);
+
+                // Lấy bài học đang học dở gần nhất, đảm bảo tồn tại trong courseContent
+                let lessonId = progress && progress.lastWatchedLessonId;
+                let found = false;
+                if (lessonId) {
+                    console.log('lastWatchedLessonId:', lessonId);
+                    for (const section of courseContent) {
+                        for (const lesson of section.lessons) {
+                            console.log('lesson._id:', lesson._id);
+                            if (String(lesson._id) === String(lessonId)) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found) break;
+                    }
+                }
+                if (found) {
+                    setContinueLessonId(lessonId);
+                } else {
+                    // fallback: bài đầu tiên
+                    const firstLesson = courseContent[0]?.lessons[0];
+                    setContinueLessonId(firstLesson?._id || null);
+                }
+            } catch (e) {
+                setIsCompleted(false);
+                setContinueLessonId(null);
+            }
+        };
+        checkCompleted();
+    }, [course, isEnrolled, courseContent]);
+
+    // Force re-render when cart changes (removed unnecessary interval)
+    // useEffect(() => {
+    //     // This will trigger re-render when cart state changes
+    //     const interval = setInterval(() => {
+    //         // Force re-render by updating a state
+    //         setReviewValue(prev => prev);
+    //     }, 1000);
         
-        return () => clearInterval(interval);
-    }, []);
+    //     return () => clearInterval(interval);
+    // }, []);
+
+    // Tính toán dữ liệu tổng quan đánh giá
+    const ratingStats = React.useMemo(() => {
+        const stats = [0, 0, 0, 0, 0]; // 5 -> 1 sao
+        reviews.forEach(r => {
+        if (r.rating >= 1 && r.rating <= 5) stats[5 - r.rating]++;
+        });
+        const total = reviews.length;
+        return {
+        stats,
+        total,
+        avg: total ? (reviews.reduce((sum, r) => sum + r.rating, 0) / total) : 0,
+        percent: stats.map(count => total ? Math.round((count / total) * 100) : 0)
+        };
+    }, [reviews]);
+
+    // Lọc và tìm kiếm review
+    const filteredReviews = React.useMemo(() => {
+        let list = reviews;
+        if (reviewFilter !== 'all') list = list.filter(r => r.rating === reviewFilter);
+        if (reviewSearch.trim()) list = list.filter(r => r.comment.toLowerCase().includes(reviewSearch.trim().toLowerCase()));
+        return list;
+    }, [reviews, reviewFilter, reviewSearch]);
+
+    useEffect(() => {
+        // Kiểm tra điều kiện hoàn tiền
+        const checkRefundable = async () => {
+          if (!isEnrolled || !user || !course) return;
+          try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const res = await orderService.getUserOrders(token, 1, 20, 'paid');
+            const now = new Date();
+            let found = false;
+            for (const order of res.orders) {
+              const hasCourse = order.items.some(item => String(item.courseId._id) === String(course.id));
+              if (hasCourse) {
+                const created = new Date(order.createdAt);
+                const diffDays = (now.getTime() - created.getTime()) / (1000 * 3600 * 24);
+                if (diffDays <= 7) {
+                  setCanRefund(true);
+                  setRefundOrderId(order.id);
+                  found = true;
+                  break;
+                }
+              }
+            }
+            if (!found) {
+              setCanRefund(false);
+              setRefundOrderId(null);
+            }
+          } catch {
+            setCanRefund(false);
+            setRefundOrderId(null);
+          }
+        };
+        checkRefundable();
+    }, [isEnrolled, user, course]);
+
+    // Lấy thống kê khóa học
+    useEffect(() => {
+        const fetchCourseStats = async () => {
+            if (!course) return;
+            try {
+                const stats = await courseService.getCourseStats(course.id);
+                setCourseStats(stats);
+            } catch (error) {
+                console.error('Lỗi khi lấy thống kê khóa học:', error);
+            }
+        };
+        fetchCourseStats();
+    }, [course]);
 
     if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Spin size="large" /></div>;
     if (error) return <div className="p-8"><Alert message="Lỗi" description={error} type="error" showIcon /></div>;
     if (!course) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Empty description="Không tìm thấy dữ liệu khóa học." /></div>;
+
+    // Thêm log kiểm tra dữ liệu giảng viên
+    console.log('COURSE DATA:', course);
+    console.log('THÔNG TIN GIẢNG VIÊN:', course.author);
 
     const totalLessons = courseContent.reduce((acc, section) => acc + section.lessons.length, 0);
 
@@ -295,7 +454,8 @@ const CourseDetailPage: React.FC = () => {
     // Helper function để đồng bộ logic với CourseCard
     const getButtonText = () => {
         if (isInstructor) return 'Quản lý khóa học';
-        if (isEnrolled) return 'Học ngay';
+        if (isEnrolled && !isCompleted) return 'Tiếp tục học';
+        if (isEnrolled && isCompleted) return 'Học ngay';
         if (course.isFree) return 'Đăng ký học';
         if (isInCart(course.id)) return 'Thanh toán ngay';
         return 'Thêm vào giỏ hàng';
@@ -306,6 +466,82 @@ const CourseDetailPage: React.FC = () => {
         return <ShoppingCartOutlined />;
     };
 
+    const handleLike = async (reviewId: string) => {
+      setReviews(prev =>
+        prev.map(r => {
+          if (r._id !== reviewId || !user) return r;
+          const liked = Array.isArray(r.likes) && r.likes.some((id: any) => id === user._id || id?._id === user._id);
+          let newLikes = [...(r.likes || [])];
+          let newDislikes = (r.dislikes || []).filter((id: any) => id !== user._id && id?._id !== user._id);
+          if (liked) {
+            newLikes = newLikes.filter((id: any) => id !== user._id && id?._id !== user._id);
+          } else {
+            newLikes.push(user._id);
+          }
+          return { ...r, likes: newLikes, dislikes: newDislikes };
+        })
+      );
+      try {
+        await toggleLikeReview(reviewId);
+      } catch {
+        message.error('Có lỗi xảy ra');
+      }
+    };
+
+    const handleDislike = async (reviewId: string) => {
+      setReviews(prev =>
+        prev.map(r => {
+          if (r._id !== reviewId || !user) return r;
+          const disliked = Array.isArray(r.dislikes) && r.dislikes.some((id: any) => id === user._id || id?._id === user._id);
+          let newDislikes = [...(r.dislikes || [])];
+          let newLikes = (r.likes || []).filter((id: any) => id !== user._id && id?._id !== user._id);
+          if (disliked) {
+            newDislikes = newDislikes.filter((id: any) => id !== user._id && id?._id !== user._id);
+          } else {
+            newDislikes.push(user._id);
+          }
+          return { ...r, dislikes: newDislikes, likes: newLikes };
+        })
+      );
+      try {
+        await toggleDislikeReview(reviewId);
+      } catch {
+        message.error('Có lỗi xảy ra');
+      }
+    };
+
+    const handleReport = async () => {
+      if (!selectedReviewId || !reportReason.trim()) {
+        message.warning('Vui lòng nhập lý do');
+        return;
+      }
+      try {
+        await reportReview(selectedReviewId, reportReason);
+        message.success('Đã gửi báo cáo');
+        setReportModalVisible(false);
+        setReportReason('');
+        setSelectedReviewId(null);
+      } catch (error) {
+        message.error('Có lỗi xảy ra');
+      }
+    };
+
+    const handleRefund = async () => {
+      if (!refundOrderId) return;
+      setRefundLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('Chưa đăng nhập');
+        await orderService.refundOrder(refundOrderId, course.id, token);
+        message.success('Hoàn tiền thành công! 70% chi phí đã được cộng vào ví.');
+        setCanRefund(false);
+        setTimeout(() => window.location.reload(), 1000);
+      } catch (err: any) {
+        message.error(err?.message || 'Hoàn tiền thất bại!');
+      } finally {
+        setRefundLoading(false);
+      }
+    };
 
 
     return (
@@ -314,16 +550,23 @@ const CourseDetailPage: React.FC = () => {
             <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 text-gray-900 shadow-inner">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                        <Breadcrumb separator={<span className="text-gray-400">/</span>} className="mb-4">
-                            <Breadcrumb.Item><Link to="/" className="text-gray-500 hover:text-cyan-600 transition-colors">Trang chủ</Link></Breadcrumb.Item>
-                            <Breadcrumb.Item><Link to="/courses" className="text-gray-500 hover:text-cyan-600 transition-colors">Khóa học</Link></Breadcrumb.Item>
-                            <Breadcrumb.Item className="text-gray-900 font-medium">{course.title}</Breadcrumb.Item>
-                        </Breadcrumb>
+                        <Breadcrumb
+                          separator={<span className="text-gray-400">/</span>}
+                          className="mb-4"
+                          items={[
+                            { title: <Link to="/" className="text-gray-500 hover:text-cyan-600 transition-colors">Trang chủ</Link> },
+                            { title: <Link to="/courses" className="text-gray-500 hover:text-cyan-600 transition-colors">Khóa học</Link> },
+                            { title: <span className="text-gray-900 font-medium">{course.title}</span> }
+                          ]}
+                        />
                         <h1 className="text-3xl md:text-5xl font-bold leading-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">{course.title}</h1>
                         <Paragraph className="text-gray-700 text-lg md:text-xl max-w-4xl">{course.subtitle}</Paragraph>
                         <div className="flex items-center gap-x-6 gap-y-2 mt-6 flex-wrap">
                             <div className="flex items-center gap-2">
-                                <Avatar src={course.author.avatar} icon={<UserOutlined />} />
+                                <Avatar 
+                                    src={course.author.avatar && course.author.avatar !== 'default-avatar.jpg' && course.author.avatar !== '' && (course.author.avatar.includes('googleusercontent.com') || course.author.avatar.startsWith('http')) ? course.author.avatar : undefined} 
+                                    icon={<UserOutlined />} 
+                                />
                                 <Text className="!text-gray-800 font-semibold">{course.author.name}</Text>
                             </div>
                             <div className="flex items-center gap-2 text-amber-400">
@@ -480,7 +723,12 @@ const CourseDetailPage: React.FC = () => {
                                 <div className="flex items-center gap-6 mt-8">
                                     <div className="relative">
                                         <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 blur opacity-60"></div>
-                                        <Avatar src={course.author.avatar} size={96} icon={<UserOutlined />} className="border-4 border-white shadow-lg relative z-10"/>
+                                        <Avatar 
+                                            src={course.author.avatar && course.author.avatar !== 'default-avatar.jpg' && course.author.avatar !== '' ? course.author.avatar : undefined} 
+                                            size={96} 
+                                            icon={<UserOutlined />} 
+                                            className="border-4 border-white shadow-lg relative z-10"
+                                        />
                                     </div>
                                     <div>
                                         <Title level={4} className="!text-transparent !bg-clip-text !bg-gradient-to-r !from-cyan-600 !to-purple-600 !m-0">{course.author.name}</Title>
@@ -498,53 +746,166 @@ const CourseDetailPage: React.FC = () => {
                         <motion.div custom={4} variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.5 }}>
                             <Card variant="outlined" className="border border-gray-200 shadow-sm rounded-xl mt-20 bg-white/80 backdrop-blur-md">
                                 <Title level={3} className="mb-8 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600">Đánh giá từ học viên</Title>
+                                
+                                {/* Tổng quan đánh giá */}
+                                <div style={{ display: 'flex', gap: 40, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 32, paddingBottom: 24, borderBottom: '1px solid #e8e8e8' }}>
+                                  <div style={{ minWidth: 180, textAlign: 'center' }}>
+                                    <div style={{ fontSize: 54, fontWeight: 800, color: '#06b6d4', lineHeight: 1 }}>{courseStats.averageRating.toFixed(1)}</div>
+                                    <Rate disabled allowHalf value={courseStats.averageRating} style={{ fontSize: 28, color: '#06b6d4', margin: '8px 0' }} />
+                                    <div style={{ color: '#06b6d4', fontWeight: 600, fontSize: 18, marginTop: 4 }}>Điểm trung bình</div>
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 220, marginTop: 8 }}>
+                                    {ratingStats.stats.map((count, idx) => (
+                                      <div key={5-idx} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                                        <span style={{ fontWeight: 600, color: '#06b6d4', minWidth: 24 }}>{5-idx}</span>
+                                        <Rate disabled value={5-idx} style={{ fontSize: 16, color: '#06b6d4' }} />
+                                        <div style={{ flex: 1, background: '#e0f2fe', borderRadius: 6, height: 10, margin: '0 8px', overflow: 'hidden' }}>
+                                          <div style={{ width: ratingStats.percent[idx] + '%', background: '#8b5cf6', height: '100%', borderRadius: 6, transition: 'width 0.3s' }} />
+                                        </div>
+                                        <span style={{ color: '#8b5cf6', fontWeight: 600, minWidth: 36 }}>{ratingStats.percent[idx]}%</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Search & Filter */}
+                                <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', padding: '16px 20px', background: '#f8fafc', borderRadius: 12, border: '1px solid #f0f0f0' }}>
+                                  <Input
+                                    placeholder="Tìm kiếm theo nội dung..."
+                                    prefix={<SearchOutlined style={{ color: '#aaa' }} />}
+                                    value={reviewSearch}
+                                    onChange={e => setReviewSearch(e.target.value)}
+                                    style={{ width: 280, borderRadius: 8, height: 40 }}
+                                  />
+                                  <div style={{ flex: 1 }} />
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ fontWeight: 600, color: '#444' }}>Lọc theo số sao:</span>
+                                    <Select
+                                      value={reviewFilter}
+                                      onChange={value => setReviewFilter(value)}
+                                      style={{ width: 140, borderRadius: 8 }}
+                                    >
+                                      <Select.Option value="all">Tất cả</Select.Option>
+                                      <Select.Option value={5}>5 sao</Select.Option>
+                                      <Select.Option value={4}>4 sao</Select.Option>
+                                      <Select.Option value={3}>3 sao</Select.Option>
+                                      <Select.Option value={2}>2 sao</Select.Option>
+                                      <Select.Option value={1}>1 sao</Select.Option>
+                                    </Select>
+                                  </div>
+                                </div>
+                                
                                 {reviewLoading ? <Spin /> : (
                                     <List
                                         itemLayout="horizontal"
-                                        dataSource={reviews}
+                                        dataSource={filteredReviews}
                                         locale={{ emptyText: 'Chưa có đánh giá nào.' }}
-                                        renderItem={item => (
-                                            <motion.div
-                                                initial={{ opacity: 0, x: 40 }}
-                                                whileInView={{ opacity: 1, x: 0 }}
-                                                viewport={{ once: true }}
-                                                transition={{ duration: 0.5 }}
-                                            >
-                                                <List.Item className="!items-start !border-0 !bg-transparent !py-6">
-                                                    <div className="flex items-start gap-5 w-full">
-                                                        <Avatar src={item.user?.avatar} icon={<UserOutlined />} size={56} className="shadow-lg" />
-                                                        <div className="flex-1">
-                                                            <div className="bg-gradient-to-br from-cyan-50 to-purple-50 rounded-xl px-6 py-5 shadow-inner relative">
-                                                                <span className="absolute -left-4 top-4 text-4xl text-cyan-300 opacity-30 select-none">"</span>
-                                                                <Text className="block text-lg font-medium text-gray-800 mb-3">{item.comment}</Text>
-                                                                <div className="flex items-center gap-2">
-                                                                    <Text strong>{item.user?.fullname || 'Người dùng'}</Text>
-                                                                    <Rate disabled value={item.rating} className="!text-base ml-2" />
+                                        renderItem={item => {
+                                            const liked = Array.isArray(item.likes) && user && item.likes.some((id: any) => id === user._id || id?._id === user._id);
+                                            const disliked = Array.isArray(item.dislikes) && user && item.dislikes.some((id: any) => id === user._id || id?._id === user._id);
+                                            return (
+                                                <motion.div
+                                                    initial={{ opacity: 0, x: 40 }}
+                                                    whileInView={{ opacity: 1, x: 0 }}
+                                                    viewport={{ once: true }}
+                                                    transition={{ duration: 0.5 }}
+                                                >
+                                                    <List.Item className="!items-start !border-0 !bg-transparent !py-6">
+                                                        <div className="flex items-start gap-5 w-full">
+                                                            <Avatar 
+                                                                src={item.user?.avatar && item.user.avatar !== 'default-avatar.jpg' && item.user.avatar !== '' && (item.user.avatar.includes('googleusercontent.com') || item.user.avatar.startsWith('http')) ? item.user.avatar : undefined} 
+                                                                icon={<UserOutlined />} 
+                                                                size={48}
+                                                                style={{ 
+                                                                    background: '#e0f2fe',
+                                                                    color: '#8b5cf6',
+                                                                    fontWeight: 700,
+                                                                    fontSize: 20
+                                                                }}
+                                                            >
+                                                                {!item.user?.avatar && (item.user?.fullname ? item.user.fullname[0] : 'U')}
+                                                            </Avatar>
+                                                            <div className="flex-1">
+                                                                <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                    <Text strong style={{ fontSize: 16, marginRight: 8 }}>
+                                                                        {item.user?.fullname || 'Người dùng'}
+                                                                    </Text>
+                                                                    <Rate disabled value={item.rating} style={{ fontSize: 14, color: '#f59e42' }} />
+                                                                    <span style={{ color: '#888', fontSize: 13, marginLeft: 8 }}>{item.createdAt ? dayjs(item.createdAt).fromNow() : ''}</span>
+                                                                </div>
+                                                                <Text style={{ fontSize: 15, color: '#262626', display: 'block', marginBottom: 4 }}>
+                                                                    {item.comment}
+                                                                </Text>
+                                                                <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 4 }}>
+                                                                    <Button type="text" icon={<LikeOutlined />} style={{ color: liked ? '#06b6d4' : '#bdbdbd', fontWeight: liked ? 700 : 400 }} onClick={() => handleLike(item._id)}>Hữu ích</Button>
+                                                                    <Button type="text" icon={<DislikeOutlined />} style={{ color: disliked ? '#6366f1' : '#aaa', fontWeight: disliked ? 700 : 400 }} onClick={() => handleDislike(item._id)} />
+                                                                    <Button type="link" icon={<FlagOutlined />} style={{ color: '#f87171', fontWeight: 600 }} onClick={() => { setSelectedReviewId(item._id); setReportModalVisible(true); }}>Báo xấu</Button>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </List.Item>
-                                            </motion.div>
-                                        )}
+                                                    </List.Item>
+                                                </motion.div>
+                                            )
+                                        }}
                                     />
                                 )}
-                                {isEnrolled && (
-                                    <div className="mt-8">
-                                        <Title level={4} className="mb-2">Đánh giá của bạn</Title>
-                                        <Rate value={reviewValue} onChange={setReviewValue} />
-                                        <TextArea
-                                            rows={3}
+
+                                {isEnrolled && isCompleted && (
+                                    <div style={{ marginTop: 32 }}>
+                                        <Card 
+                                            title={<Title level={4} style={{ color: '#06b6d4' }}>{myReview ? 'Cập nhật đánh giá của bạn' : 'Đánh giá của bạn'}</Title>}
+                                            style={{
+                                            background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)',
+                                            borderRadius: 12,
+                                            border: '1px solid #d6e4ff'
+                                            }}
+                                            headStyle={{ borderBottom: '1px solid #e6f4ff' }}
+                                        >
+                                            <Rate 
+                                            value={reviewValue} 
+                                            onChange={setReviewValue}
+                                            style={{ fontSize: 24, marginBottom: 16, color: '#f59e42' }}
+                                            />
+                                            <Input.TextArea
+                                            rows={4}
                                             value={reviewComment}
-                                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReviewComment(e.target.value)}
-                                            placeholder="Nhận xét về khóa học..."
-                                            maxLength={500}
-                                            className="mb-2 mt-2"
-                                        />
-                                        <Button type="primary" onClick={handleSubmitReview} loading={reviewLoading}>
-                                            {myReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
-                                        </Button>
-                                        {reviewError && <Alert message={reviewError} type="error" showIcon className="mt-2" />}
+                                            onChange={(e) => setReviewComment(e.target.value)}
+                                            placeholder="Chia sẻ trải nghiệm học tập của bạn..."
+                                            style={{ 
+                                                borderRadius: 8, 
+                                                fontSize: 15,
+                                                marginBottom: 16,
+                                                resize: 'vertical'
+                                            }}
+                                            />
+                                            <div style={{ textAlign: 'right' }}>
+                                            <Button 
+                                                type="primary" 
+                                                onClick={handleSubmitReview} 
+                                                loading={reviewLoading}
+                                                style={{
+                                                borderRadius: 6,
+                                                background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                                                border: 'none',
+                                                height: 40,
+                                                paddingInline: 24,
+                                                fontSize: 16,
+                                                fontWeight: 600
+                                                }}
+                                            >
+                                                <SaveOutlined style={{ marginRight: 4 }} />
+                                                {myReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
+                                            </Button>
+                                            </div>
+                                            {reviewError && (
+                                            <Alert message={reviewError} type="error" showIcon style={{ marginTop: 16 }} />
+                                            )}
+                                        </Card>
+                                    </div>
+                                )}
+                                {isEnrolled && !isCompleted && (
+                                    <div className="mt-8">
+                                        <Alert message="Bạn cần hoàn thành khóa học để có thể đánh giá." type="info" showIcon />
                                     </div>
                                 )}
                             </Card>
@@ -625,56 +986,27 @@ const CourseDetailPage: React.FC = () => {
                                         >
                                             Quản lý khóa học
                                         </Button>
-                                    ) : isEnrolled ? (
+                                    ) : isEnrolled || course.isFree ? (
                                         <Button 
                                             type="primary" 
                                             size="large" 
                                             block 
-                                            className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
+                                            className={`!h-14 !text-lg !font-semibold !border-0 shadow-lg hover:shadow-xl transition-all duration-300 ${isEnrolled && isCompleted ? '!bg-gradient-to-r !from-green-500 !to-emerald-500 hover:!from-green-600 hover:!to-emerald-600' : '!bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600'}`}
                                             icon={getButtonIcon()} 
                                             onClick={() => {
-                                                const firstLesson = courseContent[0]?.lessons[0];
-                                                if (firstLesson?._id) {
-                                                    navigate(`/lessons/${firstLesson._id}/video`);
+                                                if (continueLessonId) {
+                                                    navigate(`/lessons/${continueLessonId}/video`);
                                                 } else {
-                                                    message.info('Khóa học này chưa có bài giảng. Vui lòng quay lại sau!');
-                                                }
-                                            }}
-                                        >
-                                            {getButtonText()}
-                                        </Button>
-                                    ) : course.isFree ? (
-                                        <Button 
-                                            type="primary" 
-                                            size="large" 
-                                            block 
-                                            className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-cyan-500 !to-purple-500 hover:!from-cyan-600 hover:!to-purple-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300" 
-                                            icon={getButtonIcon()} 
-                                            onClick={async () => {
-                                                const token = localStorage.getItem('token');
-                                                if (!token) {
-                                                    localStorage.removeItem('token');
-                                                    localStorage.removeItem('user');
-                                                    localStorage.removeItem('refresh_token');
-                                                    message.warning('Vui lòng đăng nhập!');
-                                                    setTimeout(() => navigate('/login'), 800);
-                                                    return;
-                                                }
-                                                try {
-                                                    await config.post(`/courses/${course.id}/enroll`);
-                                                    setIsEnrolled(true);
-                                                    message.success('Đăng ký học thành công!');
-                                                } catch (err: unknown) {
-                                                    if (err && typeof err === 'object' && 'response' in err) {
-                                                        // @ts-expect-error err.response is available
-                                                        message.error(err.response?.data?.message || 'Có lỗi khi đăng ký học!');
+                                                    const firstLesson = courseContent[0]?.lessons[0];
+                                                    if (firstLesson?._id) {
+                                                        navigate(`/lessons/${firstLesson._id}/video`);
                                                     } else {
-                                                        message.error('Có lỗi khi đăng ký học!');
+                                                        message.info('Khóa học này chưa có bài giảng. Vui lòng quay lại sau!');
                                                     }
                                                 }
                                             }}
                                         >
-                                            {getButtonText()}
+                                            {isEnrolled && isCompleted ? 'Hoàn thành' : getButtonText()}
                                         </Button>
                                     ) : (
                                         <Button 
@@ -689,12 +1021,17 @@ const CourseDetailPage: React.FC = () => {
                                                     return;
                                                 }
                                                 
+                                                // Kiểm tra nếu đã đăng ký khóa học
+                                                if (isEnrolled) {
+                                                    // Chuyển đến trang học
+                                                    navigate(`/lessons/${course.id}`);
+                                                    return;
+                                                }
+                                                
                                                 const token = localStorage.getItem('token');
                                                 if (!token) {
-                                                    localStorage.removeItem('token');
-                                                    localStorage.removeItem('user');
-                                                    localStorage.removeItem('refresh_token');
-                                                    message.warning('Vui lòng đăng nhập!');
+                                                    // Nếu chưa đăng nhập, chuyển đến trang đăng nhập
+                                                    message.warning('Vui lòng đăng nhập để mua khóa học!');
                                                     setTimeout(() => navigate('/login'), 800);
                                                     return;
                                                 }
@@ -712,10 +1049,8 @@ const CourseDetailPage: React.FC = () => {
                                                         message.success('Đã thêm khóa học vào giỏ hàng!');
                                                         await updateCartCount();
                                                     }
-                                                    // Không cần else vì addToCart đã xử lý thông báo lỗi
                                                 } catch (error: unknown) {
                                                     console.error('Error adding to cart:', error);
-                                                    // Hiển thị thông báo lỗi cụ thể nếu có
                                                     if (error && typeof error === 'object' && 'response' in error) {
                                                         const err = error as { response?: { data?: { error?: string } } };
                                                         if (err.response?.data?.error) {
@@ -735,6 +1070,19 @@ const CourseDetailPage: React.FC = () => {
                                             {isAddingToCart ? 'Đang thêm...' : getButtonText()}
                                         </Button>
                                     )}
+                                    {isEnrolled && canRefund && (
+                                        <Button
+                                            danger
+                                            type="primary"
+                                            size="large"
+                                            block
+                                            loading={refundLoading}
+                                            onClick={handleRefund}
+                                            className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-red-500 !to-orange-500 hover:!from-red-600 hover:!to-orange-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                                        >
+                                            Hoàn tiền 70% (nếu mua dưới 7 ngày)
+                                        </Button>
+                                    )}
                                 </div>
 
                                 {/* Course Features */}
@@ -749,16 +1097,7 @@ const CourseDetailPage: React.FC = () => {
                                                 <Text className="text-gray-500 text-xs">{course.title}</Text>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 flex items-center justify-center">
-                                                <GlobalOutlined className="text-white text-sm" />
-                                            </div>
-                                            <div>
-                                                <Text className="text-gray-500 text-xs">
-                                                    {course.language === 'en' ? 'Tiếng Anh' : course.language === 'vi' ? 'Tiếng Việt' : (course.language || 'Không rõ')}
-                                                </Text>
-                                            </div>
-                                        </div>
+
                                         <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
                                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 flex items-center justify-center">
                                                 <BookOutlined className="text-white text-sm" />
@@ -780,7 +1119,7 @@ const CourseDetailPage: React.FC = () => {
                                                 <StarFilled className="text-white text-sm" />
                                             </div>
                                             <div>
-                                                <Text className="text-gray-500 text-xs">{course.rating}/5 ({course.reviews} đánh giá)</Text>
+                                                <Text className="text-gray-500 text-xs">{courseStats.averageRating.toFixed(1)}/5 ({courseStats.reviewCount} đánh giá)</Text>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
@@ -788,7 +1127,7 @@ const CourseDetailPage: React.FC = () => {
                                                 <TeamOutlined className="text-white text-sm" />
                                             </div>
                                             <div>
-                                                <Text className="text-gray-500 text-xs">1,234 sinh viên đã tham gia</Text>
+                                                <Text className="text-gray-500 text-xs">{courseStats.enrolledCount.toLocaleString()} sinh viên đã tham gia</Text>
                                             </div>
                                         </div>
                                     </div>
@@ -799,15 +1138,15 @@ const CourseDetailPage: React.FC = () => {
                                     <div className="grid grid-cols-2 gap-4">
                                         {/* Left Column */}
                                         <div className="text-center">
-                                            <div className="text-2xl font-bold text-cyan-600">{course.rating}</div>
+                                            <div className="text-2xl font-bold text-cyan-600">{courseStats.averageRating.toFixed(1)}</div>
                                             <div className="flex justify-center my-1">
-                                                <Rate disabled allowHalf value={course.rating} className="!text-sm" />
+                                                <Rate disabled allowHalf value={courseStats.averageRating} className="!text-sm" />
                                             </div>
                                             <Text className="text-gray-600 text-xs">Đánh giá trung bình</Text>
                                         </div>
                                         {/* Right Column */}
                                         <div className="text-center">
-                                            <div className="text-2xl font-bold text-purple-600">{course.reviews}</div>
+                                            <div className="text-2xl font-bold text-purple-600">{courseStats.reviewCount}</div>
                                             {/* Invisible placeholder to match the Rate component's space */}
                                             <div className="flex justify-center my-1 invisible">
                                                 <Rate disabled allowHalf value={0} className="!text-sm" />
@@ -837,6 +1176,21 @@ const CourseDetailPage: React.FC = () => {
                     </Col>
                 </Row>
             </div>
+            <Modal
+              title="Báo cáo đánh giá"
+              open={reportModalVisible}
+              onOk={handleReport}
+              onCancel={() => setReportModalVisible(false)}
+              okText="Gửi"
+              cancelText="Hủy"
+            >
+              <Input.TextArea 
+                rows={4} 
+                value={reportReason} 
+                onChange={e => setReportReason(e.target.value)} 
+                placeholder="Nhập lý do báo cáo..." 
+              />
+            </Modal>
         </Content>
     );
 };

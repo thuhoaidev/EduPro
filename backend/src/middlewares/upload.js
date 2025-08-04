@@ -10,7 +10,7 @@ const avatarFileFilter = (req, file, cb) => {
   console.log('DEBUG - avatarFileFilter - file:', {
     originalname: file.originalname,
     mimetype: file.mimetype,
-    fieldname: file.fieldname
+    fieldname: file.fieldname,
   });
 
   // Chấp nhận nhiều định dạng ảnh
@@ -21,7 +21,7 @@ const avatarFileFilter = (req, file, cb) => {
     'image/gif',
     'image/webp',
     'image/bmp',
-    'image/tiff'
+    'image/tiff',
   ];
 
   if (allowedImageTypes.includes(file.mimetype) || file.mimetype.startsWith('image/')) {
@@ -62,7 +62,7 @@ const instructorFileFilter = (req, file, cb) => {
     'video/avi',
     'video/mov',
     'video/wmv',
-    'video/webm'
+    'video/webm',
   ];
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
@@ -76,7 +76,7 @@ const avatarUpload = multer({
   storage: storage,
   fileFilter: avatarFileFilter,
   limits: {
-    fileSize: 2 * 1024 * 1024, // 2MB
+    fileSize: 10 * 1024 * 1024, // 10MB
   },
 });
 
@@ -85,7 +85,7 @@ const instructorUpload = multer({
   storage: storage,
   fileFilter: instructorFileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    fileSize: 50 * 1024 * 1024, // Tăng lên 50MB
   },
 });
 
@@ -97,8 +97,42 @@ exports.uploadInstructorFiles = instructorUpload.fields([
   { name: 'avatar', maxCount: 1 },
   { name: 'cv', maxCount: 1 },
   { name: 'certificates', maxCount: 5 },
-  { name: 'demoVideo', maxCount: 1 }
+  { name: 'demoVideo', maxCount: 1 },
 ]);
+
+// Error handler cho multer
+exports.handleMulterError = (error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: `File quá lớn. Kích thước tối đa cho phép là 50MB. File "${error.field}" có kích thước vượt quá giới hạn.`,
+        error: 'File too large',
+      });
+    }
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Số lượng file upload vượt quá giới hạn cho phép.',
+        error: 'Too many files',
+      });
+    }
+    if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File upload không đúng định dạng hoặc tên trường không hợp lệ.',
+        error: 'Unexpected file field',
+      });
+    }
+  }
+
+  // Xử lý các lỗi khác
+  return res.status(400).json({
+    success: false,
+    message: error.message || 'Lỗi upload file',
+    error: error.message,
+  });
+};
 
 // Middleware xử lý upload avatar lên Cloudinary
 exports.processAvatarUpload = async (req, res, next) => {
@@ -115,14 +149,14 @@ exports.processAvatarUpload = async (req, res, next) => {
       originalname: req.file.originalname,
       mimetype: req.file.mimetype,
       size: req.file.size,
-      buffer: req.file.buffer ? 'Buffer exists' : 'No buffer'
+      buffer: req.file.buffer ? 'Buffer exists' : 'No buffer',
     });
 
     // Kiểm tra kích thước file
-    if (req.file.size > 2 * 1024 * 1024) {
+    if (req.file.size > 10 * 1024 * 1024) {
       return res.status(400).json({
         success: false,
-        message: 'File quá lớn. Kích thước tối đa là 2MB',
+        message: 'File quá lớn. Kích thước tối đa là 10MB',
       });
     }
 
@@ -145,7 +179,8 @@ exports.processAvatarUpload = async (req, res, next) => {
       if (cloudErr && cloudErr.message && cloudErr.message.includes('Timeout')) {
         return res.status(504).json({
           success: false,
-          message: 'Upload ảnh lên Cloudinary bị timeout. Vui lòng thử lại hoặc chọn ảnh nhỏ hơn 2MB.',
+          message:
+            'Upload ảnh lên Cloudinary bị timeout. Vui lòng thử lại hoặc chọn ảnh nhỏ hơn 2MB.',
         });
       }
       return res.status(500).json({
@@ -170,7 +205,7 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
     console.log('DEBUG - processInstructorFilesUpload - req.files:', req.files); // Log toàn bộ files nhận được từ multer
     console.log('DEBUG - processInstructorFilesUpload - req.body:', req.body); // Log body data
     console.log('DEBUG - processInstructorFilesUpload - req.headers:', req.headers['content-type']); // Log content type
-    
+
     if (!req.files) {
       console.log('DEBUG - No files uploaded, continuing...');
       return next(); // Không có file upload, tiếp tục
@@ -254,7 +289,8 @@ exports.processInstructorFilesUpload = async (req, res, next) => {
     if (req.files.demoVideo && req.files.demoVideo[0]) {
       console.log('DEBUG - Processing demo video file:', req.files.demoVideo[0]);
       const videoFile = req.files.demoVideo[0];
-      if (videoFile.size > 50 * 1024 * 1024) { // 50MB cho video
+      if (videoFile.size > 50 * 1024 * 1024) {
+        // 50MB cho video
         return res.status(400).json({
           success: false,
           message: 'File demo video quá lớn. Kích thước tối đa là 50MB',
@@ -305,4 +341,4 @@ exports.deleteOldAvatar = async (req, res, next) => {
     // Không dừng quá trình nếu lỗi xóa avatar cũ
     next();
   }
-}; 
+};

@@ -12,7 +12,17 @@ import { courseService } from '../../services/apiService';
 const formatCurrency = (value: number) => value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 const isMongoId = (str: string) => /^[a-f\d]{24}$/i.test(str);
 
-const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course, isEnrolled }) => {
+interface CourseCardProps {
+    course: Course;
+    isEnrolled?: boolean;
+    isInProgress?: boolean;
+    continueLessonId?: string;
+    isCompleted?: boolean;
+    lessons?: number;
+    rating?: number;
+    reviews?: number;
+}
+const CourseCard: React.FC<CourseCardProps> = ({ course, isEnrolled, isInProgress, continueLessonId, isCompleted, lessons, rating, reviews }) => {
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const [isInstructor, setIsInstructor] = useState(false);
     const { addToCart, isInCart, updateCartCount } = useCart();
@@ -63,7 +73,7 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
         try {
             await config.post(`/courses/${course._id || course.id}/enroll`);
             alert('Đăng ký học thành công!');
-            window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`;
+            window.location.href = course.slug ? `/courses/${course.slug}` : `/courses/id/${course._id || course.id}`;
         } catch (error: any) {
             alert(error.response?.data?.message || 'Có lỗi xảy ra khi đăng ký học!');
         }
@@ -111,7 +121,7 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
             whileHover={{ y: -8, scale: 1.03, boxShadow: '0 12px 32px 0 rgba(56,189,248,0.12)' }}
             transition={{ duration: 0.3 }}
         >
-            <Link to={isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`} className={styles.cardLink}>
+            <Link to={course.slug ? `/courses/${course.slug}` : `/courses/id/${course._id || course.id}`} className={styles.cardLink}>
                 <div className={styles.imageContainer} style={{ borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden', position: 'relative' }}>
                     <img alt={course.title} src={course.Image} className={styles.cardImage} style={{ borderTopLeftRadius: 20, borderTopRightRadius: 20 }} />
                     <div className={styles.imageOverlay} style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 60%)', borderTopLeftRadius: 20, borderTopRightRadius: 20 }}></div>
@@ -120,12 +130,12 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
                     
                     <h3 className={styles.courseTitle} style={{ fontSize: 20, fontWeight: 700, minHeight: 48, marginBottom: 8 }}>{course.title}</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#64748b', marginBottom: 8 }}>
-                        <BookOutlined style={{ marginRight: 4 }} /> {course.lessons || 30} bài
+                        <BookOutlined style={{ marginRight: 4 }} /> {typeof lessons === 'number' ? lessons : 0} bài
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                        <Rate value={course.rating} disabled allowHalf style={{ fontSize: 15, color: '#f59e0b' }} />
-                        <span style={{ fontWeight: 600, color: '#f59e0b', fontSize: 14 }}>{course.rating.toFixed(1)}</span>
-                        <span style={{ color: '#64748b', fontSize: 13 }}>({course.reviews})</span>
+                        <Rate value={typeof rating === 'number' ? rating : 0} disabled allowHalf style={{ fontSize: 15, color: '#f59e0b' }} />
+                        <span style={{ fontWeight: 600, color: '#f59e0b', fontSize: 14 }}>{typeof rating === 'number' ? rating.toFixed(1) : '0.0'}</span>
+                        <span style={{ color: '#64748b', fontSize: 13 }}>({typeof reviews === 'number' ? reviews : 0})</span>
                     </div>
                     <div className={styles.separator}></div>
                     <div className={styles.footerContainer}>
@@ -171,16 +181,34 @@ const CourseCard: React.FC<{ course: Course; isEnrolled?: boolean }> = ({ course
                                     <span className={styles.buttonText}>Quản lý</span>
                                 </button>
                             ) : isEnrolled ? (
-                                <button 
-                                    className={styles.buyBtnFree} 
-                                    type="button" 
-                                    onClick={e => { 
-                                        e.preventDefault(); 
-                                        window.location.href = isMongoId(course.slug) ? `/courses/${course.slug}` : `/courses/slug/${course.slug}`; 
-                                    }}
-                                >
-                                    <span className={styles.buttonText}>Học ngay</span>
-                                </button>
+                                isCompleted ? (
+                                    <button 
+                                        className={styles.buyBtnFree} 
+                                        type="button" 
+                                        onClick={e => {
+                                            e.preventDefault();
+                                            window.location.href = course.slug ? `/courses/${course.slug}` : `/courses/id/${course._id || course.id}`;
+                                        }}
+                                        style={{ background: '#22c55e', color: '#fff' }}
+                                    >
+                                        <span className={styles.buttonText}>Hoàn thành</span>
+                                    </button>
+                                ) : (
+                                    <button 
+                                        className={styles.buyBtnFree} 
+                                        type="button" 
+                                        onClick={e => { 
+                                            e.preventDefault(); 
+                                            if (continueLessonId) {
+                                                navigate(`/lessons/${continueLessonId}/video`);
+                                            } else {
+                                                window.location.href = course.slug ? `/courses/${course.slug}` : `/courses/id/${course._id || course.id}`; 
+                                            }
+                                        }}
+                                    >
+                                        <span className={styles.buttonText}>{isInProgress ? 'Tiếp tục học' : 'Học ngay'}</span>
+                                    </button>
+                                )
                             ) : course.isFree ? (
                                 <button 
                                     className={styles.buyBtnFree} 

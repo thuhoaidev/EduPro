@@ -89,6 +89,11 @@ const courseSchema = new mongoose.Schema({
         default: 'hidden',
         index: true
     },
+    rejection_reason: {
+        type: String,
+        trim: true,
+        maxlength: [500, 'Lý do từ chối không được vượt quá 500 ký tự']
+    },
     requirements: [{
         type: String,
         required: true
@@ -176,6 +181,11 @@ courseSchema.virtual('finalPrice').get(function () {
     }
     
     return Math.round(finalPrice);
+});
+
+// Virtual field cho discount (alias của discount_percentage để tương thích với code cũ)
+courseSchema.virtual('discount').get(function () {
+    return this.discount_percentage || 0;
 });
 
 // Tạo model

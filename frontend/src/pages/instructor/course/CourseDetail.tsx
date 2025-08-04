@@ -288,7 +288,11 @@ const CourseDetail: React.FC = () => {
                   <Title level={5} style={{ color: '#23272f', marginBottom: 12 }}>Giảng viên</Title>
                   <Space align="start" style={{ width: '100%' }}>
                     <Tooltip title={author.fullname || author.name || ''}>
-                      <Avatar size={64} src={course.author?.avatar} icon={<UserOutlined />} />
+                      <Avatar 
+                        size={64} 
+                        src={course.author?.avatar && course.author.avatar !== 'default-avatar.jpg' && course.author.avatar !== '' && (course.author.avatar.includes('googleusercontent.com') || course.author.avatar.startsWith('http')) ? course.author.avatar : undefined} 
+                        icon={<UserOutlined />} 
+                      />
                     </Tooltip>
                     <div style={{ flex: 1 }}>
                       <Text strong style={{ color: '#1a73e8', fontSize: 18 }}>{author.fullname || author.name || ''}</Text>

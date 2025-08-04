@@ -18,4 +18,7 @@ router
   .get(progressController.getVideoProgress)
   .post(progressController.updateVideoProgress);
 
+// Đánh dấu hoàn thành toàn bộ khóa học
+router.post('/:courseId/complete', progressController.markCourseCompleted);
+
 module.exports = router; 

@@ -1,37 +1,346 @@
 .dashboard {
   padding: 24px;
-  background-color: #f0f2f5;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: 100vh;
+  animation: fadeIn 0.5s ease-out;
 }
 
 .dashboardHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
+  padding: 24px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboardTitle {
+  margin: 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #1a1a1a;
+}
+
+.titleIcon {
+  font-size: 28px;
+  color: #1890ff;
+}
+
+.dashboardSubtitle {
+  font-size: 16px;
+  color: #666;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
 }
 
 .lastUpdated {
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.errorAlert {
+  margin: 24px;
+  border-radius: 12px;
 }
 
 .statsRow {
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
 .statCard {
   height: 100%;
   transition: all 0.3s ease;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   overflow: hidden;
+  border: none;
+  background: white;
 }
 
 .statCard:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 
+.statContent {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.statIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.statInfo {
+  flex: 1;
+}
+
+.statTrend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.quickStatsRow {
+  margin-bottom: 32px;
+}
+
+.quickStatCard {
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: none;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.quickStatCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.12);
+}
+
+.quickStatHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.quickStatIcon {
+  font-size: 20px;
+  color: #1890ff;
+}
+
+.quickStatContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.quickStatItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+}
+
+.mainContent {
+  margin-bottom: 32px;
+}
+
+.mainCard {
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: none;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.mainCard:hover {
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.12);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
+}
+
+/* Table styles */
+.coursesTable {
+  margin-top: -8px;
+}
+
+.coursesTable :global(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 600;
+  border-bottom: 2px solid #f0f0f0;
+  padding: 16px 12px;
+}
+
+.coursesTable :global(.ant-table-tbody > tr > td) {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.coursesTable :global(.ant-table-tbody > tr:hover > td) {
+  background: #f8f9fa;
+}
+
+.courseCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.courseThumbnail {
+  width: 50px;
+  height: 35px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.courseInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.courseName {
+  color: #1890ff;
+  cursor: pointer;
+  transition: color 0.3s;
+  font-weight: 500;
+}
+
+.courseName:hover {
+  color: #40a9ff;
+}
+
+.courseCategory {
+  font-size: 12px;
+}
+
+.instructorCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.instructorAvatar {
+  background-color: #f0f0f0;
+  border: 2px solid #e6f7ff;
+}
+
+.priceCell {
+  text-align: center;
+}
+
+.discountTag {
+  font-weight: 500;
+}
+
+/* Top Instructors */
+.topInstructors {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.instructorItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.instructorItem:hover {
+  background: #f8f9fa;
+}
+
+.instructorRank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+}
+
+.instructorInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.instructorStats {
+  text-align: right;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 16px;
+  }
+
+  .dashboardHeader {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .statsRow, .quickStatsRow, .mainContent {
+    margin-bottom: 24px;
+  }
+
+  .statContent {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .statIcon {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+
+  .quickStatItem {
+    padding: 8px 0;
+  }
+}
+
+/* Animation styles */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Legacy styles for backward compatibility */
 .cardTitle {
   display: flex;
   align-items: center;
@@ -76,47 +385,6 @@
 .tableCard, .categoryCard {
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.cardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* Table styles */
-.coursesTable {
-  margin-top: -8px;
-}
-
-.coursesTable :global(.ant-table-thead > tr > th) {
-  background: #fafafa;
-  font-weight: 600;
-  border-bottom: 2px solid #f0f0f0;
-}
-
-.coursesTable :global(.ant-table-tbody > tr:hover > td) {
-  background: #f5f5f5;
-}
-
-.courseName {
-  color: #1890ff;
-  cursor: pointer;
-  transition: color 0.3s;
-}
-
-.courseName:hover {
-  color: #40a9ff;
-}
-
-.instructorCell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.instructorAvatar {
-  background-color: #f0f0f0;
 }
 
 .durationCell, .studentsCell, .ratingCell {
@@ -175,36 +443,4 @@
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-/* Responsive styles */
-@media (max-width: 768px) {
-  .dashboard {
-    padding: 16px;
-  }
-
-  .statsRow, .detailsRow {
-    margin-bottom: 16px;
-  }
-
-  .categoryItem {
-    margin-bottom: 16px;
-    padding: 12px;
-  }
-}
-
-/* Animation styles */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.dashboard {
-  animation: fadeIn 0.5s ease-out;
 } 

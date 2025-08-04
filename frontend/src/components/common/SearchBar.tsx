@@ -7,11 +7,12 @@ interface SearchBarProps {
     onSearch: (value: string) => void;
     defaultValue?: string;
     placeholder?: string;
+    className?: string; // Add the missing className property
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ onSearch, defaultValue, placeholder }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ onSearch, defaultValue, placeholder, className }) => {
     return (
-        <div className={styles.searchContainer}>
+        <div className={`${styles.searchContainer} ${className || ''}`}>
             <Input
                 className={styles.searchInput}
                 placeholder={placeholder || "Tìm kiếm khóa học, bài viết, video..."}
