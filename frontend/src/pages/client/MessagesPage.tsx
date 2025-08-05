@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Input, Button, Avatar, Typography, message as antMessage, Spin } from 'antd';
-import { SendOutlined, UserOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { Input, Button, Avatar, Typography, message as antMessage, Spin, Badge, Tooltip } from 'antd';
+import { SendOutlined, UserOutlined, ArrowLeftOutlined, CheckOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { EventEmitter } from '../../utils/eventEmitter';
@@ -21,7 +21,22 @@ interface UserInfo {
   fullname: string;
   avatar?: string;
   slug?: string;
+  online?: boolean;
 }
+
+// Typing Indicator Component
+const TypingIndicator: React.FC = () => (
+  <div className="message-item other">
+    <div className="typing-indicator">
+      <div className="typing-dot"></div>
+      <div className="typing-dot"></div>
+      <div className="typing-dot"></div>
+      <span style={{ fontSize: '12px', color: '#8c8c8c', marginLeft: '8px' }}>
+        đang nhập...
+      </span>
+    </div>
+  </div>
+);
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
@@ -46,7 +61,19 @@ const MessagesPage: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingReceiver, setLoadingReceiver] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<any>(null);
+
+  // Debug: Log component info
+  useEffect(() => {
+    // Ẩn debug info để giao diện sạch sẽ
+    // console.log('MessagesPage - Component Info:');
+    // console.log('- User ID from params:', userId);
+    // console.log('- Component height should be 100%');
+    // console.log('- Messages count:', messages.length);
+  }, [userId, messages.length]);
 
   // Log userId khi vào trang
   useEffect(() => {
@@ -79,8 +106,6 @@ const MessagesPage: React.FC = () => {
         }
       })
       .catch(() => {
-       
-        
         // Nếu không tìm thấy theo ID, thử tìm theo slug
         api.get(`/api/users/slug/${userId}`)
           .then(res2 => {
@@ -130,6 +155,11 @@ const MessagesPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [userId, currentUser]);
 
+  // Auto scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   // Lắng nghe sự kiện follow/unfollow để refresh receiver info
   useEffect(() => {
     const handleFollowUpdate = (event: CustomEvent) => {
@@ -166,10 +196,25 @@ const MessagesPage: React.FC = () => {
     };
   }, [userId]);
 
+  // Typing indicator - chỉ hiển thị khi người khác đang nhập
+  useEffect(() => {
+    // Tạm thời comment out logic typing indicator vì chưa có real-time typing
+    // setIsTyping(false);
+    
+    // Logic này sẽ được implement khi có real-time typing
+    // if (!input.trim()) {
+    //   setIsTyping(false);
+    //   return;
+    // }
+
+    // setIsTyping(true);
+    // const timer = setTimeout(() => setIsTyping(false), 1000);
+    // return () => clearTimeout(timer);
+  }, [input]);
+
   // Gửi tin nhắn
   const handleSend = async () => {
     // Kiểm tra input
-    
     if (!input.trim()) {
       console.log('ERROR: Input is empty');
       antMessage.warning('Vui lòng nhập nội dung tin nhắn');
@@ -194,6 +239,8 @@ const MessagesPage: React.FC = () => {
       return;
     }
     
+    setSending(true);
+    
     try {
       const requestData = {
         receiverId: receiver._id,
@@ -209,13 +256,12 @@ const MessagesPage: React.FC = () => {
       if (res.data.success) {
         setMessages(prev => [...prev, res.data.data]);
         setInput('');
+        // Focus back to input after sending
+        setTimeout(() => inputRef.current?.focus(), 100);
       } else {
-      
         antMessage.error(res.data.message || 'Gửi tin nhắn thất bại');
       }
     } catch (err: any) {
-      
-      
       const errorMessage = err.response?.data?.message || 'Gửi tin nhắn thất bại';
       const debugInfo = err.response?.data?.debug;
       
@@ -224,6 +270,16 @@ const MessagesPage: React.FC = () => {
       }
       
       antMessage.error(errorMessage);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Handle Enter key
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
@@ -231,6 +287,9 @@ const MessagesPage: React.FC = () => {
     return (
       <div className="loading-container">
         <Spin size="large" />
+        <Typography.Text style={{ marginTop: 16, color: '#8c8c8c' }}>
+          Đang tải tin nhắn...
+        </Typography.Text>
       </div>
     );
   }
@@ -259,8 +318,42 @@ const MessagesPage: React.FC = () => {
     );
   }
 
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString('vi-VN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } else {
+      return date.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+  };
+
   return (
     <div className="messages-page">
+      {/* Debug info - Ẩn để giao diện sạch sẽ */}
+      {/* <div style={{ 
+        position: 'fixed', 
+        top: '80px', 
+        right: '10px', 
+        background: 'rgba(0,0,0,0.8)', 
+        color: 'white', 
+        padding: '8px', 
+        borderRadius: '4px', 
+        fontSize: '12px',
+        zIndex: 9999
+      }}>
+        Debug: MessagesPage loaded
+      </div> */}
+      
       {/* Header */}
       <div className="messages-header">
         <Button 
@@ -269,22 +362,28 @@ const MessagesPage: React.FC = () => {
           onClick={() => navigate('/messages')}
           className="back-button"
         />
-        <Avatar 
-          size={40} 
-          src={receiver.avatar && receiver.avatar !== 'default-avatar.jpg' 
-            ? receiver.avatar 
-            : `https://ui-avatars.com/api/?name=${encodeURIComponent(receiver.fullname)}&background=1677ff&color=fff`
-          } 
-          icon={<UserOutlined />} 
-          style={{ cursor: 'pointer' }}
-          onClick={() => {
-            // Sử dụng slug nếu có, nếu không thì dùng _id
-            const profilePath = receiver.slug ? `/users/${receiver.slug}` : `/users/${receiver._id}`;
-            navigate(profilePath);
-          }}
-        />
-        <div>
-          <Typography.Title level={4}>{receiver.fullname}</Typography.Title>
+        <Tooltip title="Xem trang cá nhân">
+          <Avatar 
+            size={40} 
+            src={receiver.avatar && receiver.avatar !== 'default-avatar.jpg' 
+              ? receiver.avatar 
+              : `https://ui-avatars.com/api/?name=${encodeURIComponent(receiver.fullname)}&background=1677ff&color=fff`
+            } 
+            icon={<UserOutlined />} 
+            style={{ cursor: 'pointer' }}
+            onClick={() => {
+              const profilePath = receiver.slug ? `/users/${receiver.slug}` : `/users/${receiver._id}`;
+              navigate(profilePath);
+            }}
+          />
+        </Tooltip>
+        <div style={{ flex: 1 }}>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            {receiver.fullname}
+          </Typography.Title>
+          <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
+            {receiver.online ? 'Đang hoạt động' : 'Không hoạt động'}
+          </Typography.Text>
         </div>
       </div>
       
@@ -292,47 +391,74 @@ const MessagesPage: React.FC = () => {
       <div className="messages-content">
         {/* Messages List */}
         <div className="messages-list">
+          {/* Test message */}
+          <div className="message-item other">
+            <div className="message-bubble other">
+              <div className="message-content">
+                Test message để kiểm tra layout
+              </div>
+              <div className="message-time other">
+                {new Date().toLocaleTimeString('vi-VN')}
+              </div>
+            </div>
+          </div>
+          
+          {/* Typing indicator - Demo */}
+          <TypingIndicator />
+          
           {messages.map(msg => (
             <div 
               key={msg._id} 
               className={`message-item ${msg.sender === currentUser._id ? 'own' : 'other'}`}
             >
               <div className={`message-bubble ${msg.sender === currentUser._id ? 'own' : 'other'}`}>
-                {msg.content}
+                <div className="message-content">
+                  {msg.content}
+                </div>
                 <div className={`message-time ${msg.sender === currentUser._id ? 'own' : 'other'}`}>
-                  {new Date(msg.createdAt).toLocaleTimeString('vi-VN', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
+                  {formatTime(msg.createdAt)}
+                  {msg.sender === currentUser._id && (
+                    <span className="message-status">
+                      {msg.read ? (
+                        <CheckCircleOutlined style={{ marginLeft: 4, fontSize: '12px' }} />
+                      ) : (
+                        <CheckOutlined style={{ marginLeft: 4, fontSize: '12px' }} />
+                      )}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
           ))}
+          
+          {/* Typing indicator - Real (tạm thời tắt) */}
+          {isTyping && <TypingIndicator />}
+          
           <div ref={messagesEndRef} />
         </div>
         
         {/* Input Area */}
         <div className="messages-input">
           <Input.TextArea
+            ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}
-            onPressEnter={e => {
-              if (!e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
+            onKeyPress={handleKeyPress}
             placeholder="Nhập tin nhắn..."
             autoSize={{ minRows: 1, maxRows: 4 }}
             style={{ flex: 1 }}
+            disabled={sending}
           />
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            onClick={handleSend}
-            disabled={!input.trim() || !currentUser || !receiver}
-            className="send-button"
-          />
+          <Tooltip title="Gửi tin nhắn">
+            <Button
+              type="primary"
+              icon={<SendOutlined />}
+              onClick={handleSend}
+              disabled={!input.trim() || !currentUser || !receiver || sending}
+              className="send-button"
+              loading={sending}
+            />
+          </Tooltip>
         </div>
       </div>
     </div>
