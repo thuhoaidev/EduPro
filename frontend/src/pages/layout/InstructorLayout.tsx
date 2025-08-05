@@ -138,6 +138,14 @@ const InstructorLayout = () => {
     }
   }, []); // Empty dependency array - only run once on mount
 
+  // --- Monitor permissions changes for dynamic sidebar update ---
+  useEffect(() => {
+    if (authUser?.role_id?.permissions) {
+      console.log('InstructorLayout - Permissions changed:', (authUser as User)?.role_id?.permissions);
+      console.log('InstructorLayout - Sidebar will re-render with new permissions');
+    }
+  }, [(authUser as User)?.role_id?.permissions]);
+
   // --- Menu Items ---
   const menuItems: MenuProps["items"] = useMemo(
     () => {

@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '../../../hooks/usePermissions';
-import PermissionGuard from '../../../components/common/PermissionGuard';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getRoles, updateRole, createRole, deleteRole } from '../../../services/roleService';
-import type { Role as ApiRole } from '../../../services/roleService';
+import { getRoles, createRole, deleteRole } from '../../../services/roleService';
 import {
   Table,
   Card,
@@ -15,15 +13,12 @@ import {
   Form,
   Input,
   Select,
-  Checkbox,
   message,
   Popconfirm,
   Tooltip,
-  Badge,
   Row,
   Col,
   Statistic,
-  Divider,
   Typography,
   Avatar,
   List,
@@ -31,22 +26,31 @@ import {
   Tabs,
   Descriptions,
   Alert,
+  Divider,
+  Badge,
+  Progress,
+  Empty,
 } from 'antd';
 import {
   PlusOutlined,
-  EditOutlined,
   DeleteOutlined,
   UserOutlined,
   SafetyCertificateOutlined,
   LockOutlined,
   TeamOutlined,
-  SettingOutlined,
   EyeOutlined,
   KeyOutlined,
   CrownOutlined,
   UserSwitchOutlined,
   AuditOutlined,
   GlobalOutlined,
+  SettingOutlined,
+  SafetyOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  InfoCircleOutlined,
+  StarOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 
@@ -72,6 +76,7 @@ interface Permission {
   description: string;
   category: string;
   isActive: boolean;
+  icon?: string;
 }
 
 const RolesPage: React.FC = () => {
@@ -222,286 +227,284 @@ const RolesPage: React.FC = () => {
       category: 'Quản lý khóa học',
       isActive: true,
     },
-    {
-      id: '21',
-      name: 'tạo bài học',
-      description: 'Tạo bài học mới',
-      category: 'Quản lý nội dung',
-      isActive: true,
-    },
-    {
-      id: '22',
-      name: 'chỉnh sửa bài học',
-      description: 'Sửa bài học',
-      category: 'Quản lý nội dung',
-      isActive: true,
-    },
-    {
-      id: '23',
-      name: 'xóa bài học',
-      description: 'Xóa bài học',
-      category: 'Quản lý nội dung',
-      isActive: true,
-    },
-    {
-      id: '24',
-      name: 'upload video',
-      description: 'Upload video bài giảng',
-      category: 'Quản lý nội dung',
-      isActive: true,
-    },
-    {
-      id: '25',
-      name: 'tạo quiz',
-      description: 'Tạo bài kiểm tra',
-      category: 'Quản lý nội dung',
-      isActive: true,
-    },
-    {
-      id: '26',
-      name: 'chỉnh sửa quiz',
-      description: 'Sửa bài kiểm tra',
-      category: 'Quản lý nội dung',
-      isActive: true,
-    },
-    {
-      id: '27',
-      name: 'xem danh sách học viên',
-      description: 'Xem học viên đăng ký',
-      category: 'Quản lý học viên',
-      isActive: true,
-    },
-    {
-      id: '28',
-      name: 'xem tiến độ học viên',
-      description: 'Theo dõi tiến độ học',
-      category: 'Quản lý học viên',
-      isActive: true,
-    },
-    {
-      id: '29',
-      name: 'gửi thông báo',
-      description: 'Gửi thông báo cho học viên',
-      category: 'Quản lý học viên',
-      isActive: true,
-    },
-    {
-      id: '30',
-      name: 'xem thống kê thu nhập',
-      description: 'Xem doanh thu',
-      category: 'Thu nhập',
-      isActive: true,
-    },
-    {
-      id: '31',
-      name: 'rút tiền',
-      description: 'Tạo yêu cầu rút tiền',
-      category: 'Thu nhập',
-      isActive: true,
-    },
-    {
-      id: '32',
-      name: 'xem lịch sử giao dịch',
-      description: 'Xem giao dịch',
-      category: 'Thu nhập',
-      isActive: true,
-    },
-    {
-      id: '33',
-      name: 'xem khóa học',
-      description: 'Xem danh sách khóa học',
-      category: 'Học tập',
-      isActive: true,
-    },
-    {
-      id: '34',
-      name: 'đăng ký khóa học',
-      description: 'Đăng ký khóa học',
-      category: 'Học tập',
-      isActive: true,
-    },
-    {
-      id: '35',
-      name: 'xem bài học',
-      description: 'Xem video bài giảng',
-      category: 'Học tập',
-      isActive: true,
-    },
-    {
-      id: '36',
-      name: 'làm quiz',
-      description: 'Làm bài kiểm tra',
-      category: 'Học tập',
-      isActive: true,
-    },
-    {
-      id: '37',
-      name: 'xem tiến độ',
-      description: 'Xem tiến độ học tập',
-      category: 'Học tập',
-      isActive: true,
-    },
-    {
-      id: '38',
-      name: 'tạo ghi chú',
-      description: 'Tạo ghi chú khi học',
-      category: 'Học tập',
-      isActive: true,
-    },
-    {
-      id: '39',
-      name: 'bình luận bài học',
-      description: 'Bình luận bài học',
-      category: 'Tương tác',
-      isActive: true,
-    },
-    {
-      id: '40',
-      name: 'đánh giá khóa học',
-      description: 'Đánh giá khóa học',
-      category: 'Tương tác',
-      isActive: true,
-    },
-    {
-      id: '41',
-      name: 'báo cáo vấn đề',
-      description: 'Báo cáo vấn đề',
-      category: 'Tương tác',
-      isActive: true,
-    },
-    {
-      id: '42',
-      name: 'xem bài viết',
-      description: 'Xem bài viết blog',
-      category: 'Cộng đồng',
-      isActive: true,
-    },
-    {
-      id: '43',
-      name: 'bình luận bài viết',
-      description: 'Bình luận bài viết',
-      category: 'Cộng đồng',
-      isActive: true,
-    },
-    {
-      id: '44',
-      name: 'thích lưu bài viết',
-      description: 'Thích/lưu bài viết',
-      category: 'Cộng đồng',
-      isActive: true,
-    },
-    {
-      id: '45',
-      name: 'xem chứng chỉ',
-      description: 'Xem chứng chỉ đã đạt',
-      category: 'Chứng chỉ',
-      isActive: true,
-    },
-    {
-      id: '46',
-      name: 'tải chứng chỉ',
-      description: 'Tải chứng chỉ',
-      category: 'Chứng chỉ',
-      isActive: true,
-    },
-    {
-      id: '47',
-      name: 'duyệt bài viết',
-      description: 'Duyệt bài viết blog',
-      category: 'Duyệt nội dung',
-      isActive: true,
-    },
-    {
-      id: '48',
-      name: 'từ chối bài viết',
-      description: 'Từ chối bài viết',
-      category: 'Duyệt nội dung',
-      isActive: true,
-    },
-    {
-      id: '49',
-      name: 'duyệt bình luận',
-      description: 'Duyệt bình luận',
-      category: 'Duyệt nội dung',
-      isActive: true,
-    },
-    {
-      id: '50',
-      name: 'xóa bình luận',
-      description: 'Xóa bình luận vi phạm',
-      category: 'Duyệt nội dung',
-      isActive: true,
-    },
-    {
-      id: '51',
-      name: 'xem báo cáo',
-      description: 'Xem danh sách báo cáo',
-      category: 'Xử lý báo cáo',
-      isActive: true,
-    },
-    {
-      id: '52',
-      name: 'xử lý báo cáo',
-      description: 'Xử lý báo cáo vi phạm',
-      category: 'Xử lý báo cáo',
-      isActive: true,
-    },
-    {
-      id: '53',
-      name: 'cảnh cáo người dùng',
-      description: 'Cảnh cáo người dùng',
-      category: 'Xử lý báo cáo',
-      isActive: true,
-    },
-    {
-      id: '54',
-      name: 'quản lý từ khóa',
-      description: 'Quản lý từ khóa cấm',
-      category: 'Quản lý cộng đồng',
-      isActive: true,
-    },
-    {
-      id: '55',
-      name: 'xem thống kê báo cáo',
-      description: 'Thống kê báo cáo',
-      category: 'Quản lý cộng đồng',
-      isActive: true,
-    },
-    {
-      id: '56',
-      name: 'xem khóa học công khai',
-      description: 'Xem thông tin khóa học',
-      category: 'Xem công khai',
-      isActive: true,
-    },
-    {
-      id: '57',
-      name: 'xem bài viết công khai',
-      description: 'Xem bài viết blog',
-      category: 'Xem công khai',
-      isActive: true,
-    },
-    {
-      id: '58',
-      name: 'tìm kiếm khóa học',
-      description: 'Tìm kiếm khóa học',
-      category: 'Xem công khai',
-      isActive: true,
-    },
-    {
-      id: '59',
-      name: 'xem giảng viên',
-      description: 'Xem thông tin giảng viên',
-      category: 'Xem công khai',
-      isActive: true,
-    },
+         {
+       id: '21',
+       name: 'tạo bài học',
+       description: 'Tạo bài học mới',
+       category: 'Quản lý nội dung',
+       isActive: true,
+     },
+     {
+       id: '22',
+       name: 'chỉnh sửa bài học',
+       description: 'Sửa bài học',
+       category: 'Quản lý nội dung',
+       isActive: true,
+     },
+     {
+       id: '23',
+       name: 'xóa bài học',
+       description: 'Xóa bài học',
+       category: 'Quản lý nội dung',
+       isActive: true,
+     },
+     {
+       id: '24',
+       name: 'upload video',
+       description: 'Upload video bài giảng',
+       category: 'Quản lý nội dung',
+       isActive: true,
+     },
+     {
+       id: '25',
+       name: 'tạo quiz',
+       description: 'Tạo bài kiểm tra',
+       category: 'Quản lý nội dung',
+       isActive: true,
+     },
+     {
+       id: '26',
+       name: 'chỉnh sửa quiz',
+       description: 'Sửa bài kiểm tra',
+       category: 'Quản lý nội dung',
+       isActive: true,
+     },
+     {
+       id: '27',
+       name: 'xem danh sách học viên',
+       description: 'Xem học viên đăng ký',
+       category: 'Quản lý học viên',
+       isActive: true,
+     },
+     {
+       id: '28',
+       name: 'xem tiến độ học viên',
+       description: 'Theo dõi tiến độ học',
+       category: 'Quản lý học viên',
+       isActive: true,
+     },
+     {
+       id: '29',
+       name: 'gửi thông báo',
+       description: 'Gửi thông báo cho học viên',
+       category: 'Quản lý học viên',
+       isActive: true,
+     },
+     {
+       id: '30',
+       name: 'xem thống kê thu nhập',
+       description: 'Xem doanh thu',
+       category: 'Thu nhập',
+       isActive: true,
+     },
+     {
+       id: '31',
+       name: 'rút tiền',
+       description: 'Tạo yêu cầu rút tiền',
+       category: 'Thu nhập',
+       isActive: true,
+     },
+     {
+       id: '32',
+       name: 'xem lịch sử giao dịch',
+       description: 'Xem giao dịch',
+       category: 'Thu nhập',
+       isActive: true,
+     },
+         {
+       id: '33',
+       name: 'xem khóa học',
+       description: 'Xem danh sách khóa học',
+       category: 'Học tập',
+       isActive: true,
+     },
+     {
+       id: '34',
+       name: 'đăng ký khóa học',
+       description: 'Đăng ký khóa học',
+       category: 'Học tập',
+       isActive: true,
+     },
+     {
+       id: '35',
+       name: 'xem bài học',
+       description: 'Xem video bài giảng',
+       category: 'Học tập',
+       isActive: true,
+     },
+     {
+       id: '36',
+       name: 'làm quiz',
+       description: 'Làm bài kiểm tra',
+       category: 'Học tập',
+       isActive: true,
+     },
+     {
+       id: '37',
+       name: 'xem tiến độ',
+       description: 'Xem tiến độ học tập',
+       category: 'Học tập',
+       isActive: true,
+     },
+     {
+       id: '38',
+       name: 'tạo ghi chú',
+       description: 'Tạo ghi chú khi học',
+       category: 'Học tập',
+       isActive: true,
+     },
+     {
+       id: '39',
+       name: 'bình luận bài học',
+       description: 'Bình luận bài học',
+       category: 'Tương tác',
+       isActive: true,
+     },
+     {
+       id: '40',
+       name: 'đánh giá khóa học',
+       description: 'Đánh giá khóa học',
+       category: 'Tương tác',
+       isActive: true,
+     },
+     {
+       id: '41',
+       name: 'báo cáo vấn đề',
+       description: 'Báo cáo vấn đề',
+       category: 'Tương tác',
+       isActive: true,
+     },
+     {
+       id: '42',
+       name: 'xem bài viết',
+       description: 'Xem bài viết blog',
+       category: 'Cộng đồng',
+       isActive: true,
+     },
+     {
+       id: '43',
+       name: 'bình luận bài viết',
+       description: 'Bình luận bài viết',
+       category: 'Cộng đồng',
+       isActive: true,
+     },
+     {
+       id: '44',
+       name: 'thích lưu bài viết',
+       description: 'Thích/lưu bài viết',
+       category: 'Cộng đồng',
+       isActive: true,
+     },
+     {
+       id: '45',
+       name: 'xem chứng chỉ',
+       description: 'Xem chứng chỉ đã đạt',
+       category: 'Chứng chỉ',
+       isActive: true,
+     },
+     {
+       id: '46',
+       name: 'tải chứng chỉ',
+       description: 'Tải chứng chỉ',
+       category: 'Chứng chỉ',
+       isActive: true,
+     },
+     {
+       id: '47',
+       name: 'duyệt bài viết',
+       description: 'Duyệt bài viết blog',
+       category: 'Duyệt nội dung',
+       isActive: true,
+     },
+     {
+       id: '48',
+       name: 'từ chối bài viết',
+       description: 'Từ chối bài viết',
+       category: 'Duyệt nội dung',
+       isActive: true,
+     },
+     {
+       id: '49',
+       name: 'duyệt bình luận',
+       description: 'Duyệt bình luận',
+       category: 'Duyệt nội dung',
+       isActive: true,
+     },
+     {
+       id: '50',
+       name: 'xóa bình luận',
+       description: 'Xóa bình luận vi phạm',
+       category: 'Duyệt nội dung',
+       isActive: true,
+     },
+     {
+       id: '51',
+       name: 'xem báo cáo',
+       description: 'Xem danh sách báo cáo',
+       category: 'Xử lý báo cáo',
+       isActive: true,
+     },
+     {
+       id: '52',
+       name: 'xử lý báo cáo',
+       description: 'Xử lý báo cáo vi phạm',
+       category: 'Xử lý báo cáo',
+       isActive: true,
+     },
+     {
+       id: '53',
+       name: 'cảnh cáo người dùng',
+       description: 'Cảnh cáo người dùng',
+       category: 'Xử lý báo cáo',
+       isActive: true,
+     },
+     {
+       id: '54',
+       name: 'quản lý từ khóa',
+       description: 'Quản lý từ khóa cấm',
+       category: 'Quản lý cộng đồng',
+       isActive: true,
+     },
+     {
+       id: '55',
+       name: 'xem thống kê báo cáo',
+       description: 'Thống kê báo cáo',
+       category: 'Quản lý cộng đồng',
+       isActive: true,
+     },
+     {
+       id: '56',
+       name: 'xem khóa học công khai',
+       description: 'Xem thông tin khóa học',
+       category: 'Xem công khai',
+       isActive: true,
+     },
+     {
+       id: '57',
+       name: 'xem bài viết công khai',
+       description: 'Xem bài viết blog',
+       category: 'Xem công khai',
+       isActive: true,
+     },
+     {
+       id: '58',
+       name: 'tìm kiếm khóa học',
+       description: 'Tìm kiếm khóa học',
+       category: 'Xem công khai',
+       isActive: true,
+     },
+     {
+       id: '59',
+       name: 'xem giảng viên',
+       description: 'Xem thông tin giảng viên',
+       category: 'Xem công khai',
+       isActive: true,
+     },
   ]);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [form] = Form.useForm();
 
-  // Load roles from API
   useEffect(() => {
     loadRoles();
   }, []);
@@ -511,7 +514,6 @@ const RolesPage: React.FC = () => {
       setLoading(true);
       const response = await getRoles();
       setRoles(response.data || []);
-      console.log('Roles loaded:', response.data);
     } catch (error) {
       console.error('Error loading roles:', error);
       message.error('Không thể tải danh sách vai trò');
@@ -523,26 +525,17 @@ const RolesPage: React.FC = () => {
   const permissionCategories = Array.from(new Set(permissions.map(p => p.category)));
 
   const handleAddRole = () => {
-    setEditingRole(null);
     form.resetFields();
     setIsModalVisible(true);
   };
 
-  const handleEditRole = (role: Role) => {
-    setEditingRole(role);
-    form.setFieldsValue({
-      name: role.name,
-      description: role.description,
-      permissions: role.permissions,
-    });
-    setIsModalVisible(true);
-  };
+
 
   const handleDeleteRole = async (roleId: string) => {
     try {
       await deleteRole(roleId);
       message.success('Đã xóa vai trò thành công');
-      await loadRoles(); // Reload roles after deletion
+      await loadRoles();
     } catch (error) {
       console.error('Error deleting role:', error);
       message.error('Không thể xóa vai trò');
@@ -553,65 +546,90 @@ const RolesPage: React.FC = () => {
     try {
       const values = await form.validateFields();
       
-      if (editingRole) {
-        // Update existing role
-        console.log('Updating role with data:', values);
-        await updateRole(editingRole._id, {
-          name: values.name,
-          description: values.description,
-          permissions: values.permissions
-        });
-        message.success('Đã cập nhật vai trò thành công');
-      } else {
-        // Add new role
-        console.log('Creating new role with data:', values);
-        await createRole({
-          name: values.name,
-          description: values.description,
-          permissions: values.permissions
-        });
-        message.success('Đã tạo vai trò mới thành công');
-      }
+      await createRole({
+        name: values.name,
+        description: values.description,
+        permissions: values.permissions
+      });
+      message.success('Đã tạo vai trò mới thành công');
       
       setIsModalVisible(false);
-      await loadRoles(); // Reload roles after update/create
+      await loadRoles();
     } catch (error) {
       console.error('Error saving role:', error);
       message.error('Không thể lưu vai trò');
     }
   };
 
+  const getRoleIcon = (roleName: string) => {
+    switch (roleName.toLowerCase()) {
+      case 'admin':
+      case 'quản trị viên':
+        return <CrownOutlined style={{ color: '#ff4d4f' }} />;
+      case 'instructor':
+      case 'giảng viên':
+        return <TeamOutlined style={{ color: '#1890ff' }} />;
+      case 'student':
+      case 'học viên':
+        return <UserOutlined style={{ color: '#52c41a' }} />;
+      case 'moderator':
+      case 'điều hành viên':
+        return <SafetyOutlined style={{ color: '#722ed1' }} />;
+      default:
+        return <UserOutlined style={{ color: '#8c8c8c' }} />;
+    }
+  };
+
+  const getRoleColor = (roleName: string) => {
+    switch (roleName.toLowerCase()) {
+      case 'admin':
+      case 'quản trị viên':
+        return '#ff4d4f';
+      case 'instructor':
+      case 'giảng viên':
+        return '#1890ff';
+      case 'student':
+      case 'học viên':
+        return '#52c41a';
+      case 'moderator':
+      case 'điều hành viên':
+        return '#722ed1';
+      default:
+        return '#8c8c8c';
+    }
+  };
+
   const columns = [
     {
-      title: 'Tên vai trò',
+      title: 'Vai trò',
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record: Role) => (
-        <Space>
-                  <Avatar 
-          icon={name === 'quản trị viên' ? <CrownOutlined /> : name === 'giảng viên' ? <TeamOutlined /> : <UserOutlined />}
-          style={{ 
-            backgroundColor: name === 'quản trị viên' ? '#ff4d4f' : name === 'giảng viên' ? '#1890ff' : '#52c41a' 
-          }}
-        />
-          <div>
-            <Text strong>{name}</Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              {record.description}
-            </Text>
-          </div>
-        </Space>
-      ),
-    },
-    {
-      title: 'Số người dùng',
-      dataIndex: 'userCount',
-      key: 'userCount',
-      render: (count: number) => (
-        <Badge count={count} showZero style={{ backgroundColor: '#52c41a' }}>
-          <Avatar icon={<UserOutlined />} />
-        </Badge>
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Space size="middle">
+            <Avatar 
+              size={48}
+              icon={getRoleIcon(name)}
+              style={{ 
+                backgroundColor: getRoleColor(name) + '20',
+                border: `2px solid ${getRoleColor(name)}`,
+              }}
+            />
+            <div>
+              <Text strong style={{ fontSize: '16px', color: getRoleColor(name) }}>
+                {name}
+              </Text>
+              <br />
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                {record.description}
+              </Text>
+            </div>
+          </Space>
+        </motion.div>
       ),
     },
     {
@@ -619,18 +637,55 @@ const RolesPage: React.FC = () => {
       dataIndex: 'permissions',
       key: 'permissions',
       render: (permissionList: string[]) => (
-        <div style={{ maxWidth: 200 }}>
+        <div style={{ maxWidth: 300 }}>
           {permissionList.includes('all') ? (
-            <Tag color="red" icon={<CrownOutlined />}>Toàn quyền</Tag>
+            <Badge.Ribbon text="Toàn quyền" color="red">
+              <Card size="small" style={{ backgroundColor: '#fff2f0', border: '1px solid #ffccc7' }}>
+                <Space>
+                  <CrownOutlined style={{ color: '#ff4d4f' }} />
+                  <Text strong style={{ color: '#ff4d4f' }}>Quyền quản trị tối cao</Text>
+                </Space>
+              </Card>
+            </Badge.Ribbon>
           ) : (
-            permissionList.slice(0, 3).map(perm => (
-              <Tag key={perm} color="blue" style={{ marginBottom: 4 }}>
-                {perm}
-              </Tag>
-            ))
-          )}
-          {permissionList.length > 3 && (
-            <Tag color="default">+{permissionList.length - 3} quyền khác</Tag>
+            <div>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong>Quyền chính:</Text>
+              </div>
+              {permissionList.slice(0, 3).map(perm => (
+                <Tag 
+                  key={perm} 
+                  color="blue" 
+                  style={{ 
+                    marginBottom: 4, 
+                    borderRadius: '12px',
+                    padding: '4px 8px',
+                    fontSize: '12px'
+                  }}
+                >
+                  {perm}
+                </Tag>
+              ))}
+              {permissionList.length > 3 && (
+                <Tag 
+                  color="default" 
+                  style={{ 
+                    borderRadius: '12px',
+                    padding: '4px 8px',
+                    fontSize: '12px'
+                  }}
+                >
+                  +{permissionList.length - 3} quyền khác
+                </Tag>
+              )}
+                             <Progress 
+                 percent={Math.min((permissionList.length / permissions.length) * 100, 100)} 
+                 size="small" 
+                 showInfo={false}
+                 strokeColor={getRoleColor(name)}
+                 style={{ marginTop: 8 }}
+               />
+            </div>
           )}
         </div>
       ),
@@ -640,12 +695,26 @@ const RolesPage: React.FC = () => {
       dataIndex: 'isActive',
       key: 'isActive',
       render: (isActive: boolean, record: Role) => {
-        // Mặc định là hoạt động nếu không có trường isActive hoặc isActive = true
-        const isRoleActive = isActive !== false; // Chỉ false mới là không hoạt động
+        const isRoleActive = isActive !== false;
         return (
-          <Tag color={isRoleActive ? 'green' : 'red'}>
-            {isRoleActive ? 'Hoạt động' : 'Không hoạt động'}
-          </Tag>
+          <Space direction="vertical" size="small">
+            <Tag 
+              color={isRoleActive ? 'green' : 'red'} 
+              icon={isRoleActive ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
+              style={{ 
+                borderRadius: '12px',
+                padding: '4px 12px',
+                fontSize: '12px'
+              }}
+            >
+              {isRoleActive ? 'Hoạt động' : 'Không hoạt động'}
+            </Tag>
+            {record.userCount !== undefined && (
+              <Text type="secondary" style={{ fontSize: '11px' }}>
+                {record.userCount} người dùng
+              </Text>
+            )}
+          </Space>
         );
       },
     },
@@ -654,35 +723,41 @@ const RolesPage: React.FC = () => {
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       render: (date: string) => (
-        <Text type="secondary">{date}</Text>
+        <div>
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            {new Date(date).toLocaleDateString('vi-VN')}
+          </Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: '11px' }}>
+            {new Date(date).toLocaleTimeString('vi-VN')}
+          </Text>
+        </div>
       ),
     },
     {
       title: 'Thao tác',
       key: 'actions',
       render: (_, record: Role) => (
-        <Space>
+        <Space size="small">
           <Tooltip title="Xem chi tiết">
             <Button 
               type="text" 
               icon={<EyeOutlined />} 
               size="small"
               onClick={() => navigate(`/admin/roles/${record._id}`)}
-            />
-          </Tooltip>
-          <Tooltip title="Chỉnh sửa">
-            <Button 
-              type="text" 
-              icon={<EditOutlined />} 
-              size="small"
-              onClick={() => handleEditRole(record)}
+              style={{ 
+                borderRadius: '8px',
+                color: '#1890ff'
+              }}
             />
           </Tooltip>
           <Popconfirm
             title="Bạn có chắc chắn muốn xóa vai trò này?"
-                         onConfirm={() => handleDeleteRole(record._id)}
+            description="Hành động này không thể hoàn tác."
+            onConfirm={() => handleDeleteRole(record._id)}
             okText="Có"
             cancelText="Không"
+            okType="danger"
           >
             <Tooltip title="Xóa">
               <Button 
@@ -691,6 +766,9 @@ const RolesPage: React.FC = () => {
                 icon={<DeleteOutlined />} 
                 size="small"
                 disabled={record.name === 'admin' || record.name === 'quản trị viên'}
+                style={{ 
+                  borderRadius: '8px'
+                }}
               />
             </Tooltip>
           </Popconfirm>
@@ -699,13 +777,24 @@ const RolesPage: React.FC = () => {
     },
   ];
 
-  // Check if user has permission to manage roles
   if (!canManageRoles()) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
-        <Title level={3}>Không có quyền truy cập</Title>
-        <Text type="secondary">Bạn không có quyền quản lý phân quyền trong hệ thống.</Text>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        style={{ padding: '24px', textAlign: 'center' }}
+      >
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={
+            <div>
+              <Title level={3} style={{ color: '#ff4d4f' }}>Không có quyền truy cập</Title>
+              <Text type="secondary">Bạn không có quyền quản lý phân quyền trong hệ thống.</Text>
+            </div>
+          }
+        />
+      </motion.div>
     );
   }
 
@@ -715,236 +804,401 @@ const RolesPage: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <div style={{ padding: '24px' }}>
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
         {/* Header */}
-        <div style={{ marginBottom: '24px' }}>
-          <Title level={2} style={{ margin: 0 }}>
-            <KeyOutlined style={{ marginRight: '8px' }} />
-            Quản lý phân quyền
-          </Title>
-          <Text type="secondary">
-            Quản lý vai trò và quyền hạn của người dùng trong hệ thống
-          </Text>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          style={{ marginBottom: '32px' }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <Title level={2} style={{ margin: 0, color: '#1a1a1a' }}>
+                <KeyOutlined style={{ marginRight: '12px', color: '#667eea' }} />
+                Quản lý phân quyền
+              </Title>
+              <Text type="secondary" style={{ fontSize: '16px' }}>
+                Quản lý vai trò và quyền hạn của người dùng trong hệ thống
+              </Text>
+            </div>
+          </Card>
+        </motion.div>
 
         {/* Statistics Cards */}
-        <Row gutter={16} style={{ marginBottom: '24px' }}>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Tổng số vai trò"
-                value={roles.length}
-                prefix={<SafetyCertificateOutlined />}
-                valueStyle={{ color: '#1890ff' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-                         <Card>
-               <Statistic
-                 title="Vai trò đang hoạt động"
-                 value={roles.filter(r => r.isActive !== false).length}
-                 prefix={<UserSwitchOutlined />}
-                 valueStyle={{ color: '#52c41a' }}
-               />
-             </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Tổng số quyền"
-                value={permissions.length}
-                prefix={<LockOutlined />}
-                valueStyle={{ color: '#722ed1' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Tổng người dùng"
-                value={roles.reduce((sum, role) => sum + role.userCount, 0)}
-                prefix={<TeamOutlined />}
-                valueStyle={{ color: '#fa8c16' }}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        <Tabs defaultActiveKey="roles" type="card">
-          <TabPane 
-            tab={
-              <span>
-                <SafetyCertificateOutlined />
-                Vai trò
-              </span>
-            } 
-            key="roles"
-          >
-            <Card
-              title="Danh sách vai trò"
-              extra={
-                <Button 
-                  type="primary" 
-                  icon={<PlusOutlined />}
-                  onClick={handleAddRole}
-                >
-                  Thêm vai trò mới
-                </Button>
-              }
-            >
-              <Table
-                columns={columns}
-                dataSource={roles}
-                rowKey="_id"
-                loading={loading}
-                pagination={{
-                  pageSize: 10,
-                  showSizeChanger: true,
-                  showQuickJumper: true,
-                  showTotal: (total, range) => 
-                    `${range[0]}-${range[1]} của ${total} vai trò`,
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <Row gutter={[16, 16]} style={{ marginBottom: '32px' }}>
+            <Col xs={24} sm={12} lg={8}>
+              <Card 
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.95)', 
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '16px',
+                  border: 'none',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
                 }}
-              />
-            </Card>
-          </TabPane>
+              >
+                <Statistic
+                  title={<Text style={{ fontSize: '16px', fontWeight: 600 }}>Tổng số vai trò</Text>}
+                  value={roles.length}
+                  prefix={<SafetyCertificateOutlined style={{ color: '#667eea' }} />}
+                  valueStyle={{ color: '#667eea', fontSize: '32px', fontWeight: 'bold' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card 
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.95)', 
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '16px',
+                  border: 'none',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                <Statistic
+                  title={<Text style={{ fontSize: '16px', fontWeight: 600 }}>Vai trò đang hoạt động</Text>}
+                  value={roles.filter(r => r.isActive !== false).length}
+                  prefix={<UserSwitchOutlined style={{ color: '#52c41a' }} />}
+                  valueStyle={{ color: '#52c41a', fontSize: '32px', fontWeight: 'bold' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card 
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.95)', 
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '16px',
+                  border: 'none',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                <Statistic
+                  title={<Text style={{ fontSize: '16px', fontWeight: 600 }}>Tổng số quyền</Text>}
+                  value={permissions.length}
+                  prefix={<LockOutlined style={{ color: '#722ed1' }} />}
+                  valueStyle={{ color: '#722ed1', fontSize: '32px', fontWeight: 'bold' }}
+                />
+              </Card>
+            </Col>
+          </Row>
+        </motion.div>
 
-          <TabPane 
-            tab={
-              <span>
-                <LockOutlined />
-                Quyền hạn
-              </span>
-            } 
-            key="permissions"
+        {/* Main Content */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
           >
-            <Card title="Danh sách quyền hạn">
-              {permissionCategories.map(category => (
-                <div key={category} style={{ marginBottom: '24px' }}>
-                  <Title level={4} style={{ marginBottom: '16px' }}>
-                    <GlobalOutlined style={{ marginRight: '8px' }} />
-                    {category}
-                  </Title>
-                  <List
-                    grid={{ gutter: 16, column: 3 }}
-                    dataSource={permissions.filter(p => p.category === category)}
-                    renderItem={permission => (
-                      <List.Item>
-                        <Card size="small">
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div>
-                              <Text strong>{permission.name}</Text>
-                              <br />
-                              <Text type="secondary" style={{ fontSize: '12px' }}>
-                                {permission.description}
-                              </Text>
-                            </div>
-                            <Switch 
-                              checked={permission.isActive}
-                              size="small"
-                            />
-                          </div>
-                        </Card>
-                      </List.Item>
-                    )}
-                  />
-                  <Divider />
+            <Tabs 
+              defaultActiveKey="roles" 
+              type="card"
+              size="large"
+              style={{ marginTop: '16px' }}
+            >
+              <TabPane 
+                tab={
+                  <span style={{ fontSize: '16px', fontWeight: 600 }}>
+                    <SafetyCertificateOutlined style={{ marginRight: '8px' }} />
+                    Vai trò
+                  </span>
+                } 
+                key="roles"
+              >
+                <div style={{ marginBottom: '24px' }}>
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />}
+                    onClick={handleAddRole}
+                    size="large"
+                    style={{ 
+                      borderRadius: '12px',
+                      height: '48px',
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      border: 'none',
+                      boxShadow: '0 4px 16px rgba(102, 126, 234, 0.4)'
+                    }}
+                  >
+                    Thêm vai trò mới
+                  </Button>
                 </div>
-              ))}
-            </Card>
-          </TabPane>
+                
+                <Table
+                  columns={columns}
+                  dataSource={roles}
+                  rowKey="_id"
+                  loading={loading}
+                  pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total, range) => 
+                      `${range[0]}-${range[1]} của ${total} vai trò`,
+                    style: { marginTop: '24px' }
+                  }}
+                  style={{ 
+                    borderRadius: '12px',
+                    overflow: 'hidden'
+                  }}
+                />
+              </TabPane>
 
-          <TabPane 
-            tab={
-              <span>
-                <AuditOutlined />
-                Phân tích
-              </span>
-            } 
-            key="analytics"
-          >
-            <Row gutter={16}>
-              <Col span={12}>
-                <Card title="Thống kê vai trò">
-                  <Descriptions column={1}>
-                    <Descriptions.Item label="Vai trò được sử dụng nhiều nhất">
-                      {roles.length > 0 ? roles.reduce((max, role) => (role.userCount || 0) > (max.userCount || 0) ? role : max).name : 'Không có dữ liệu'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Vai trò có nhiều quyền nhất">
-                      {roles.length > 0 ? roles.reduce((max, role) => role.permissions.length > max.permissions.length ? role : max).name : 'Không có dữ liệu'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Vai trò mới nhất">
-                      {roles.length > 0 ? roles.reduce((max, role) => new Date(role.createdAt || 0) > new Date(max.createdAt || 0) ? role : max).name : 'Không có dữ liệu'}
-                    </Descriptions.Item>
-                  </Descriptions>
-                </Card>
-              </Col>
-              <Col span={12}>
-                <Card title="Cảnh báo bảo mật">
-                  <Alert
-                    message="Vai trò Quản trị viên có toàn quyền"
-                    description="Vai trò quản trị viên có quyền truy cập tất cả chức năng trong hệ thống. Hãy cẩn thận khi phân quyền."
-                    type="warning"
-                    showIcon
-                    style={{ marginBottom: '16px' }}
-                  />
-                  <Alert
-                    message="Kiểm tra quyền định kỳ"
-                    description="Nên kiểm tra và cập nhật quyền hạn định kỳ để đảm bảo bảo mật hệ thống."
-                    type="info"
-                    showIcon
-                  />
-                </Card>
-              </Col>
-            </Row>
-          </TabPane>
-        </Tabs>
+              <TabPane 
+                tab={
+                  <span style={{ fontSize: '16px', fontWeight: 600 }}>
+                    <LockOutlined style={{ marginRight: '8px' }} />
+                    Quyền hạn
+                  </span>
+                } 
+                key="permissions"
+              >
+                <div style={{ padding: '16px 0' }}>
+                  {permissionCategories.map((category, index) => (
+                    <motion.div 
+                      key={category}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: index * 0.1 }}
+                      style={{ marginBottom: '32px' }}
+                    >
+                      <Card 
+                        title={
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <GlobalOutlined style={{ marginRight: '12px', color: '#667eea' }} />
+                            <Text strong style={{ fontSize: '18px', color: '#1a1a1a' }}>
+                              {category}
+                            </Text>
+                          </div>
+                        }
+                        style={{ 
+                          borderRadius: '12px',
+                          border: '1px solid #f0f0f0',
+                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+                        }}
+                      >
+                        <List
+                          grid={{ gutter: 16, xs: 1, sm: 2, md: 3, lg: 3, xl: 4, xxl: 4 }}
+                          dataSource={permissions.filter(p => p.category === category)}
+                          renderItem={permission => (
+                            <List.Item>
+                              <Card 
+                                size="small"
+                                style={{ 
+                                  borderRadius: '12px',
+                                  border: '1px solid #f0f0f0',
+                                  transition: 'all 0.3s ease',
+                                  cursor: 'pointer'
+                                }}
+                                hoverable
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                                      <span style={{ fontSize: '20px', marginRight: '8px' }}>
+                                        {permission.icon}
+                                      </span>
+                                      <Text strong style={{ fontSize: '14px' }}>
+                                        {permission.name}
+                                      </Text>
+                                    </div>
+                                    <Text type="secondary" style={{ fontSize: '12px', lineHeight: '1.4' }}>
+                                      {permission.description}
+                                    </Text>
+                                  </div>
+                                  <Switch 
+                                    checked={permission.isActive}
+                                    size="small"
+                                    style={{ marginLeft: '12px' }}
+                                  />
+                                </div>
+                              </Card>
+                            </List.Item>
+                          )}
+                        />
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              </TabPane>
+
+              <TabPane 
+                tab={
+                  <span style={{ fontSize: '16px', fontWeight: 600 }}>
+                    <AuditOutlined style={{ marginRight: '8px' }} />
+                    Phân tích
+                  </span>
+                } 
+                key="analytics"
+              >
+                <Row gutter={[24, 24]}>
+                  <Col xs={24} lg={12}>
+                    <Card 
+                      title={
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <TrophyOutlined style={{ marginRight: '8px', color: '#faad14' }} />
+                          <Text strong>Thống kê vai trò</Text>
+                        </div>
+                      }
+                      style={{ 
+                        borderRadius: '12px',
+                        border: '1px solid #f0f0f0',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+                      }}
+                    >
+                      <Descriptions column={1} size="small">
+                        <Descriptions.Item label="Vai trò được sử dụng nhiều nhất">
+                          <Tag color="blue" style={{ borderRadius: '8px' }}>
+                            {roles.length > 0 ? roles.reduce((max, role) => (role.userCount || 0) > (max.userCount || 0) ? role : max).name : 'Không có dữ liệu'}
+                          </Tag>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Vai trò có nhiều quyền nhất">
+                          <Tag color="green" style={{ borderRadius: '8px' }}>
+                            {roles.length > 0 ? roles.reduce((max, role) => role.permissions.length > max.permissions.length ? role : max).name : 'Không có dữ liệu'}
+                          </Tag>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Vai trò mới nhất">
+                          <Tag color="purple" style={{ borderRadius: '8px' }}>
+                            {roles.length > 0 ? roles.reduce((max, role) => new Date(role.createdAt || 0) > new Date(max.createdAt || 0) ? role : max).name : 'Không có dữ liệu'}
+                          </Tag>
+                        </Descriptions.Item>
+                      </Descriptions>
+                    </Card>
+                  </Col>
+                  <Col xs={24} lg={12}>
+                    <Card 
+                      title={
+                                                 <div style={{ display: 'flex', alignItems: 'center' }}>
+                           <SafetyOutlined style={{ marginRight: '8px', color: '#52c41a' }} />
+                           <Text strong>Cảnh báo bảo mật</Text>
+                         </div>
+                      }
+                      style={{ 
+                        borderRadius: '12px',
+                        border: '1px solid #f0f0f0',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+                      }}
+                    >
+                      <Alert
+                        message="Vai trò Quản trị viên có toàn quyền"
+                        description="Vai trò quản trị viên có quyền truy cập tất cả chức năng trong hệ thống. Hãy cẩn thận khi phân quyền."
+                        type="warning"
+                        showIcon
+                        style={{ marginBottom: '16px', borderRadius: '8px' }}
+                      />
+                      <Alert
+                        message="Kiểm tra quyền định kỳ"
+                        description="Nên kiểm tra và cập nhật quyền hạn định kỳ để đảm bảo bảo mật hệ thống."
+                        type="info"
+                        showIcon
+                        style={{ borderRadius: '8px' }}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
+              </TabPane>
+            </Tabs>
+          </Card>
+        </motion.div>
 
         {/* Add/Edit Role Modal */}
         <Modal
-          title={editingRole ? 'Chỉnh sửa vai trò' : 'Thêm vai trò mới'}
+          title={
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <SettingOutlined style={{ marginRight: '8px', color: '#667eea' }} />
+              <Text strong style={{ fontSize: '18px' }}>
+                Thêm vai trò mới
+              </Text>
+            </div>
+          }
           open={isModalVisible}
           onOk={handleModalOk}
           onCancel={() => setIsModalVisible(false)}
-          width={600}
-          okText={editingRole ? 'Cập nhật' : 'Thêm mới'}
+          width={700}
+          okText="Thêm mới"
           cancelText="Hủy"
+          okButtonProps={{
+            style: {
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none',
+              borderRadius: '8px',
+              height: '40px',
+              fontWeight: 600
+            }
+          }}
+          cancelButtonProps={{
+            style: {
+              borderRadius: '8px',
+              height: '40px'
+            }
+          }}
+          style={{ borderRadius: '16px' }}
         >
           <Form
             form={form}
             layout="vertical"
             initialValues={{ permissions: [] }}
+            style={{ marginTop: '16px' }}
           >
             <Form.Item
               name="name"
-              label="Tên vai trò"
+              label={<Text strong>Tên vai trò</Text>}
               rules={[{ required: true, message: 'Vui lòng nhập tên vai trò!' }]}
             >
-              <Input placeholder="Nhập tên vai trò" />
+              <Input 
+                placeholder="Nhập tên vai trò" 
+                size="large"
+                style={{ borderRadius: '8px' }}
+              />
             </Form.Item>
 
             <Form.Item
               name="description"
-              label="Mô tả"
+              label={<Text strong>Mô tả</Text>}
               rules={[{ required: true, message: 'Vui lòng nhập mô tả!' }]}
             >
               <TextArea 
                 rows={3} 
                 placeholder="Mô tả vai trò và quyền hạn"
+                style={{ borderRadius: '8px' }}
               />
             </Form.Item>
 
             <Form.Item
               name="permissions"
-              label="Quyền hạn"
+              label={<Text strong>Quyền hạn</Text>}
               rules={[{ required: true, message: 'Vui lòng chọn ít nhất một quyền!' }]}
             >
-              <Select
-                mode="multiple"
-                placeholder="Chọn quyền hạn"
-                style={{ width: '100%' }}
-                optionLabelProp="label"
-              >
+                             <Select
+                 mode="multiple"
+                 placeholder="Chọn quyền hạn"
+                 optionLabelProp="label"
+                 size="large"
+                 style={{ width: '100%', borderRadius: '8px' }}
+               >
                 {permissionCategories.map(category => (
                   <Select.OptGroup key={category} label={category}>
                     {permissions
@@ -955,12 +1209,15 @@ const RolesPage: React.FC = () => {
                           value={permission.name}
                           label={permission.name}
                         >
-                          <div>
-                            <Text strong>{permission.name}</Text>
-                            <br />
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                              {permission.description}
-                            </Text>
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <span style={{ marginRight: '8px' }}>{permission.icon}</span>
+                            <div>
+                              <Text strong>{permission.name}</Text>
+                              <br />
+                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                                {permission.description}
+                              </Text>
+                            </div>
                           </div>
                         </Option>
                       ))}

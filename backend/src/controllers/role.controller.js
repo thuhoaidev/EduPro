@@ -18,6 +18,32 @@ exports.getRoles = async (req, res) => {
   }
 };
 
+// Lấy vai trò theo ID
+exports.getRoleById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const role = await Role.findById(id).select('-__v');
+    if (!role) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy vai trò'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: role
+    });
+  } catch (error) {
+    console.error('Lỗi lấy vai trò theo ID:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy vai trò'
+    });
+  }
+};
+
 // Tạo vai trò mới
 exports.createRole = async (req, res) => {
   try {
