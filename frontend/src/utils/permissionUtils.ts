@@ -69,6 +69,12 @@ export const PERMISSIONS = {
   MANAGE_PAYMENTS: 'quản lý thanh toán',
   MANAGE_REPORTS: 'quản lý báo cáo',
   
+  // Order Management
+  VIEW_OWN_ORDERS: 'xem đơn hàng của mình',
+  MANAGE_ORDERS: 'quản lý đơn hàng',
+  CANCEL_OWN_ORDERS: 'hủy đơn hàng của mình',
+  REFUND_ORDERS: 'hoàn tiền đơn hàng',
+  
   // Statistics & Reports
   VIEW_OVERVIEW_STATS: 'xem thống kê tổng quan',
   VIEW_REVENUE_STATS: 'xem thống kê doanh thu',
@@ -163,6 +169,10 @@ export const MENU_PERMISSIONS = {
   '/admin/vouchers': [PERMISSIONS.MANAGE_VOUCHERS],
   '/admin/earnings': [PERMISSIONS.VIEW_INCOME_STATS],
   '/admin/user-withdraw-requests': [PERMISSIONS.MANAGE_PAYMENTS],
+  
+  // Order Management
+  '/orders': [PERMISSIONS.VIEW_OWN_ORDERS],
+  '/profile/orders': [PERMISSIONS.VIEW_OWN_ORDERS],
   
   // Reports & Statistics
   '/admin/statistics': [PERMISSIONS.VIEW_OVERVIEW_STATS, PERMISSIONS.VIEW_REVENUE_STATS, PERMISSIONS.VIEW_USER_STATS, PERMISSIONS.VIEW_COURSE_STATS],

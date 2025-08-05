@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { 
   UserOutlined,
   LockOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -25,6 +26,13 @@ const profileMenuItems: ProfileMenuItem[] = [
     icon: <UserOutlined />,
     description: 'Cập nhật thông tin cá nhân',
     path: '/profile/edit'
+  },
+  { 
+    id: 'certificates',
+    name: 'Chứng Chỉ', 
+    icon: <TrophyOutlined />,
+    description: 'Xem chứng chỉ đã nhận',
+    path: '/profile/certificates'
   },
   { 
     id: 'password',
@@ -65,8 +73,6 @@ const ProfileNav = () => {
         style={{ 
           background: '#f7f9fc', 
           borderRight: '1px solid #e5e7eb',
-          position: 'sticky',
-          top: 0,
           height: '100vh',
           overflowY: 'auto',
           padding: '8px'

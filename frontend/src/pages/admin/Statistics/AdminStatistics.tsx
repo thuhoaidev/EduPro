@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   Card, 
   Row, 
@@ -18,7 +18,8 @@ import {
   Divider,
   Tag,
   List,
-  Badge
+  Badge,
+  message
 } from 'antd';
 import {
   UserOutlined,
@@ -34,7 +35,8 @@ import {
   TrophyOutlined,
   FireOutlined,
   RiseOutlined,
-  FallOutlined
+  FallOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { config } from '../../../api/axios';
 import { motion } from 'framer-motion';
@@ -42,15 +44,17 @@ import dayjs from 'dayjs';
 import '../../../styles/AdminStatistics.css';
 import statisticsService from '../../../services/statisticsService';
 import type { StatisticsData, TopCourse, RevenueData } from '../../../types/statistics';
+import { usePermissions } from '../../../hooks/usePermissions';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-
-
 const AdminStatistics: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statistics, setStatistics] = useState<StatisticsData>({
     totalUsers: 0,
     totalCourses: 0,
@@ -73,32 +77,117 @@ const AdminStatistics: React.FC = () => {
   ]);
   const [timeRange, setTimeRange] = useState<string>('30d');
 
+  // Refs for interval management
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialLoad = useRef(true);
+
+  // Permission and auth hooks
+  const { canViewOverviewStats, canViewRevenueStats, canViewUserStats, canViewCourseStats } = usePermissions();
+  const { token } = useAuth();
+  const navigate = useNavigate();
+
+  // Check permissions before loading data
+  const checkPermissions = () => {
+    if (!token) {
+      message.error('Vui lòng đăng nhập để xem thống kê');
+      navigate('/login');
+      return false;
+    }
+
+    if (!canViewOverviewStats() && !canViewRevenueStats() && !canViewUserStats() && !canViewCourseStats()) {
+      message.error('Bạn không có quyền xem thống kê');
+      navigate('/');
+      return false;
+    }
+
+    return true;
+  };
+
   // Fetch statistics data
-  const fetchStatistics = async () => {
-    setLoading(true);
+  const fetchStatistics = async (isSilent = false) => {
+    if (!checkPermissions()) return;
+
+    if (!isSilent) {
+      setLoading(true);
+    }
+    
+    setError(null);
+
     try {
-      // Fetch data from API
+      // Fetch data from API with error handling
       const [statsData, topCoursesData, revenueData] = await Promise.all([
-        statisticsService.getOverviewStatistics(),
-        statisticsService.getTopCourses(5),
-        statisticsService.getRevenueData(30)
+        statisticsService.getOverviewStatistics().catch(err => {
+          console.error('Error fetching overview stats:', err);
+          throw new Error('Không thể tải dữ liệu tổng quan');
+        }),
+        statisticsService.getTopCourses(5).catch(err => {
+          console.error('Error fetching top courses:', err);
+          return [];
+        }),
+        statisticsService.getRevenueData(30).catch(err => {
+          console.error('Error fetching revenue data:', err);
+          return [];
+        })
       ]);
 
       setStatistics(statsData);
       setTopCourses(topCoursesData);
       setRevenueData(revenueData);
+      
+      if (!isSilent && !isInitialLoad.current) {
+        message.success('Dữ liệu đã được cập nhật');
+      }
+      
+      isInitialLoad.current = false;
     } catch (error) {
       console.error('Error fetching statistics:', error);
+      setError(error instanceof Error ? error.message : 'Có lỗi xảy ra khi tải dữ liệu');
+      if (!isSilent) {
+        message.error('Không thể tải dữ liệu thống kê');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // Start realtime updates
+  const startRealtimeUpdates = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    
+    intervalRef.current = setInterval(() => {
+      fetchStatistics(true); // Silent update
+    }, 30000); // Update every 30 seconds
+  };
+
+  // Stop realtime updates
+  const stopRealtimeUpdates = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  // Handle time range change
+  const handleTimeRangeChange = (value: string) => {
+    setTimeRange(value);
+    fetchStatistics(false);
+  };
+
+
+
   useEffect(() => {
     fetchStatistics();
+    startRealtimeUpdates();
+
+    // Cleanup on unmount
+    return () => {
+      stopRealtimeUpdates();
+    };
   }, []);
 
-  // Statistics cards data
+  // Statistics cards data with permission checks
   const statsCards = [
     {
       title: 'Tổng học viên',
@@ -107,7 +196,8 @@ const AdminStatistics: React.FC = () => {
       suffix: '',
       color: '#1890ff',
       growth: statistics.userGrowth,
-      icon: <UserOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+      icon: <UserOutlined style={{ fontSize: '24px', color: '#1890ff' }} />,
+      visible: canViewUserStats()
     },
     {
       title: 'Tổng khóa học',
@@ -116,7 +206,8 @@ const AdminStatistics: React.FC = () => {
       suffix: '',
       color: '#52c41a',
       growth: statistics.courseGrowth,
-      icon: <BookOutlined style={{ fontSize: '24px', color: '#52c41a' }} />
+      icon: <BookOutlined style={{ fontSize: '24px', color: '#52c41a' }} />,
+      visible: canViewCourseStats()
     },
     {
       title: 'Tổng doanh thu',
@@ -125,7 +216,8 @@ const AdminStatistics: React.FC = () => {
       suffix: ' VNĐ',
       color: '#faad14',
       growth: statistics.revenueGrowth,
-      icon: <DollarOutlined style={{ fontSize: '24px', color: '#faad14' }} />
+      icon: <DollarOutlined style={{ fontSize: '24px', color: '#faad14' }} />,
+      visible: canViewRevenueStats()
     },
     {
       title: 'Tổng đơn hàng',
@@ -134,9 +226,10 @@ const AdminStatistics: React.FC = () => {
       suffix: '',
       color: '#722ed1',
       growth: statistics.orderGrowth,
-      icon: <ShoppingCartOutlined style={{ fontSize: '24px', color: '#722ed1' }} />
+      icon: <ShoppingCartOutlined style={{ fontSize: '24px', color: '#722ed1' }} />,
+      visible: canViewOverviewStats()
     }
-  ];
+  ].filter(card => card.visible);
 
   // Top courses table columns
   const columns = [
@@ -150,7 +243,9 @@ const AdminStatistics: React.FC = () => {
             src={record.thumbnail || 'https://via.placeholder.com/60x40'} 
             size={40}
             shape="square"
-          />
+          >
+            <BookOutlined />
+          </Avatar>
           <div>
             <div style={{ fontWeight: 500 }}>{text}</div>
             <div style={{ fontSize: '12px', color: '#666' }}>{record.instructor}</div>
@@ -191,6 +286,21 @@ const AdminStatistics: React.FC = () => {
 
   // Simple bar chart component
   const SimpleBarChart = ({ data }: { data: RevenueData[] }) => {
+    if (!data || data.length === 0) {
+      return (
+        <div style={{ 
+          height: '300px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          color: '#999'
+        }}>
+          <ExclamationCircleOutlined style={{ marginRight: '8px' }} />
+          Không có dữ liệu doanh thu
+        </div>
+      );
+    }
+
     const maxRevenue = Math.max(...data.map(item => item.revenue));
     
     return (
@@ -223,9 +333,34 @@ const AdminStatistics: React.FC = () => {
     );
   };
 
+  // Show error state
+  if (error && !loading) {
+    return (
+      <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
+        <Alert
+          message="Lỗi tải dữ liệu"
+          description={error}
+          type="error"
+          showIcon
+          action={
+            <Button size="small" danger onClick={() => fetchStatistics()}>
+              Thử lại
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '400px',
+        background: '#f0f2f5'
+      }}>
         <Spin size="large" />
       </div>
     );
@@ -248,6 +383,8 @@ const AdminStatistics: React.FC = () => {
             Tổng quan về hoạt động và hiệu suất của nền tảng học trực tuyến
           </Text>
         </div>
+
+
 
         {/* Statistics Cards */}
         <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
@@ -320,9 +457,9 @@ const AdminStatistics: React.FC = () => {
               extra={
                 <Space>
                   <Select 
-                    defaultValue="7d" 
+                    value={timeRange}
                     style={{ width: 120 }}
-                    onChange={setTimeRange}
+                    onChange={handleTimeRangeChange}
                   >
                     <Option value="7d">7 ngày</Option>
                     <Option value="30d">30 ngày</Option>
@@ -393,13 +530,24 @@ const AdminStatistics: React.FC = () => {
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)' 
           }}
         >
-                     <Table
-             columns={columns}
-             dataSource={topCourses}
-             pagination={false}
-             rowKey="_id"
-             size="middle"
-           />
+          {topCourses.length > 0 ? (
+            <Table
+              columns={columns}
+              dataSource={topCourses}
+              pagination={false}
+              rowKey="_id"
+              size="middle"
+            />
+          ) : (
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '40px', 
+              color: '#999' 
+            }}>
+              <ExclamationCircleOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+              <div>Chưa có dữ liệu khóa học</div>
+            </div>
+          )}
         </Card>
       </motion.div>
     </div>

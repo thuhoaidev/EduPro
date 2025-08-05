@@ -63,6 +63,7 @@ import UserProfile from "./pages/client/Profile/UserProfile";
 import CheckPayment from "./pages/client/CheckPayment";
 import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
 import UserWithdrawRequestsAdmin from './pages/admin/earnings/UserWithdrawRequestsAdmin';
+import InvoicesAdmin from './pages/admin/earnings/InvoicesAdmin';
 import RolesPage from './pages/admin/roles/RolesPage';
 import RoleDetailPage from './pages/admin/roles/RoleDetailPage';
 import TestRoleUpdate from './pages/admin/roles/TestRoleUpdate';
@@ -71,11 +72,11 @@ import BlogPage from "./pages/client/BlogPage";
 
 
 import ModeratorDashboard from "./pages/Moderator/Dashboard";
-import SimpleBlogModeration from "./pages/Moderator/SimpleBlogModeration";
-import SimpleCommentsModeration from "./pages/Moderator/SimpleCommentsModeration";
-import SimpleCoursesModeration from "./pages/Moderator/SimpleCoursesModeration";
+import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
+import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
+import CoursesModerationPage from "./pages/Moderator/Courses/CoursesModerationPage";
 import SimpleReportStatistics from "./pages/Moderator/SimpleReportStatistics";
-import SimpleModeratorReports from "./pages/Moderator/SimpleModeratorReports";
+import Reports from "./pages/Moderator/reports/Reports";
 
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
 import CourseSearchResultsPage from './pages/client/CourseSearchResultsPage';
@@ -84,12 +85,14 @@ import LessonEdit from './pages/instructor/lessons/LessonEdit';
 import VideoManager from './pages/instructor/videos/VideoManager';
 import QuizManager from './pages/instructor/quiz/QuizManager';
 import InstructorVouchersPage from './pages/instructor/vouchers/InstructorVouchersPage';
-
 import WalletPage from "./pages/client/WalletPage";
 import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
 import MessagesPage from './pages/client/MessagesPage';
 import MessagesLayout from './pages/client/MessagesLayout';
+import AdminDeviceViolationsPage from './pages/admin/DeviceSecurity/AdminDeviceViolationsPage';
+import DeviceSecurityDebug from './components/DeviceSecurity/DeviceSecurityDebug';
 import CertificatePage from "./pages/client/CertificatePage";
+import Certificates from "./pages/client/Profile/Certificates";
 import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
 import InstructorDashboard from './pages/instructor/Dashboard/InstructorDashboard';
 
@@ -148,7 +151,7 @@ function App() {
         { path: "courses/id/:id", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
-        {path:  "/blog/:id", element: <BlogPage />},
+        { path:  "/blog/:id", element: <BlogPage />},
         { path: "/blog/post/:id", element: <BlogPage /> },
         { path: "cart", element: <CartPage /> },
         { path: "checkout", element: <CheckoutPage /> },
@@ -164,6 +167,8 @@ function App() {
         { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
         { path: "certificates/:courseId", element: <CertificatePage /> },
+        { path: "debug/device-security", element: <DeviceSecurityDebug /> },
+
         { path: '/social-callback', element: <SocialAuthCallback /> },
       ]
     },
@@ -175,6 +180,7 @@ function App() {
         { path: 'edit', element: <ProfileEdit /> },
         { path: 'change-password', element: <ChangePassword /> },
         { path: 'orders', element: <OrdersPage /> },
+        { path: 'certificates', element: <Certificates /> },
       ]
     },
     {
@@ -206,9 +212,11 @@ function App() {
         { path: "transactions", element: <TransactionHistory /> },
         { path: "earnings", element: <WithdrawRequestsAdmin />},
         { path: "user-withdraw-requests", element: <UserWithdrawRequestsAdmin /> },
+        { path: "invoices", element: <InvoicesAdmin /> },
         { path: "roles", element: <RolesPage /> },
         { path: "roles/:id", element: <RoleDetailPage /> },
         { path: "roles/test", element: <TestRoleUpdate /> },
+        { path: "device-violations", element: <AdminDeviceViolationsPage /> },
       ],
     },
     {
@@ -216,10 +224,10 @@ function App() {
       element: <ModeratorLayout />,
       children: [
         { path: "", element: <ModeratorDashboard /> },
-        { path: "reports", element: <SimpleModeratorReports /> },
-        { path: "blogs", element: <SimpleBlogModeration /> },
-        { path: "comments", element: <SimpleCommentsModeration /> },
-        { path: "courses", element: <SimpleCoursesModeration /> },
+        { path: "reports", element: <Reports /> },
+        { path: "blogs", element: <BlogModeration /> },
+        { path: "comments", element: <CommentsModerationPage /> },
+        { path: "courses", element: <CoursesModerationPage /> },
         { path: "statistics", element: <SimpleReportStatistics /> },
       ],
     },

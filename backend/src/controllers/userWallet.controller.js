@@ -254,6 +254,150 @@ exports.handlePaymentResult = async (req, res) => {
   }
 };
 
+// Callback/payment result cho ZaloPay
+exports.handleZaloPayCallback = async (req, res) => {
+  try {
+    console.log('ZaloPay callback received:', {
+      method: req.method,
+      url: req.originalUrl,
+      query: req.query,
+      body: req.body
+    });
+
+    // ZaloPay gửi callback qua query parameters
+    const appTransId = req.query.apptransid || req.body.apptransid;
+    const resultCode = req.query.resultcode || req.body.resultcode;
+    const message = req.query.message || req.body.message;
+    const amount = req.query.amount || req.body.amount;
+    const checksum = req.query.checksum || req.body.checksum;
+
+    console.log('ZaloPay callback params:', { 
+      appTransId, 
+      resultCode, 
+      message, 
+      amount, 
+      checksum 
+    });
+
+    // Kiểm tra nếu không có appTransId
+    if (!appTransId) {
+      console.log('No appTransId provided in ZaloPay callback');
+      return res.status(400).json({ success: false, message: 'Thiếu appTransId' });
+    }
+
+    // Tìm thông tin deposit từ appTransId
+    const deposit = await UserWalletDeposit.findOne({ app_trans_id: appTransId });
+    if (!deposit) {
+      console.log('Deposit not found for appTransId:', appTransId);
+      return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin giao dịch' });
+    }
+
+    const userId = deposit.userId;
+    console.log('Found deposit for userId:', userId);
+    
+    let wallet = await UserWallet.findOne({ userId });
+    if (!wallet) {
+      console.log('Wallet not found for userId:', userId);
+      return res.status(404).json({ success: false, message: 'Không tìm thấy ví' });
+    }
+
+    console.log('Current wallet balance:', wallet.balance);
+
+    // Kiểm tra nếu giao dịch đã được xử lý
+    const existingTransaction = wallet.history.find(h => 
+      h.type === 'deposit' && h.txId === appTransId && h.status === 'success'
+    );
+    if (existingTransaction) {
+      console.log('ZaloPay transaction already processed:', appTransId);
+      return res.json({ success: true, message: 'Giao dịch đã được xử lý', balance: wallet.balance });
+    }
+
+    // Xử lý kết quả thanh toán ZaloPay
+    console.log('Processing ZaloPay result with resultCode:', resultCode, 'type:', typeof resultCode);
+    
+    // ZaloPay có thể trả về resultCode là '1', 1, hoặc các giá trị khác
+    // Theo tài liệu ZaloPay: 1 = success, 0 = failed, nhưng có thể có các giá trị khác
+    const isSuccess = resultCode === '1' || resultCode === 1;
+    const isFailed = resultCode === '0' || resultCode === 0;
+    
+    // Nếu không có resultCode hoặc resultCode không rõ ràng, kiểm tra message
+    const hasSuccessMessage = message && (
+      message.toLowerCase().includes('thành công') || 
+      message.toLowerCase().includes('success') ||
+      message.toLowerCase().includes('ok')
+    );
+    
+    // Kiểm tra nếu có appTransId và amount - có thể là thành công
+    const hasValidData = appTransId && (amount || deposit.amount);
+    
+    // Quyết định thành công dựa trên resultCode, message, hoặc dữ liệu hợp lệ
+    const shouldProcessAsSuccess = isSuccess || (!isFailed && (hasSuccessMessage || hasValidData));
+    
+    if (shouldProcessAsSuccess) {
+      // Thành công - ZaloPay có thể trả về '0' hoặc '1' cho thành công
+      const depositAmount = Number(amount || deposit.amount);
+      wallet.balance += depositAmount;
+      wallet.history.push({
+        type: 'deposit',
+        amount: depositAmount,
+        method: 'zalopay',
+        status: 'success',
+        txId: appTransId,
+        orderId: appTransId,
+        createdAt: new Date()
+      });
+      await wallet.save();
+      console.log('Đã cộng tiền thành công từ ZaloPay:', { userId, amount: depositAmount, appTransId, newBalance: wallet.balance, resultCode });
+
+      // Gửi notification cho user khi nạp tiền thành công
+      try {
+        const Notification = require('../models/Notification');
+        await Notification.create({
+          title: 'Nạp tiền thành công',
+          content: `Bạn đã nạp thành công ${depositAmount.toLocaleString()} VNĐ vào ví qua ZaloPay.`,
+          type: 'success',
+          receiver: userId,
+          icon: 'plus-circle',
+          meta: { amount: depositAmount, link: '/wallet' }
+        });
+        console.log('Notification created for successful ZaloPay deposit');
+      } catch (notiErr) {
+        console.error('Lỗi tạo notification nạp tiền ZaloPay:', notiErr);
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Thanh toán thành công', 
+        balance: wallet.balance,
+        amount: depositAmount
+      });
+    } else {
+      // Thất bại hoặc trạng thái không xác định
+      const depositAmount = Number(amount || deposit.amount);
+      wallet.history.push({
+        type: 'deposit',
+        amount: depositAmount,
+        method: 'zalopay',
+        status: 'failed',
+        txId: appTransId,
+        orderId: appTransId,
+        createdAt: new Date()
+      });
+      await wallet.save();
+      console.log('ZaloPay transaction failed or unknown status:', { userId, amount: depositAmount, appTransId, resultCode, message });
+
+      res.json({ 
+        success: false, 
+        message: message || `Thanh toán thất bại (resultCode: ${resultCode})`,
+        balance: wallet.balance
+      });
+    }
+  } catch (err) {
+    console.error('handleZaloPayCallback error:', err);
+    res.status(500).json({ success: false, message: 'Lỗi xử lý kết quả thanh toán ZaloPay', error: err.message });
+  }
+};
+
 // API endpoint để frontend gửi kết quả thanh toán
 exports.paymentCallback = async (req, res) => {
   try {

@@ -25,6 +25,9 @@ router.get('/:course_id/sections', sectionController.getSectionsByCourse);
 // Lấy nội dung khóa học công khai (cho tất cả mọi người)
 router.get('/:course_id/content', courseController.getCourseSectionsAndLessons);
 
+// Lấy thống kê khóa học (cho tất cả mọi người)
+router.get('/:course_id/stats', courseController.getCourseStats);
+
 // Các route cần xác thực bên dưới
 router.post('/', auth, requireAuth(['instructor']), uploadCourseAvatar, handleUploadError, courseController.createCourse);
 router.put('/:id', auth, requireAuth(['instructor']), uploadCourseAvatar, handleUploadError, courseController.updateCourse);

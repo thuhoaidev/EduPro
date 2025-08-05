@@ -4,12 +4,12 @@ import { Spin, Alert, Card, Typography, Button, Divider, List, Input, message, R
 import { config } from '../../../api/axios';
 import {
   LockOutlined, CheckCircleOutlined, UserOutlined, SendOutlined, PauseCircleOutlined,
-  EditOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, CloseOutlined
+  EditOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, CloseOutlined, ClockCircleOutlined
 } from '@ant-design/icons';
 import { getProgress, updateProgress, getUnlockedLessons, getVideoProgress, updateVideoProgress, markCourseCompleted } from '../../../services/progressService';
 import { getComments, addComment, replyComment } from '../../../services/lessonCommentService';
 import { getNotesByLesson, createNote, deleteNote, updateNote, type Note } from '../../../services/noteService';
-import AIChatBox from '../../../components/AIChatBox';
+
 import SectionSidebar from './SectionSidebar';
 import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
@@ -21,6 +21,7 @@ import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, tog
 import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
 import { issueCertificate, getCertificate } from '../../../services/certificateService';
 import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
+import CourseAccessWrapper from '../../../components/DeviceSecurity/CourseAccessWrapper';
 dayjs.extend(relativeTime);
 
 
@@ -38,6 +39,30 @@ type Comment = {
   likes?: string[];
 };
 
+// Utility functions for localStorage cache
+function getQuizCacheKey(courseId: string | null, lessonId: string | null) {
+  return courseId && lessonId ? `quizAnswers_${courseId}_${lessonId}` : '';
+}
+function saveQuizAnswersToCache(courseId: string | null, lessonId: string | null, answers: number[]) {
+  const key = getQuizCacheKey(courseId, lessonId);
+  if (key) localStorage.setItem(key, JSON.stringify(answers));
+}
+function getQuizAnswersFromCache(courseId: string | null, lessonId: string | null): number[] | null {
+  const key = getQuizCacheKey(courseId, lessonId);
+  if (!key) return null;
+  const data = localStorage.getItem(key);
+  if (!data) return null;
+  try {
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
+}
+function clearQuizAnswersCache(courseId: string | null, lessonId: string | null) {
+  const key = getQuizCacheKey(courseId, lessonId);
+  if (key) localStorage.removeItem(key);
+}
+
 const LessonVideoPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -54,7 +79,7 @@ const LessonVideoPage: React.FC = () => {
   const [quiz, setQuiz] = useState<{ _id: string; questions: { question: string; options: string[]; correctIndex?: number }[] } | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizError, setQuizError] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<number[]>([]);
+  // Removed unused answers state - using quizAnswers instead
   const [quizResult, setQuizResult] = useState<{ success: boolean; message: string; wrongQuestions?: number[] } | null>(null);
   const [videoId, setVideoId] = useState<string | null>(null);
   const [courseId, setCourseId] = useState<string | null>(null);
@@ -79,8 +104,7 @@ const LessonVideoPage: React.FC = () => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [courseOverview, setCourseOverview] = useState<{ title: string; subtitle: string; requirements: string[] }>({ title: '', subtitle: '', requirements: [] });
 
-  // Chat AI state
-  const [isChatOpen, setIsChatOpen] = useState(false);
+
 
   // Thêm các state cho like/reply comment
   const [likeStates, setLikeStates] = useState<{ [commentId: string]: { liked: boolean; count: number } }>({});
@@ -102,22 +126,52 @@ const LessonVideoPage: React.FC = () => {
     updateProgressTimeout.current = setTimeout(() => {
       console.log('Updating video progress:', { courseId, lessonId, time, duration });
       updateVideoProgress(courseId, lessonId, time, duration).catch(e => console.error("Failed to update progress", e));
-    }, 1000); // Cập nhật 1 giây một lần
+    }, 2000); // Cập nhật 2 giây một lần để giảm tải server
   }, []);
 
+  // Helper function để cập nhật progress UI ngay lập tức
+  const updateProgressUI = useCallback(() => {
+    const video = document.querySelector('video');
+    if (video && courseId && currentLessonId && video.duration > 0) {
+      const progressRatio = video.currentTime / video.duration;
+      setVideoProgress(progressRatio);
+    }
+  }, [courseId, currentLessonId]);
+
   // Hàm chuyển sang bài tiếp theo
-  const goToNextLesson = () => {
+  const goToNextLesson = async () => {
     if (hasNavigated) return;
+
+    // Force reload unlocked lessons trước khi kiểm tra
+    try {
+      const updatedUnlocked = await getUnlockedLessons(courseId);
+      setUnlockedLessons(updatedUnlocked || []);
+      console.log('🔄 Reloaded unlocked lessons:', updatedUnlocked);
+    } catch (error) {
+      console.error('Failed to reload unlocked lessons:', error);
+    }
+
     let found = false;
     let nextLessonId = null;
+    console.log('🔍 Finding next lesson for:', currentLessonId);
+    console.log('📚 Course sections:', courseSections.length);
+
     for (let s = 0; s < courseSections.length; s++) {
       const lessons = courseSections[s].lessons;
+      console.log(`📖 Section ${s}:`, lessons.length, 'lessons');
+
       for (let l = 0; l < lessons.length; l++) {
         if (lessons[l]._id === currentLessonId) {
+          console.log(`✅ Found current lesson at section ${s}, lesson ${l}`);
+
           if (l + 1 < lessons.length) {
             nextLessonId = lessons[l + 1]._id;
+            console.log(`➡️ Next lesson in same section:`, nextLessonId);
           } else if (s + 1 < courseSections.length && courseSections[s + 1].lessons.length > 0) {
             nextLessonId = courseSections[s + 1].lessons[0]._id;
+            console.log(`➡️ Next lesson in next section:`, nextLessonId);
+          } else {
+            console.log(`🎉 No next lesson found - completed all lessons`);
           }
           found = true;
           break;
@@ -125,13 +179,38 @@ const LessonVideoPage: React.FC = () => {
       }
       if (found) break;
     }
+
+    console.log('goToNextLesson check:', {
+      nextLessonId,
+      canAccess: nextLessonId ? canAccessLesson(nextLessonId) : false,
+      unlockedLessons,
+      courseSections: courseSections.length,
+      currentLessonId
+    });
+
+    // Kiểm tra xem bài học tiếp theo có được mở khóa không
     if (nextLessonId) {
+      console.log('✅ Navigating to next lesson:', nextLessonId);
       setHasNavigated(true);
-      setTimeout(() => {
-        navigate(`/lessons/${nextLessonId}/video`);
-        setHasNavigated(false);
-      }, 2000);
+
+      // Reset các state trước khi chuyển bài
+      setVideoProgress(0);
+      setVideoWatched(false);
+      setSavedVideoTime(0);
+      setQuizCompleted(false);
+      setQuizResult(null);
+      // Không reset quizAnswers ở đây - để logic khôi phục từ progress xử lý
+      // setQuizAnswers([]);
+      // Không reset quiz và activeTab nếu video đã được xem hết
+      // Quiz sẽ được mở vĩnh viễn sau khi xem hết video
+      setQuizPassed(false); // Reset quiz passed
+      setQuizUnlocked(false); // Reset quiz unlocked
+      setShowQuiz(false); // Reset show quiz
+
+      navigate(`/lessons/${nextLessonId}/video`);
+      setHasNavigated(false);
     } else {
+      console.log('🎉 All lessons completed!');
       message.success('Bạn đã hoàn thành tất cả các bài học!');
     }
   };
@@ -140,61 +219,164 @@ const LessonVideoPage: React.FC = () => {
   const handleVideoTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     const video = e.currentTarget;
     if (courseId && currentLessonId && video.duration > 0) {
-      // Cập nhật tiến độ video
+      // Cập nhật tiến độ video (debounced để tránh gọi API liên tục)
       debouncedUpdateProgress(courseId, currentLessonId, video.currentTime, video.duration);
 
       // Cập nhật local state
       setSavedVideoTime(video.currentTime);
 
-      // Cập nhật progress ratio cho UI
+      // Cập nhật progress ratio cho UI (real-time) - ưu tiên cập nhật UI trước
       const progressRatio = video.currentTime / video.duration;
       setVideoProgress(progressRatio);
 
-
-
       // Đánh dấu đã xem hết video khi đạt 90%
       if (progressRatio >= 0.9 && !videoWatched) {
-        updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration).catch(e => console.error("Failed to update progress", e));
+        // Cập nhật videoCompleted: true vào progress
+        updateProgress(courseId, currentLessonId, {
+          watchedSeconds: video.currentTime,
+          videoDuration: video.duration,
+          videoCompleted: true
+        } as any).catch(e => console.error("Failed to set videoCompleted", e));
         setVideoWatched(true);
       }
     }
   };
 
 
+  // Reset state khi component mount hoặc lesson thay đổi
+  useEffect(() => {
+    console.log('🔄 Component mounted or lesson changed:', lessonId);
+
+    // Reset tất cả state liên quan đến video và quiz
+    setVideoProgress(0);
+    setVideoWatched(false);
+    setSavedVideoTime(0);
+    setQuizCompleted(false);
+    setQuizResult(null);
+    setQuizAnswers([]);
+    // Không reset quiz và activeTab nếu video đã được xem hết
+    // Quiz sẽ được mở vĩnh viễn sau khi xem hết video
+    setQuizPassed(false); // Reset quiz passed
+    setQuizUnlocked(false); // Reset quiz unlocked
+    setShowQuiz(false); // Reset show quiz
+
+    // Reset video element nếu có
+    const videoElement = document.querySelector('video');
+    if (videoElement) {
+      videoElement.currentTime = 0;
+      videoElement.pause();
+    }
+  }, [lessonId]);
+
   // Khi vào lại bài học, lấy tiến độ đã lưu từ backend
   useEffect(() => {
     if (courseId && lessonId) {
-      getVideoProgress(courseId, lessonId)
-        .then(progress => {
-                  if (progress && progress.watchedSeconds && progress.watchedSeconds > 0) {
-            setSavedVideoTime(progress.watchedSeconds);
-            // Cũng cập nhật videoProgress UI nếu có
-            const progressData = progress as any;
-            if (progressData.videoDuration && progressData.videoDuration > 0) {
-              const progressRatio = progress.watchedSeconds / progressData.videoDuration;
-              setVideoProgress(progressRatio);
+      console.log('🔄 Loading progress for lesson:', lessonId);
+
+      // Đợi một chút để đảm bảo video element đã được reset
+      setTimeout(() => {
+        getVideoProgress(courseId, lessonId)
+          .then(progress => {
+            console.log('Loaded progress from backend:', progress);
+            if (progress && progress.watchedSeconds && progress.watchedSeconds > 0) {
+              setSavedVideoTime(progress.watchedSeconds);
+              // Cũng cập nhật videoProgress UI nếu có
+              const progressData = progress as any;
+              if (progressData.videoDuration && progressData.videoDuration > 0) {
+                const progressRatio = progress.watchedSeconds / progressData.videoDuration;
+                console.log('Setting videoProgress from backend:', progressRatio);
+                setVideoProgress(progressRatio);
+              } else {
+                // Nếu không có videoDuration, set progress dựa trên thời gian đã xem
+                const fallbackProgress = progress.watchedSeconds > 0 ? 0.1 : 0;
+                console.log('Setting fallback videoProgress:', fallbackProgress);
+                setVideoProgress(fallbackProgress);
+              }
             } else {
-              // Nếu không có videoDuration, set progress dựa trên thời gian đã xem
-              setVideoProgress(progress.watchedSeconds > 0 ? 0.1 : 0);
+              console.log('No progress found, setting to 0');
+              setSavedVideoTime(0);
+              setVideoProgress(0);
             }
-          } else {
+
+            // Kiểm tra xem video đã được xem hết chưa để tự động chuyển tab
+            const progressData = progress as any;
+            if (progressData && progressData.videoCompleted === true) {
+              console.log('Video đã được xem hết, tự động chuyển về tab quiz');
+              setActiveTab('quiz');
+            }
+          })
+          .catch(err => {
+            console.error("Lỗi lấy tiến độ video", err);
             setSavedVideoTime(0);
             setVideoProgress(0);
-          }
-        })
-        .catch(err => {
-          console.error("Lỗi lấy tiến độ video", err);
-          setSavedVideoTime(0);
-          setVideoProgress(0);
-        });
+          });
+      }, 100);
     }
   }, [courseId, lessonId]);
+
+  // Lưu tiến trình khi component unmount
+  useEffect(() => {
+    return () => {
+      if (courseId && currentLessonId) {
+        const video = document.querySelector('video');
+        if (video && video.currentTime > 0) {
+          updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration)
+            .catch(e => console.error("Failed to save progress on unmount", e));
+        }
+      }
+    };
+  }, [courseId, currentLessonId]);
+
+  // Cập nhật progress UI thường xuyên khi video đang phát
+  useEffect(() => {
+    if (!isVideoPlaying) return;
+
+    const interval = setInterval(() => {
+      updateProgressUI();
+    }, 500); // Cập nhật UI mỗi 500ms khi video đang phát
+
+    return () => clearInterval(interval);
+  }, [isVideoPlaying, updateProgressUI]);
+
+  // Cập nhật progress UI ngay lập tức khi savedVideoTime thay đổi
+  useEffect(() => {
+    if (savedVideoTime > 0) {
+      // Delay một chút để đảm bảo video đã load
+      const timer = setTimeout(() => {
+        const videoElement = document.querySelector('video');
+        if (videoElement && videoElement.duration > 0) {
+          const currentProgress = savedVideoTime / videoElement.duration;
+          console.log('Setting videoProgress from savedVideoTime:', currentProgress);
+          setVideoProgress(currentProgress);
+
+          // Force update video element để đảm bảo UI cập nhật
+          videoElement.dispatchEvent(new Event('timeupdate'));
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [savedVideoTime]);
 
   // Khi video load xong, tua đến vị trí đã lưu
   const handleVideoLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     const video = e.currentTarget;
+    console.log('Video loaded metadata:', { duration: video.duration, savedVideoTime });
+
     if (video && savedVideoTime > 0) {
       video.currentTime = savedVideoTime;
+    }
+
+    // Cập nhật progress UI sau khi video load xong
+    if (video && video.duration > 0) {
+      const currentProgress = savedVideoTime > 0 ? savedVideoTime / video.duration : 0;
+      console.log('Setting videoProgress from metadata:', currentProgress);
+      setVideoProgress(currentProgress);
+
+      // Force update video element để đảm bảo UI cập nhật
+      const videoElement = document.querySelector('video');
+      if (videoElement) {
+        videoElement.dispatchEvent(new Event('timeupdate'));
+      }
     }
   };
 
@@ -206,6 +388,12 @@ const LessonVideoPage: React.FC = () => {
         const videoElement = document.querySelector('video');
         if (videoElement && videoElement.readyState >= 1) {
           videoElement.currentTime = savedVideoTime;
+
+          // Cập nhật progress UI sau khi seek
+          if (videoElement.duration > 0) {
+            const currentProgress = savedVideoTime / videoElement.duration;
+            setVideoProgress(currentProgress);
+          }
         }
       }, 100);
       return () => clearTimeout(timer);
@@ -227,6 +415,7 @@ const LessonVideoPage: React.FC = () => {
     }
 
     if (courseId && currentLessonId && video) {
+      // Lưu tiến trình cuối cùng ngay lập tức
       updateVideoProgress(courseId, currentLessonId, video.duration, video.duration)
         .catch(e => console.error("Failed to update final progress", e));
       // Đảm bảo cập nhật videoCompleted: true vào progress
@@ -235,21 +424,25 @@ const LessonVideoPage: React.FC = () => {
         videoDuration: video.duration,
         videoCompleted: true
       } as any).then(async () => {
-        // Reload progress sau khi cập nhật
+        // Reload progress và unlocked lessons sau khi cập nhật
         try {
-          const progressData = await getProgress(courseId);
+          const [progressData, unlocked] = await Promise.all([
+            getProgress(courseId),
+            getUnlockedLessons(courseId)
+          ]);
           setProgress(progressData || {});
+          setUnlockedLessons(unlocked || []);
         } catch (e) {
           console.error("Failed to reload progress", e);
         }
       }).catch(e => console.error("Failed to set videoCompleted", e));
     }
-    // Nếu có quiz thì tự động chuyển sang tab quiz
-    if (quiz) {
+
+    // Chỉ chuyển sang tab quiz nếu có quiz VÀ đã xem hết video (90% trở lên)
+    if (quiz && videoProgress >= 0.9) {
       setActiveTab('quiz');
-    } else {
-      goToNextLesson(); // <-- Tự động chuyển nếu không có quiz
     }
+    // Loại bỏ goToNextLesson() - chỉ chuyển bài khi hoàn thành cả video và quiz
   };
 
   useEffect(() => {
@@ -257,7 +450,7 @@ const LessonVideoPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null); // Reset error state
-        
+
         if (!lessonId) {
           setError('ID bài học không hợp lệ.');
         } else {
@@ -266,7 +459,7 @@ const LessonVideoPage: React.FC = () => {
           if (videoRes.data && videoRes.data.data) {
             setVideoUrl(videoRes.data.data.url);
             setVideoId(videoRes.data.data._id || videoRes.data.data.id || null);
-            
+
             // Lấy tên bài học từ lesson
             const lessonRes = await config.get(`/lessons/${lessonId}`);
             if (lessonRes.data && lessonRes.data.data) {
@@ -276,7 +469,7 @@ const LessonVideoPage: React.FC = () => {
             setError('Không tìm thấy video cho bài học này.');
           }
         }
-        
+
         // Lấy tên bài học từ lesson
         const lessonRes = await config.get(`/lessons/${lessonId}`);
         if (lessonRes.data && lessonRes.data.data) {
@@ -290,7 +483,7 @@ const LessonVideoPage: React.FC = () => {
         setLoading(false);
       }
     };
-    
+
     if (lessonId) {
       fetchLessonVideo();
     } else {
@@ -305,7 +498,7 @@ const LessonVideoPage: React.FC = () => {
       setCommentLoading(false);
       return;
     }
-    
+
     (async () => {
       try {
         setCommentLoading(true);
@@ -325,7 +518,8 @@ const LessonVideoPage: React.FC = () => {
     setQuizPassed(false);
     setQuizCompleted(false);
     setQuizResult(null);
-    setQuizAnswers([]);
+    // Không reset quizAnswers ở đây - để logic khôi phục từ progress xử lý
+    // setQuizAnswers([]);
     setShowQuiz(false);
     setQuizUnlocked(false);
     setVideoProgress(0); // Reset progress UI, nhưng không reset savedVideoTime
@@ -390,7 +584,7 @@ const LessonVideoPage: React.FC = () => {
       setIsFree(false);
       return;
     }
-    
+
     (async () => {
       try {
         const progressData = await getProgress(courseId);
@@ -420,17 +614,7 @@ const LessonVideoPage: React.FC = () => {
   // Thêm useEffect để reload progress khi có thay đổi
   useEffect(() => {
     if (!courseId) return;
-    const reloadProgress = async () => {
-      try {
-        const progressData = await getProgress(courseId);
-        setProgress(progressData || {});
-        const unlocked = await getUnlockedLessons(courseId);
-        setUnlockedLessons(unlocked || []);
-      } catch (e) {
-        console.error('Error reloading progress:', e);
-      }
-    };
-    
+
     // Reload progress sau khi hoàn thành quiz hoặc video
     if (quizCompleted || videoWatched) {
       reloadProgress();
@@ -442,17 +626,23 @@ const LessonVideoPage: React.FC = () => {
       setQuiz(null);
       setQuizLoading(false);
       setQuizError(null);
-      setAnswers([]);
       return;
     }
-    
+
     const fetchQuiz = async () => {
       try {
         setQuizLoading(true);
         setQuizError(null);
+
+        // Đảm bảo progress đã được load trước khi fetch quiz
+        if (courseId && currentLessonId && (!progress || Object.keys(progress).length === 0)) {
+          console.log('⏳ Waiting for progress to load before fetching quiz...');
+          await reloadProgress();
+        }
+
         const res = await config.get(`/quizzes/video/${videoId}`);
         setQuiz(res.data.data);
-        setAnswers(new Array(res.data.data.questions.length).fill(-1));
+        console.log('📝 Quiz loaded for video:', videoId);
       } catch (e) {
         console.error('Error loading quiz:', e);
         setQuiz(null);
@@ -462,7 +652,7 @@ const LessonVideoPage: React.FC = () => {
       }
     };
     fetchQuiz();
-  }, [videoId]);
+  }, [videoId, courseId, currentLessonId, progress]);
 
   // Khi component unmount, dọn dẹp timeout
   useEffect(() => {
@@ -476,14 +666,23 @@ const LessonVideoPage: React.FC = () => {
   // Khi load quiz, nếu đã đạt thì set quizResult.success = true để giữ giao diện ĐẠT
   useEffect(() => {
     if (quiz && currentLessonId) {
-      const passed = localStorage.getItem(`quiz-passed-${currentLessonId}`);
-      if (passed === '1') {
+      // Ưu tiên kiểm tra backend progress trước
+      const lessonKey = String(currentLessonId);
+      const backendQuizPassed = progress && progress[lessonKey] && progress[lessonKey].quizPassed;
+
+      if (backendQuizPassed === true) {
+        console.log('✅ Quiz passed from backend progress');
         setQuizResult({ success: true, message: 'Tất cả đáp án đều đúng!' });
+      } else {
+        // Fallback to localStorage only if no backend data
+        const passed = localStorage.getItem(`quiz-passed-${currentLessonId}`);
+        if (passed === '1') {
+          console.log('✅ Quiz passed from localStorage (fallback)');
+          setQuizResult({ success: true, message: 'Tất cả đáp án đều đúng!' });
+        }
       }
     }
-  }, [quiz, currentLessonId]);
-
-
+  }, [quiz, currentLessonId, progress]);
 
   // Bỏ logic unlock quiz theo videoProgress
 
@@ -494,46 +693,211 @@ const LessonVideoPage: React.FC = () => {
 
   // Khi load quiz mới, reset quizAnswers đúng số lượng câu hỏi
   useEffect(() => {
-    if (quiz) {
+    if (quiz && progress && currentLessonId) {
       const lessonKey = String(currentLessonId);
-      const prevAnswers = progress && progress[lessonKey] && progress[lessonKey].quizAnswers;
-      const quizPassed = progress && progress[lessonKey] && progress[lessonKey].quizPassed;
+      const prevAnswers = progress[lessonKey] && progress[lessonKey].quizAnswers;
+      const quizPassed = progress[lessonKey] && progress[lessonKey].quizPassed;
+
+      console.log('🔄 Loading quiz answers for lesson:', lessonKey, {
+        hasProgress: !!progress[lessonKey],
+        prevAnswers,
+        quizPassed,
+        quizQuestionsLength: quiz.questions.length,
+        progressKeys: Object.keys(progress),
+        progressType: typeof progress,
+        lessonKeyType: typeof lessonKey
+      });
+
+      // Check if we have valid saved answers from backend
       if (Array.isArray(prevAnswers) && prevAnswers.length === quiz.questions.length) {
-        setQuizAnswers(prevAnswers);
-        // Tự động chấm lại quizResult khi reload
-        const wrongQuestions = quiz.questions
-          .map((q, idx) => prevAnswers[idx] !== q.correctIndex ? idx : -1)
-          .filter(idx => idx !== -1);
-        if (quizPassed === true) {
-          setQuizResult({ success: true, message: 'Tất cả đáp án đều đúng!' });
-        } else if (quizPassed === false) {
-          setQuizResult({ success: false, message: 'Có đáp án sai.', wrongQuestions });
+        // Validate that all answers are valid indices
+        const validAnswers = prevAnswers.every((answer, idx) =>
+          typeof answer === 'number' && answer >= 0 && answer < quiz.questions[idx]?.options?.length
+        );
+
+        if (validAnswers) {
+          setQuizAnswers(prevAnswers);
+          // Tự động chấm lại quizResult khi reload
+          const wrongQuestions = quiz.questions
+            .map((q, idx) => prevAnswers[idx] !== q.correctIndex ? idx : -1)
+            .filter(idx => idx !== -1);
+          if (quizPassed === true) {
+            setQuizResult({ success: true, message: 'Tất cả đáp án đều đúng!' });
+          } else if (quizPassed === false) {
+            setQuizResult({ success: false, message: 'Có đáp án sai.', wrongQuestions });
+          } else {
+            setQuizResult(null);
+          }
+          console.log('✅ Quiz answers restored from backend progress');
         } else {
+          console.log('❌ Saved answers are invalid, checking cache');
+          // Try to restore from cache
+          const cached = getQuizAnswersFromCache(courseId, currentLessonId);
+          if (cached && Array.isArray(cached) && cached.length === quiz.questions.length) {
+            console.log('💾 Restoring answers from cache:', cached);
+            setQuizAnswers(cached);
+          } else {
+            console.log('🆕 No cached answers - starting fresh');
+            setQuizAnswers(new Array(quiz.questions.length).fill(-1));
+          }
           setQuizResult(null);
         }
       } else {
-        setQuizAnswers(new Array(quiz.questions.length).fill(-1));
+        // No backend progress - try to restore from cache
+        console.log('🔍 No backend progress - checking cache');
+        const cached = getQuizAnswersFromCache(courseId, currentLessonId);
+        if (cached && Array.isArray(cached) && cached.length === quiz.questions.length) {
+          console.log('💾 Restoring answers from cache:', cached);
+          setQuizAnswers(cached);
+        } else {
+          console.log('🆕 No cached answers - starting fresh');
+          setQuizAnswers(new Array(quiz.questions.length).fill(-1));
+        }
         setQuizResult(null);
       }
       setQuizCompleted(false);
     }
   }, [quiz, progress, currentLessonId]);
 
+  // Save answers to cache on every change (if not submitted)
+  useEffect(() => {
+    if (
+      quiz &&
+      quizAnswers.length === quiz.questions.length &&
+      !quizResult // Only cache if not submitted
+    ) {
+      console.log('💾 Saving quiz answers to cache:', quizAnswers);
+      saveQuizAnswersToCache(courseId, currentLessonId, quizAnswers);
+    }
+  }, [quizAnswers, quiz, courseId, currentLessonId, quizResult]);
+
+  // Clear cache when quiz is completed
+  useEffect(() => {
+    if (quizResult && quizResult.success && courseId && currentLessonId) {
+      console.log('🗑️ Clearing cache - quiz completed');
+      clearQuizAnswersCache(courseId, currentLessonId);
+    }
+  }, [quizResult, courseId, currentLessonId]);
+
+  // Fallback: Reload quiz answers when progress is loaded after quiz
+  useEffect(() => {
+    if (quiz && progress && currentLessonId && quizAnswers.length === 0) {
+      const lessonKey = String(currentLessonId);
+      const prevAnswers = progress[lessonKey] && progress[lessonKey].quizAnswers;
+
+      console.log('🔄 Fallback: Checking for quiz answers after progress load:', {
+        lessonKey,
+        hasProgress: !!progress[lessonKey],
+        prevAnswers,
+        currentQuizAnswersLength: quizAnswers.length,
+        progressKeys: Object.keys(progress)
+      });
+
+      if (Array.isArray(prevAnswers) && prevAnswers.length === quiz.questions.length) {
+        // Validate that all answers are valid indices
+        const validAnswers = prevAnswers.every((answer, idx) =>
+          typeof answer === 'number' && answer >= 0 && answer < quiz.questions[idx]?.options?.length
+        );
+
+        if (validAnswers) {
+          setQuizAnswers(prevAnswers);
+          const quizPassed = progress[lessonKey] && progress[lessonKey].quizPassed;
+
+          // Tự động chấm lại quizResult khi reload
+          const wrongQuestions = quiz.questions
+            .map((q, idx) => prevAnswers[idx] !== q.correctIndex ? idx : -1)
+            .filter(idx => idx !== -1);
+          if (quizPassed === true) {
+            setQuizResult({ success: true, message: 'Tất cả đáp án đều đúng!' });
+          } else if (quizPassed === false) {
+            setQuizResult({ success: false, message: 'Có đáp án sai.', wrongQuestions });
+          } else {
+            setQuizResult(null);
+          }
+          console.log('✅ Quiz answers restored from progress (fallback)');
+        } else {
+          console.log('❌ Saved answers are invalid in fallback, checking cache');
+          // Try to restore from cache
+          const cached = getQuizAnswersFromCache(courseId, currentLessonId);
+          if (cached && Array.isArray(cached) && cached.length === quiz.questions.length) {
+            console.log('💾 Restoring answers from cache (fallback):', cached);
+            setQuizAnswers(cached);
+          }
+        }
+      } else {
+        // No backend progress - try to restore from cache
+        console.log('🔍 No backend progress in fallback - checking cache');
+        const cached = getQuizAnswersFromCache(courseId, currentLessonId);
+        if (cached && Array.isArray(cached) && cached.length === quiz.questions.length) {
+          console.log('💾 Restoring answers from cache (fallback):', cached);
+          setQuizAnswers(cached);
+        }
+      }
+    }
+  }, [progress, quiz, currentLessonId, quizAnswers.length]);
+
+  // Additional fallback: Force reload progress if quiz is loaded but answers are not restored
+  useEffect(() => {
+    if (quiz && currentLessonId && quizAnswers.length === 0 && (!progress || Object.keys(progress).length === 0)) {
+      console.log('🔄 Additional fallback: Progress is empty, forcing reload...');
+      reloadProgress();
+    }
+  }, [quiz, currentLessonId, quizAnswers.length, progress]);
+
+  // Debug useEffect to track state changes
+  useEffect(() => {
+    console.log('🔍 State Debug:', {
+      currentLessonId,
+      quizLoaded: !!quiz,
+      quizQuestionsCount: quiz?.questions?.length || 0,
+      quizAnswersLength: quizAnswers.length,
+      progressKeys: Object.keys(progress || {}),
+      hasProgressForLesson: progress && currentLessonId ? !!progress[currentLessonId] : false,
+      lessonProgress: progress && currentLessonId ? progress[currentLessonId] : null
+    });
+  }, [currentLessonId, quiz, quizAnswers.length, progress]);
+
+  // Handle lesson change - ensure quiz answers are properly reset and reloaded
+  useEffect(() => {
+    if (currentLessonId) {
+      console.log('📝 Lesson changed to:', currentLessonId);
+      // Reset quiz-related states when lesson changes
+      // Không reset quizAnswers ở đây - để logic khôi phục từ progress xử lý
+      // setQuizAnswers([]);
+      setQuizResult(null);
+      setQuizCompleted(false);
+      setShowQuiz(false);
+      setQuizUnlocked(false);
+    }
+  }, [currentLessonId]);
+
   // Hàm kiểm tra bài học có được mở không
   const canAccessLesson = (lessonId: string) => {
-    return unlockedLessons.map(String).includes(String(lessonId));
+    const canAccess = unlockedLessons.map(String).includes(String(lessonId));
+    console.log('🔍 canAccessLesson check:', {
+      lessonId,
+      unlockedLessons,
+      canAccess
+    });
+    return canAccess;
   };
 
   // Hàm reload progress
   const reloadProgress = async () => {
     if (!courseId) return;
     try {
+      console.log('🔄 Reloading progress for course:', courseId);
       const [progressData, unlocked] = await Promise.all([
         getProgress(courseId),
         getUnlockedLessons(courseId)
       ]);
       setProgress(progressData || {});
       setUnlockedLessons(unlocked || []);
+      console.log('✅ Progress reloaded:', {
+        progressKeys: Object.keys(progressData || {}),
+        unlockedLessons: unlocked || [],
+        currentLessonId
+      });
     } catch (e) {
       console.error('Error reloading progress:', e);
     }
@@ -573,6 +937,7 @@ const LessonVideoPage: React.FC = () => {
       message.warning('Bạn cần trả lời tất cả các câu hỏi!');
       return;
     }
+
     try {
       const res = await config.post(`/quizzes/${quiz._id}/submit`, { answers: quizAnswers });
       setQuizResult(res.data);
@@ -586,6 +951,22 @@ const LessonVideoPage: React.FC = () => {
         });
 
         if (res.data.success) {
+          // Đảm bảo videoCompleted được set đúng nếu video đã xem hết
+          if (videoRef.current && videoRef.current.currentTime >= videoRef.current.duration * 0.9) {
+            console.log('Force updating videoCompleted to true');
+            await updateProgress(courseId, currentLessonId, {
+              watchedSeconds: videoRef.current.currentTime,
+              videoDuration: videoRef.current.duration,
+              quizPassed: res.data.success,
+              quizAnswers: quizAnswers,
+              videoCompleted: true
+            } as any);
+          }
+
+          // Clear cache on successful submit
+          console.log('🗑️ Clearing cache after successful submit');
+          clearQuizAnswersCache(courseId, currentLessonId);
+
           // Reload progress và unlocked lessons
           const [progressData, unlocked] = await Promise.all([
             getProgress(courseId),
@@ -593,8 +974,14 @@ const LessonVideoPage: React.FC = () => {
           ]);
           setProgress(progressData || {});
           setUnlockedLessons(unlocked || []);
-          message.success('Bạn đã hoàn thành bài học, bài tiếp theo sẽ được mở...');
-          goToNextLesson(); // <-- Tự động chuyển sang bài tiếp theo khi quiz đạt
+
+          console.log('Quiz submit successful, proceeding to next lesson');
+
+          // Nếu đã mở được quiz thì có nghĩa là đã xem hết video, chỉ cần quiz đạt là chuyển bài
+          message.success('Bạn đã hoàn thành bài học! Đang chuyển sang bài tiếp theo...');
+
+          // Chuyển bài
+          await goToNextLesson(); // Chuyển bài khi quiz đạt
         } else {
           message.warning('Quiz chưa đạt, hãy thử lại.');
         }
@@ -615,8 +1002,8 @@ const LessonVideoPage: React.FC = () => {
     setQuizCompleted(false);
   };
 
-  // Định nghĩa điều kiện hiển thị quiz: chỉ cần có quiz hoặc đã từng nộp bài
-  const shouldShowQuiz = !!quiz && videoProgress >= 0.9;
+  // Định nghĩa điều kiện hiển thị quiz: hiển thị khi đã xem hết video (90% trở lên) hoặc đã được lưu trong progress
+  const shouldShowQuiz = !!quiz && (videoProgress >= 0.9 || (progress && currentLessonId && progress[currentLessonId]?.videoCompleted === true));
 
   useEffect(() => {
     leoProfanity.add([
@@ -820,10 +1207,10 @@ const LessonVideoPage: React.FC = () => {
               borderBottom: '1px solid #f0f0f0',
               background: 'transparent'
             }}>
-              <Avatar 
-                src={reply.user?.avatar && reply.user.avatar !== 'default-avatar.jpg' && reply.user.avatar !== '' && (reply.user.avatar.includes('googleusercontent.com') || reply.user.avatar.startsWith('http')) ? reply.user.avatar : undefined} 
-                size={24} 
-                style={{ marginRight: 8, marginTop: 2, background: '#e6f7ff', color: '#1890ff' }} 
+              <Avatar
+                src={reply.user?.avatar && reply.user.avatar !== 'default-avatar.jpg' && reply.user.avatar !== '' && (reply.user.avatar.includes('googleusercontent.com') || reply.user.avatar.startsWith('http')) ? reply.user.avatar : undefined}
+                size={24}
+                style={{ marginRight: 8, marginTop: 2, background: '#e6f7ff', color: '#1890ff' }}
               />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{reply.user?.fullname || reply.user?.name || 'Anonymous'}</div>
@@ -1024,6 +1411,8 @@ const LessonVideoPage: React.FC = () => {
   const [reportReason, setReportReason] = useState('');
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
 
+
+
   // Tính toán dữ liệu tổng quan đánh giá
   const ratingStats = React.useMemo(() => {
     const stats = [0, 0, 0, 0, 0]; // 5 -> 1 sao
@@ -1173,8 +1562,8 @@ const LessonVideoPage: React.FC = () => {
         const ids = e.response.data.incompleteLessons;
         message.error(
           <span>
-            Không thể nhận chứng chỉ. Bạn còn <b>{ids.length}</b> bài học chưa hoàn thành.<br/>
-            Mã bài học: <span style={{color: '#1890ff'}}>{ids.join(', ')}</span>
+            Không thể nhận chứng chỉ. Bạn còn <b>{ids.length}</b> bài học chưa hoàn thành.<br />
+            Mã bài học: <span style={{ color: '#1890ff' }}>{ids.join(', ')}</span>
           </span>
         );
       } else {
@@ -1184,10 +1573,7 @@ const LessonVideoPage: React.FC = () => {
     setIsLoadingCertificate(false);
   };
 
-  // Chat AI toggle function
-  const toggleChat = () => {
-    setIsChatOpen(!isChatOpen);
-  };
+
 
   // Render danh sách bình luận chuyên nghiệp hơn
   const renderCommentItem = (item: any) => (
@@ -1200,11 +1586,11 @@ const LessonVideoPage: React.FC = () => {
       background: '#fff',
       borderRadius: 12
     }}>
-      <Avatar 
-        src={item.user?.avatar && item.user.avatar !== 'default-avatar.jpg' && item.user.avatar !== '' && (item.user.avatar.includes('googleusercontent.com') || item.user.avatar.startsWith('http')) ? item.user.avatar : undefined} 
-        icon={<UserOutlined />} 
-        size={44} 
-        style={{ background: '#e6f7ff', color: '#1890ff', marginRight: 18, marginTop: 2 }} 
+      <Avatar
+        src={item.user?.avatar && item.user.avatar !== 'default-avatar.jpg' && item.user.avatar !== '' && (item.user.avatar.includes('googleusercontent.com') || item.user.avatar.startsWith('http')) ? item.user.avatar : undefined}
+        icon={<UserOutlined />}
+        size={44}
+        style={{ background: '#e6f7ff', color: '#1890ff', marginRight: 18, marginTop: 2 }}
       />
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
@@ -1266,8 +1652,29 @@ const LessonVideoPage: React.FC = () => {
     return <Alert message="Bạn cần đăng ký khóa học để học bài này." type="warning" showIcon style={{ margin: 32 }} />;
   }
 
+  // Kiểm tra trạng thái hoàn thành bài học hiện tại
+  const getLessonCompletionStatus = () => {
+    if (!currentLessonId || !progress[currentLessonId]) {
+      return { videoCompleted: false, quizCompleted: false, fullyCompleted: false };
+    }
+
+    const lessonProgress = progress[currentLessonId];
+    const videoCompleted = lessonProgress.videoCompleted === true || videoProgress >= 0.9;
+    const quizCompleted = lessonProgress.quizPassed === true;
+    const fullyCompleted = videoCompleted && quizCompleted;
+
+    return { videoCompleted, quizCompleted, fullyCompleted };
+  };
+
+  const lessonStatus = getLessonCompletionStatus();
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
+    <CourseAccessWrapper 
+      courseId={courseId ? parseInt(courseId) : 0} 
+      courseName={courseOverview.title || 'Khóa học'}
+      requireDeviceCheck={true}
+    >
+      <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
       <div style={{
         width: '30%',
         minWidth: 280,
@@ -1293,6 +1700,21 @@ const LessonVideoPage: React.FC = () => {
           currentVideoProgress={Math.round(videoProgress * 100)}
           isVideoPlaying={isVideoPlaying}
           onSelectLesson={(lessonId) => {
+            console.log('Navigating to lesson:', lessonId);
+            // Lưu tiến trình hiện tại trước khi chuyển bài
+            if (courseId && currentLessonId) {
+              const video = document.querySelector('video');
+              if (video && video.currentTime > 0) {
+                updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration)
+                  .catch(e => console.error("Failed to save progress before navigation", e));
+              }
+            }
+
+            // Reset progress UI trước khi chuyển bài
+            setVideoProgress(0);
+            setVideoWatched(false);
+            setSavedVideoTime(0);
+
             navigate(`/lessons/${lessonId}/video`);
           }}
           isCompleted={isCompleted}
@@ -1340,7 +1762,17 @@ const LessonVideoPage: React.FC = () => {
                       onEnded={handleVideoEnded}
                       onLoadedMetadata={handleVideoLoadedMetadata}
                       onPlay={() => setIsVideoPlaying(true)}
-                      onPause={() => setIsVideoPlaying(false)}
+                                                  onPause={() => {
+                              setIsVideoPlaying(false);
+                              // Lưu tiến trình khi pause
+                              if (courseId && currentLessonId) {
+                                const video = document.querySelector('video');
+                                if (video && video.currentTime > 0) {
+                                  updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration)
+                                    .catch(e => console.error("Failed to save progress on pause", e));
+                                }
+                              }
+                            }}
                     >
                       Trình duyệt không hỗ trợ video tag.
                     </video> */}
@@ -1348,12 +1780,12 @@ const LessonVideoPage: React.FC = () => {
                       // Extract cloudName and publicId from videoUrl
                       let cloudName = '';
                       let publicId = '';
-                      
+
                       if (videoUrl) {
                         try {
                           const url = new URL(videoUrl);
                           const pathParts = url.pathname.split('/');
-                          
+
                           // For Cloudinary URLs: https://res.cloudinary.com/[cloudName]/video/upload/...
                           if (url.hostname === 'res.cloudinary.com' && pathParts.length >= 3) {
                             cloudName = pathParts[1];
@@ -1367,11 +1799,12 @@ const LessonVideoPage: React.FC = () => {
                           console.error('Error parsing video URL:', e);
                         }
                       }
-                      
+
                       // If we have cloudName and publicId, use CustomVideoPlayer with multiple qualities
                       if (cloudName && publicId) {
                         return (
                           <CustomVideoPlayer
+                            ref={videoRef}
                             sources={{
                               '360p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_640,h_360,c_limit/${publicId}.mp4`,
                               '720p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1280,h_720,c_limit/${publicId}.mp4`,
@@ -1381,7 +1814,17 @@ const LessonVideoPage: React.FC = () => {
                             onEnded={handleVideoEnded}
                             onLoadedMetadata={handleVideoLoadedMetadata}
                             onPlay={() => setIsVideoPlaying(true)}
-                            onPause={() => setIsVideoPlaying(false)}
+                            onPause={() => {
+                              setIsVideoPlaying(false);
+                              // Lưu tiến trình khi pause
+                              if (courseId && currentLessonId) {
+                                const video = document.querySelector('video');
+                                if (video && video.currentTime > 0) {
+                                  updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration)
+                                    .catch(e => console.error("Failed to save progress on pause", e));
+                                }
+                              }
+                            }}
                             initialTime={savedVideoTime}
                             isLessonCompleted={!!progress && !!currentLessonId && (progress[currentLessonId]?.completed === true || progress[currentLessonId]?.videoCompleted === true)}
                           />
@@ -1401,7 +1844,17 @@ const LessonVideoPage: React.FC = () => {
                             onEnded={handleVideoEnded}
                             onLoadedMetadata={handleVideoLoadedMetadata}
                             onPlay={() => setIsVideoPlaying(true)}
-                            onPause={() => setIsVideoPlaying(false)}
+                            onPause={() => {
+                              setIsVideoPlaying(false);
+                              // Lưu tiến trình khi pause
+                              if (courseId && currentLessonId) {
+                                const video = document.querySelector('video');
+                                if (video && video.currentTime > 0) {
+                                  updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration)
+                                    .catch(e => console.error("Failed to save progress on pause", e));
+                                }
+                              }
+                            }}
                           >
                             Trình duyệt không hỗ trợ video tag.
                           </video>
@@ -1417,6 +1870,8 @@ const LessonVideoPage: React.FC = () => {
                         </span>
                       </motion.div>
                     )}
+
+
                   </div>
                 ) : (
                   <Alert message="Không có video" type="warning" style={{ borderRadius: 12, margin: 24 }} />
@@ -1428,7 +1883,14 @@ const LessonVideoPage: React.FC = () => {
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
               <Tabs
                 activeKey={activeTab}
-                onChange={key => setActiveTab(key as 'overview' | 'quiz' | 'comment' | 'note' | 'review')}
+                onChange={key => {
+                  // Ngăn chặn chuyển sang tab quiz nếu chưa xem hết video
+                  if (key === 'quiz' && !shouldShowQuiz) {
+                    message.warning('Bạn cần xem hết video (90% trở lên) để làm quiz!');
+                    return;
+                  }
+                  setActiveTab(key as 'overview' | 'quiz' | 'comment' | 'note' | 'review');
+                }}
                 items={[
                   {
                     key: 'overview',
@@ -1457,106 +1919,141 @@ const LessonVideoPage: React.FC = () => {
                       </Card>
                     )
                   },
-                  ...((quiz && showQuiz) ? [
+                  ...(quiz ? [
                     {
                       key: 'quiz',
-                      label: 'Quiz',
+                      label: shouldShowQuiz ? 'Quiz' : 'Quiz (Cần xem hết video)',
+                      disabled: !shouldShowQuiz,
                       children: (
                         <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, width: '100%', maxWidth: 'none' }}>
-                          <div
-                            style={{
-                              fontWeight: 800,
-                              fontSize: 26,
-                              background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
-                              WebkitBackgroundClip: 'text',
-                              WebkitTextFillColor: 'transparent',
-                              borderRadius: 12,
-                              boxShadow: '0 2px 12px #e0e7ef',
-                              padding: '18px 0 10px 0',
-                              marginBottom: 18,
-                              textAlign: 'center',
-                              letterSpacing: 0.5,
-                              lineHeight: 1.2
-                            }}
-                          >
-                            {lessonTitle}
-                          </div>
-                          {quiz.questions.map((q, idx) => (
-                            <div key={idx} style={{ marginBottom: 32, background: '#f8fafc', borderRadius: 12, padding: 18, boxShadow: '0 1px 6px #f0f0f0' }}>
-                              <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 17 }}>Câu {idx + 1}: {q.question}</div>
-                              <Radio.Group
-                                onChange={e => setQuizAnswers(prev => prev.map((a, i) => (i === idx ? e.target.value : a)))}
-                                value={quizAnswers[idx]}
-                                disabled={!!quizResult && quizResult.success}
-                                style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                          {!shouldShowQuiz ? (
+                            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                              <div style={{ fontSize: 48, marginBottom: 16 }}>📺</div>
+                              <div style={{ fontSize: 20, fontWeight: 600, color: '#6366f1', marginBottom: 12 }}>
+                                Cần xem hết video để làm quiz
+                              </div>
+                              <div style={{ fontSize: 16, color: '#666', marginBottom: 20 }}>
+                                Bạn cần xem hết video (90% trở lên) để có thể làm quiz này.
+                              </div>
+                              <div style={{ fontSize: 14, color: '#888' }}>
+                                Tiến độ hiện tại: {Math.round(videoProgress * 100)}%
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div
+                                style={{
+                                  fontWeight: 800,
+                                  fontSize: 26,
+                                  background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                                  WebkitBackgroundClip: 'text',
+                                  WebkitTextFillColor: 'transparent',
+                                  borderRadius: 12,
+                                  boxShadow: '0 2px 12px #e0e7ef',
+                                  padding: '18px 0 10px 0',
+                                  marginBottom: 18,
+                                  textAlign: 'center',
+                                  letterSpacing: 0.5,
+                                  lineHeight: 1.2
+                                }}
                               >
-                                {q.options.map((opt, oIdx) => (
-                                  <Radio key={oIdx} value={oIdx} style={{
-                                    background: quizResult && quizResult.success && q.correctIndex === oIdx ? '#e6fffb' : undefined,
-                                    color: quizResult && quizResult.success && q.correctIndex === oIdx ? '#389e8a' : undefined,
-                                    borderRadius: 8,
-                                    padding: '6px 12px',
-                                    marginBottom: 4,
-                                    fontWeight: 500,
-                                    fontSize: 16,
-                                    border: quizResult && quizResult.success && q.correctIndex === oIdx ? '1.5px solid #52c41a' : '1px solid #e0e0e0',
-                                    boxShadow: quizResult && quizResult.success && q.correctIndex === oIdx ? '0 2px 8px #b7eb8f' : undefined
+                                {lessonTitle}
+                              </div>
+                              {quiz.questions.map((q, idx) => (
+                                <div key={idx} style={{ marginBottom: 32, background: '#f8fafc', borderRadius: 12, padding: 18, boxShadow: '0 1px 6px #f0f0f0' }}>
+                                  <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 17 }}>Câu {idx + 1}: {q.question}</div>
+                                  <Radio.Group
+                                    onChange={e => setQuizAnswers(prev => prev.map((a, i) => (i === idx ? e.target.value : a)))}
+                                    value={quizAnswers[idx]}
+                                    disabled={!!quizResult && quizResult.success}
+                                    style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                                  >
+                                    {q.options.map((opt, oIdx) => (
+                                      <Radio key={oIdx} value={oIdx} style={{
+                                        background: quizResult && quizResult.success && q.correctIndex === oIdx ? '#e6fffb' : undefined,
+                                        color: quizResult && quizResult.success && q.correctIndex === oIdx ? '#389e8a' : undefined,
+                                        borderRadius: 8,
+                                        padding: '6px 12px',
+                                        marginBottom: 4,
+                                        fontWeight: 500,
+                                        fontSize: 16,
+                                        border: quizResult && quizResult.success && q.correctIndex === oIdx ? '1.5px solid #52c41a' : '1px solid #e0e0e0',
+                                        boxShadow: quizResult && quizResult.success && q.correctIndex === oIdx ? '0 2px 8px #b7eb8f' : undefined
+                                      }}>
+                                        {opt}
+                                        {quizResult && quizResult.success && q.correctIndex === oIdx && (
+                                          <span style={{ color: '#52c41a', marginLeft: 8, fontWeight: 600 }}>(Đáp án đúng)</span>
+                                        )}
+                                      </Radio>
+                                    ))}
+                                  </Radio.Group>
+                                  {quizResult && quizResult.wrongQuestions?.includes(idx) && (
+                                    <div style={{ color: '#ff4d4f', marginTop: 8, fontWeight: 500 }}>Đáp án chưa đúng</div>
+                                  )}
+                                </div>
+                              ))}
+                              <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12 }}>
+                                <Button
+                                  type="primary"
+                                  size="large"
+                                  onClick={handleQuizSubmit}
+                                  disabled={!!quizResult && quizResult.success}
+                                  style={{
+                                    minWidth: 160,
+                                    fontWeight: 700,
+                                    fontSize: 18,
+                                    borderRadius: 24,
+                                    padding: '12px 32px',
+                                    background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)'
+                                  }}
+                                >
+                                  {quizResult && quizResult.success ? 'Đã hoàn thành' : 'Nộp bài'}
+                                </Button>
+                                {quizResult && !quizResult.success && (
+                                  <Button
+                                    size="large"
+                                    onClick={handleQuizRetry}
+                                    style={{
+                                      minWidth: 160,
+                                      fontWeight: 700,
+                                      fontSize: 18,
+                                      borderRadius: 24,
+                                      padding: '12px 32px',
+                                      border: '2px solid #6366f1',
+                                      color: '#6366f1',
+                                      background: '#fff'
+                                    }}
+                                  >
+                                    Làm lại
+                                  </Button>
+                                )}
+                              </div>
+                              {quizResult && (
+                                <div style={{
+                                  marginTop: 24,
+                                  padding: 16,
+                                  borderRadius: 12,
+                                  background: quizResult.success ? '#f6ffed' : '#fff2e8',
+                                  border: `1px solid ${quizResult.success ? '#b7eb8f' : '#ffd591'}`,
+                                  textAlign: 'center'
+                                }}>
+                                  <div style={{
+                                    fontSize: 18,
+                                    fontWeight: 600,
+                                    color: quizResult.success ? '#52c41a' : '#fa8c16',
+                                    marginBottom: 8
                                   }}>
-                                    {opt}
-                                    {quizResult && quizResult.success && q.correctIndex === oIdx && (
-                                      <span style={{ color: '#52c41a', marginLeft: 8, fontWeight: 600 }}>(Đáp án đúng)</span>
-                                    )}
-                                  </Radio>
-                                ))}
-                              </Radio.Group>
-                              {quizResult && quizResult.wrongQuestions?.includes(idx) && (
-                                <div style={{ color: '#ff4d4f', marginTop: 8, fontWeight: 500 }}>Đáp án chưa đúng</div>
+                                    {quizResult.success ? 'Chúc mừng! Bạn đã hoàn thành quiz.' : 'Quiz chưa đạt, hãy thử lại.'}
+                                  </div>
+                                  <div style={{ color: '#666', fontSize: 14 }}>
+                                    {quizResult.message}
+                                  </div>
+                                </div>
                               )}
-                            </div>
-                          ))}
-                          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12 }}>
-                            <Button
-                              type="primary"
-                              size="large"
-                              onClick={handleQuizSubmit}
-                              disabled={!!quizResult && quizResult.success}
-                              style={{
-                                minWidth: 160,
-                                fontWeight: 700,
-                                fontSize: 18,
-                                borderRadius: 24,
-                                padding: '12px 32px',
-                                background: 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)',
-                                color: '#fff',
-                                boxShadow: '0 4px 16px #bae6fd',
-                                border: 'none',
-                                transition: 'background 0.2s, box-shadow 0.2s',
-                              }}
-                              onMouseOver={e => {
-                                e.currentTarget.style.background = 'linear-gradient(90deg, #8b5cf6 0%, #06b6d4 100%)';
-                                e.currentTarget.style.boxShadow = '0 8px 32px #a5b4fc';
-                              }}
-                              onMouseOut={e => {
-                                e.currentTarget.style.background = 'linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%)';
-                                e.currentTarget.style.boxShadow = '0 4px 16px #bae6fd';
-                              }}
-                            >
-                              Nộp bài
-                            </Button>
-                            {quizResult && !quizResult.success && (
-                              <Button onClick={handleQuizRetry} style={{ minWidth: 100 }}>Làm lại</Button>
-                            )}
-                          </div>
-                          {quizResult && (
-                            <div style={{ marginTop: 24 }}>
-                              <Alert
-                                message={quizResult.success ? '🎉 Chúc mừng!' : 'Kết quả'}
-                                description={quizResult.message}
-                                type={quizResult.success ? 'success' : 'error'}
-                                showIcon
-                                style={{ borderRadius: 10, fontWeight: 500, fontSize: 16 }}
-                              />
-                            </div>
+                            </>
                           )}
                         </Card>
                       )
@@ -2065,17 +2562,8 @@ const LessonVideoPage: React.FC = () => {
           placeholder="Nhập lý do báo cáo..."
         />
       </Modal>
-
-      {/* AI Chat Box Component */}
-      <AIChatBox
-        lessonTitle={lessonTitle}
-        courseTitle={courseOverview.title}
-        isOpen={isChatOpen}
-        onToggle={toggleChat}
-      />
-
-
-    </div>
+      </div>
+    </CourseAccessWrapper>
   );
 };
 

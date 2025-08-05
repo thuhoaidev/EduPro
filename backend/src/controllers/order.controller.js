@@ -17,20 +17,47 @@ class OrderController {
     session.startTransaction();
 
     try {
+      console.log('🔍 CreateOrder - Request body:', req.body);
+      console.log('🔍 CreateOrder - User:', req.user);
+
       const {
         items,
         voucherCode,
         paymentMethod = 'bank_transfer',
         shippingInfo,
+        fullName,
+        phone,
+        email,
         notes
       } = req.body;
 
-      const { fullName, phone, email } = shippingInfo || {};
+      // Handle both shippingInfo object and direct fields
+      const orderFullName = fullName || (shippingInfo && shippingInfo.fullName);
+      const orderPhone = phone || (shippingInfo && shippingInfo.phone);
+      const orderEmail = email || (shippingInfo && shippingInfo.email);
+      
+      console.log('🔍 CreateOrder - Processed fields:', {
+        orderFullName,
+        orderPhone,
+        orderEmail,
+        paymentMethod,
+        itemsCount: items?.length
+      });
+      
       const userId = req.user.id;
 
       if (!items || items.length === 0) {
         await session.abortTransaction();
         return res.status(400).json({ success: false, message: 'Giỏ hàng trống' });
+      }
+
+      // Validate required fields
+      if (!orderFullName || !orderPhone || !orderEmail) {
+        await session.abortTransaction();
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Thiếu thông tin bắt buộc: họ tên, số điện thoại hoặc email' 
+        });
       }
 
       let totalAmount = 0;
@@ -124,9 +151,9 @@ class OrderController {
         finalAmount,
         voucherId,
         paymentMethod,
-        fullName,
-        phone,
-        email,
+        fullName: orderFullName,
+        phone: orderPhone,
+        email: orderEmail,
         notes
       });
 
@@ -253,7 +280,12 @@ class OrderController {
       });
     } catch (err) {
       await session.abortTransaction();
-      console.error('Create order error:', err);
+      console.error('❌ Create order error details:', {
+        message: err.message,
+        stack: err.stack,
+        body: req.body,
+        user: req.user
+      });
       res.status(500).json({ success: false, message: 'Lỗi tạo đơn hàng', error: err.message });
     } finally {
       session.endSession();
@@ -499,6 +531,107 @@ class OrderController {
     }
   }
 
+  // Kiểm tra điều kiện hoàn tiền cho một khóa học
+  static async checkRefundEligibility(req, res) {
+    try {
+      const { courseId } = req.params;
+      const userId = req.user.id;
+      
+      if (!courseId) {
+        return res.status(400).json({ success: false, message: 'Thiếu courseId' });
+      }
+
+      // Tìm đơn hàng đã thanh toán chứa khóa học này
+      const order = await Order.findOne({ 
+        userId, 
+        status: 'paid',
+        'items.courseId': courseId 
+      }).sort({ createdAt: -1 });
+
+      if (!order) {
+        return res.json({ 
+          success: true, 
+          eligible: false, 
+          reason: 'Không tìm thấy đơn hàng đã thanh toán cho khóa học này' 
+        });
+      }
+
+      // Kiểm tra đã hoàn tiền chưa
+      if (order.status === 'refunded' || order.refundedAt) {
+        return res.json({ 
+          success: true, 
+          eligible: false, 
+          reason: 'Đơn hàng đã hoàn tiền trước đó' 
+        });
+      }
+
+      // Kiểm tra thời gian mua
+      const now = new Date();
+      const created = new Date(order.createdAt);
+      const diffDays = (now.getTime() - created.getTime()) / (1000 * 3600 * 24);
+      if (diffDays > 7) {
+        return res.json({ 
+          success: true, 
+          eligible: false, 
+          reason: 'Đã quá thời gian hoàn tiền (7 ngày)' 
+        });
+      }
+
+      // Kiểm tra tiến độ học
+      const Enrollment = require('../models/Enrollment');
+      const Section = require('../models/Section');
+      const Lesson = require('../models/Lesson');
+      
+      const enrollment = await Enrollment.findOne({ student: userId, course: courseId });
+      let progressPercentage = 0;
+      
+      if (enrollment && enrollment.progress) {
+        // Lấy tất cả bài học của khóa học
+        const sections = await Section.find({ course_id: courseId }).sort({ position: 1 });
+        let totalLessons = 0;
+        let completedLessons = 0;
+        
+        for (const section of sections) {
+          if (section.lessons && section.lessons.length > 0) {
+            const lessons = await Lesson.find({ _id: { $in: section.lessons } });
+            totalLessons += lessons.length;
+            
+            for (const lesson of lessons) {
+              const lessonId = String(lesson._id);
+              const progress = enrollment.progress[lessonId];
+              // Chỉ tính là hoàn thành khi completed = true (đã xem đủ video và qua quiz)
+              if (progress && progress.completed === true) {
+                completedLessons++;
+              }
+            }
+          }
+        }
+        
+        // Tính phần trăm tiến độ
+        progressPercentage = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
+        
+        if (progressPercentage > 20) {
+          return res.json({ 
+            success: true, 
+            eligible: false, 
+            reason: `Tiến độ học đã vượt quá 20% (hiện tại: ${Math.round(progressPercentage)}%)` 
+          });
+        }
+      }
+
+      return res.json({ 
+        success: true, 
+        eligible: true, 
+        orderId: order._id,
+        progressPercentage: Math.round(progressPercentage),
+        daysRemaining: Math.max(0, 7 - Math.floor(diffDays))
+      });
+
+    } catch (err) {
+      return res.status(500).json({ success: false, message: 'Lỗi kiểm tra điều kiện hoàn tiền', error: err.message });
+    }
+  }
+
   // Hoàn tiền 70% chi phí vào ví user nếu đơn hàng chứa courseId và mua dưới 7 ngày, chưa hoàn tiền trước đó
   static async refundOrder(req, res) {
     const session = await mongoose.startSession();
@@ -536,6 +669,47 @@ class OrderController {
         await session.abortTransaction();
         return res.status(400).json({ success: false, message: 'Đã quá thời gian hoàn tiền (7 ngày)' });
       }
+
+      // Kiểm tra tiến độ học - nếu vượt quá 20% thì không được hoàn tiền
+      const Enrollment = require('../models/Enrollment');
+      const Section = require('../models/Section');
+      const Lesson = require('../models/Lesson');
+      
+      const enrollment = await Enrollment.findOne({ student: userId, course: courseId }).session(session);
+      if (enrollment && enrollment.progress) {
+        // Lấy tất cả bài học của khóa học
+        const sections = await Section.find({ course_id: courseId }).sort({ position: 1 }).session(session);
+        let totalLessons = 0;
+        let completedLessons = 0;
+        
+        for (const section of sections) {
+          if (section.lessons && section.lessons.length > 0) {
+            const lessons = await Lesson.find({ _id: { $in: section.lessons } }).session(session);
+            totalLessons += lessons.length;
+            
+            for (const lesson of lessons) {
+              const lessonId = String(lesson._id);
+              const progress = enrollment.progress[lessonId];
+              // Chỉ tính là hoàn thành khi completed = true (đã xem đủ video và qua quiz)
+              if (progress && progress.completed === true) {
+                completedLessons++;
+              }
+            }
+          }
+        }
+        
+        // Tính phần trăm tiến độ
+        const progressPercentage = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
+        
+        if (progressPercentage > 20) {
+          await session.abortTransaction();
+          return res.status(400).json({ 
+            success: false, 
+            message: `Không thể hoàn tiền vì tiến độ học đã vượt quá 20% (hiện tại: ${Math.round(progressPercentage)}%)` 
+          });
+        }
+      }
+
       // Tính số tiền hoàn lại (70% giá đã trả cho khóa học này)
       const refundAmount = Math.round(item.price * 0.7 * (item.quantity || 1));
       // Cộng tiền vào ví user
@@ -559,7 +733,6 @@ class OrderController {
       await order.save({ session });
 
       // Xóa enrollment của user với khóa học này
-      const Enrollment = require('../models/Enrollment');
       await Enrollment.deleteOne({ student: userId, course: courseId }).session(session);
 
       await session.commitTransaction();

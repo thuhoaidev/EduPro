@@ -12,8 +12,8 @@ router.post('/deposit', auth, userWalletController.createDeposit);
 router.post('/momo-callback', userWalletController.handlePaymentResult);
 router.get('/momo-callback', userWalletController.handlePaymentResult);
 // Callback/payment result cho ZaloPay
-router.post('/zalopay-callback', userWalletController.handlePaymentResult);
-router.get('/zalopay-callback', userWalletController.handlePaymentResult);
+router.post('/zalopay-callback', userWalletController.handleZaloPayCallback);
+router.get('/zalopay-callback', userWalletController.handleZaloPayCallback);
 // Callback/payment result cho VNPAY (nếu có)
 router.get('/vnpay-callback', userWalletController.handlePaymentResult);
 // API endpoint để frontend gửi kết quả thanh toán

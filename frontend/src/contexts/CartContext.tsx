@@ -7,8 +7,9 @@ interface CartContextType {
   updateCartCount: () => Promise<void>;
   addToCart: (courseId: string) => Promise<boolean>;
   removeFromCart: (cartItemId: string) => Promise<void>;
+  removeItemsFromCart: (cartItemIds: string[]) => Promise<void>;
   isInCart: (courseId: string) => boolean;
-  clearCart: () => void;
+  clearCart: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -109,15 +110,66 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const removeItemsFromCart = async (cartItemIds: string[]) => {
+    try {
+      // Kiểm tra token trước khi gọi API
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('Không có token, không thể xóa khỏi giỏ hàng');
+        return;
+      }
+
+      if (!cartItemIds || cartItemIds.length === 0) {
+        console.log('Không có items để xóa');
+        return;
+      }
+
+      await config.delete('/carts/bulk', { data: { itemIds: cartItemIds } });
+      await updateCartCount();
+      console.log('✅ Đã xóa các món hàng đã thanh toán:', cartItemIds);
+    } catch (error: any) {
+      console.error('Error removing items from cart:', error);
+      
+      if (error.response?.status === 401) {
+        console.log('Token không hợp lệ khi xóa khỏi giỏ hàng');
+      }
+    }
+  };
+
   const isInCart = (courseId: string): boolean => {
     return cartItems.some(item => item.course?._id === courseId);
   };
 
   // Hàm xóa giỏ hàng
-  const clearCart = () => {
-    setCartCount(0);
-    setCartItems([]);
-    localStorage.removeItem('cart');
+  const clearCart = async () => {
+    try {
+      // Kiểm tra token trước khi gọi API
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('Không có token, chỉ xóa local state');
+        setCartCount(0);
+        setCartItems([]);
+        return;
+      }
+
+      // Gọi API để xóa tất cả items trong giỏ hàng
+      await config.delete('/carts');
+      
+      // Cập nhật state local
+      setCartCount(0);
+      setCartItems([]);
+      console.log('✅ Đã xóa giỏ hàng thành công - Cart count:', 0, 'Items:', []);
+    } catch (error: any) {
+      console.error('Error clearing cart:', error);
+      
+      // Nếu lỗi API, vẫn xóa local state
+      setCartCount(0);
+      setCartItems([]);
+      
+      if (error.response?.status === 401) {
+        console.log('Token không hợp lệ khi xóa giỏ hàng');
+      }
+    }
   };
 
   useEffect(() => {
@@ -136,6 +188,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateCartCount,
     addToCart,
     removeFromCart,
+    removeItemsFromCart,
     isInCart,
     clearCart // export hàm clearCart
   };

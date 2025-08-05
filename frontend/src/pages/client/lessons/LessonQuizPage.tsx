@@ -13,6 +13,30 @@ interface QuizQuestion {
   correctIndex?: number;
 }
 
+// Utility functions for localStorage
+function getQuizCacheKey(courseId: string | null, lessonId: string | undefined) {
+  return courseId && lessonId ? `quizAnswers_${courseId}_${lessonId}` : '';
+}
+function saveQuizAnswersToCache(courseId: string | null, lessonId: string | undefined, answers: number[]) {
+  const key = getQuizCacheKey(courseId, lessonId);
+  if (key) localStorage.setItem(key, JSON.stringify(answers));
+}
+function getQuizAnswersFromCache(courseId: string | null, lessonId: string | undefined): number[] | null {
+  const key = getQuizCacheKey(courseId, lessonId);
+  if (!key) return null;
+  const data = localStorage.getItem(key);
+  if (!data) return null;
+  try {
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
+}
+function clearQuizAnswersCache(courseId: string | null, lessonId: string | undefined) {
+  const key = getQuizCacheKey(courseId, lessonId);
+  if (key) localStorage.removeItem(key);
+}
+
 const LessonQuizPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const [quiz, setQuiz] = useState<{ _id: string; questions: QuizQuestion[] } | null>(null);
@@ -60,23 +84,66 @@ const LessonQuizPage: React.FC = () => {
       try {
         const progress = await getProgress(courseId);
         const lessonProgress = progress[lessonId];
+
+        console.log('🔍 Fetching progress for lesson:', lessonId);
+        console.log('📊 Lesson progress:', lessonProgress);
+
+        // Kiểm tra nếu đã hoàn thành quiz từ backend
+        if (lessonProgress && lessonProgress.quizPassed === true) {
+          console.log('✅ Quiz already completed - restoring from backend');
+          // Đã hoàn thành quiz - khôi phục từ backend và xóa cache
+          if (Array.isArray(lessonProgress.quizAnswers)) {
+            setAnswers(lessonProgress.quizAnswers);
+          }
+          setResult({
+            success: true,
+            message: 'Tất cả đáp án đều đúng!',
+            wrongQuestions: [],
+          });
+          // Xóa cache vì đã hoàn thành
+          clearQuizAnswersCache(courseId, lessonId);
+          return;
+        }
+
+        // Nếu có quizAnswers nhưng chưa hoàn thành (quizPassed !== true)
         if (lessonProgress && Array.isArray(lessonProgress.quizAnswers)) {
+          console.log('📝 Found quiz answers from backend (not completed)');
           setAnswers(lessonProgress.quizAnswers);
-          if (lessonProgress.quizPassed !== undefined) {
+          if (lessonProgress.quizPassed === false) {
             setResult({
-              success: lessonProgress.quizPassed,
-              message: lessonProgress.quizPassed ? 'Tất cả đáp án đều đúng!' : 'Có đáp án sai.',
-              wrongQuestions: lessonProgress.quizPassed ? [] : undefined,
+              success: false,
+              message: 'Có đáp án sai.',
+              wrongQuestions: lessonProgress.wrongQuestions || [],
             });
+          } else {
+            setResult(null);
           }
         } else if (quiz) {
-          setAnswers(new Array(quiz.questions.length).fill(-1));
+          // Không có progress từ backend - thử khôi phục từ cache
+          console.log('🔍 No backend progress - checking cache');
+          const cached = getQuizAnswersFromCache(courseId, lessonId);
+          if (cached && Array.isArray(cached) && cached.length === quiz.questions.length) {
+            console.log('💾 Restoring answers from cache:', cached);
+            setAnswers(cached);
+          } else {
+            console.log('🆕 No cached answers - starting fresh');
+            setAnswers(new Array(quiz.questions.length).fill(-1));
+          }
           setResult(null);
         }
       } catch {
+        console.log('❌ Error fetching progress - checking cache');
         // Không có progress cũng không sao
         if (quiz) {
-          setAnswers(new Array(quiz.questions.length).fill(-1));
+          // Thử khôi phục từ cache
+          const cached = getQuizAnswersFromCache(courseId, lessonId);
+          if (cached && Array.isArray(cached) && cached.length === quiz.questions.length) {
+            console.log('💾 Restoring answers from cache (error fallback):', cached);
+            setAnswers(cached);
+          } else {
+            console.log('🆕 No cached answers - starting fresh (error fallback)');
+            setAnswers(new Array(quiz.questions.length).fill(-1));
+          }
           setResult(null);
         }
       }
@@ -93,6 +160,7 @@ const LessonQuizPage: React.FC = () => {
     ) {
       // Nếu đã trả lời đúng hết nhưng quizPassed chưa true, tự động lưu lại
       if (courseId && lessonId && (!result || !result.success)) {
+        console.log('🎯 Auto-completing quiz - all answers correct');
         // Lấy watchedSeconds và videoDuration từ progress nếu có
         getProgress(courseId).then(progress => {
           const lessonProgress = progress[lessonId] || {};
@@ -113,6 +181,26 @@ const LessonQuizPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quiz, answers, courseId, lessonId]);
 
+  // Save answers to cache on every change (if not submitted)
+  useEffect(() => {
+    if (
+      quiz &&
+      answers.length === quiz.questions.length &&
+      !result // Only cache if not submitted
+    ) {
+      console.log('💾 Saving answers to cache:', answers);
+      saveQuizAnswersToCache(courseId, lessonId, answers);
+    }
+  }, [answers, quiz, courseId, lessonId, result]);
+
+  // Clear cache when quiz is completed
+  useEffect(() => {
+    if (result && result.success && courseId && lessonId) {
+      console.log('🗑️ Clearing cache - quiz completed');
+      clearQuizAnswersCache(courseId, lessonId);
+    }
+  }, [result, courseId, lessonId]);
+
   const handleChange = (qIdx: number, value: number) => {
     setAnswers(prev => prev.map((a, idx) => (idx === qIdx ? value : a)));
   };
@@ -124,7 +212,9 @@ const LessonQuizPage: React.FC = () => {
       return;
     }
     try {
+      console.log('📤 Submitting quiz answers:', answers);
       const res = await config.post(`/quizzes/${quiz._id}/submit`, { answers });
+      console.log('📥 Quiz submission result:', res.data);
       setResult(res.data);
       if (courseId && lessonId) {
         const progress = await getProgress(courseId);
@@ -135,6 +225,9 @@ const LessonQuizPage: React.FC = () => {
           quizPassed: res.data.success,
           quizAnswers: answers,
         });
+        // Clear cache on submit
+        console.log('🗑️ Clearing cache after submit');
+        clearQuizAnswersCache(courseId, lessonId);
       }
     } catch {
       message.error('Có lỗi khi nộp bài!');
