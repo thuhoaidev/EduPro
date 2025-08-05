@@ -23,6 +23,11 @@ const WalletPage: React.FC = () => {
   const [vnpayError, setVnpayError] = useState(false);
   const [vnpayErrorCount, setVnpayErrorCount] = useState(0);
   const [vnpayPopupOpen, setVnpayPopupOpen] = useState(false);
+  const [transactionPagination, setTransactionPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  });
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
 
@@ -197,6 +202,10 @@ const WalletPage: React.FC = () => {
       if (json.success) {
         setBalance(json.balance);
         setHistory(json.history || []);
+        setTransactionPagination(prev => ({
+          ...prev,
+          total: json.history?.length || 0
+        }));
       }
     } catch (err) {
       message.error("Lỗi khi lấy số dư ví");
@@ -623,6 +632,25 @@ const WalletPage: React.FC = () => {
   // Thống kê ví tiền
   const totalDeposit = history.filter(h => h.type === "deposit").reduce((sum, h) => sum + (h.amount || 0), 0);
   const totalWithdraw = history.filter(h => h.type === "withdraw" && h.status === "approved").reduce((sum, h) => sum + Math.abs(h.amount || 0), 0);
+
+  // Tính toán dữ liệu phân trang cho lịch sử giao dịch
+  const startIndex = (transactionPagination.current - 1) * transactionPagination.pageSize;
+  const endIndex = startIndex + transactionPagination.pageSize;
+  const paginatedHistory = history.slice(startIndex, endIndex);
+
+  const handleTransactionPageChange = (page: number, pageSize?: number) => {
+    setTransactionPagination(prev => ({
+      ...prev,
+      current: page,
+      pageSize: pageSize || prev.pageSize
+    }));
+    
+    // Scroll to top of table when page changes
+    const tableElement = document.querySelector('.ant-table-wrapper');
+    if (tableElement) {
+      tableElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   return (
     <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
@@ -1082,17 +1110,93 @@ const WalletPage: React.FC = () => {
           }}
           bodyStyle={{ padding: '24px' }}
         >
-          <Title level={4} style={{ marginBottom: '24px', color: '#374151' }}>
-            <HistoryOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-            Lịch sử giao dịch
-          </Title>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '24px',
+            flexWrap: 'wrap',
+            gap: '16px'
+          }}>
+            <Title level={4} style={{ margin: 0, color: '#374151' }}>
+              <HistoryOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+              Lịch sử giao dịch
+            </Title>
+            <div style={{ 
+              display: 'flex', 
+              gap: '12px', 
+              alignItems: 'center',
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ 
+                padding: '6px 12px', 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+                borderRadius: '16px',
+                color: 'white',
+                fontSize: '12px',
+                fontWeight: 600,
+                whiteSpace: 'nowrap'
+              }}>
+                Tổng: {history.length}
+              </div>
+              <div style={{ 
+                padding: '6px 12px', 
+                background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', 
+                borderRadius: '16px',
+                color: 'white',
+                fontSize: '12px',
+                fontWeight: 600,
+                whiteSpace: 'nowrap'
+              }}>
+                Nạp: {history.filter(h => h.type === "deposit").length}
+              </div>
+              <div style={{ 
+                padding: '6px 12px', 
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
+                borderRadius: '16px',
+                color: 'white',
+                fontSize: '12px',
+                fontWeight: 600,
+                whiteSpace: 'nowrap'
+              }}>
+                Rút: {history.filter(h => h.type === "withdraw").length}
+              </div>
+            </div>
+          </div>
           <Table 
             columns={columns} 
-            dataSource={history} 
+            dataSource={paginatedHistory} 
             rowKey={(r) => r.createdAt + r.amount + r.type} 
-            pagination={false} 
+            pagination={{
+              current: transactionPagination.current,
+              pageSize: transactionPagination.pageSize,
+              total: transactionPagination.total,
+              onChange: handleTransactionPageChange,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} của ${total} giao dịch`,
+              pageSizeOptions: ['5', '10', '20', '50'],
+              size: 'default',
+              position: ['bottomCenter'],
+              style: { marginTop: '16px' }
+            }}
             style={{ marginBottom: 32 }}
             size="middle"
+            locale={{
+              emptyText: (
+                <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                  <div style={{ fontSize: '48px', color: '#d9d9d9', marginBottom: '16px' }}>
+                    💳
+                  </div>
+                  <div style={{ fontSize: '16px', color: '#666', marginBottom: '8px' }}>
+                    Chưa có giao dịch nào
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#999' }}>
+                    Bắt đầu nạp tiền để xem lịch sử giao dịch
+                  </div>
+                </div>
+              )
+            }}
           />
         </Card>
 
