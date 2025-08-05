@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb, message, Modal, Input } from 'antd';
-import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined, ClockCircleOutlined, LikeOutlined, DislikeOutlined, SaveOutlined } from '@ant-design/icons';
+import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined, ClockCircleOutlined, LikeOutlined, DislikeOutlined, SaveOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { courseService } from '../../services/apiService';
 import type { Course, Section, Lesson } from '../../services/apiService';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
@@ -75,6 +75,12 @@ const CourseDetailPage: React.FC = () => {
     const [canRefund, setCanRefund] = useState(false);
     const [refundLoading, setRefundLoading] = useState(false);
     const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
+    const [refundInfo, setRefundInfo] = useState<{
+      eligible: boolean;
+      reason?: string;
+      progressPercentage?: number;
+      daysRemaining?: number;
+    } | null>(null);
     const [courseStats, setCourseStats] = useState<{ enrolledCount: number; averageRating: number; reviewCount: number }>({ enrolledCount: 0, averageRating: 0, reviewCount: 0 });
 
     // Function to calculate total duration from course content
@@ -372,29 +378,22 @@ const CourseDetailPage: React.FC = () => {
           try {
             const token = localStorage.getItem('token');
             if (!token) return;
-            const res = await orderService.getUserOrders(token, 1, 20, 'paid');
-            const now = new Date();
-            let found = false;
-            for (const order of res.orders) {
-              const hasCourse = order.items.some(item => String(item.courseId._id) === String(course.id));
-              if (hasCourse) {
-                const created = new Date(order.createdAt);
-                const diffDays = (now.getTime() - created.getTime()) / (1000 * 3600 * 24);
-                if (diffDays <= 7) {
-                  setCanRefund(true);
-                  setRefundOrderId(order.id);
-                  found = true;
-                  break;
-                }
-              }
-            }
-            if (!found) {
+            
+            // Sử dụng API mới để kiểm tra điều kiện hoàn tiền
+            const refundEligibility = await orderService.checkRefundEligibility(course.id, token);
+            setRefundInfo(refundEligibility);
+            
+            if (refundEligibility.eligible) {
+              setCanRefund(true);
+              setRefundOrderId(refundEligibility.orderId || null);
+            } else {
               setCanRefund(false);
               setRefundOrderId(null);
             }
           } catch {
             setCanRefund(false);
             setRefundOrderId(null);
+            setRefundInfo(null);
           }
         };
         checkRefundable();
@@ -533,7 +532,7 @@ const CourseDetailPage: React.FC = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Chưa đăng nhập');
         await orderService.refundOrder(refundOrderId, course.id, token);
-        message.success('Hoàn tiền thành công! 70% chi phí đã được cộng vào ví.');
+        message.success('Hoàn tiền thành công! 70% chi phí đã được cộng vào ví. Bạn sẽ không còn quyền truy cập khóa học này.');
         setCanRefund(false);
         setTimeout(() => window.location.reload(), 1000);
       } catch (err: any) {
@@ -1080,8 +1079,22 @@ const CourseDetailPage: React.FC = () => {
                                             onClick={handleRefund}
                                             className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-red-500 !to-orange-500 hover:!from-red-600 hover:!to-orange-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                                         >
-                                            Hoàn tiền 70% (nếu mua dưới 7 ngày)
+                                            Hoàn tiền 70% (tiến độ: {refundInfo?.progressPercentage || 0}%, còn {refundInfo?.daysRemaining || 0} ngày)
                                         </Button>
+                                    )}
+                                    {isEnrolled && !canRefund && refundInfo && (
+                                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <ExclamationCircleOutlined className="text-yellow-600" />
+                                                <Text className="text-yellow-800 font-medium">Không thể hoàn tiền</Text>
+                                            </div>
+                                            <Text className="text-yellow-700 text-sm">{refundInfo.reason}</Text>
+                                            {refundInfo.progressPercentage !== undefined && (
+                                                <Text className="text-yellow-600 text-xs mt-1 block">
+                                                    Tiến độ hiện tại: {refundInfo.progressPercentage}%
+                                                </Text>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
 

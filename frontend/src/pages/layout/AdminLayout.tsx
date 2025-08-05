@@ -23,6 +23,7 @@ import {
   ShoppingCartOutlined,
   CreditCardOutlined,
   SecurityScanOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import {
   Layout,

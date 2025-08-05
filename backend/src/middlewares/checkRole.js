@@ -2,20 +2,49 @@
 const checkRole = (...allowedRoles) => {
   return async (req, res, next) => {
     try {
-      // Lấy thông tin role từ user đã được authenticate và populate
-      // req.user.role_id sẽ chứa document role đã được populate
-      const userRole = req.user.role_id;
-
-      if (!userRole) {
-        // Nếu role_id không được populate hoặc không tồn tại
-        return res.status(403).json({
+      // Kiểm tra xem user có tồn tại không
+      if (!req.user) {
+        return res.status(401).json({
           success: false,
-          message: 'Không tìm thấy vai trò của người dùng hoặc vai trò không hợp lệ.',
+          message: 'Bạn chưa đăng nhập.',
         });
       }
 
-      // Kiểm tra xem role name có trong danh sách được phép không
-      if (!allowedRoles.includes(userRole.name)) {
+      // Lấy thông tin role từ user đã được authenticate
+      const userRoles = req.user.roles || [];
+      const userRoleName = req.user.userRoleName;
+      const roleId = req.user.role_id;
+
+      // Kiểm tra xem có role nào trong danh sách được phép không
+      let hasPermission = false;
+
+      // Kiểm tra trong roles array
+      for (const role of userRoles) {
+        if (allowedRoles.includes(role)) {
+          hasPermission = true;
+          break;
+        }
+      }
+
+      // Kiểm tra userRoleName
+      if (!hasPermission && allowedRoles.includes(userRoleName)) {
+        hasPermission = true;
+      }
+
+      // Kiểm tra role_id.name
+      if (!hasPermission && roleId && roleId.name && allowedRoles.includes(roleId.name)) {
+        hasPermission = true;
+      }
+
+      if (!hasPermission) {
+        console.log('❌ Permission denied:', {
+          userRoles,
+          userRoleName,
+          roleIdName: roleId?.name,
+          allowedRoles,
+          userId: req.user.id
+        });
+        
         return res.status(403).json({
           success: false,
           message: 'Bạn không có quyền thực hiện hành động này.',
@@ -23,7 +52,7 @@ const checkRole = (...allowedRoles) => {
       }
 
       // Lưu thông tin role vào request để sử dụng ở các middleware tiếp theo
-      req.userRole = userRole;
+      req.userRole = roleId;
       next();
     } catch (error) {
       console.error('Lỗi kiểm tra quyền:', error);
