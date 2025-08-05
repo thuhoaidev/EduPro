@@ -22,6 +22,8 @@ import {
   DashboardOutlined,
   ShoppingCartOutlined,
   CreditCardOutlined,
+  SecurityScanOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -136,7 +138,6 @@ const AdminLayout = () => {
           children: [
             { key: "/admin/categories", icon: <TagsOutlined />, label: collapsed ? "DM" : "Danh mục khóa học" },
             { key: "/admin/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Khóa học" },
-            { key: "/admin/content-approval", icon: <SafetyCertificateOutlined />, label: collapsed ? "DY" : "Duyệt nội dung" },
           ],
         },
         {
@@ -164,6 +165,13 @@ const AdminLayout = () => {
           children: [
             { key: "/admin/statistics", icon: <BarChartOutlined />, label: collapsed ? "TK" : "Thống kê" },
             { key: "/admin/reports", icon: <WarningOutlined />, label: collapsed ? "BC" : "Báo cáo & khiếu nại" },
+          ],
+        },
+        {
+          label: collapsed ? "BM" : "BẢO MẬT",
+          type: "group",
+          children: [
+            { key: "/admin/device-violations", icon: <SecurityScanOutlined />, label: collapsed ? "TB" : "Vi phạm thiết bị" },
           ],
         },
       ];
@@ -233,6 +241,7 @@ const AdminLayout = () => {
     '/admin/user-withdraw-requests': 'Rút tiền học viên',
     '/admin/statistics': 'Thống kê tổng quan',
     '/admin/reports': 'Báo cáo & khiếu nại',
+    '/admin/device-violations': 'Vi phạm thiết bị',
   };
 
   const pathSnippets = location.pathname.split("/").filter((i) => i);

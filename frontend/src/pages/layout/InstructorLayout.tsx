@@ -18,6 +18,7 @@ import {
   MessageOutlined,
   ReloadOutlined,
   GiftOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -137,6 +138,14 @@ const InstructorLayout = () => {
     }
   }, []); // Empty dependency array - only run once on mount
 
+  // --- Monitor permissions changes for dynamic sidebar update ---
+  useEffect(() => {
+    if (authUser?.role_id?.permissions) {
+      console.log('InstructorLayout - Permissions changed:', (authUser as User)?.role_id?.permissions);
+      console.log('InstructorLayout - Sidebar will re-render with new permissions');
+    }
+  }, [(authUser as User)?.role_id?.permissions]);
+
   // --- Menu Items ---
   const menuItems: MenuProps["items"] = useMemo(
     () => {
@@ -245,7 +254,7 @@ const InstructorLayout = () => {
            children: [
              // Chỉ hiển thị nếu có quyền xem thống kê thu nhập hoặc rút tiền hoặc xem lịch sử giao dịch
              ...(financeMenu ? [
-               { key: "/instructor/income", icon: <WalletOutlined />, label: collapsed ? "TN" : "Thu nhập & giao dịch" }
+               { key: "/instructor/income", icon: <WalletOutlined />, label: collapsed ? "TN" : "Thu nhập & giao dịch" },
              ] : []),
              // Chỉ hiển thị nếu có quyền quản lý voucher
              ...(voucherMenu ? [

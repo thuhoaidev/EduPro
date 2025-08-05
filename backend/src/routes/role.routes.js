@@ -7,6 +7,9 @@ const checkRole = require('../middlewares/checkRole');
 // Lấy danh sách vai trò - Ai cũng có thể xem
 router.get('/', roleController.getRoles);
 
+// Lấy vai trò theo ID - Ai cũng có thể xem
+router.get('/:id', roleController.getRoleById);
+
 // Tạo vai trò mới (yêu cầu admin)
 router.post('/', auth, checkRole('admin'), roleController.createRole);
 

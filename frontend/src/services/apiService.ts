@@ -287,6 +287,19 @@ export const courseService = {
     }
   },
 
+  getCourseStats: async (courseId: string): Promise<{ enrolledCount: number; averageRating: number; reviewCount: number }> => {
+    try {
+      const response = await apiClient.get<{ success: boolean; data: { enrolledCount: number; averageRating: number; reviewCount: number } }>(`/courses/${courseId}/stats`);
+      if (response.data?.success && response.data.data) {
+        return response.data.data;
+      }
+      return { enrolledCount: 0, averageRating: 0, reviewCount: 0 };
+    } catch (error) {
+      console.error(`Lỗi khi lấy thống kê khóa học ${courseId}:`, error);
+      return { enrolledCount: 0, averageRating: 0, reviewCount: 0 };
+    }
+  },
+
   updateCourse: async (courseId: string, courseData: Partial<ApiCourse>): Promise<ApiCourse | null> => {
     try {
       const response = await apiClient.put<ApiResponse<ApiCourse>>(`/courses/${courseId}`, courseData);
@@ -502,6 +515,15 @@ export const userWalletService = {
   // User hủy yêu cầu
   cancelWithdraw: async (id: string) => {
     const res = await apiClient.delete(`/wallet/withdraw/${id}/cancel`);
+    return res.data;
+  },
+};
+
+// API hóa đơn
+export const invoiceService = {
+  // Admin lấy tất cả hóa đơn
+  getAllInvoices: async () => {
+    const res = await apiClient.get('/invoices');
     return res.data;
   },
 };

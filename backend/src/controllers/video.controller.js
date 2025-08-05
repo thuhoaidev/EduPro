@@ -117,12 +117,20 @@ exports.deleteVideo = async (req, res, next) => {
 exports.getVideoByLesson = async (req, res, next) => {
   try {
     const { lesson_id } = req.params;
+    console.log('Looking for video with lesson_id:', lesson_id);
 
     const lesson = await Lesson.findById(lesson_id);
     if (!lesson) throw new ApiError(404, 'Không tìm thấy bài học');
 
     const video = await Video.findOne({ lesson_id });
+    console.log('Found video:', video ? 'Yes' : 'No');
     if (!video) throw new ApiError(404, 'Không tìm thấy video');
+
+    console.log('Video quality_urls type:', typeof video.quality_urls);
+    console.log('Video quality_urls:', video.quality_urls);
+    if (video.quality_urls instanceof Map) {
+      console.log('Quality URLs as Map entries:', Array.from(video.quality_urls.entries()));
+    }
 
     res.json({ success: true, data: video });
   } catch (error) {

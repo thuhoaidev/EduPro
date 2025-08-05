@@ -42,6 +42,11 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 import voucherService from '../../../services/voucher.service';
 import type { Voucher, CreateVoucherData } from '../../../services/voucher.service';
 import { getAllCategories } from '../../../services/categoryService';
@@ -232,9 +237,18 @@ const VouchersPage: React.FC = () => {
   }, []);
 
   const isVoucherActive = (voucher: Voucher) => {
-    if (!voucher.endDate) return true;
-    const expiryDate = dayjs(voucher.endDate);
-    return expiryDate.isValid() ? dayjs().isBefore(expiryDate) && voucher.usageLimit > voucher.usedCount : true;
+    const now = dayjs.utc();
+    const start = voucher.startDate ? dayjs.utc(voucher.startDate) : null;
+    const end = voucher.endDate ? dayjs.utc(voucher.endDate) : null;
+    
+    // Kiểm tra startDate
+    if (start && now.isBefore(start)) return false;
+    // Kiểm tra endDate
+    if (end && now.isAfter(end)) return false;
+    // Kiểm tra usageLimit
+    if (voucher.usedCount >= voucher.usageLimit) return false;
+    
+    return true;
   };
 
   // Lọc theo tìm kiếm và trạng thái
@@ -300,6 +314,13 @@ const VouchersPage: React.FC = () => {
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
+      
+      // Convert ngày Việt Nam sang UTC
+      const convertToUTC = (date: dayjs.Dayjs) => {
+        // Nếu user chọn 2025-11-20, thì convert thành 2025-11-19T17:00:00.000Z (0h VN = 17h UTC ngày trước)
+        return date.tz('Asia/Ho_Chi_Minh').startOf('day').utc().format();
+      };
+      
       const voucherData: CreateVoucherData = {
         code: values.code,
         title: values.title || '',
@@ -312,8 +333,8 @@ const VouchersPage: React.FC = () => {
         usedCount: values.usedCount || 0,
         categories: values.categories || [],
         tags: values.tags || [],
-        startDate: values.startDate ? values.startDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
-        endDate: values.endDate ? values.endDate.format('YYYY-MM-DD') : undefined,
+        startDate: values.startDate ? convertToUTC(values.startDate) : convertToUTC(dayjs()),
+        endDate: values.endDate ? convertToUTC(values.endDate) : undefined,
         type: values.type || 'default',
       };
       if (editingVoucher) {

@@ -11,12 +11,10 @@ export interface OrderItem {
 export interface CreateOrderData {
   items: OrderItem[];
   voucherCode?: string;
-  paymentMethod?: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
-  shippingInfo?: {
-    fullName: string;
-    phone: string;
-    email: string;
-  };
+  paymentMethod?: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay' | 'wallet';
+  fullName?: string;
+  phone?: string;
+  email?: string;
   notes?: string;
 }
 
@@ -69,14 +67,24 @@ class OrderService {
   // Tạo đơn hàng mới
   async createOrder(data: CreateOrderData, token: string): Promise<{ order: Order }> {
     try {
+      console.log('🔍 OrderService - Creating order with data:', data);
+      console.log('🔍 OrderService - Token present:', !!token);
+      
       const response = await axios.post(`${API_URL}/orders`, data, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
+      
+      console.log('🔍 OrderService - Response:', response.data);
       return response.data.data;
     } catch (error: any) {
+      console.error('🔍 OrderService - Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       throw new Error(error.response?.data?.message || 'Lỗi khi tạo đơn hàng');
     }
   }
@@ -159,6 +167,26 @@ class OrderService {
       });
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi hoàn tiền');
+    }
+  }
+
+  // Kiểm tra điều kiện hoàn tiền cho một khóa học
+  async checkRefundEligibility(courseId: string, token: string): Promise<{
+    eligible: boolean;
+    reason?: string;
+    orderId?: string;
+    progressPercentage?: number;
+    daysRemaining?: number;
+  }> {
+    try {
+      const response = await axios.get(`${API_URL}/orders/check-refund/${courseId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi kiểm tra điều kiện hoàn tiền');
     }
   }
 }

@@ -41,17 +41,28 @@ exports.issueCertificate = async (req, res, next) => {
     let cert = await Certificate.findOne({ user: userId, course: courseId });
     console.log('Certificate:', cert);
     if (cert) return res.json({ success: true, data: cert });
+    
     // Tạo mã chứng chỉ duy nhất
     const code = crypto.randomBytes(8).toString('hex').toUpperCase();
+    const certificateNumber = `CERT-${Date.now()}`;
 
     // Lấy thông tin user và course
     console.log('Check user...');
     const user = await User.findById(userId);
     console.log('User:', user);
     console.log('Check course...');
-    const course = await Course.findById(courseId);
+    const course = await Course.findById(courseId).populate('instructor');
     console.log('Course:', course);
     if (!user || !course) throw new ApiError(404, 'Không tìm thấy thông tin user hoặc khóa học');
+
+    // Lấy thông tin giảng viên
+    let instructorName = 'Edu Pro';
+    if (course.instructor && course.instructor.user) {
+      const instructorUser = await User.findById(course.instructor.user);
+      if (instructorUser) {
+        instructorName = instructorUser.fullname || instructorUser.nickname || 'Edu Pro';
+      }
+    }
 
     // Tạo file PDF chứng chỉ
     const certDir = path.join(__dirname, '../../certificates');
@@ -80,72 +91,167 @@ exports.issueCertificate = async (req, res, next) => {
       console.error('KHÔNG tạo được file test.txt:', err);
     }
 
-    try {
-      const doc = new PDFDocument({ size: 'A4', margin: 0 });
-      
-      // Chèn phôi nền nếu có
-      const templatePath = path.join(certDir, 'certificate.png');
-      if (fs.existsSync(templatePath)) {
-        doc.image(templatePath, 0, 0, { width: doc.page.width, height: doc.page.height });
-      }
-      
-      // Sử dụng font Roboto Unicode cho PDFKit
-      const robotoFontPath = path.join(certDir, 'Roboto-Regular.ttf');
-      doc.font(robotoFontPath);
-      
-      // Tiêu đề
-      doc.fontSize(32).fillColor('#0e7490').text('CHỨNG CHỈ HOÀN THÀNH KHÓA HỌC', 0, 120, { align: 'center', width: doc.page.width });
-      // Tên học viên
-      doc.fontSize(22).fillColor('#222').text(`Học viên: ${user.fullname}`, 0, 200, { align: 'center', width: doc.page.width });
-      // Tên khóa học
-      doc.fontSize(20).fillColor('#222').text(`Khóa học: ${course.title}`, 0, 240, { align: 'center', width: doc.page.width });
-      // Mã chứng chỉ
-      doc.fontSize(16).fillColor('#222').text(`Mã chứng chỉ: ${code}`, 0, 290, { align: 'center', width: doc.page.width });
-      // Ngày cấp
-      doc.fontSize(16).fillColor('#222').text(`Ngày cấp: ${(new Date()).toLocaleDateString('vi-VN')}`, 0, 320, { align: 'center', width: doc.page.width });
-      // Lời chúc
-      doc.fontSize(15).fillColor('#0e7490').text('Chúc mừng bạn đã hoàn thành xuất sắc khóa học!', 0, 370, { align: 'center', width: doc.page.width });
-      
-          // Lưu file
-    const writeStream = fs.createWriteStream(filePath);
-    doc.pipe(writeStream);
-    
-    // Đợi file được tạo xong
-    await new Promise((resolve, reject) => {
-      writeStream.on('finish', () => {
-        console.log('PDF file created successfully:', filePath);
-        resolve();
-      });
-      writeStream.on('error', (error) => {
-        console.error('PDF write stream error:', error);
-        reject(error);
-      });
-      doc.on('error', (error) => {
-        console.error('PDF document error:', error);
-        reject(error);
-      });
-      doc.end();
+// Phần tạo PDF chứng chỉ hoàn chỉnh - Layout chuẩn theo phôi
+try {
+  const doc = new PDFDocument({ size: 'A4', margin: 0 });
+  
+  // Sử dụng phôi chứng chỉ có sẵn
+  const templatePath = path.join(certDir, 'certificate.png'); 
+  if (fs.existsSync(templatePath)) {
+    // Thêm phôi làm background
+    doc.image(templatePath, 0, 0, { 
+      width: doc.page.width, 
+      height: doc.page.height 
     });
-      
-      // Kiểm tra file đã được tạo thành công
-      if (!fs.existsSync(filePath)) {
-        throw new Error('Không thể tạo file PDF');
-      }
-      
-      // Kiểm tra file có kích thước hợp lệ không
-      const stats = fs.statSync(filePath);
-      if (stats.size === 0) {
-        throw new Error('File PDF trống');
-      }
-      
-      console.log('Certificate PDF created successfully:', fileName, 'Size:', stats.size);
-    } catch (pdfError) {
-      console.error('PDF creation error:', pdfError);
-      throw new ApiError(500, 'Không thể tạo file chứng chỉ: ' + pdfError.message);
-    }
-
-    // Lưu bản ghi chứng chỉ, thêm đường dẫn file
-    cert = await Certificate.create({ user: userId, course: courseId, code, file: fileName });
+    console.log('Đã sử dụng phôi chứng chỉ có sẵn');
+  } else {
+    console.log('Không tìm thấy phôi chứng chỉ, tạo nền trắng');
+    doc.rect(0, 0, doc.page.width, doc.page.height).fill('#ffffff');
+  }
+  
+  // Sử dụng font Roboto Unicode cho PDFKit
+  const robotoFontPath = path.join(certDir, 'Roboto-Regular.ttf');
+  const robotoBoldPath = path.join(certDir, 'Roboto-Bold.ttf');
+  const robotoItalicPath = path.join(certDir, 'Roboto-Italic.ttf');
+  
+  // Thiết lập font mặc định
+  if (fs.existsSync(robotoFontPath)) {
+    doc.font(robotoFontPath);
+  }
+  
+  const displayName = user.fullname || user.nickname;
+  
+  // === LAYOUT THEO ĐÚNG PHÔI ===
+  
+  // === THÊM TÊN HỌC VIÊN ===
+  // Vị trí tên học viên (vùng chữ đỏ in nghiêng lớn ở giữa)
+  if (fs.existsSync(robotoItalicPath)) {
+    doc.font(robotoItalicPath); // Font in nghiêng cho tên
+  }
+  
+  doc.fontSize(36) // Kích thước lớn cho tên học viên
+     .fillColor('#dc2626') // Màu đỏ đậm
+     .text(displayName, 0, 380, { 
+       align: 'center', 
+       width: doc.page.width,
+       characterSpacing: 2
+     });
+  
+  // === THÊM TÊN KHÓA HỌC ===
+  // Vị trí dưới tên học viên (dòng chữ đỏ nhỏ hơn)
+  if (fs.existsSync(robotoFontPath)) {
+    doc.font(robotoFontPath);
+  }
+  
+  doc.fontSize(16) // Kích thước trung bình
+     .fillColor('#dc2626') // Màu đỏ
+     .text(`Đã hoàn thành khóa học: ${course.title}`, 0, 450, { 
+       align: 'center', 
+       width: doc.page.width
+     });
+  
+  // === THÊM TÊN HỆ THỐNG (Đơn vị cấp chứng nhận) ===
+  // Vị trí bên trái dưới, dịch xuống để không đè lên chữ vàng
+  if (fs.existsSync(robotoBoldPath)) {
+    doc.font(robotoBoldPath); // Font đậm
+  }
+  
+  doc.fontSize(18) // Giảm kích thước một chút
+     .fillColor('#dc2626') // Màu đỏ
+     .text('EduPro', 100, 650, { // Dịch xuống từ 620 thành 650
+       width: 150, 
+       align: 'center' 
+     });
+  
+  // === THÊM TÊN GIẢNG VIÊN ===
+  // Vị trí bên phải dưới, dịch xuống để không đè lên chữ vàng
+  if (fs.existsSync(robotoItalicPath)) {
+    doc.font(robotoItalicPath); // Font in nghiêng
+  }
+  
+  doc.fontSize(18) // Giảm kích thước một chút
+     .fillColor('#dc2626') // Màu đỏ
+     .text(instructorName, 350, 650, { // Dịch xuống từ 620 thành 650
+       width: 150, 
+       align: 'center' 
+     });
+  
+  // === THÊM SỐ CHỨNG CHỈ VÀ NGÀY CẤP ===
+  const issueDate = new Date().toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit', 
+    year: 'numeric'
+  });
+  
+  // Căn giữa ở dưới cùng
+  if (fs.existsSync(robotoFontPath)) {
+    doc.font(robotoFontPath);
+  }
+  
+  doc.fontSize(11)
+     .fillColor('#dc2626') // Màu đỏ
+     .text(`Chứng nhận số: ${certificateNumber}`, 0, 750, { 
+       width: doc.page.width,
+       align: 'center'
+     });
+  
+  doc.fontSize(11)
+     .fillColor('#dc2626') // Màu đỏ  
+     .text(`Cấp ngày: ${issueDate}`, 0, 770, { 
+       width: doc.page.width,
+       align: 'center'
+     });
+  
+  // Lưu file
+  const writeStream = fs.createWriteStream(filePath);
+  doc.pipe(writeStream);
+  
+  // Đợi file được tạo xong
+  await new Promise((resolve, reject) => {
+    writeStream.on('finish', () => {
+      console.log('PDF file created successfully:', filePath);
+      resolve();
+    });
+    writeStream.on('error', (error) => {
+      console.error('PDF write stream error:', error);
+      reject(error);
+    });
+    doc.on('error', (error) => {
+      console.error('PDF document error:', error);
+      reject(error);
+    });
+    doc.end();
+  });
+  
+  // Kiểm tra file đã được tạo thành công
+  if (!fs.existsSync(filePath)) {
+    throw new Error('Không thể tạo file PDF');
+  }
+  
+  // Kiểm tra file có kích thước hợp lệ không
+  const stats = fs.statSync(filePath);
+  if (stats.size === 0) {
+    throw new Error('File PDF trống');
+  }
+  
+  console.log('Certificate PDF created successfully:', fileName, 'Size:', stats.size);
+} catch (pdfError) {
+  console.error('PDF creation error:', pdfError);
+  throw new ApiError(500, 'Không thể tạo file chứng chỉ: ' + pdfError.message);
+}
+    // Lưu bản ghi chứng chỉ với đầy đủ thông tin
+    cert = await Certificate.create({ 
+      user: userId, 
+      course: courseId, 
+      code, 
+      file: fileName,
+      certificateNumber,
+      issuingUnit: 'Edu Pro',
+      instructorSignature: instructorName,
+      instructorName,
+      motivationalText: 'Cảm ơn bạn vì tất cả sự chăm chỉ và cống hiến của mình. Hãy tiếp tục học hỏi, vì càng có nhiều kiến thức, bạn càng có cơ hội thành công trong cuộc sống.',
+      templateUsed: 'certificate.png',
+    });
     console.log('Certificate record created:', cert._id);
     res.status(201).json({ success: true, data: cert, fileUrl: `/certificates/${fileName}` });
   } catch (err) { next(err); }
@@ -159,6 +265,95 @@ exports.getCertificate = async (req, res, next) => {
     const cert = await Certificate.findOne({ user: userId, course: courseId });
     if (!cert) throw new ApiError(404, 'Chưa có chứng chỉ cho khóa học này');
     res.json({ success: true, data: cert });
+  } catch (err) { next(err); }
+};
+
+// Lấy thông tin chi tiết chứng chỉ với đầy đủ thông tin
+exports.getCertificateDetails = async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user._id;
+    
+    const cert = await Certificate.findOne({ user: userId, course: courseId })
+      .populate('user', 'fullname nickname email')
+      .populate({
+        path: 'course',
+        populate: {
+          path: 'instructor',
+          populate: {
+            path: 'user',
+            select: 'fullname nickname'
+          }
+        }
+      });
+    
+    if (!cert) throw new ApiError(404, 'Chưa có chứng chỉ cho khóa học này');
+    
+    // Format dữ liệu trả về
+    const certificateData = {
+      id: cert._id,
+      certificateNumber: cert.certificateNumber,
+      code: cert.code,
+      issuedAt: cert.issuedAt,
+      file: cert.file,
+      fileUrl: `/certificates/${cert.file}`,
+      templateUsed: cert.templateUsed,
+      issuingUnit: cert.issuingUnit,
+      instructorName: cert.instructorName,
+      instructorSignature: cert.instructorSignature,
+      motivationalText: cert.motivationalText,
+      student: {
+        name: cert.user.fullname || cert.user.nickname,
+        email: cert.user.email
+      },
+      course: {
+        title: cert.course.title,
+        instructor: cert.course.instructor?.user?.fullname || cert.course.instructor?.user?.nickname || 'Edu Pro'
+      }
+    };
+    
+    res.json({ success: true, data: certificateData });
+  } catch (err) { next(err); }
+};
+
+// Lấy danh sách tất cả chứng chỉ của user
+exports.getUserCertificates = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    
+    const certificates = await Certificate.find({ user: userId })
+      .populate('user', 'fullname nickname email')
+      .populate({
+        path: 'course',
+        select: 'title thumbnail',
+        populate: {
+          path: 'instructor',
+          populate: {
+            path: 'user',
+            select: 'fullname nickname'
+          }
+        }
+      })
+      .sort({ issuedAt: -1 });
+    
+    const certificatesData = certificates.map(cert => ({
+      id: cert._id,
+      certificateNumber: cert.certificateNumber,
+      code: cert.code,
+      issuedAt: cert.issuedAt,
+      file: cert.file,
+      fileUrl: `/certificates/${cert.file}`,
+      templateUsed: cert.templateUsed,
+      issuingUnit: cert.issuingUnit,
+      instructorName: cert.instructorName,
+      course: {
+        title: cert.course.title,
+        thumbnail: cert.course.thumbnail,
+        instructor: cert.course.instructor?.user?.fullname || cert.course.instructor?.user?.nickname || 'Edu Pro'
+      }
+    }));
+    
+    res.json({ success: true, data: certificatesData });
   } catch (err) { next(err); }
 };
 

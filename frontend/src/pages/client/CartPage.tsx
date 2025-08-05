@@ -279,6 +279,7 @@ const CartPage: React.FC = () => {
       // Lưu thông tin đơn hàng vào localStorage để checkout page sử dụng
       const checkoutData = {
         items: selectedCartItems.map(item => ({
+          cartItemId: item.id, // Thêm cartItemId để có thể xóa sau khi thanh toán
           courseId: item.course._id,
           title: item.course.title,
           thumbnail: item.course.thumbnail,

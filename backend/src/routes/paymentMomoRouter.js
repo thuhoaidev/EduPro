@@ -13,7 +13,7 @@ const config = {
   requestType: "captureWallet",
   endpoint: "https://test-payment.momo.vn/v2/gateway/api/create",
   redirectUrl: "http://localhost:5173/payment-result?paymentMethod=momo",
-  ipnUrl: "https://your-server.com/momo/callback",
+  ipnUrl: "http://localhost:5000/api/payment-momo/callback",
 };
 
 momoRouter.post("/create_momo_payment", async (req, res) => {
@@ -47,6 +47,28 @@ momoRouter.post("/create_momo_payment", async (req, res) => {
   } catch (error) {
     console.error("Momo error:", error?.response?.data || error.message);
     res.status(500).json({ message: "Lỗi tạo đơn MoMo" });
+  }
+});
+
+// Momo callback handler
+momoRouter.post("/callback", (req, res) => {
+  try {
+    const { resultCode, message, orderId, amount, signature } = req.body;
+    
+    console.log('🔍 Momo callback received:', req.body);
+    
+    // Verify signature if needed
+    // For now, just check resultCode
+    if (resultCode === 0) {
+      console.log('✅ Momo payment successful:', orderId);
+      res.json({ returnCode: 0, message: 'Success' });
+    } else {
+      console.log('❌ Momo payment failed:', message);
+      res.json({ returnCode: 1, message: 'Failed' });
+    }
+  } catch (error) {
+    console.error('❌ Momo callback error:', error);
+    res.status(500).json({ returnCode: 1, message: 'Error' });
   }
 });
 

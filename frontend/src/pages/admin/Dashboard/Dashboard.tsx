@@ -144,18 +144,77 @@ const Dashboard: React.FC = () => {
       dataIndex: 'instructor',
       key: 'instructor',
       width: 200,
-      render: (instructor: any) => {
-        const info = getInfo(instructor);
+      render: (instructor: any, record: any) => {
+        // Debug: log để kiểm tra dữ liệu
+        console.log('Instructor data:', instructor);
+        console.log('Record data:', record);
+        console.log('AllPeople:', allPeople);
+        
+        // Xử lý nhiều trường hợp dữ liệu instructor
+        let instructorName = 'Không rõ';
+        let instructorAvatar = undefined;
+        
+        // Kiểm tra record.instructor trước
+        if (record.instructor) {
+          if (typeof record.instructor === 'object') {
+            instructorName = record.instructor.fullname || record.instructor.name || record.instructor.username || 'Không rõ';
+            instructorAvatar = record.instructor.avatar;
+          } else if (typeof record.instructor === 'string') {
+            // Tìm trong danh sách allPeople
+            const foundInstructor = allPeople.find(p => 
+              p._id === record.instructor || 
+              p.id === record.instructor ||
+              p._id?.toString() === record.instructor ||
+              p.id?.toString() === record.instructor
+            );
+            if (foundInstructor) {
+              instructorName = foundInstructor.fullname || foundInstructor.name || foundInstructor.username || 'Không rõ';
+              instructorAvatar = foundInstructor.avatar;
+            }
+          }
+        }
+        
+        // Kiểm tra instructor parameter
+        if (instructorName === 'Không rõ' && instructor) {
+          if (typeof instructor === 'object') {
+            instructorName = instructor.fullname || instructor.name || instructor.username || 'Không rõ';
+            instructorAvatar = instructor.avatar;
+          } else if (typeof instructor === 'string') {
+            const foundInstructor = allPeople.find(p => 
+              p._id === instructor || 
+              p.id === instructor ||
+              p._id?.toString() === instructor ||
+              p.id?.toString() === instructor
+            );
+            if (foundInstructor) {
+              instructorName = foundInstructor.fullname || foundInstructor.name || foundInstructor.username || 'Không rõ';
+              instructorAvatar = foundInstructor.avatar;
+            }
+          }
+        }
+        
+        // Fallback: kiểm tra các field khác trong record
+        if (instructorName === 'Không rõ') {
+          instructorName = record.instructorName || 
+                          record.instructor_name || 
+                          record.instructorName || 
+                          record.createdBy?.fullname ||
+                          record.createdBy?.name ||
+                          'Không rõ';
+        }
+        
+        // Debug: log kết quả
+        console.log('Final instructor name:', instructorName);
+        
         return (
-          <div className={styles.instructorCell}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Avatar 
-              src={info.avatar && info.avatar !== 'default-avatar.jpg' && info.avatar !== '' && (info.avatar.includes('googleusercontent.com') || info.avatar.startsWith('http')) ? info.avatar : undefined} 
-              size="small" 
-              className={styles.instructorAvatar}
+              src={instructorAvatar && instructorAvatar !== 'default-avatar.jpg' && instructorAvatar !== '' && (instructorAvatar.includes('googleusercontent.com') || instructorAvatar.startsWith('http')) ? instructorAvatar : undefined} 
+              size="small"
             >
-              {info.name?.charAt(0)}
+              {instructorName?.charAt(0)?.toUpperCase()}
             </Avatar>
-            <Text>{info.name}</Text>
+            <Text style={{ fontSize: '13px' }}>{instructorName}</Text>
           </div>
         );
       },
@@ -164,41 +223,106 @@ const Dashboard: React.FC = () => {
       title: 'Giá',
       dataIndex: 'price',
       key: 'price',
-      width: 120,
-      render: (value: number) => (
-        <div className={styles.priceCell}>
-          <Text strong style={{ color: '#52c41a' }}>
-            {value?.toLocaleString('vi-VN')} ₫
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: 'Giảm giá',
-      dataIndex: 'discount',
-      key: 'discount',
-      width: 100,
-      render: (value: number) => (
-        value > 0 ? (
-          <Tag color="red" className={styles.discountTag}>
-            -{value}%
-          </Tag>
-        ) : (
-          <Text type="secondary">Không giảm</Text>
-        )
-      ),
+      width: 180,
+      render: (value: number, record: any) => {
+        const originalPrice = value || 0;
+        const discount = record.discount || 0;
+        const finalPrice = originalPrice - (originalPrice * discount / 100);
+        
+        // Nếu giá cuối là 0 hoặc âm, hiển thị miễn phí
+        if (finalPrice <= 0) {
+          return (
+            <div style={{ minHeight: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <Text strong style={{ color: '#52c41a', fontSize: '14px' }}>
+                Miễn phí
+              </Text>
+              {originalPrice > 0 && discount > 0 && (
+                <div style={{ marginTop: '2px' }}>
+                  <Text delete style={{ color: '#999', fontSize: '12px' }}>
+                    {originalPrice.toLocaleString('vi-VN')} ₫
+                  </Text>
+                  <Tag color="red" style={{ marginLeft: '4px', fontSize: '10px' }}>
+                    -{discount}%
+                  </Tag>
+                </div>
+              )}
+            </div>
+          );
+        }
+        
+        return (
+          <div style={{ minHeight: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <Text strong style={{ color: '#52c41a', fontSize: '14px' }}>
+              {finalPrice.toLocaleString('vi-VN')} ₫
+            </Text>
+            {discount > 0 && (
+              <div style={{ marginTop: '2px' }}>
+                <Text delete style={{ color: '#999', fontSize: '12px' }}>
+                  {originalPrice.toLocaleString('vi-VN')} ₫
+                </Text>
+                <Tag color="red" style={{ marginLeft: '4px', fontSize: '10px' }}>
+                  -{discount}%
+                </Tag>
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 120,
-      render: (status: string) => (
-        <Badge
-          status={status === 'published' ? 'success' : 'default'}
-          text={status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}
-        />
-      ),
+      render: (status: string, record: any) => {
+        // Kiểm tra nhiều trường hợp trạng thái có thể có
+        const isPublished = status === 'published' || 
+                           status === 'active' || 
+                           status === 'approved' ||
+                           record.isPublished === true ||
+                           record.approvalStatus === 'approved';
+        
+        const isDraft = status === 'draft' || 
+                       status === 'pending' || 
+                       status === 'inactive' ||
+                       record.isPublished === false ||
+                       record.approvalStatus === 'pending';
+        
+        const isRejected = status === 'rejected' || 
+                          status === 'declined' ||
+                          record.approvalStatus === 'rejected';
+        
+        if (isPublished) {
+          return (
+            <Badge
+              status="success"
+              text="Đã xuất bản"
+            />
+          );
+        } else if (isRejected) {
+          return (
+            <Badge
+              status="error"
+              text="Từ chối"
+            />
+          );
+        } else if (isDraft) {
+          return (
+            <Badge
+              status="default"
+              text="Bản nháp"
+            />
+          );
+        } else {
+          // Trường hợp không xác định được trạng thái
+          return (
+            <Badge
+              status="processing"
+              text="Đang xử lý"
+            />
+          );
+        }
+      },
     }
   ];
 
@@ -294,7 +418,7 @@ const Dashboard: React.FC = () => {
                       title="Doanh thu tháng"
                       value={totalRevenue}
                       valueStyle={{ color: '#fa8c16', fontSize: 28, fontWeight: 600 }}
-                      formatter={(value) => `${(value / 1000000).toFixed(1)}M ₫`}
+                      formatter={(value) => `${(Number(value) / 1000000).toFixed(1)}M ₫`}
                     />
                     <div className={styles.statTrend}>
                       <RiseOutlined style={{ color: '#52c41a' }} />
@@ -384,9 +508,122 @@ const Dashboard: React.FC = () => {
             </Col>
           </Row>
 
-          {/* Main Content */}
+                     {/* Top Instructors - Full Width */}
+           <Row gutter={[24, 24]} className={styles.mainContent}>
+             <Col xs={24}>
+               <Card
+                 title={
+                   <div className={styles.cardHeader}>
+                     <Space>
+                       <TrophyOutlined style={{ color: '#faad14' }} />
+                       <Text strong>Giảng viên hàng đầu</Text>
+                     </Space>
+                     <Tag color="gold">6 giảng viên</Tag>
+                   </div>
+                 }
+                 className={styles.mainCard}
+                 bordered={false}
+
+               >
+                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between' }}>
+                   {approvedInstructors.slice(0, 6).map((instructor, index) => {
+                     const courseCount = Math.floor(Math.random() * 15) + 3;
+                     const studentCount = Math.floor(Math.random() * 500) + 50;
+                     const rating = (Math.random() * 2 + 3).toFixed(1);
+                     
+                     return (
+                       <div key={instructor._id || instructor.id} style={{ 
+                         display: 'flex', 
+                         alignItems: 'center', 
+                         gap: '12px',
+                         padding: '12px',
+                         borderRadius: '8px',
+                         border: '1px solid #f0f0f0',
+                         minWidth: '300px',
+                         flex: '1 1 300px',
+                         maxWidth: '400px'
+                       }}>
+                         <div style={{ position: 'relative' }}>
+                           {index < 3 ? (
+                             <div style={{ 
+                               position: 'absolute',
+                               top: '-8px',
+                               right: '-8px',
+                               width: 24, 
+                               height: 24, 
+                               borderRadius: '50%', 
+                               backgroundColor: index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : '#cd7f32',
+                               display: 'flex',
+                               alignItems: 'center',
+                               justifyContent: 'center',
+                               color: 'white',
+                               fontSize: '12px',
+                               fontWeight: 'bold',
+                               zIndex: 1
+                             }}>
+                               {index + 1}
+                             </div>
+                           ) : (
+                             <Badge count={index + 1} style={{ 
+                               backgroundColor: '#d9d9d9',
+                               position: 'absolute',
+                               top: '-8px',
+                               right: '-8px',
+                               zIndex: 1
+                             }} />
+                           )}
+                           <Avatar 
+                             src={instructor.avatar && instructor.avatar !== 'default-avatar.jpg' && instructor.avatar !== '' && (instructor.avatar.includes('googleusercontent.com') || instructor.avatar.startsWith('http')) ? instructor.avatar : undefined} 
+                             size="large" 
+                           >
+                             {instructor.fullname?.charAt(0) || instructor.name?.charAt(0)}
+                           </Avatar>
+                         </div>
+                         <div style={{ flex: 1 }}>
+                           <Text strong style={{ fontSize: '14px', display: 'block' }}>
+                             {instructor.fullname || instructor.name}
+                           </Text>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                             <StarOutlined style={{ color: '#faad14', fontSize: '12px' }} />
+                             <Text type="secondary" style={{ fontSize: '12px' }}>
+                               {rating} ({studentCount} học viên)
+                             </Text>
+                           </div>
+                         </div>
+                         <div style={{ textAlign: 'center', minWidth: '60px' }}>
+                           <Text strong style={{ color: '#1890ff', fontSize: '16px', display: 'block' }}>
+                             {courseCount}
+                           </Text>
+                           <div style={{ fontSize: '11px', color: '#666' }}>
+                             khóa học
+                           </div>
+                         </div>
+                       </div>
+                     );
+                   })}
+                   
+                   {approvedInstructors.length === 0 && (
+                     <div style={{ 
+                       textAlign: 'center', 
+                       padding: '40px 20px',
+                       color: '#999',
+                       width: '100%'
+                     }}>
+                       <TeamOutlined style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }} />
+                       <div>Chưa có giảng viên nào</div>
+                       <Text type="secondary" style={{ fontSize: '12px' }}>
+                         Các giảng viên sẽ xuất hiện ở đây sau khi được duyệt
+                       </Text>
+                     </div>
+                   )}
+                 </div>
+               </Card>
+             </Col>
+           </Row>
+
+           {/* Latest Courses - Full Width */}
           <Row gutter={[24, 24]} className={styles.mainContent}>
-            <Col xs={24} lg={16}>
+             <Col xs={24}>
               <Card
                 title={
                   <div className={styles.cardHeader}>
@@ -399,14 +636,10 @@ const Dashboard: React.FC = () => {
                 }
                 className={styles.mainCard}
                 bordered={false}
-                extra={
-                  <Button type="link" size="small">
-                    Xem tất cả
-                  </Button>
-                }
+                
               >
                 <Table
-                  dataSource={courses.slice(0, 8)}
+                                     dataSource={courses.slice(0, 7)}
                   columns={columns}
                   pagination={false}
                   className={styles.coursesTable}
@@ -414,44 +647,6 @@ const Dashboard: React.FC = () => {
                   scroll={{ x: 800 }}
                   size="small"
                 />
-              </Card>
-            </Col>
-            <Col xs={24} lg={8}>
-              <Card
-                title={
-                  <div className={styles.cardHeader}>
-                    <Space>
-                      <TeamOutlined />
-                      <Text strong>Giảng viên hàng đầu</Text>
-                    </Space>
-                  </div>
-                }
-                className={styles.mainCard}
-                bordered={false}
-              >
-                <div className={styles.topInstructors}>
-                  {approvedInstructors.slice(0, 5).map((instructor, index) => (
-                    <div key={instructor._id || instructor.id} className={styles.instructorItem}>
-                      <div className={styles.instructorRank}>
-                        <Badge count={index + 1} style={{ backgroundColor: index < 3 ? '#faad14' : '#d9d9d9' }} />
-                      </div>
-                      <Avatar 
-                        src={instructor.avatar && instructor.avatar !== 'default-avatar.jpg' && instructor.avatar !== '' && (instructor.avatar.includes('googleusercontent.com') || instructor.avatar.startsWith('http')) ? instructor.avatar : undefined} 
-                        size="large" 
-                        className={styles.instructorAvatar}
-                      >
-                        {instructor.fullname?.charAt(0) || instructor.name?.charAt(0)}
-                      </Avatar>
-                      <div className={styles.instructorInfo}>
-                        <Text strong>{instructor.fullname || instructor.name}</Text>
-                        <Text type="secondary">{instructor.email}</Text>
-                      </div>
-                      <div className={styles.instructorStats}>
-                        <Text type="secondary">{Math.floor(Math.random() * 20) + 5} khóa học</Text>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </Card>
             </Col>
           </Row>

@@ -5,6 +5,9 @@ import AppHeader from './Header';
 import AppFooter from './Footer';
 import AppSidebar from './CategoryNav';
 import './ClientLayout.css';
+import AIRecommendationModal from '../../components/ai/AIRecommendationModal';
+import { useAIRecommendation } from '../../hooks/useAIRecommendation';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { Content } = Layout;
 
@@ -23,12 +26,16 @@ const ClientLayout = () => {
   const isWalletPage = location.pathname === '/wallet';
   const isUserReportPage = location.pathname === '/report';
   const isOrdersPage = location.pathname === '/orders';
+  const isCertificatesPage = location.pathname.startsWith('/certificates');
+
+  const { user } = useAuth();
+  const ai = useAIRecommendation(user?._id || '');
 
   return (
     <Layout className="client-layout">
       <AppHeader />
       <Layout className="main-content">
-        {!isProfilePage && !isCoursesPage && !isVouchersPage && !isInstructorsPage && !isBlogPage && !isCartPage && !isCheckoutPage && !isLessonVideoOrQuiz && !isUserProfilePage && !isSavedBlogPage && !isWalletPage && !isUserReportPage && !isOrdersPage && (
+        {!isProfilePage && !isCoursesPage && !isVouchersPage && !isInstructorsPage && !isBlogPage && !isCartPage && !isCheckoutPage && !isLessonVideoOrQuiz && !isUserProfilePage && !isSavedBlogPage && !isWalletPage && !isUserReportPage && !isOrdersPage && !isCertificatesPage && (
           <div className="sidebar-container">
             <AppSidebar />
           </div>
@@ -42,6 +49,16 @@ const ClientLayout = () => {
         </Layout>
       </Layout>
       <AppFooter />
+      {user && (
+        <AIRecommendationModal
+          visible={ai.visible}
+          onClose={() => ai.setVisible(false)}
+          loading={ai.loading}
+          recommendations={ai.recommendations}
+          reasons={ai.reasons}
+          error={ai.error}
+        />
+      )}
     </Layout>
   );
 };

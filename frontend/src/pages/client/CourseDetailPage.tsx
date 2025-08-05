@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb, message, Modal, Input } from 'antd';
-import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined, ClockCircleOutlined, LikeOutlined, DislikeOutlined, SaveOutlined } from '@ant-design/icons';
+import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined, ClockCircleOutlined, LikeOutlined, DislikeOutlined, SaveOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { courseService } from '../../services/apiService';
 import type { Course, Section, Lesson } from '../../services/apiService';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
@@ -75,6 +75,13 @@ const CourseDetailPage: React.FC = () => {
     const [canRefund, setCanRefund] = useState(false);
     const [refundLoading, setRefundLoading] = useState(false);
     const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
+    const [refundInfo, setRefundInfo] = useState<{
+      eligible: boolean;
+      reason?: string;
+      progressPercentage?: number;
+      daysRemaining?: number;
+    } | null>(null);
+    const [courseStats, setCourseStats] = useState<{ enrolledCount: number; averageRating: number; reviewCount: number }>({ enrolledCount: 0, averageRating: 0, reviewCount: 0 });
 
     // Function to calculate total duration from course content
     const calculateTotalDuration = (sections: Section[]): string => {
@@ -198,12 +205,17 @@ const CourseDetailPage: React.FC = () => {
                 const token = localStorage.getItem('token');
                 let enrolled = false;
                 if (token) {
-                    const res = await config.get('/users/me/enrollments');
-                    const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => String(enroll.course?._id || enroll.course?.id));
-                    console.log('🔍 Course ID:', course.id);
-                    console.log('🔍 Enrolled IDs:', enrolledIds);
-                    console.log('🔍 Is enrolled:', enrolledIds.includes(String(course.id)));
-                    enrolled = enrolledIds.includes(String(course.id));
+                    try {
+                        const res = await config.get('/users/me/enrollments');
+                        const enrolledIds = (res.data.data || []).map((enroll: { course: { _id?: string; id?: string } }) => String(enroll.course?._id || enroll.course?.id));
+                        console.log('🔍 Course ID:', course.id);
+                        console.log('🔍 Enrolled IDs:', enrolledIds);
+                        console.log('🔍 Is enrolled:', enrolledIds.includes(String(course.id)));
+                        enrolled = enrolledIds.includes(String(course.id));
+                    } catch (error) {
+                        console.log('Không thể kiểm tra enrollment, có thể chưa đăng nhập');
+                        enrolled = false;
+                    }
                 }
                 setIsEnrolled(enrolled);
             } catch {
@@ -280,6 +292,13 @@ const CourseDetailPage: React.FC = () => {
                 return;
             }
             try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    setIsCompleted(false);
+                    setContinueLessonId(null);
+                    return;
+                }
+                
                 const progress = await getProgress(course.id);
                 const totalLessons = courseContent.reduce((acc, section) => acc + section.lessons.length, 0);
                 const completedLessons = Object.values(progress || {}).filter((p: any) =>
@@ -359,33 +378,40 @@ const CourseDetailPage: React.FC = () => {
           try {
             const token = localStorage.getItem('token');
             if (!token) return;
-            const res = await orderService.getUserOrders(token, 1, 20, 'paid');
-            const now = new Date();
-            let found = false;
-            for (const order of res.orders) {
-              const hasCourse = order.items.some(item => String(item.courseId._id) === String(course.id));
-              if (hasCourse) {
-                const created = new Date(order.createdAt);
-                const diffDays = (now.getTime() - created.getTime()) / (1000 * 3600 * 24);
-                if (diffDays <= 7) {
-                  setCanRefund(true);
-                  setRefundOrderId(order.id);
-                  found = true;
-                  break;
-                }
-              }
-            }
-            if (!found) {
+            
+            // Sử dụng API mới để kiểm tra điều kiện hoàn tiền
+            const refundEligibility = await orderService.checkRefundEligibility(course.id, token);
+            setRefundInfo(refundEligibility);
+            
+            if (refundEligibility.eligible) {
+              setCanRefund(true);
+              setRefundOrderId(refundEligibility.orderId || null);
+            } else {
               setCanRefund(false);
               setRefundOrderId(null);
             }
           } catch {
             setCanRefund(false);
             setRefundOrderId(null);
+            setRefundInfo(null);
           }
         };
         checkRefundable();
     }, [isEnrolled, user, course]);
+
+    // Lấy thống kê khóa học
+    useEffect(() => {
+        const fetchCourseStats = async () => {
+            if (!course) return;
+            try {
+                const stats = await courseService.getCourseStats(course.id);
+                setCourseStats(stats);
+            } catch (error) {
+                console.error('Lỗi khi lấy thống kê khóa học:', error);
+            }
+        };
+        fetchCourseStats();
+    }, [course]);
 
     if (loading) return <div className="flex justify-center items-center min-h-screen bg-slate-50"><Spin size="large" /></div>;
     if (error) return <div className="p-8"><Alert message="Lỗi" description={error} type="error" showIcon /></div>;
@@ -506,7 +532,7 @@ const CourseDetailPage: React.FC = () => {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('Chưa đăng nhập');
         await orderService.refundOrder(refundOrderId, course.id, token);
-        message.success('Hoàn tiền thành công! 70% chi phí đã được cộng vào ví.');
+        message.success('Hoàn tiền thành công! 70% chi phí đã được cộng vào ví. Bạn sẽ không còn quyền truy cập khóa học này.');
         setCanRefund(false);
         setTimeout(() => window.location.reload(), 1000);
       } catch (err: any) {
@@ -697,7 +723,7 @@ const CourseDetailPage: React.FC = () => {
                                     <div className="relative">
                                         <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 blur opacity-60"></div>
                                         <Avatar 
-                                            src={course.author.avatar && course.author.avatar !== 'default-avatar.jpg' && course.author.avatar !== '' && (course.author.avatar.includes('googleusercontent.com') || course.author.avatar.startsWith('http')) ? course.author.avatar : undefined} 
+                                            src={course.author.avatar && course.author.avatar !== 'default-avatar.jpg' && course.author.avatar !== '' ? course.author.avatar : undefined} 
                                             size={96} 
                                             icon={<UserOutlined />} 
                                             className="border-4 border-white shadow-lg relative z-10"
@@ -723,8 +749,8 @@ const CourseDetailPage: React.FC = () => {
                                 {/* Tổng quan đánh giá */}
                                 <div style={{ display: 'flex', gap: 40, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 32, paddingBottom: 24, borderBottom: '1px solid #e8e8e8' }}>
                                   <div style={{ minWidth: 180, textAlign: 'center' }}>
-                                    <div style={{ fontSize: 54, fontWeight: 800, color: '#06b6d4', lineHeight: 1 }}>{ratingStats.avg.toFixed(1)}</div>
-                                    <Rate disabled allowHalf value={ratingStats.avg} style={{ fontSize: 28, color: '#06b6d4', margin: '8px 0' }} />
+                                    <div style={{ fontSize: 54, fontWeight: 800, color: '#06b6d4', lineHeight: 1 }}>{courseStats.averageRating.toFixed(1)}</div>
+                                    <Rate disabled allowHalf value={courseStats.averageRating} style={{ fontSize: 28, color: '#06b6d4', margin: '8px 0' }} />
                                     <div style={{ color: '#06b6d4', fontWeight: 600, fontSize: 18, marginTop: 4 }}>Điểm trung bình</div>
                                   </div>
                                   <div style={{ flex: 1, minWidth: 220, marginTop: 8 }}>
@@ -993,20 +1019,28 @@ const CourseDetailPage: React.FC = () => {
                                                     navigate(`/instructor/courses/${course.id}`);
                                                     return;
                                                 }
+                                                
+                                                // Kiểm tra nếu đã đăng ký khóa học
+                                                if (isEnrolled) {
+                                                    // Chuyển đến trang học
+                                                    navigate(`/lessons/${course.id}`);
+                                                    return;
+                                                }
+                                                
                                                 const token = localStorage.getItem('token');
                                                 if (!token) {
-                                                    localStorage.removeItem('token');
-                                                    localStorage.removeItem('user');
-                                                    localStorage.removeItem('refresh_token');
-                                                    message.warning('Vui lòng đăng nhập!');
+                                                    // Nếu chưa đăng nhập, chuyển đến trang đăng nhập
+                                                    message.warning('Vui lòng đăng nhập để mua khóa học!');
                                                     setTimeout(() => navigate('/login'), 800);
                                                     return;
                                                 }
+                                                
                                                 const courseInCart = isInCart(course.id);
                                                 if (courseInCart) {
                                                     navigate('/cart');
                                                     return;
                                                 }
+                                                
                                                 setIsAddingToCart(true);
                                                 try {
                                                     const success = await addToCart(course.id);
@@ -1045,8 +1079,22 @@ const CourseDetailPage: React.FC = () => {
                                             onClick={handleRefund}
                                             className="!h-14 !text-lg !font-semibold !bg-gradient-to-r !from-red-500 !to-orange-500 hover:!from-red-600 hover:!to-orange-600 !border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                                         >
-                                            Hoàn tiền 70% (nếu mua dưới 7 ngày)
+                                            Hoàn tiền 70% (tiến độ: {refundInfo?.progressPercentage || 0}%, còn {refundInfo?.daysRemaining || 0} ngày)
                                         </Button>
+                                    )}
+                                    {isEnrolled && !canRefund && refundInfo && (
+                                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <ExclamationCircleOutlined className="text-yellow-600" />
+                                                <Text className="text-yellow-800 font-medium">Không thể hoàn tiền</Text>
+                                            </div>
+                                            <Text className="text-yellow-700 text-sm">{refundInfo.reason}</Text>
+                                            {refundInfo.progressPercentage !== undefined && (
+                                                <Text className="text-yellow-600 text-xs mt-1 block">
+                                                    Tiến độ hiện tại: {refundInfo.progressPercentage}%
+                                                </Text>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
 
@@ -1062,16 +1110,7 @@ const CourseDetailPage: React.FC = () => {
                                                 <Text className="text-gray-500 text-xs">{course.title}</Text>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 flex items-center justify-center">
-                                                <GlobalOutlined className="text-white text-sm" />
-                                            </div>
-                                            <div>
-                                                <Text className="text-gray-500 text-xs">
-                                                    {course.language === 'en' ? 'Tiếng Anh' : course.language === 'vi' ? 'Tiếng Việt' : (course.language || 'Không rõ')}
-                                                </Text>
-                                            </div>
-                                        </div>
+
                                         <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
                                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-purple-400 flex items-center justify-center">
                                                 <BookOutlined className="text-white text-sm" />
@@ -1093,7 +1132,7 @@ const CourseDetailPage: React.FC = () => {
                                                 <StarFilled className="text-white text-sm" />
                                             </div>
                                             <div>
-                                                <Text className="text-gray-500 text-xs">{course.rating}/5 ({course.reviews} đánh giá)</Text>
+                                                <Text className="text-gray-500 text-xs">{courseStats.averageRating.toFixed(1)}/5 ({courseStats.reviewCount} đánh giá)</Text>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
@@ -1101,7 +1140,7 @@ const CourseDetailPage: React.FC = () => {
                                                 <TeamOutlined className="text-white text-sm" />
                                             </div>
                                             <div>
-                                                <Text className="text-gray-500 text-xs">1,234 sinh viên đã tham gia</Text>
+                                                <Text className="text-gray-500 text-xs">{courseStats.enrolledCount.toLocaleString()} sinh viên đã tham gia</Text>
                                             </div>
                                         </div>
                                     </div>
@@ -1112,15 +1151,15 @@ const CourseDetailPage: React.FC = () => {
                                     <div className="grid grid-cols-2 gap-4">
                                         {/* Left Column */}
                                         <div className="text-center">
-                                            <div className="text-2xl font-bold text-cyan-600">{course.rating}</div>
+                                            <div className="text-2xl font-bold text-cyan-600">{courseStats.averageRating.toFixed(1)}</div>
                                             <div className="flex justify-center my-1">
-                                                <Rate disabled allowHalf value={course.rating} className="!text-sm" />
+                                                <Rate disabled allowHalf value={courseStats.averageRating} className="!text-sm" />
                                             </div>
                                             <Text className="text-gray-600 text-xs">Đánh giá trung bình</Text>
                                         </div>
                                         {/* Right Column */}
                                         <div className="text-center">
-                                            <div className="text-2xl font-bold text-purple-600">{course.reviews}</div>
+                                            <div className="text-2xl font-bold text-purple-600">{courseStats.reviewCount}</div>
                                             {/* Invisible placeholder to match the Rate component's space */}
                                             <div className="flex justify-center my-1 invisible">
                                                 <Rate disabled allowHalf value={0} className="!text-sm" />

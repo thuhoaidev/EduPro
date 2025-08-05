@@ -11,15 +11,15 @@ dayjs.extend(timezone);
 
 // Helper function để kiểm tra voucher có hợp lệ không
 const isVoucherValid = (voucher) => {
-  const now = new Date();
+  const now = dayjs.utc();
   
   // Kiểm tra ngày bắt đầu
-  if (voucher.startDate && new Date(voucher.startDate) > now) {
+  if (voucher.startDate && now.isBefore(dayjs.utc(voucher.startDate))) {
     return { valid: false, reason: "Voucher chưa có hiệu lực" };
   }
   
   // Kiểm tra ngày kết thúc
-  if (voucher.endDate && new Date(voucher.endDate) < now) {
+  if (voucher.endDate && now.isAfter(dayjs.utc(voucher.endDate))) {
     return { valid: false, reason: "Voucher đã hết hạn" };
   }
   
@@ -33,12 +33,12 @@ const isVoucherValid = (voucher) => {
 
 // Helper function để kiểm tra voucher có hợp lệ cho user không (dạng async)
 const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
-  const now = new Date();
+  const now = dayjs.utc();
   // Kiểm tra ngày bắt đầu/kết thúc, số lượt sử dụng
-  if (voucher.startDate && new Date(voucher.startDate) > now) {
+  if (voucher.startDate && now.isBefore(dayjs.utc(voucher.startDate))) {
     return { valid: false, reason: "Voucher chưa có hiệu lực" };
   }
-  if (voucher.endDate && new Date(voucher.endDate) < now) {
+  if (voucher.endDate && now.isAfter(dayjs.utc(voucher.endDate))) {
     return { valid: false, reason: "Voucher đã hết hạn" };
   }
   if (voucher.usedCount >= voucher.usageLimit) {
@@ -48,7 +48,7 @@ const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
   if (voucher.type === 'new-user') {
     const userCreatedAt = user.createdAt || user.created_at;
     if (!userCreatedAt) return { valid: false, reason: "Không xác định được ngày tạo tài khoản" };
-    const days = Math.floor((now - new Date(userCreatedAt)) / (1000*60*60*24));
+    const days = Math.floor(now.diff(dayjs.utc(userCreatedAt), 'day'));
     console.log('DEBUG new-user:', { userId: user._id, days, maxAccountAge: voucher.maxAccountAge });
     if (voucher.maxAccountAge && days > voucher.maxAccountAge) {
       return { valid: false, reason: `Chỉ áp dụng cho tài khoản mới tạo trong ${voucher.maxAccountAge} ngày` };
@@ -57,8 +57,9 @@ const isVoucherValidForUser = async (voucher, user, orderAmount = 0) => {
   if (voucher.type === 'birthday') {
     console.log('DEBUG birthday:', { userId: user._id, dob: user.dob });
     if (!user.dob) return { valid: false, reason: "Bạn chưa cập nhật ngày sinh" };
-    const dob = new Date(user.dob);
-    if (!(dob.getDate() === now.getDate() && dob.getMonth() === now.getMonth())) {
+    const dob = dayjs.utc(user.dob);
+    const nowVN = dayjs().tz('Asia/Ho_Chi_Minh');
+    if (!(dob.date() === nowVN.date() && dob.month() === nowVN.month())) {
       return { valid: false, reason: "Chỉ áp dụng đúng ngày sinh nhật" };
     }
   }
@@ -109,25 +110,35 @@ router.get("/", async (req, res) => {
   try {
     const vouchers = await Voucher.find().sort({ createdAt: -1 });
     // Map to new structure for frontend compatibility
-    const mapped = vouchers.map(v => ({
-      id: v._id,
-      code: v.code,
-      title: v.title,
-      description: v.description,
-      discountType: v.discountType,
-      discountValue: v.discountValue,
-      maxDiscount: v.maxDiscount,
-      minOrderValue: v.minOrderValue,
-      usageLimit: v.usageLimit,
-      usedCount: v.usedCount,
-      categories: v.categories,
-      tags: v.tags,
-      startDate: v.startDate,
-      endDate: v.endDate,
-      createdAt: v.createdAt,
-      updatedAt: v.updatedAt,
-      type: v.type
-    }));
+    const now = dayjs.utc();
+    const mapped = vouchers.map(v => {
+      const start = v.startDate ? dayjs.utc(v.startDate) : null;
+      const end = v.endDate ? dayjs.utc(v.endDate) : null;
+      return {
+        id: v._id,
+        code: v.code,
+        title: v.title,
+        description: v.description,
+        discountType: v.discountType,
+        discountValue: v.discountValue,
+        maxDiscount: v.maxDiscount,
+        minOrderValue: v.minOrderValue,
+        usageLimit: v.usageLimit,
+        usedCount: v.usedCount,
+        categories: v.categories,
+        tags: v.tags,
+        startDate: v.startDate,
+        endDate: v.endDate,
+        createdAt: v.createdAt,
+        updatedAt: v.updatedAt,
+        type: v.type,
+        status:
+          (start && now.isBefore(start)) ? 'Chưa bắt đầu'
+          : (end && now.isAfter(end)) ? 'Đã hết hạn'
+          : (v.usedCount >= v.usageLimit) ? 'Đã hết hạn'
+          : 'Đang hoạt động'
+      }
+    });
     res.json({
       success: true,
       message: "Lấy danh sách mã giảm giá thành công",
@@ -145,7 +156,7 @@ router.get("/", async (req, res) => {
 // GET available vouchers (cho client - hiển thị voucher phổ thông cho mọi user, voucher điều kiện chỉ cho user đủ điều kiện)
 router.get("/available", async (req, res) => {
   try {
-    const now = new Date();
+    const now = dayjs.utc();
     let user = null;
     let userId = null;
     // Nếu có header Authorization thì lấy user
@@ -164,15 +175,21 @@ router.get("/available", async (req, res) => {
         }
       }
     }
-    // Lấy tất cả voucher còn lượt sử dụng và đã bắt đầu
-    const vouchers = await Voucher.find({
-      startDate: { $lte: now },
-      $expr: { $lt: ["$usedCount", "$usageLimit"] }
-    }).sort({ createdAt: -1 });
+    // Lấy tất cả voucher
+    const vouchers = await Voucher.find().sort({ createdAt: -1 });
 
     const conditionalTypes = ['new-user', 'birthday', 'first-order', 'order-count', 'order-value', 'flash-sale'];
     const result = [];
     for (const v of vouchers) {
+      const start = v.startDate ? dayjs.utc(v.startDate) : null;
+      const end = v.endDate ? dayjs.utc(v.endDate) : null;
+      if (start && now.isBefore(start)) continue;
+      if (end && now.isAfter(end)) continue;
+      if (v.usedCount >= v.usageLimit) continue;
+      if (v.usageLimit <= 1 && user) {
+        const used = await VoucherUsage.findOne({ userId: user._id, voucherId: v._id });
+        if (used) continue;
+      }
       if (conditionalTypes.includes(v.type)) {
         // Voucher điều kiện: chỉ trả về khi có user và user đủ điều kiện
         if (user) {
@@ -204,29 +221,27 @@ router.get("/available", async (req, res) => {
         // Nếu không có user thì KHÔNG push voucher điều kiện vào result
       } else {
         // Voucher default: chỉ hiển thị nếu chưa hết hạn và đã đến thời gian bắt đầu
-        if ((!v.endDate || v.endDate > now) && (!v.startDate || v.startDate <= now)) {
-          result.push({
-            id: v._id,
-            code: v.code,
-            title: v.title,
-            description: v.description,
-            discountType: v.discountType,
-            discountValue: v.discountValue,
-            maxDiscount: v.maxDiscount,
-            minOrderValue: v.minOrderValue,
-            usageLimit: v.usageLimit,
-            usedCount: v.usedCount,
-            categories: v.categories,
-            tags: v.tags,
-            startDate: v.startDate,
-            endDate: v.endDate,
-            createdAt: v.createdAt,
-            updatedAt: v.updatedAt,
-            status: 'available',
-            statusMessage: 'Có thể sử dụng',
-            type: v.type
-          });
-        }
+        result.push({
+          id: v._id,
+          code: v.code,
+          title: v.title,
+          description: v.description,
+          discountType: v.discountType,
+          discountValue: v.discountValue,
+          maxDiscount: v.maxDiscount,
+          minOrderValue: v.minOrderValue,
+          usageLimit: v.usageLimit,
+          usedCount: v.usedCount,
+          categories: v.categories,
+          tags: v.tags,
+          startDate: v.startDate,
+          endDate: v.endDate,
+          createdAt: v.createdAt,
+          updatedAt: v.updatedAt,
+          status: 'available',
+          statusMessage: 'Có thể sử dụng',
+          type: v.type
+        });
       }
     }
     res.json({
@@ -343,10 +358,12 @@ router.post("/apply", auth, async (req, res) => {
 
     await voucherUsage.save();
 
-    // Cập nhật số lượt sử dụng của voucher
-    await Voucher.findByIdAndUpdate(voucherId, {
-      $inc: { usedCount: 1 }
-    });
+    // Cập nhật số lượt sử dụng của voucher nếu usageLimit > 1
+    if (voucher.usageLimit > 1) {
+      await Voucher.findByIdAndUpdate(voucherId, {
+        $inc: { usedCount: 1 }
+      });
+    }
 
     res.json({
       success: true,

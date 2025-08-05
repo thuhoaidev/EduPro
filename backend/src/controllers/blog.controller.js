@@ -355,20 +355,21 @@ const approveOrRejectBlog = async (req, res) => {
 
     const blog = await Blog.findById(id);
     if (!blog) return res.status(404).json({ success: false, message: 'Không tìm thấy blog.' });
-    if (blog.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Chỉ duyệt blog pending.' });
+    // Cho phép thay đổi trạng thái giữa pending, approved, rejected
+    if (!['pending', 'rejected', 'approved'].includes(blog.status)) {
+      return res.status(400).json({ success: false, message: 'Trạng thái blog không hợp lệ.' });
     }
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'ID không hợp lệ.' });
     }
     const approverId = getUserId(req);
     if (status === 'rejected') {
-      // Xóa blog khỏi DB nếu bị từ chối
-      await Blog.findByIdAndDelete(id);
-      await BlogComment.deleteMany({ blog: id });
-      await BlogLike.deleteMany({ blog: id });
-      await BlogSave.deleteMany({ blog: id });
-      return res.json({ success: true, message: 'Đã từ chối và xóa blog.' });
+      // Cập nhật trạng thái thành rejected thay vì xóa
+      blog.status = 'rejected';
+      blog.approved_by = approverId || null;
+      blog.rejected_reason = rejected_reason || '';
+      await blog.save();
+      return res.json({ success: true, message: 'Đã từ chối blog.', data: blog });
     }
     blog.status = status;
     blog.approved_by = approverId || null;

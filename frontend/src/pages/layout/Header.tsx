@@ -325,36 +325,6 @@ const AppHeader = () => {
     };
   }, []);
 
-  // Force refresh user data khi cần thiết
-  const forceRefreshUser = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Header: Fresh user data from API:', data.user);
-
-        // Cập nhật localStorage
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        // Cập nhật state
-        setUser(data.user);
-
-        // Trigger event
-        window.dispatchEvent(new CustomEvent('user-updated', { detail: { user: data.user } }));
-      }
-    } catch (error) {
-      console.error('Header: Error refreshing user data:', error);
-    }
-  };
-
   // Thêm useEffect để lắng nghe thay đổi user data từ localStorage
   useEffect(() => {
     const checkUserUpdate = () => {
@@ -380,34 +350,41 @@ const AppHeader = () => {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Auto refresh user data nếu avatar không hợp lệ
-  useEffect(() => {
-    if (user && user.avatar && !user.avatar.includes('googleusercontent.com') && !user.avatar.startsWith('http')) {
-      console.log('Header: Invalid avatar detected, refreshing user data...');
-      forceRefreshUser();
-    }
-  }, [user]);
-
   const userMenu = user
     ? {
       items: [
         {
           key: '/profile',
           label: (
-            <div className="user-menu-header">
-              <Avatar
-                src={user.avatar && user.avatar !== 'default-avatar.jpg' && user.avatar !== '' && (user.avatar.includes('googleusercontent.com') || user.avatar.startsWith('http')) ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
-                size={48}
-                className="user-avatar"
-              />
-              <div className="user-info">
-                <Text strong className="user-name">{user.fullname}</Text>
-                {user.nickname && (
-                  <Text className="user-nickname">@{user.nickname}</Text>
-                )}
-                <Text className="user-role">Xem hồ sơ của bạn</Text>
+            <motion.div 
+              className="user-menu-header"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="user-menu-avatar-container">
+                <Avatar
+                  src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                  size={56}
+                  className="user-menu-avatar"
+                />
+                <div className="user-menu-status-indicator" />
               </div>
-            </div>
+              <div className="user-menu-info">
+                <Text strong className="user-menu-name">{user.fullname}</Text>
+                {user.nickname && (
+                  <Text className="user-menu-nickname">@{user.nickname}</Text>
+                )}
+                <div className="user-menu-role-badge">
+                  <Text className="user-menu-role-text">
+                    {getRoleName(user) === 'admin' || getRoleName(user) === 'quản trị viên' ? 'Quản trị viên' :
+                     getRoleName(user) === 'moderator' || getRoleName(user) === 'kiểm duyệt viên' ? 'Kiểm duyệt viên' :
+                     getRoleName(user) === 'instructor' || getRoleName(user) === 'giảng viên' ? 'Giảng viên' : 'Học viên'}
+                  </Text>
+                </div>
+                <Text className="user-menu-subtitle">Xem hồ sơ của bạn</Text>
+              </div>
+            </motion.div>
           ) as React.ReactNode,
           style: { 
             height: 'auto', 
@@ -417,55 +394,160 @@ const AppHeader = () => {
             borderRadius: '16px 16px 0 0',
             margin: '0',
             border: 'none'
+          },
+          onClick: () => {
+            console.log('Profile clicked directly');
+            navigate('/profile');
           }
         },
         { 
-          type: 'divider' as const
+          type: 'divider' as const,
+          style: { 
+            margin: '0',
+            borderColor: '#f0f0f0',
+            borderWidth: '1px'
+          }
         },
         ...(getRoleName(user) === 'admin' || getRoleName(user) === 'quản trị viên'
           ? [
             { 
               key: '/admin', 
-              icon: <DashboardOutlined />, 
-              label: 'Trang quản trị'
+              icon: <DashboardOutlined style={{ fontSize: '18px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Trang quản trị</span>
+                  <span className="menu-item-description">Quản lý hệ thống</span>
+                </div>
+              ),
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Admin dashboard clicked directly');
+                navigate('/admin');
+              }
             },
-            { type: 'divider' as const },
+            { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
           : []),
         ...(getRoleName(user) === 'moderator' || getRoleName(user) === 'kiểm duyệt viên'
           ? [
             { 
               key: '/moderator', 
-              icon: <DashboardOutlined />, 
-              label: 'Khu vực kiểm duyệt'
+              icon: <DashboardOutlined style={{ fontSize: '18px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Khu vực kiểm duyệt</span>
+                  <span className="menu-item-description">Duyệt nội dung</span>
+                </div>
+              ),
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Moderator dashboard clicked directly');
+                navigate('/moderator');
+              }
             },
-            { type: 'divider' as const },
+            { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
           : []),
         ...(getRoleName(user) === 'instructor' || getRoleName(user) === 'giảng viên'
           ? [
             { 
               key: '/instructor', 
-              icon: <DashboardOutlined />, 
-              label: 'Khu vực giảng viên'
+              icon: <DashboardOutlined style={{ fontSize: '18px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Khu vực giảng viên</span>
+                  <span className="menu-item-description">Quản lý khóa học</span>
+                </div>
+              ),
+              style: { padding: '12px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Instructor dashboard clicked directly');
+                navigate('/instructor');
+              }
             },
-            { type: 'divider' as const },
+            { type: 'divider' as const, style: { margin: '4px 0', borderColor: '#f0f0f0' } },
           ]
           : []),
         {
           type: 'group' as const,
-          label: 'Blog cá nhân',
+          label: (
+            <div className="menu-group-header">
+              <BookOutlined style={{ fontSize: '16px', color: '#666' }} />
+              <span>Blog cá nhân</span>
+            </div>
+          ),
           children: [
-            { key: '/blog/write', icon: <EditOutlined />, label: 'Viết blog' },
-            { key: '/blog/mine', icon: <ProfileOutlined />, label: 'Bài viết của tôi' },
-            { key: '/blog/saved', icon: <BookOutlined />, label: 'Bài viết đã lưu' },
+            { 
+              key: '/blog/write', 
+              icon: <EditOutlined style={{ fontSize: '16px', color: '#52c41a' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Viết blog</span>
+                  <span className="menu-item-description">Tạo bài viết mới</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Write blog clicked directly');
+                navigate('/blog/write');
+              }
+            },
+            { 
+              key: '/blog/mine', 
+              icon: <ProfileOutlined style={{ fontSize: '16px', color: '#1890ff' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Bài viết của tôi</span>
+                  <span className="menu-item-description">Quản lý bài viết</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('My blog posts clicked directly');
+                navigate('/blog/mine');
+              }
+            },
+            { 
+              key: '/blog/saved', 
+              icon: <BookOutlined style={{ fontSize: '16px', color: '#faad14' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Bài viết đã lưu</span>
+                  <span className="menu-item-description">Xem bài viết đã lưu</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Saved blog posts clicked directly');
+                navigate('/blog/saved');
+              }
+            },
           ],
         },
         {
           type: 'group' as const,
-          label: 'Đơn hàng',
+          label: (
+            <div className="menu-group-header">
+              <ShoppingCartOutlined style={{ fontSize: '16px', color: '#666' }} />
+              <span>Đơn hàng</span>
+            </div>
+          ),
           children: [
-            { key: '/orders', icon: <ShoppingCartOutlined />, label: 'Đơn hàng!' }
+            { 
+              key: '/orders', 
+              icon: <ShoppingCartOutlined style={{ fontSize: '16px', color: '#722ed1' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Đơn hàng</span>
+                  <span className="menu-item-description">Xem lịch sử mua hàng</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Orders clicked directly');
+                navigate('/orders');
+              }
+            }
           ],
         },
         {
@@ -494,25 +576,79 @@ const AppHeader = () => {
             }
           ],
         },
-        ...(getRoleName(user) === 'student' || getRoleName(user) === 'học viên' ? [        {
+        ...(getRoleName(user) === 'student' || getRoleName(user) === 'học viên' ? [{
           type: 'group' as const,
-          label: 'Ví',
+          label: (
+            <div className="menu-group-header">
+              <WalletOutlined style={{ fontSize: '16px', color: '#666' }} />
+              <span>Ví</span>
+            </div>
+          ),
           children: [
-            { key: '/wallet', icon: <WalletOutlined />, label: 'Ví của tôi' }
+            { 
+              key: '/wallet', 
+              icon: <WalletOutlined style={{ fontSize: '16px', color: '#52c41a' }} />, 
+              label: (
+                <div className="menu-item-content">
+                  <span className="menu-item-label">Ví của tôi</span>
+                  <span className="menu-item-description">Quản lý tài khoản</span>
+                </div>
+              ),
+              style: { padding: '10px 16px', cursor: 'pointer' },
+              onClick: () => {
+                console.log('Wallet clicked directly');
+                navigate('/wallet');
+              }
+            }
           ],
         }] : []),
-        { type: 'divider' as const },
-        { key: 'logout', icon: <LogoutOutlined />, label: <span className="logout-text">Đăng xuất</span> },
+        { 
+          type: 'divider' as const,
+          style: { 
+            margin: '8px 0',
+            borderColor: '#f0f0f0',
+            borderWidth: '1px'
+          }
+        },
+        { 
+          key: 'logout', 
+          icon: <LogoutOutlined style={{ fontSize: '16px', color: '#ff4d4f' }} />, 
+          label: (
+            <div className="menu-item-content">
+              <span className="menu-item-label logout-text">Đăng xuất</span>
+              <span className="menu-item-description">Thoát khỏi tài khoản</span>
+            </div>
+          ),
+          style: { 
+            padding: '12px 16px',
+            background: 'rgba(255, 77, 79, 0.05)',
+            borderRadius: '8px',
+            margin: '0 8px 8px 8px',
+            cursor: 'pointer'
+          },
+          onClick: () => {
+            console.log('Logout clicked directly');
+            handleLogout();
+          }
+        },
       ].filter((item, idx, arr) => {
         if (item.type === 'divider' && idx > 0 && arr[idx - 1].type === 'divider') return false;
         if (item.type === 'divider' && (idx === 0 || idx === arr.length - 1)) return false;
         return true;
       }),
       onClick: handleMenuClick,
-    }
+      style: {
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+        border: '1px solid #f0f0f0',
+        overflow: 'hidden'
+      }
+    } as any
     : undefined;
 
-
+  // Debug log để kiểm tra userMenu
+  console.log('userMenu created:', userMenu);
+  console.log('userMenu onClick:', userMenu?.onClick);
 
   const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
     fontWeight: isActive ? '600' : '500',
@@ -1010,7 +1146,7 @@ const AppHeader = () => {
                     className="user-avatar-container"
                   >
                     <Avatar
-                      src={user.avatar && user.avatar !== 'default-avatar.jpg' && user.avatar !== '' && (user.avatar.includes('googleusercontent.com') || user.avatar.startsWith('http')) ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
+                      src={user.avatar && user.avatar !== 'default-avatar.jpg' ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || '')}&background=1677ff&color=fff`}
                       className="user-avatar"
                       size={40}
                     />
