@@ -1,6 +1,7 @@
 const Invoice = require('../models/Invoice');
 const WithdrawRequest = require('../models/WithdrawRequest');
 const User = require('../models/User');
+const Order = require('../models/Order');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
@@ -194,7 +195,33 @@ exports.downloadInvoice = async (req, res) => {
   try {
     const { fileName } = req.params;
     
-    // Tìm hóa đơn theo fileName và user
+    // Kiểm tra xem có phải hóa đơn thanh toán không
+    if (fileName.startsWith('payment-')) {
+      // Đây là hóa đơn thanh toán, kiểm tra quyền truy cập
+      const filePath = path.join(__dirname, '../../invoices', fileName);
+      
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ success: false, message: 'File hóa đơn không tồn tại.' });
+      }
+      
+      // Set header để browser có thể hiển thị PDF
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+      res.setHeader('Cache-Control', 'no-cache');
+      
+      // Gửi file
+      res.sendFile(filePath, (err) => {
+        if (err) {
+          console.error('Send invoice file error:', err);
+          if (!res.headersSent) {
+            res.status(500).json({ success: false, message: 'Lỗi khi gửi file hóa đơn.' });
+          }
+        }
+      });
+      return;
+    }
+    
+    // Tìm hóa đơn theo fileName và user (cho hóa đơn rút tiền)
     const invoice = await Invoice.findOne({ file: fileName, teacherId: req.user._id });
     if (!invoice) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn hoặc bạn không có quyền truy cập.' });
@@ -276,4 +303,144 @@ exports.sendInvoiceEmail = async (req, res) => {
     console.error('Send invoice email error:', error);
     res.status(500).json({ success: false, message: 'Lỗi gửi email hóa đơn', error: error.message });
   }
-}; 
+};
+
+// Tạo hóa đơn cho giao dịch thanh toán
+exports.createPaymentInvoice = async (req, res) => {
+  try {
+    const { orderId, txId } = req.params;
+    const userId = req.user._id;
+    
+    // Tìm đơn hàng
+    const order = await Order.findOne({ _id: orderId, userId })
+      .populate('items.courseId', 'title thumbnail price')
+      .populate('items.courseId.instructor', 'fullname');
+    
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+    }
+    
+    // Tạo tên file hóa đơn
+    const fileName = `payment-${orderId}-${Date.now()}.pdf`;
+    const filePath = path.join(__dirname, '../../invoices', fileName);
+    
+    // Tạo PDF hóa đơn
+    await generatePaymentInvoicePDF(order, txId, filePath);
+    
+    res.json({ 
+      success: true, 
+      message: 'Tạo hóa đơn thành công',
+      data: {
+        fileName,
+        downloadUrl: `/api/invoices/download/${fileName}`
+      }
+    });
+  } catch (error) {
+    console.error('Create payment invoice error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi tạo hóa đơn', error: error.message });
+  }
+};
+
+// Tạo PDF hóa đơn cho giao dịch thanh toán
+async function generatePaymentInvoicePDF(order, txId, filePath) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const writeStream = fs.createWriteStream(filePath);
+      
+      doc.pipe(writeStream);
+
+      // Header
+      doc.fontSize(24)
+         .font('Helvetica-Bold')
+         .text('HÓA ĐƠN THANH TOÁN', { align: 'center' });
+      
+      doc.moveDown(0.5);
+      doc.fontSize(12)
+         .font('Helvetica')
+         .text(`Mã giao dịch: ${txId}`, { align: 'center' });
+      
+      doc.moveDown(0.5);
+      doc.text(`Ngày giao dịch: ${new Date(order.createdAt).toLocaleDateString('vi-VN')}`, { align: 'center' });
+
+      doc.moveDown(2);
+
+      // Thông tin khách hàng
+      doc.fontSize(14)
+         .font('Helvetica-Bold')
+         .text('THÔNG TIN KHÁCH HÀNG');
+      
+      doc.moveDown(0.5);
+      doc.fontSize(12)
+         .font('Helvetica')
+         .text(`Họ và tên: ${order.fullName}`);
+      doc.text(`Email: ${order.email}`);
+      doc.text(`Số điện thoại: ${order.phone}`);
+
+      doc.moveDown(1);
+
+      // Thông tin đơn hàng
+      doc.fontSize(14)
+         .font('Helvetica-Bold')
+         .text('CHI TIẾT ĐƠN HÀNG');
+      
+      doc.moveDown(0.5);
+      
+      // Bảng sản phẩm
+      let yPosition = doc.y;
+      doc.fontSize(10);
+      
+      // Header bảng
+      doc.font('Helvetica-Bold')
+         .text('STT', 50, yPosition)
+         .text('Khóa học', 100, yPosition)
+         .text('Giảng viên', 300, yPosition)
+         .text('Giá', 450, yPosition);
+      
+      yPosition += 20;
+      
+      // Nội dung bảng
+      order.items.forEach((item, index) => {
+        doc.font('Helvetica')
+           .text(`${index + 1}`, 50, yPosition)
+           .text(item.courseId.title.substring(0, 30) + '...', 100, yPosition)
+           .text(item.courseId.instructor?.fullname || 'EduPro', 300, yPosition)
+           .text(`${item.price.toLocaleString()}₫`, 450, yPosition);
+        
+        yPosition += 15;
+      });
+      
+      doc.moveDown(1);
+      
+      // Tổng tiền
+      doc.fontSize(12)
+         .font('Helvetica-Bold')
+         .text(`Tổng tiền: ${order.finalAmount.toLocaleString()}₫`, { align: 'right' });
+      
+      if (order.discountAmount > 0) {
+        doc.fontSize(10)
+           .font('Helvetica')
+           .text(`Giảm giá: ${order.discountAmount.toLocaleString()}₫`, { align: 'right' });
+      }
+
+      doc.moveDown(1);
+      
+      // Footer
+      doc.fontSize(10)
+         .font('Helvetica')
+         .text('Cảm ơn bạn đã sử dụng dịch vụ của EduPro!', { align: 'center' });
+
+      doc.end();
+      
+      writeStream.on('finish', () => {
+        resolve();
+      });
+      
+      writeStream.on('error', (error) => {
+        reject(error);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+} 

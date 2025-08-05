@@ -19,4 +19,7 @@ router.get('/:id', auth, invoiceController.getInvoiceById);
 // Gửi hóa đơn về email cho giảng viên
 router.post('/send-email/:id', auth, invoiceController.sendInvoiceEmail);
 
+// Tạo hóa đơn cho giao dịch thanh toán
+router.post('/payment/:orderId/:txId', auth, invoiceController.createPaymentInvoice);
+
 module.exports = router; 
