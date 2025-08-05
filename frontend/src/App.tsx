@@ -89,6 +89,8 @@ import WalletPage from "./pages/client/WalletPage";
 import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
 import MessagesPage from './pages/client/MessagesPage';
 import MessagesLayout from './pages/client/MessagesLayout';
+import AdminDeviceViolationsPage from './pages/admin/DeviceSecurity/AdminDeviceViolationsPage';
+import DeviceSecurityDebug from './components/DeviceSecurity/DeviceSecurityDebug';
 import CertificatePage from "./pages/client/CertificatePage";
 import Certificates from "./pages/client/Profile/Certificates";
 import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
@@ -165,6 +167,7 @@ function App() {
         { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
         { path: "certificates/:courseId", element: <CertificatePage /> },
+        { path: "debug/device-security", element: <DeviceSecurityDebug /> },
 
         { path: '/social-callback', element: <SocialAuthCallback /> },
       ]
@@ -213,6 +216,7 @@ function App() {
         { path: "roles", element: <RolesPage /> },
         { path: "roles/:id", element: <RoleDetailPage /> },
         { path: "roles/test", element: <TestRoleUpdate /> },
+        { path: "device-violations", element: <AdminDeviceViolationsPage /> },
       ],
     },
     {
