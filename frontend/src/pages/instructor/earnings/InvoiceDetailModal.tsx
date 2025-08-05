@@ -24,9 +24,6 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({ visible, onClos
       open={visible}
       onCancel={onClose}
       footer={[
-        <Button key="send" type="primary" loading={sending} onClick={onSendEmail}>
-          Gửi hóa đơn về email
-        </Button>,
         <Button key="close" onClick={onClose}>Đóng</Button>
       ]}
       title={null}
