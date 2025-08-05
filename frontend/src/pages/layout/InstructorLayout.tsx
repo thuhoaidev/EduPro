@@ -255,6 +255,7 @@ const InstructorLayout = () => {
              // Chỉ hiển thị nếu có quyền xem thống kê thu nhập hoặc rút tiền hoặc xem lịch sử giao dịch
              ...(financeMenu ? [
                { key: "/instructor/income", icon: <WalletOutlined />, label: collapsed ? "TN" : "Thu nhập & giao dịch" },
+               { key: "/instructor/invoices", icon: <FileTextOutlined />, label: collapsed ? "HD" : "Hóa đơn rút tiền" }
              ] : []),
              // Chỉ hiển thị nếu có quyền quản lý voucher
              ...(voucherMenu ? [

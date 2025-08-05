@@ -25,7 +25,7 @@ import {
   ClockCircleOutlined, 
   CheckCircleOutlined, 
   CloseCircleOutlined, 
-  FileTextOutlined, 
+  EyeOutlined, 
   BankOutlined, 
   CalendarOutlined, 
   PhoneOutlined, 
@@ -339,15 +339,15 @@ const UserWithdrawRequestsAdmin = () => {
       align: 'center' as const,
       render: (_: any, record: any) => (
         <Space size="small">
-          <Tooltip title="Xem hóa đơn">
+          <Tooltip title="Xem chi tiết">
             <Button 
               type="text" 
               onClick={() => showDetail(record)} 
-              icon={<FileTextOutlined />} 
+              icon={<EyeOutlined />} 
               style={{ color: "#2563eb", fontWeight: 600 }}
               size="small"
             >
-              Hóa đơn
+              Chi tiết
             </Button>
           </Tooltip>
           {record.status === "pending" && (
@@ -462,12 +462,12 @@ const UserWithdrawRequestsAdmin = () => {
         />
       </Card>
 
-      {/* Modal Hóa đơn */}
+      {/* Modal Chi tiết */}
       <Modal
         title={
           <div className={styles.modalTitle}>
-            <FileTextOutlined className={styles.modalIcon} />
-            Hóa đơn yêu cầu rút tiền
+            <EyeOutlined className={styles.modalIcon} />
+            Chi tiết yêu cầu rút tiền
           </div>
         }
         open={detailModal.open}
