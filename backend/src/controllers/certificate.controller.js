@@ -91,154 +91,108 @@ exports.issueCertificate = async (req, res, next) => {
       console.error('KHÔNG tạo được file test.txt:', err);
     }
 
-// Phần tạo PDF chứng chỉ hoàn chỉnh - Layout chuẩn theo phôi
+// Tạo PDF chứng chỉ với layout landscape và bố cục gọn gàng
 try {
-  const doc = new PDFDocument({ size: 'A4', margin: 0 });
-  
-  // Sử dụng phôi chứng chỉ có sẵn
-  const templatePath = path.join(certDir, 'certificate.png'); 
+  const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 0 });
+
+  const templatePath = path.join(certDir, 'certificate.png');
   if (fs.existsSync(templatePath)) {
-    // Thêm phôi làm background
-    doc.image(templatePath, 0, 0, { 
-      width: doc.page.width, 
-      height: doc.page.height 
+    doc.image(templatePath, 0, 0, {
+      width: doc.page.width,
+      height: doc.page.height
     });
-    console.log('Đã sử dụng phôi chứng chỉ có sẵn');
   } else {
-    console.log('Không tìm thấy phôi chứng chỉ, tạo nền trắng');
     doc.rect(0, 0, doc.page.width, doc.page.height).fill('#ffffff');
   }
-  
-  // Sử dụng font Roboto Unicode cho PDFKit
+
   const robotoFontPath = path.join(certDir, 'Roboto-Regular.ttf');
   const robotoBoldPath = path.join(certDir, 'Roboto-Bold.ttf');
   const robotoItalicPath = path.join(certDir, 'Roboto-Italic.ttf');
-  
-  // Thiết lập font mặc định
-  if (fs.existsSync(robotoFontPath)) {
-    doc.font(robotoFontPath);
-  }
-  
-  const displayName = user.fullname || user.nickname;
-  
-  // === LAYOUT THEO ĐÚNG PHÔI ===
-  
-  // === THÊM TÊN HỌC VIÊN ===
-  // Vị trí tên học viên (vùng chữ đỏ in nghiêng lớn ở giữa)
-  if (fs.existsSync(robotoItalicPath)) {
-    doc.font(robotoItalicPath); // Font in nghiêng cho tên
-  }
-  
-  doc.fontSize(36) // Kích thước lớn cho tên học viên
-     .fillColor('#dc2626') // Màu đỏ đậm
-     .text(displayName, 0, 380, { 
-       align: 'center', 
-       width: doc.page.width,
-       characterSpacing: 2
-     });
-  
-  // === THÊM TÊN KHÓA HỌC ===
-  // Vị trí dưới tên học viên (dòng chữ đỏ nhỏ hơn)
-  if (fs.existsSync(robotoFontPath)) {
-    doc.font(robotoFontPath);
-  }
-  
-  doc.fontSize(16) // Kích thước trung bình
-     .fillColor('#dc2626') // Màu đỏ
-     .text(`Đã hoàn thành khóa học: ${course.title}`, 0, 450, { 
-       align: 'center', 
-       width: doc.page.width
-     });
-  
-  // === THÊM TÊN HỆ THỐNG (Đơn vị cấp chứng nhận) ===
-  // Vị trí bên trái dưới, dịch xuống để không đè lên chữ vàng
-  if (fs.existsSync(robotoBoldPath)) {
-    doc.font(robotoBoldPath); // Font đậm
-  }
-  
-  doc.fontSize(18) // Giảm kích thước một chút
-     .fillColor('#dc2626') // Màu đỏ
-     .text('EduPro', 100, 650, { // Dịch xuống từ 620 thành 650
-       width: 150, 
-       align: 'center' 
-     });
-  
-  // === THÊM TÊN GIẢNG VIÊN ===
-  // Vị trí bên phải dưới, dịch xuống để không đè lên chữ vàng
-  if (fs.existsSync(robotoItalicPath)) {
-    doc.font(robotoItalicPath); // Font in nghiêng
-  }
-  
-  doc.fontSize(18) // Giảm kích thước một chút
-     .fillColor('#dc2626') // Màu đỏ
-     .text(instructorName, 350, 650, { // Dịch xuống từ 620 thành 650
-       width: 150, 
-       align: 'center' 
-     });
-  
-  // === THÊM SỐ CHỨNG CHỈ VÀ NGÀY CẤP ===
+
+  if (fs.existsSync(robotoFontPath)) doc.font(robotoFontPath);
+  const displayName = user.fullname || user.nickname || 'Học viên';
+
+  const centerX = doc.page.width / 2;
+  const pageBottom = doc.page.height;
+
+  // === TÊN HỌC VIÊN (TRUNG TÂM TRANG) ===
+  if (fs.existsSync(robotoItalicPath)) doc.font(robotoItalicPath);
+  doc.fontSize(42)
+    .fillColor('#dc2626')
+    .text(displayName, 0, 250, {
+      align: 'center',
+      width: doc.page.width,
+      characterSpacing: 2
+    });
+
+  // === DÒNG "ĐÃ HOÀN THÀNH KHÓA HỌC: ..." ===
+  if (fs.existsSync(robotoFontPath)) doc.font(robotoFontPath);
+  doc.fontSize(20)
+    .fillColor('#dc2626')
+    .text(`Đã hoàn thành khóa học: ${course.title}`, 0, 310, {
+      align: 'center',
+      width: doc.page.width
+    });
+
+  // === TÊN ĐƠN VỊ CẤP (TRÁI DƯỚI) ===
+  if (fs.existsSync(robotoBoldPath)) doc.font(robotoBoldPath);
+  doc.fontSize(18)
+    .fillColor('#dc2626')
+    .text('EduPro', 100, pageBottom - 120, {
+      width: 200,
+      align: 'center'
+    });
+
+  // === TÊN GIẢNG VIÊN (PHẢI DƯỚI) ===
+  if (fs.existsSync(robotoItalicPath)) doc.font(robotoItalicPath);
+  doc.fontSize(18)
+    .fillColor('#dc2626')
+    .text(instructorName, doc.page.width - 300, pageBottom - 120, {
+      width: 200,
+      align: 'center'
+    });
+
+  // === SỐ CHỨNG CHỈ + NGÀY CẤP (CUỐI TRANG) ===
+  if (fs.existsSync(robotoFontPath)) doc.font(robotoFontPath);
   const issueDate = new Date().toLocaleDateString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit', 
-    year: 'numeric'
+    day: '2-digit', month: '2-digit', year: 'numeric'
   });
-  
-  // Căn giữa ở dưới cùng
-  if (fs.existsSync(robotoFontPath)) {
-    doc.font(robotoFontPath);
-  }
-  
-  doc.fontSize(11)
-     .fillColor('#dc2626') // Màu đỏ
-     .text(`Chứng nhận số: ${certificateNumber}`, 0, 750, { 
-       width: doc.page.width,
-       align: 'center'
-     });
-  
-  doc.fontSize(11)
-     .fillColor('#dc2626') // Màu đỏ  
-     .text(`Cấp ngày: ${issueDate}`, 0, 770, { 
-       width: doc.page.width,
-       align: 'center'
-     });
-  
-  // Lưu file
+
+  doc.fontSize(12)
+    .fillColor('#dc2626')
+    .text(`Chứng nhận số: ${certificateNumber}`, 0, pageBottom - 50, {
+      width: doc.page.width,
+      align: 'center'
+    });
+
+  doc.fontSize(12)
+    .text(`Cấp ngày: ${issueDate}`, 0, pageBottom - 30, {
+      width: doc.page.width,
+      align: 'center'
+    });
+
+  // Xuất PDF ra file
   const writeStream = fs.createWriteStream(filePath);
   doc.pipe(writeStream);
-  
-  // Đợi file được tạo xong
+
   await new Promise((resolve, reject) => {
-    writeStream.on('finish', () => {
-      console.log('PDF file created successfully:', filePath);
-      resolve();
-    });
-    writeStream.on('error', (error) => {
-      console.error('PDF write stream error:', error);
-      reject(error);
-    });
-    doc.on('error', (error) => {
-      console.error('PDF document error:', error);
-      reject(error);
-    });
+    writeStream.on('finish', resolve);
+    writeStream.on('error', reject);
+    doc.on('error', reject);
     doc.end();
   });
-  
-  // Kiểm tra file đã được tạo thành công
-  if (!fs.existsSync(filePath)) {
-    throw new Error('Không thể tạo file PDF');
-  }
-  
-  // Kiểm tra file có kích thước hợp lệ không
+
   const stats = fs.statSync(filePath);
-  if (stats.size === 0) {
-    throw new Error('File PDF trống');
+  if (!fs.existsSync(filePath) || stats.size === 0) {
+    throw new Error('Không thể tạo file chứng chỉ hoặc file rỗng');
   }
-  
+
   console.log('Certificate PDF created successfully:', fileName, 'Size:', stats.size);
 } catch (pdfError) {
   console.error('PDF creation error:', pdfError);
   throw new ApiError(500, 'Không thể tạo file chứng chỉ: ' + pdfError.message);
 }
+
     // Lưu bản ghi chứng chỉ với đầy đủ thông tin
     cert = await Certificate.create({ 
       user: userId, 
