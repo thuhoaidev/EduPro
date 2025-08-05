@@ -22,6 +22,7 @@ import {
   DashboardOutlined,
   ShoppingCartOutlined,
   CreditCardOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -155,6 +156,7 @@ const AdminLayout = () => {
             { key: "/admin/vouchers", icon: <GiftOutlined />, label: collapsed ? "MGG" : "Mã giảm giá" },
             { key: "/admin/earnings", icon: <DollarCircleOutlined />, label: collapsed ? "TN" : "Thu nhập" },
             { key: "/admin/user-withdraw-requests", icon: <WalletOutlined />, label: collapsed ? "RT" : "Rút tiền" },
+            { key: "/admin/invoices", icon: <FileTextOutlined />, label: collapsed ? "HD" : "Hóa đơn" },
           ],
         },
         {
@@ -230,6 +232,7 @@ const AdminLayout = () => {
     '/admin/vouchers': 'Quản lý mã giảm giá',
     '/admin/earnings': 'Thu nhập giảng viên',
     '/admin/user-withdraw-requests': 'Rút tiền học viên',
+    '/admin/invoices': 'Hóa đơn rút tiền',
     '/admin/statistics': 'Thống kê tổng quan',
     '/admin/reports': 'Báo cáo & khiếu nại',
   };

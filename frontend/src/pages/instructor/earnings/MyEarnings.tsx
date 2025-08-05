@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { Card, Statistic, Table, Tag, Button, message, Popconfirm, Typography, Space, Row, Col } from "antd";
-import { DollarOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, WalletOutlined, HistoryOutlined } from "@ant-design/icons";
+import { DollarOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, WalletOutlined, HistoryOutlined, FileTextOutlined } from "@ant-design/icons";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import WithdrawModal from "../../../components/common/WithdrawModal";
+import InvoiceDetailModal from "./InvoiceDetailModal";
 
 const { Title, Text } = Typography;
 
 const MyEarnings = () => {
+  const navigate = useNavigate();
   const [wallet, setWallet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [withdrawRequests, setWithdrawRequests] = useState<any[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const fetchWallet = async () => {
     setLoading(true);
@@ -80,6 +86,34 @@ const MyEarnings = () => {
     }
   };
 
+  const handleSendInvoiceEmail = async () => {
+    if (!selectedInvoice) {
+      message.error("Không có hóa đơn được chọn!");
+      return;
+    }
+    console.log("Gửi email hóa đơn:", selectedInvoice);
+    setSending(true);
+    try {
+      const res = await fetch(`/api/invoices/send-email/${selectedInvoice._id}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json"
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        message.success("Đã gửi hóa đơn về email!");
+      } else {
+        message.error(data.message || "Gửi email thất bại!");
+      }
+    } catch (err) {
+      message.error("Gửi email thất bại!");
+    } finally {
+      setSending(false);
+    }
+  };
+
   // Tính toán thống kê
   const totalRequests = withdrawRequests.length;
   const pendingRequests = withdrawRequests.filter(r => r.status === "pending").length;
@@ -140,22 +174,25 @@ const MyEarnings = () => {
           </Col>
         </Row>
 
-        <Button 
-          type="primary" 
-          onClick={() => setIsModalVisible(true)} 
-          size="large"
-          style={{ 
-            borderRadius: 8, 
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", 
-            border: "none", 
-            fontWeight: 600,
-            height: 48,
-            fontSize: 16
-          }}
-        >
-          <DollarOutlined style={{ marginRight: 8 }} />
-          Rút tiền
-        </Button>
+        <Space size="large">
+          <Button 
+            type="primary" 
+            onClick={() => setIsModalVisible(true)} 
+            size="large"
+            style={{ 
+              borderRadius: 8, 
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", 
+              border: "none", 
+              fontWeight: 600,
+              height: 48,
+              fontSize: 16
+            }}
+          >
+            <DollarOutlined style={{ marginRight: 8 }} />
+            Rút tiền
+          </Button>
+          {/* Đã xóa nút Xem hóa đơn dẫn đến /instructor/invoices */}
+        </Space>
       </Card>
 
       {/* Lịch sử giao dịch */}
@@ -322,22 +359,42 @@ const MyEarnings = () => {
             {
               title: "Thao tác",
               dataIndex: "_id",
-              render: (_id: string, record: any) => record.status === "pending" ? (
-                <Popconfirm 
-                  title="Bạn chắc chắn muốn hủy?" 
-                  onConfirm={() => handleCancelWithdraw(_id)} 
-                  okText="Đồng ý" 
-                  cancelText="Hủy"
-                >
-                  <Button 
-                    danger 
-                    size="small"
-                    style={{ borderRadius: 6, fontWeight: 600 }}
-                  >
-                    Hủy
-                  </Button>
-                </Popconfirm>
-              ) : null,
+              render: (_id: string, record: any) => {
+                if (record.status === "pending") {
+                  return (
+                    <Popconfirm 
+                      title="Bạn chắc chắn muốn hủy?" 
+                      onConfirm={() => handleCancelWithdraw(_id)} 
+                      okText="Đồng ý" 
+                      cancelText="Hủy"
+                    >
+                      <Button 
+                        danger 
+                        size="small"
+                        style={{ borderRadius: 6, fontWeight: 600 }}
+                      >
+                        Hủy
+                      </Button>
+                    </Popconfirm>
+                  );
+                } else if (record.status === "approved") {
+                  return (
+                    <Button 
+                      type="primary"
+                      size="small"
+                      icon={<FileTextOutlined />}
+                      style={{ borderRadius: 6, fontWeight: 600 }}
+                      onClick={() => {
+                        setSelectedInvoice(record);
+                        setModalVisible(true);
+                      }}
+                    >
+                      Hóa đơn
+                    </Button>
+                  );
+                }
+                return null;
+              },
             },
           ]}
           rowClassName={(record) => {
@@ -355,6 +412,14 @@ const MyEarnings = () => {
         onSubmit={handleWithdraw}
         walletBalance={wallet?.balance || 0}
         loading={withdrawLoading}
+      />
+
+      <InvoiceDetailModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        invoice={selectedInvoice}
+        onSendEmail={handleSendInvoiceEmail}
+        sending={sending}
       />
 
       <style>{`

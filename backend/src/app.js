@@ -42,6 +42,7 @@ const lessonCommentRoutes = require('./routes/lessonComment.routes');
 const messageRoutes = require('./routes/message.routes');
 const certificateRoutes = require('./routes/certificate.routes');
 const statisticsRoutes = require('./routes/statistics.routes');
+const invoiceRoutes = require('./routes/invoice.routes');
 
 // Khởi tạo app
 const app = express();
@@ -96,6 +97,7 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/certificates', express.static(path.join(__dirname, 'certificates')));
+app.use('/invoices', express.static(path.join(__dirname, 'invoices')));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -128,6 +130,7 @@ app.use('/api/lesson-comments', lessonCommentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/statistics', statisticsRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // Error handling middleware
 app.use((err, req, res, _next) => {

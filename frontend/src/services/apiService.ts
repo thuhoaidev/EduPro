@@ -519,4 +519,13 @@ export const userWalletService = {
   },
 };
 
+// API hóa đơn
+export const invoiceService = {
+  // Admin lấy tất cả hóa đơn
+  getAllInvoices: async () => {
+    const res = await apiClient.get('/invoices');
+    return res.data;
+  },
+};
+
 
