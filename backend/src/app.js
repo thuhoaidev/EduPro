@@ -43,6 +43,7 @@ const deviceSecurityRoutes = require('./routes/deviceSecurity.routes');
 const messageRoutes = require('./routes/message.routes');
 const certificateRoutes = require('./routes/certificate.routes');
 const statisticsRoutes = require('./routes/statistics.routes');
+const aiRecommendationRoutes = require('./routes/aiRecommendation.routes');
 
 
 // Khởi tạo app
@@ -130,6 +131,7 @@ app.use('/api/device-security', deviceSecurityRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/statistics', statisticsRoutes);
+app.use('/api/ai', aiRecommendationRoutes);
 // Error handling middleware
 app.use((err, req, res, _next) => {
   console.error(err.stack);
