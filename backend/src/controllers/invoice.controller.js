@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const ApiError = require('../utils/ApiError');
 const sendEmail = require('../utils/sendEmail');
+const UserWallet = require('../models/UserWallet'); // Added import for UserWallet
 
 // Tạo hóa đơn khi admin duyệt rút tiền
 exports.createInvoice = async (withdrawRequestId, adminId) => {
@@ -26,7 +27,8 @@ exports.createInvoice = async (withdrawRequestId, adminId) => {
       bank: withdrawRequest.bank,
       account: withdrawRequest.account,
       holder: withdrawRequest.holder,
-      issuedBy: adminId
+      issuedBy: adminId,
+      invoiceNumber: `INV-${Date.now()}-${withdrawRequestId}`
     });
 
     await invoice.save();
@@ -52,88 +54,137 @@ exports.createInvoice = async (withdrawRequestId, adminId) => {
 async function generateInvoicePDF(invoice, withdrawRequest, filePath) {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const doc = new PDFDocument({ 
+        size: 'A4', 
+        margin: 20,
+        info: {
+          Title: `Hóa đơn rút tiền - ${invoice.invoiceNumber}`,
+          Author: 'EduPro',
+          Subject: 'Hóa đơn rút tiền giảng viên'
+        }
+      });
       const writeStream = fs.createWriteStream(filePath);
       
       doc.pipe(writeStream);
 
-      // Header
-      doc.fontSize(24)
+      // Background màu trắng
+      doc.rect(0, 0, 595, 842).fill('#ffffff');
+
+      // Modal container (giống như modal trên web)
+      const modalX = 50;
+      const modalY = 50;
+      const modalWidth = 495;
+      const modalHeight = 700;
+      
+      // Background modal với border radius effect
+      doc.fillColor('#ffffff');
+      doc.rect(modalX, modalY, modalWidth, modalHeight).fill();
+      
+      // Border modal
+      doc.strokeColor('#e5e7eb');
+      doc.lineWidth(1);
+      doc.rect(modalX, modalY, modalWidth, modalHeight).stroke();
+
+      // Header modal với close button (X)
+      doc.fillColor('#f9fafb');
+      doc.rect(modalX, modalY, modalWidth, 60).fill();
+      
+      // Close button (X)
+      doc.fillColor('#6b7280');
+      doc.fontSize(16)
          .font('Helvetica-Bold')
-         .text('HÓA ĐƠN RÚT TIỀN', { align: 'center' });
-      
-      doc.moveDown(0.5);
-      doc.fontSize(12)
-         .font('Helvetica')
-         .text(`Số hóa đơn: ${invoice.invoiceNumber}`, { align: 'center' });
-      
-      doc.moveDown(0.5);
-      doc.text(`Ngày xuất: ${new Date(invoice.issuedAt).toLocaleDateString('vi-VN')}`, { align: 'center' });
+         .text('×', modalX + modalWidth - 30, modalY + 20);
 
-      doc.moveDown(2);
+      // Avatar section (giống hệt như trong ảnh)
+      const avatarX = modalX + 50;
+      const avatarY = modalY + 80;
+      
+      // Avatar circle với ảnh người thật (placeholder)
+      doc.save();
+      doc.circle(avatarX + 25, avatarY + 25, 25);
+      doc.fill('#e5e7eb'); // Màu xám nhạt cho placeholder
+      doc.restore();
+      
+      // Thêm icon người trong avatar
+      doc.fillColor('#9ca3af');
+      doc.fontSize(20)
+         .font('Helvetica-Bold')
+         .text('👤', avatarX + 15, avatarY + 15);
 
-      // Thông tin giảng viên
+      // Thông tin giảng viên (giống hệt như trong ảnh)
+      doc.fillColor('#1e40af'); // Màu xanh đậm như trong ảnh
+      doc.fontSize(18)
+         .font('Helvetica-Bold')
+         .text(withdrawRequest.teacherId.fullname, avatarX + 70, avatarY + 10);
+      
       doc.fontSize(14)
+         .font('Helvetica')
+         .fillColor('#6b7280')
+         .text(withdrawRequest.teacherId.email, avatarX + 70, avatarY + 35);
+
+      // Bảng thông tin chi tiết (giống hệt như trong ảnh)
+      const tableY = avatarY + 80;
+      const rowHeight = 40;
+      const labelX = modalX + 50;
+      const valueX = modalX + 200;
+      
+      // Dữ liệu bảng (giống hệt như trong ảnh)
+      const data = [
+        { label: 'Mã hóa đơn', value: withdrawRequest._id },
+        { label: 'Số tiền', value: `${Number(withdrawRequest.amount).toLocaleString('vi-VN')} ₫`, color: '#22c55e' },
+        { label: 'Ngân hàng', value: withdrawRequest.bank },
+        { label: 'Số tài khoản', value: withdrawRequest.account },
+        { label: 'Chủ tài khoản', value: withdrawRequest.holder },
+        { label: 'Ngày xuất', value: `${new Date(invoice.issuedAt).toLocaleTimeString('vi-VN')} ${new Date(invoice.issuedAt).toLocaleDateString('vi-VN')}` },
+        { label: 'Trạng thái', value: 'Đã duyệt', color: '#22c55e' }
+      ];
+
+      data.forEach((row, index) => {
+        const y = tableY + index * rowHeight;
+        
+        // Label (màu xanh như trong ảnh)
+        doc.fillColor('#1e40af');
+        doc.font('Helvetica-Bold');
+        doc.fontSize(12);
+        doc.text(row.label, labelX, y + 10);
+        
+        // Value
+        doc.fillColor(row.color || '#1f2937');
+        doc.font('Helvetica');
+        doc.fontSize(12);
+        doc.text(row.value, valueX, y + 10);
+      });
+
+      // Footer với buttons (giống như trong ảnh)
+      const buttonY = modalY + modalHeight - 80;
+      
+      // Button "Tải hóa đơn PDF" (màu xanh)
+      doc.fillColor('#2563eb');
+      doc.rect(modalX + 50, buttonY, 180, 40).fill();
+      
+      doc.fillColor('white');
+      doc.fontSize(12)
          .font('Helvetica-Bold')
-         .text('THÔNG TIN GIẢNG VIÊN');
+         .text('Tải hóa đơn PDF', modalX + 70, buttonY + 12);
       
-      doc.moveDown(0.5);
+      // Button "Đóng" (màu trắng với border)
+      doc.strokeColor('#d1d5db');
+      doc.lineWidth(1);
+      doc.rect(modalX + 250, buttonY, 80, 40).stroke();
+      
+      doc.fillColor('#374151');
       doc.fontSize(12)
-         .font('Helvetica')
-         .text(`Họ và tên: ${withdrawRequest.teacherId.fullname}`);
-      doc.text(`Email: ${withdrawRequest.teacherId.email}`);
-
-      doc.moveDown(1);
-
-      // Thông tin rút tiền
-      doc.fontSize(14)
          .font('Helvetica-Bold')
-         .text('THÔNG TIN RÚT TIỀN');
-      
-      doc.moveDown(0.5);
-      doc.fontSize(12)
-         .font('Helvetica')
-         .text(`Số tiền: ${Number(withdrawRequest.amount).toLocaleString('vi-VN')} VNĐ`);
-      doc.text(`Ngân hàng: ${withdrawRequest.bank}`);
-      doc.text(`Số tài khoản: ${withdrawRequest.account}`);
-      doc.text(`Chủ tài khoản: ${withdrawRequest.holder}`);
+         .text('Đóng', modalX + 275, buttonY + 12);
 
-      doc.moveDown(1);
-
-      // Thông tin yêu cầu
-      doc.fontSize(14)
-         .font('Helvetica-Bold')
-         .text('THÔNG TIN YÊU CẦU');
-      
-      doc.moveDown(0.5);
-      doc.fontSize(12)
-         .font('Helvetica')
-         .text(`Mã yêu cầu: ${withdrawRequest._id}`);
-      doc.text(`Ngày yêu cầu: ${new Date(withdrawRequest.createdAt).toLocaleDateString('vi-VN')}`);
-      doc.text(`Ngày duyệt: ${new Date(withdrawRequest.approvedAt).toLocaleDateString('vi-VN')}`);
-
-      doc.moveDown(2);
-
-      // Chữ ký
-      doc.fontSize(12)
-         .font('Helvetica')
-         .text('Chữ ký người duyệt:', 50, doc.y);
-      
-      doc.moveDown(3);
-      doc.text('_________________', 50, doc.y);
-      doc.text('(Admin)', 50, doc.y + 15);
-
-      doc.moveDown(1);
-      doc.text('Chữ ký giảng viên:', 350, doc.y - 60);
-      doc.moveDown(2);
-      doc.text('_________________', 350, doc.y);
-      doc.text('(Giảng viên)', 350, doc.y + 15);
-
-      // Footer
-      doc.moveDown(2);
-      doc.fontSize(10)
-         .font('Helvetica')
-         .text('Hóa đơn này được tạo tự động bởi hệ thống EduPro', { align: 'center' });
+      // Thêm watermark nhẹ
+      doc.save();
+      doc.translate(300, 400);
+      doc.rotate(-45);
+      doc.fontSize(40);
+      doc.fillColor('#f3f4f6');
+      doc.text('EDUPRO', 0, 0);
+      doc.restore();
 
       writeStream.on('finish', () => {
         console.log('Invoice PDF created successfully:', filePath);
@@ -421,6 +472,119 @@ async function generatePaymentInvoicePDF(order, txId, filePath) {
         doc.fontSize(10)
            .font('Helvetica')
            .text(`Giảm giá: ${order.discountAmount.toLocaleString()}₫`, { align: 'right' });
+      }
+
+      doc.moveDown(1);
+      
+      // Footer
+      doc.fontSize(10)
+         .font('Helvetica')
+         .text('Cảm ơn bạn đã sử dụng dịch vụ của EduPro!', { align: 'center' });
+
+      doc.end();
+      
+      writeStream.on('finish', () => {
+        resolve();
+      });
+      
+      writeStream.on('error', (error) => {
+        reject(error);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+} 
+
+// Tạo hóa đơn cho giao dịch ví (nạp/rút tiền)
+exports.createWalletInvoice = async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+    const userId = req.user._id;
+    
+    // Tìm giao dịch ví
+    const transaction = await UserWallet.findOne({ 
+      _id: transactionId, 
+      userId: userId 
+    }).populate('userId', 'fullname email');
+    
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy giao dịch' });
+    }
+    
+    // Tạo tên file hóa đơn
+    const fileName = `wallet-${transactionId}-${Date.now()}.pdf`;
+    const filePath = path.join(__dirname, '../../invoices', fileName);
+    
+    // Tạo PDF hóa đơn
+    await generateWalletInvoicePDF(transaction, filePath);
+    
+    res.json({ 
+      success: true, 
+      message: 'Tạo hóa đơn thành công',
+      data: {
+        fileName,
+        downloadUrl: `/api/invoices/download/${fileName}`
+      }
+    });
+  } catch (error) {
+    console.error('Create wallet invoice error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi tạo hóa đơn', error: error.message });
+  }
+};
+
+// Tạo PDF hóa đơn cho giao dịch ví
+async function generateWalletInvoicePDF(transaction, filePath) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const writeStream = fs.createWriteStream(filePath);
+      
+      doc.pipe(writeStream);
+
+      // Header
+      doc.fontSize(24)
+         .font('Helvetica-Bold')
+         .text('HÓA ĐƠN GIAO DỊCH VÍ', { align: 'center' });
+      
+      doc.moveDown(0.5);
+      doc.fontSize(12)
+         .font('Helvetica')
+         .text(`Mã giao dịch: ${transaction._id}`, { align: 'center' });
+      
+      doc.moveDown(0.5);
+      doc.text(`Ngày giao dịch: ${new Date(transaction.createdAt).toLocaleDateString('vi-VN')}`, { align: 'center' });
+
+      doc.moveDown(2);
+
+      // Thông tin khách hàng
+      doc.fontSize(14)
+         .font('Helvetica-Bold')
+         .text('THÔNG TIN KHÁCH HÀNG');
+      
+      doc.moveDown(0.5);
+      doc.fontSize(12)
+         .font('Helvetica')
+         .text(`Họ và tên: ${transaction.userId?.fullname || 'Khách hàng'}`);
+      doc.text(`Email: ${transaction.userId?.email || 'N/A'}`);
+
+      doc.moveDown(1);
+
+      // Thông tin giao dịch
+      doc.fontSize(14)
+         .font('Helvetica-Bold')
+         .text('CHI TIẾT GIAO DỊCH');
+      
+      doc.moveDown(0.5);
+      doc.fontSize(12)
+         .font('Helvetica')
+         .text(`Loại giao dịch: ${transaction.type === 'deposit' ? 'Nạp tiền' : transaction.type === 'withdraw' ? 'Rút tiền' : 'Khác'}`);
+      doc.text(`Số tiền: ${Number(transaction.amount).toLocaleString('vi-VN')} VNĐ`);
+      doc.text(`Phương thức: ${transaction.method || 'N/A'}`);
+      doc.text(`Trạng thái: ${transaction.status === 'completed' ? 'Thành công' : transaction.status === 'pending' ? 'Đang xử lý' : 'Thất bại'}`);
+      
+      if (transaction.note) {
+        doc.text(`Ghi chú: ${transaction.note}`);
       }
 
       doc.moveDown(1);

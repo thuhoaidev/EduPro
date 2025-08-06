@@ -49,10 +49,6 @@ const invoiceRoutes = require('./routes/invoice.routes');
 
 const aiRecommendationRoutes = require('./routes/aiRecommendation.routes');
 
-const aiRecommendationRoutes = require('./routes/aiRecommendation.routes');
-
-const invoiceRoutes = require('./routes/invoice.routes');
-
 // Khởi tạo app
 const app = express();
 
@@ -143,9 +139,6 @@ app.use('/api/statistics', statisticsRoutes);
 
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/ai', aiRecommendationRoutes);
-
-app.use('/api/ai', aiRecommendationRoutes);
-app.use('/api/invoices', invoiceRoutes);
 
 // Error handling middleware
 app.use((err, req, res, _next) => {

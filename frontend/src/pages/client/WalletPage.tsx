@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import WithdrawModal from '../../components/common/WithdrawModal';
 import { userWalletService } from '../../services/apiService';
 import orderService from '../../services/orderService';
-import { EyeOutlined, WalletOutlined, PlusOutlined, MinusOutlined, HistoryOutlined, DollarOutlined, ExclamationCircleOutlined, ReloadOutlined, DownloadOutlined } from "@ant-design/icons";
+import { EyeOutlined, WalletOutlined, PlusOutlined, MinusOutlined, HistoryOutlined, DollarOutlined, ExclamationCircleOutlined, ReloadOutlined } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -1439,41 +1439,7 @@ const WalletPage: React.FC = () => {
           }
           open={invoiceModal.open}
           onCancel={() => setInvoiceModal({ open: false })}
-                        footer={
-                <div style={{ textAlign: 'center' }}>
-                  <Button 
-                    type="primary" 
-                    icon={<DownloadOutlined />}
-                    onClick={async () => {
-                      try {
-                        // Tạo hóa đơn PDF trước khi tải xuống
-                        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/invoices/payment/${invoiceModal.data?.orderId}/${invoiceModal.data?.txId || 'unknown'}`, {
-                          method: 'POST',
-                          headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                          }
-                        });
-                        
-                        if (response.ok) {
-                          const result = await response.json();
-                          // Tải xuống file PDF
-                          const downloadUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${result.data.downloadUrl}`;
-                          window.open(downloadUrl, '_blank');
-                        } else {
-                          message.error('Không thể tạo hóa đơn');
-                        }
-                      } catch (error) {
-                        console.error('Error creating invoice:', error);
-                        message.error('Lỗi khi tạo hóa đơn');
-                      }
-                    }}
-                    style={{ borderRadius: '6px' }}
-                  >
-                    Tải xuống PDF
-                  </Button>
-                </div>
-              }
+          footer={null}
           width={700}
           style={{ borderRadius: '12px' }}
         >
