@@ -7,7 +7,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 
 // Helper function để tính toán tổng giá trị giỏ hàng
-const calculateCartTotal = (items) => {
+const calculateCartTotal = items => {
   return items.reduce((total, item) => total + (item.priceAtAddition || 0), 0);
 };
 
@@ -21,26 +21,26 @@ const calculateFinalPrice = (price, discount) => {
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.user._id })
-      .populate({
-        path: 'items.course',
-        select: 'title price discount thumbnail instructor slug rating totalReviews views level language',
+    const cart = await Cart.findOne({ user: req.user._id }).populate({
+      path: 'items.course',
+      select:
+        'title price discount thumbnail instructor slug rating totalReviews views level language',
+      populate: {
+        path: 'instructor',
+        select: 'user bio expertise rating totalReviews totalStudents',
         populate: {
-          path: 'instructor',
-          select: 'user bio expertise rating totalReviews totalStudents',
-          populate: {
-            path: 'user',
-            select: 'fullname avatar'
-          }
-        }
-      });
+          path: 'user',
+          select: 'fullname avatar',
+        },
+      },
+    });
 
     if (!cart) {
-      return res.json({ 
+      return res.json({
         success: true,
         items: [],
         total: 0,
-        itemCount: 0
+        itemCount: 0,
       });
     }
 
@@ -48,35 +48,37 @@ router.get('/', auth, async (req, res) => {
 
     // Lấy thông tin chi tiết cho từng course
     const itemsWithDetails = await Promise.all(
-      cart.items.map(async (item) => {
+      cart.items.map(async item => {
         const course = item.course;
-        
+
         // Lấy số học viên đã đăng ký khóa học
         const Enrollment = require('../models/Enrollment');
-        const studentCount = await Enrollment.countDocuments({ 
+        const studentCount = await Enrollment.countDocuments({
           course: course._id,
-          status: 'completed'
+          status: 'completed',
         });
 
         // Lấy tổng thời gian khóa học từ các video
         const Section = require('../models/Section');
         const Video = require('../models/Video');
-        
+
         const sections = await Section.find({ course_id: course._id });
         let totalDuration = 0;
-        
+
         for (const section of sections) {
           const lessons = await Lesson.find({ section_id: section._id });
           for (const lesson of lessons) {
-            const video = await Video.findOne({ lesson_id: lesson._id });
-            if (video && video.duration) {
-              totalDuration += video.duration;
+            const videos = await Video.find({ lesson_id: lesson._id });
+            for (const video of videos) {
+              if (video && video.duration) {
+                totalDuration += video.duration;
+              }
             }
           }
         }
 
         // Format duration
-        const formatDuration = (seconds) => {
+        const formatDuration = seconds => {
           const hours = Math.floor(seconds / 3600);
           const minutes = Math.floor((seconds % 3600) / 60);
           if (hours > 0) {
@@ -100,42 +102,44 @@ router.get('/', auth, async (req, res) => {
             views: course.views || 0,
             level: course.level,
             language: course.language,
-            instructor: course.instructor ? {
-              name: course.instructor.user?.fullname || 'EduPro',
-              avatar: course.instructor.user?.avatar || null,
-              bio: course.instructor.bio,
-              expertise: course.instructor.expertise,
-              rating: course.instructor.rating || 0,
-              totalReviews: course.instructor.totalReviews || 0,
-              totalStudents: course.instructor.totalStudents || 0
-            } : {
-              name: 'EduPro',
-              avatar: null,
-              bio: '',
-              expertise: [],
-              rating: 0,
-              totalReviews: 0,
-              totalStudents: 0
-            },
+            instructor: course.instructor
+              ? {
+                  name: course.instructor.user?.fullname || 'EduPro',
+                  avatar: course.instructor.user?.avatar || null,
+                  bio: course.instructor.bio,
+                  expertise: course.instructor.expertise,
+                  rating: course.instructor.rating || 0,
+                  totalReviews: course.instructor.totalReviews || 0,
+                  totalStudents: course.instructor.totalStudents || 0,
+                }
+              : {
+                  name: 'EduPro',
+                  avatar: null,
+                  bio: '',
+                  expertise: [],
+                  rating: 0,
+                  totalReviews: 0,
+                  totalStudents: 0,
+                },
             students: studentCount,
-            duration: formatDuration(totalDuration)
+            duration: formatDuration(totalDuration),
           },
-          addedAt: item.addedAt
+          addedAt: item.addedAt,
         };
-      })
+      }),
     );
 
     res.json({
       success: true,
       items: itemsWithDetails,
       total,
-      itemCount: cart.items.length
+      itemCount: cart.items.length,
     });
   } catch (err) {
     console.error('Error getting cart:', err);
     res.status(500).json({
       success: false,
-      error: 'Lỗi hệ thống khi lấy giỏ hàng'
+      error: 'Lỗi hệ thống khi lấy giỏ hàng',
     });
   }
 });
@@ -146,30 +150,33 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-  
+
   try {
     const { courseId } = req.body;
     const userId = req.user._id;
 
     // 1. Kiểm tra khóa học
-    const course = await Course.findById(courseId)
-      .populate('instructor', 'user')
-      .session(session);
-    
+    const course = await Course.findById(courseId).populate('instructor', 'user').session(session);
+
     if (!course) {
       await session.abortTransaction();
       return res.status(404).json({
         success: false,
-        error: 'Khóa học không tồn tại'
+        error: 'Khóa học không tồn tại',
       });
     }
 
     // 2. Kiểm tra xem người dùng có phải là giảng viên của khóa học này không
-    if (course.instructor && course.instructor.user && course.instructor.user.toString() === userId.toString()) {
+    if (
+      course.instructor &&
+      course.instructor.user &&
+      course.instructor.user.toString() === userId.toString()
+    ) {
       await session.abortTransaction();
       return res.status(403).json({
         success: false,
-        error: 'Bạn không thể thêm khóa học của chính mình vào giỏ hàng. Giảng viên đã có quyền truy cập đầy đủ vào khóa học của mình.'
+        error:
+          'Bạn không thể thêm khóa học của chính mình vào giỏ hàng. Giảng viên đã có quyền truy cập đầy đủ vào khóa học của mình.',
       });
     }
 
@@ -178,38 +185,38 @@ router.post('/', auth, async (req, res) => {
 
     // 4. Thêm vào giỏ hàng
     let cart = await Cart.findOne({ user: userId }).session(session);
-    
+
     if (!cart) {
       cart = new Cart({
         user: userId,
-        items: [{ 
-          course: courseId,
-          priceAtAddition: finalPrice 
-        }]
+        items: [
+          {
+            course: courseId,
+            priceAtAddition: finalPrice,
+          },
+        ],
       });
     } else {
       // Kiểm tra nếu đã có trong giỏ hàng
-      const itemExists = cart.items.some(item => 
-        item.course.toString() === courseId
-      );
-      
+      const itemExists = cart.items.some(item => item.course.toString() === courseId);
+
       if (itemExists) {
         await session.abortTransaction();
         return res.status(400).json({
           success: false,
-          error: 'Khóa học đã có trong giỏ hàng'
+          error: 'Khóa học đã có trong giỏ hàng',
         });
       }
-      
-      cart.items.push({ 
+
+      cart.items.push({
         course: courseId,
-        priceAtAddition: finalPrice 
+        priceAtAddition: finalPrice,
       });
     }
 
     await cart.save({ session });
     await session.commitTransaction();
-    
+
     // --- TẠO NOTIFICATION VÀ EMIT REALTIME ---
     try {
       const Notification = require('../models/Notification');
@@ -220,12 +227,16 @@ router.post('/', auth, async (req, res) => {
         type: 'info',
         receiver: userId,
         icon: 'shopping-cart',
-        meta: { link: `/cart` }
+        meta: { link: `/cart` },
       });
       console.log('ĐÃ TẠO notification:', notification);
       if (io && notification.receiver) {
         io.to(notification.receiver.toString()).emit('new-notification', notification);
-        console.log('Emit notification realtime tới user:', notification.receiver.toString(), notification);
+        console.log(
+          'Emit notification realtime tới user:',
+          notification.receiver.toString(),
+          notification,
+        );
       }
     } catch (notiErr) {
       console.error('Lỗi tạo hoặc emit notification:', notiErr);
@@ -233,7 +244,7 @@ router.post('/', auth, async (req, res) => {
 
     const populatedCart = await cart.populate({
       path: 'items.course',
-      select: 'title price discount thumbnail slug'
+      select: 'title price discount thumbnail slug',
     });
 
     res.status(201).json({
@@ -249,20 +260,19 @@ router.post('/', auth, async (req, res) => {
             discount: course.discount,
             finalPrice: finalPrice,
             thumbnail: course.thumbnail,
-            slug: course.slug
+            slug: course.slug,
           },
-          addedAt: populatedCart.items[populatedCart.items.length - 1].addedAt
+          addedAt: populatedCart.items[populatedCart.items.length - 1].addedAt,
         },
-        itemCount: populatedCart.items.length
-      }
+        itemCount: populatedCart.items.length,
+      },
     });
-
   } catch (error) {
     await session.abortTransaction();
     console.error('Error adding to cart:', error);
     res.status(500).json({
       success: false,
-      error: 'Lỗi server khi thêm vào giỏ hàng'
+      error: 'Lỗi server khi thêm vào giỏ hàng',
     });
   } finally {
     session.endSession();
@@ -275,11 +285,11 @@ router.post('/', auth, async (req, res) => {
 router.delete('/', auth, async (req, res) => {
   try {
     const result = await Cart.findOneAndDelete({ user: req.user._id });
-    
+
     if (!result) {
       return res.status(404).json({
         success: false,
-        error: 'Không tìm thấy giỏ hàng'
+        error: 'Không tìm thấy giỏ hàng',
       });
     }
 
@@ -287,15 +297,14 @@ router.delete('/', auth, async (req, res) => {
       success: true,
       data: {
         itemCount: 0,
-        total: 0
-      }
+        total: 0,
+      },
     });
-
   } catch (err) {
     console.error('Error clearing cart:', err);
     res.status(500).json({
       success: false,
-      error: 'Lỗi server khi xóa giỏ hàng'
+      error: 'Lỗi server khi xóa giỏ hàng',
     });
   }
 });
@@ -306,11 +315,11 @@ router.delete('/', auth, async (req, res) => {
 router.delete('/bulk', auth, async (req, res) => {
   try {
     const { itemIds } = req.body;
-    
+
     if (!itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'Danh sách ID sản phẩm không hợp lệ'
+        error: 'Danh sách ID sản phẩm không hợp lệ',
       });
     }
 
@@ -319,26 +328,26 @@ router.delete('/bulk', auth, async (req, res) => {
 
     // Sử dụng findOneAndUpdate để xóa nhiều items cùng lúc
     const result = await Cart.findOneAndUpdate(
-      { 
+      {
         user: req.user._id,
-        'items._id': { $in: itemIds }
+        'items._id': { $in: itemIds },
       },
-      { 
-        $pull: { 
-          items: { _id: { $in: itemIds } } 
-        } 
+      {
+        $pull: {
+          items: { _id: { $in: itemIds } },
+        },
       },
-      { 
+      {
         new: true,
-        runValidators: true
-      }
+        runValidators: true,
+      },
     );
 
     if (!result) {
       console.log('Cart not found for user:', req.user._id);
       return res.status(404).json({
         success: false,
-        error: 'Không tìm thấy giỏ hàng'
+        error: 'Không tìm thấy giỏ hàng',
       });
     }
 
@@ -348,7 +357,7 @@ router.delete('/bulk', auth, async (req, res) => {
     // Populate để lấy thông tin course
     const populatedCart = await result.populate({
       path: 'items.course',
-      select: 'title price thumbnail'
+      select: 'title price thumbnail',
     });
 
     res.json({
@@ -356,24 +365,23 @@ router.delete('/bulk', auth, async (req, res) => {
       data: {
         deletedCount: itemIds.length,
         itemCount: populatedCart.items.length,
-        total: calculateCartTotal(populatedCart.items)
-      }
+        total: calculateCartTotal(populatedCart.items),
+      },
     });
-
   } catch (err) {
     console.error('Error bulk removing from cart:', err);
-    
+
     // Kiểm tra loại lỗi cụ thể
     if (err.name === 'CastError' && err.kind === 'ObjectId') {
       return res.status(400).json({
         success: false,
-        error: 'Một hoặc nhiều ID sản phẩm không hợp lệ'
+        error: 'Một hoặc nhiều ID sản phẩm không hợp lệ',
       });
     }
-    
+
     res.status(500).json({
       success: false,
-      error: 'Lỗi server khi xóa khỏi giỏ hàng'
+      error: 'Lỗi server khi xóa khỏi giỏ hàng',
     });
   }
 });
@@ -388,26 +396,26 @@ router.delete('/:itemId', auth, async (req, res) => {
 
     // Sử dụng findOneAndUpdate thay vì session để tránh race condition
     const result = await Cart.findOneAndUpdate(
-      { 
+      {
         user: req.user._id,
-        'items._id': req.params.itemId 
+        'items._id': req.params.itemId,
       },
-      { 
-        $pull: { 
-          items: { _id: req.params.itemId } 
-        } 
+      {
+        $pull: {
+          items: { _id: req.params.itemId },
+        },
       },
-      { 
+      {
         new: true,
-        runValidators: true
-      }
+        runValidators: true,
+      },
     );
 
     if (!result) {
       console.log('Cart or item not found for user:', req.user._id);
       return res.status(404).json({
         success: false,
-        error: 'Không tìm thấy giỏ hàng hoặc sản phẩm'
+        error: 'Không tìm thấy giỏ hàng hoặc sản phẩm',
       });
     }
 
@@ -417,31 +425,30 @@ router.delete('/:itemId', auth, async (req, res) => {
     // Populate để lấy thông tin course
     const populatedCart = await result.populate({
       path: 'items.course',
-      select: 'title price thumbnail'
+      select: 'title price thumbnail',
     });
 
     res.json({
       success: true,
       data: {
         itemCount: populatedCart.items.length,
-        total: calculateCartTotal(populatedCart.items)
-      }
+        total: calculateCartTotal(populatedCart.items),
+      },
     });
-
   } catch (err) {
     console.error('Error removing from cart:', err);
-    
+
     // Kiểm tra loại lỗi cụ thể
     if (err.name === 'CastError' && err.kind === 'ObjectId') {
       return res.status(400).json({
         success: false,
-        error: 'ID sản phẩm không hợp lệ'
+        error: 'ID sản phẩm không hợp lệ',
       });
     }
-    
+
     res.status(500).json({
       success: false,
-      error: 'Lỗi server khi xóa khỏi giỏ hàng'
+      error: 'Lỗi server khi xóa khỏi giỏ hàng',
     });
   }
 });

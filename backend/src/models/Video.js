@@ -11,6 +11,15 @@ const videoSchema = new mongoose.Schema(
       type: Number,
       required: [true, 'Thời lượng video không được để trống'],
     },
+    description: {
+      type: String,
+      default: '',
+    },
+    status: {
+      type: String,
+      enum: ['draft', 'published', 'archived'],
+      default: 'draft',
+    },
     quality_urls: {
       type: Map,
       of: new mongoose.Schema({
@@ -28,7 +37,7 @@ const videoSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 module.exports = mongoose.model('Video', videoSchema);

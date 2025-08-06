@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  Card, 
+import {
+  Card,
   Typography,
-  Tag, 
-  Row, 
-  Col, 
+  Tag,
+  Row,
+  Col,
   Avatar,
   Divider,
   Skeleton,
@@ -35,6 +35,11 @@ interface Lesson {
   _id: string;
   title: string;
   is_preview?: boolean;
+  video?: {
+    _id: string;
+    duration: number;
+    url?: string;
+  };
 }
 interface Section {
   _id: string;
@@ -66,11 +71,35 @@ interface CourseDetailData {
   thumbnail?: string;
   description?: string;
   discount?: number;
+  discount_percentage?: number;
+  discount_amount?: number;
 }
 
 const FADE_IN = {
   hidden: { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+};
+
+// Hàm chuyển đổi giây thành định dạng giờ:phút:giây
+const formatDuration = (seconds: number): string => {
+  if (seconds === 0) return '0s';
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+
+  let result = '';
+  if (hours > 0) {
+    result += `${hours}h `;
+  }
+  if (minutes > 0 || hours > 0) {
+    result += `${minutes}m `;
+  }
+  if (remainingSeconds > 0 || (hours === 0 && minutes === 0)) {
+    result += `${remainingSeconds}s`;
+  }
+
+  return result.trim();
 };
 
 const CourseDetail: React.FC = () => {
@@ -86,10 +115,45 @@ const CourseDetail: React.FC = () => {
         let courseData = null;
         if (id) {
           const rawData = await courseService.getCourseById(id);
-          courseData = rawData ? { ...mapApiCourseToAppCourse(rawData), sections: rawData.sections } : null;
+          if (rawData) {
+            // Map the course data and preserve the original discount fields
+            const mappedData = mapApiCourseToAppCourse(rawData);
+            courseData = {
+              ...mappedData,
+              sections: rawData.sections || [],
+              discount_percentage: rawData.discount_percentage,
+              discount_amount: rawData.discount_amount,
+              discount: rawData.discount
+            };
+          }
         }
         setCourse(courseData);
-      } catch {
+        if (courseData) {
+          console.log('Course data loaded:', courseData);
+          console.log('Sections data:', courseData.sections);
+          console.log('Sections type:', typeof courseData.sections);
+          console.log('Is sections array:', Array.isArray(courseData.sections));
+          if (courseData.sections && courseData.sections.length > 0) {
+            courseData.sections.forEach((section, index) => {
+              console.log(`Section ${index + 1}:`, section);
+              console.log(`Lessons in section ${index + 1}:`, section.lessons);
+              console.log(`Lessons type:`, typeof section.lessons);
+              console.log(`Is lessons array:`, Array.isArray(section.lessons));
+
+              // Debug video duration
+              if (section.lessons && Array.isArray(section.lessons)) {
+                section.lessons.forEach((lesson, lessonIndex) => {
+                  console.log(`Lesson ${lessonIndex + 1} video:`, lesson.video);
+                  console.log(`Lesson ${lessonIndex + 1} duration:`, lesson.video?.duration);
+                });
+              }
+            });
+          } else {
+            console.log('No sections found or sections is empty');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching course details:', error);
         message.error('Không thể lấy chi tiết khóa học.');
       } finally {
         setLoading(false);
@@ -111,14 +175,38 @@ const CourseDetail: React.FC = () => {
   const authorBio = instructor?.bio || course.author?.bio || '';
   const authorExpertise = instructor?.expertise || course.author?.expertise || [];
   const totalLessons = sections.reduce((sum, s) => sum + (s.lessons?.length || 0), 0);
-  // Giả lập tổng thời lượng
-  const totalDuration = totalLessons * 12 + 30; // phút
+
+  // Tính tổng thời lượng từ video thực tế
+  const totalDuration = sections.reduce((totalSeconds, section) => {
+    const sectionDuration = section.lessons?.reduce((sectionSeconds, lesson) => {
+      // Lấy duration từ video nếu có, nếu không thì ước tính 5 phút
+      const lessonDuration = lesson.video?.duration || 300; // 300 giây = 5 phút
+      console.log(`Lesson "${lesson.title}" duration:`, lessonDuration, 'seconds');
+      return sectionSeconds + lessonDuration;
+    }, 0) || 0;
+    console.log(`Section "${section.title}" total duration:`, sectionDuration, 'seconds');
+    return totalSeconds + sectionDuration;
+  }, 0);
+
+  console.log('Total course duration:', totalDuration, 'seconds');
+  console.log('Formatted duration:', formatDuration(totalDuration));
 
   // Tính giá sau giảm
-  const hasDiscount = course.discount && course.discount > 0;
+  const hasDiscount = (course.discount && course.discount > 0) || (course.discount_percentage && course.discount_percentage > 0) || (course.discount_amount && course.discount_amount > 0);
   const oldPrice = course.price;
-  const discountPercent = hasDiscount ? course.discount ?? 0 : 0;
-  const finalPrice = hasDiscount ? Math.round(course.price * (1 - discountPercent / 100)) : course.price;
+  let discountPercent = 0;
+  let finalPrice = course.price;
+
+  if (course.discount_percentage && course.discount_percentage > 0) {
+    discountPercent = course.discount_percentage;
+    finalPrice = Math.round(course.price * (1 - discountPercent / 100));
+  } else if (course.discount_amount && course.discount_amount > 0) {
+    discountPercent = Math.round((course.discount_amount / course.price) * 100);
+    finalPrice = Math.max(0, course.price - course.discount_amount);
+  } else if (course.discount && course.discount > 0) {
+    discountPercent = course.discount;
+    finalPrice = Math.round(course.price * (1 - discountPercent / 100));
+  }
 
   return (
     <motion.div initial="hidden" animate="visible" variants={FADE_IN} style={{ padding: 0, background: '#f5f7fa', minHeight: '100vh' }}>
@@ -205,7 +293,7 @@ const CourseDetail: React.FC = () => {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ marginBottom: 18, background: '#f5f7fa', border: 'none', color: '#1a73e8', fontWeight: 500 }}>Quay lại</Button>
         <Card
           className="course-detail-card"
-          cover={<img alt={course.title} src={course.Image || course.thumbnail || ''} className="course-cover" />}
+          cover={<img alt={course.title} src={course.Image || course.thumbnail || 'https://via.placeholder.com/600x400/4A90E2/FFFFFF?text=Khóa+học'} className="course-cover" />}
           variant="borderless"
         >
           <Row gutter={[32, 32]}>
@@ -241,7 +329,7 @@ const CourseDetail: React.FC = () => {
                 <div className="course-meta-item"><TeamOutlined style={{ color: '#1a73e8' }} />{Math.floor(Math.random() * 500) + 50} học viên</div>
                 <div className="course-meta-item"><StarFilled style={{ color: '#faad14' }} />{course.rating || 4.5} <span style={{ color: '#888', fontWeight: 400 }}>({course.reviews || 0} đánh giá)</span></div>
                 <div className="course-meta-item"><BookOutlined style={{ color: '#1a73e8' }} />{totalLessons} bài học</div>
-                <div className="course-meta-item"><ClockCircleOutlined style={{ color: '#1a73e8' }} />{Math.floor(totalDuration / 60)}h {totalDuration % 60}m</div>
+                <div className="course-meta-item"><ClockCircleOutlined style={{ color: '#1a73e8' }} />{formatDuration(totalDuration)}</div>
               </div>
               <Divider style={{ margin: '16px 0' }} />
               <Row gutter={16} style={{ marginBottom: 12 }}>
@@ -288,10 +376,10 @@ const CourseDetail: React.FC = () => {
                   <Title level={5} style={{ color: '#23272f', marginBottom: 12 }}>Giảng viên</Title>
                   <Space align="start" style={{ width: '100%' }}>
                     <Tooltip title={author.fullname || author.name || ''}>
-                      <Avatar 
-                        size={64} 
-                        src={course.author?.avatar && course.author.avatar !== 'default-avatar.jpg' && course.author.avatar !== '' && (course.author.avatar.includes('googleusercontent.com') || course.author.avatar.startsWith('http')) ? course.author.avatar : undefined} 
-                        icon={<UserOutlined />} 
+                      <Avatar
+                        size={64}
+                        src={course.author?.avatar && course.author.avatar !== 'default-avatar.jpg' && course.author.avatar !== '' && (course.author.avatar.includes('googleusercontent.com') || course.author.avatar.startsWith('http')) ? course.author.avatar : undefined}
+                        icon={<UserOutlined />}
                       />
                     </Tooltip>
                     <div style={{ flex: 1 }}>

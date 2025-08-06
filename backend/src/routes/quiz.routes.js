@@ -6,11 +6,11 @@ const quizController = require('../controllers/quiz.controller');
 router.post('/', quizController.createQuiz);
 router.put('/:id', quizController.updateQuiz);
 router.delete('/:id', quizController.deleteQuiz);
-router.get('/video/:video_id', quizController.getQuizByVideo);
+router.get('/lesson/:lesson_id', quizController.getQuizByLesson);
 router.post('/:quiz_id/submit', quizController.submitQuiz);
 // Thêm, sửa, xóa câu hỏi - public
 router.post('/:quiz_id/questions', quizController.addQuestion);
 router.put('/:quiz_id/questions/:question_index', quizController.updateQuestion);
 router.delete('/:quiz_id/questions/:question_index', quizController.deleteQuestion);
 
-module.exports = router; 
+module.exports = router;

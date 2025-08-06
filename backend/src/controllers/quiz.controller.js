@@ -9,18 +9,21 @@ const Notification = require('../models/Notification');
 // Tạo bài quiz mới
 exports.createQuiz = async (req, res, next) => {
   try {
-    const { video_id, questions } = req.body;
-    // Kiểm tra video tồn tại
-    const video = await Video.findById(video_id);
-    if (!video) return res.status(404).json({ success: false, message: 'Không tìm thấy video' });
+    const { lesson_id, questions } = req.body;
+    // Kiểm tra lesson tồn tại
+    const lesson = await Lesson.findById(lesson_id);
+    if (!lesson) return res.status(404).json({ success: false, message: 'Không tìm thấy bài học' });
     // Kiểm tra đã có quiz chưa
-    const existing = await Quiz.findOne({ video_id });
-    if (existing) return res.status(400).json({ success: false, message: 'Video này đã có quiz' });
+    const existing = await Quiz.findOne({ lesson_id });
+    if (existing)
+      return res.status(400).json({ success: false, message: 'Bài học này đã có quiz' });
     // Tạo quiz
-    const quiz = new Quiz({ video_id, questions });
+    const quiz = new Quiz({ lesson_id, questions });
     await quiz.save();
     res.status(201).json({ success: true, data: quiz });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 // Cập nhật bài quiz
@@ -44,18 +47,31 @@ exports.updateQuiz = async (req, res, next) => {
     for (let i = 0; i < questions.length; i++) {
       const question = questions[i];
       if (!question.question || !question.question.trim()) {
-        return res.status(400).json({ success: false, message: `Câu hỏi ${i + 1} không được để trống` });
+        return res
+          .status(400)
+          .json({ success: false, message: `Câu hỏi ${i + 1} không được để trống` });
       }
       if (!question.options || !Array.isArray(question.options) || question.options.length < 2) {
-        return res.status(400).json({ success: false, message: `Câu hỏi ${i + 1} phải có ít nhất 2 đáp án` });
+        return res
+          .status(400)
+          .json({ success: false, message: `Câu hỏi ${i + 1} phải có ít nhất 2 đáp án` });
       }
-      if (typeof question.correctIndex !== 'number' || question.correctIndex < 0 || question.correctIndex >= question.options.length) {
-        return res.status(400).json({ success: false, message: `Câu hỏi ${i + 1} có đáp án đúng không hợp lệ` });
+      if (
+        typeof question.correctIndex !== 'number' ||
+        question.correctIndex < 0 ||
+        question.correctIndex >= question.options.length
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, message: `Câu hỏi ${i + 1} có đáp án đúng không hợp lệ` });
       }
       // Kiểm tra đáp án không được để trống
       for (let j = 0; j < question.options.length; j++) {
         if (!question.options[j] || !question.options[j].trim()) {
-          return res.status(400).json({ success: false, message: `Câu hỏi ${i + 1}, đáp án ${j + 1} không được để trống` });
+          return res.status(400).json({
+            success: false,
+            message: `Câu hỏi ${i + 1}, đáp án ${j + 1} không được để trống`,
+          });
         }
       }
     }
@@ -123,14 +139,16 @@ exports.getQuizByLesson = async (req, res, next) => {
   }
 };
 
-// Lấy quiz theo video
-exports.getQuizByVideo = async (req, res, next) => {
+// Lấy quiz theo lesson
+exports.getQuizByLesson = async (req, res, next) => {
   try {
-    const { video_id } = req.params;
-    const quiz = await Quiz.findOne({ video_id });
+    const { lesson_id } = req.params;
+    const quiz = await Quiz.findOne({ lesson_id });
     if (!quiz) return res.status(404).json({ success: false, message: 'Không tìm thấy quiz' });
     res.json({ success: true, data: quiz });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 // Nộp đáp án và check đúng/sai
@@ -148,7 +166,7 @@ exports.submitQuiz = async (req, res, next) => {
       if (answers[idx] !== q.correctIndex) wrongQuestions.push(idx);
     });
     // Gửi thông báo cho user
-/*
+    /*
     const userId = req.user?._id || req.user?.id;
     if (userId) {
       const notification = await Notification.create({
@@ -170,7 +188,9 @@ exports.submitQuiz = async (req, res, next) => {
     } else {
       return res.json({ success: false, message: 'Có đáp án sai.', wrongQuestions });
     }
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 // Thêm câu hỏi vào quiz
@@ -188,7 +208,9 @@ exports.addQuestion = async (req, res, next) => {
     }
     await quiz.save();
     res.json({ success: true, data: quiz });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 // Sửa câu hỏi trong quiz
@@ -204,7 +226,9 @@ exports.updateQuestion = async (req, res, next) => {
     quiz.questions[question_index] = { question, options, correctIndex };
     await quiz.save();
     res.json({ success: true, data: quiz });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 // Xóa câu hỏi khỏi quiz
@@ -219,5 +243,7 @@ exports.deleteQuestion = async (req, res, next) => {
     quiz.questions.splice(question_index, 1);
     await quiz.save();
     res.json({ success: true, message: 'Xóa câu hỏi thành công', data: quiz });
-  } catch (err) { next(err); }
-}; 
+  } catch (err) {
+    next(err);
+  }
+};
