@@ -5,35 +5,42 @@ const createVideoSchema = Joi.object({
     'string.empty': 'ID bài học không được để trống',
     'any.required': 'ID bài học là bắt buộc',
   }),
-  url: Joi.string().required().trim().messages({
-    'string.empty': 'URL video không được để trống',
-    'any.required': 'URL video là bắt buộc',
-  }),
   duration: Joi.number().required().min(0).messages({
     'number.base': 'Thời lượng phải là số',
     'number.min': 'Thời lượng không được âm',
     'any.required': 'Thời lượng là bắt buộc',
   }),
-  public_id: Joi.string().required().messages({
-    'string.empty': 'Public ID không được để trống',
-    'any.required': 'Public ID là bắt buộc',
+  description: Joi.string().allow('').optional().messages({
+    'string.base': 'Mô tả phải là chuỗi',
+  }),
+  status: Joi.string().valid('draft', 'published', 'archived').default('draft').messages({
+    'string.base': 'Trạng thái phải là chuỗi',
+    'any.only': 'Trạng thái không hợp lệ',
+  }),
+  quality_urls: Joi.object().required().messages({
+    'object.base': 'Danh sách video theo chất lượng không được để trống',
+    'any.required': 'Danh sách video theo chất lượng là bắt buộc',
   }),
 });
 
 const updateVideoSchema = Joi.object({
-  url: Joi.string().trim().messages({
-    'string.empty': 'URL video không được để trống',
-  }),
   duration: Joi.number().min(0).messages({
     'number.base': 'Thời lượng phải là số',
     'number.min': 'Thời lượng không được âm',
   }),
-  public_id: Joi.string().messages({
-    'string.empty': 'Public ID không được để trống',
+  description: Joi.string().allow('').optional().messages({
+    'string.base': 'Mô tả phải là chuỗi',
+  }),
+  status: Joi.string().valid('draft', 'published', 'archived').messages({
+    'string.base': 'Trạng thái phải là chuỗi',
+    'any.only': 'Trạng thái không hợp lệ',
+  }),
+  quality_urls: Joi.object().optional().messages({
+    'object.base': 'Danh sách video theo chất lượng không hợp lệ',
   }),
 });
 
 module.exports = {
   createVideoSchema,
   updateVideoSchema,
-}; 
+};

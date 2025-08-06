@@ -8,12 +8,23 @@ const storage = multer.memoryStorage();
 // Filter file cho phép
 const fileFilter = (req, file, cb) => {
   // Cho phép các file PDF, JPG, PNG, MP4, MOV
-  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'video/mp4', 'video/mov', 'video/avi'];
-  
+  const allowedTypes = [
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/jpg',
+    'video/mp4',
+    'video/mov',
+    'video/avi',
+  ];
+
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Loại file không được hỗ trợ. Chỉ chấp nhận PDF, JPG, PNG, MP4, MOV, AVI.'), false);
+    cb(
+      new Error('Loại file không được hỗ trợ. Chỉ chấp nhận PDF, JPG, PNG, MP4, MOV, AVI.'),
+      false,
+    );
   }
 };
 
@@ -23,7 +34,16 @@ const upload = multer({
   fileFilter: fileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB
-  }
+  },
+});
+
+// Cấu hình upload cho video (tăng giới hạn file size)
+const uploadVideo = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB cho video
+  },
 });
 
 // Middleware upload avatar
@@ -39,6 +59,12 @@ const uploadInstructorProfile = upload.fields([
 
 // Middleware upload avatar cho course (đổi tên từ thumbnail thành avatar)
 const uploadCourseAvatar = upload.single('avatar');
+
+// Middleware upload course với videos
+const uploadCourseWithVideos = uploadVideo.fields([
+  { name: 'avatar', maxCount: 1 }, // Thumbnail của khóa học
+  { name: 'video_files', maxCount: 50 }, // Video files cho lessons
+]);
 
 // Middleware xử lý lỗi upload
 const handleUploadError = (error, req, res, next) => {
@@ -62,14 +88,14 @@ const handleUploadError = (error, req, res, next) => {
       });
     }
   }
-  
+
   if (error.message.includes('Loại file không được hỗ trợ')) {
     return res.status(400).json({
       success: false,
       message: error.message,
     });
   }
-  
+
   next(error);
 };
 // 👇 Đặt ở trên cùng hoặc trước phần `module.exports`
@@ -82,7 +108,7 @@ const processAvatarUpload = async (req, res, next) => {
     const result = await uploadBufferToCloudinary(req.file.buffer, 'blog-images');
     req.uploadedAvatar = {
       url: result.secure_url,
-      public_id: result.public_id
+      public_id: result.public_id,
     };
     next();
   } catch (error) {
@@ -90,7 +116,7 @@ const processAvatarUpload = async (req, res, next) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi upload ảnh lên Cloudinary',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -100,5 +126,6 @@ module.exports = {
   uploadInstructorProfile,
   handleUploadError,
   uploadCourseAvatar,
-  processAvatarUpload
-}; 
+  uploadCourseWithVideos,
+  processAvatarUpload,
+};

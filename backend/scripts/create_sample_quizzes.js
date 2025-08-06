@@ -6,7 +6,8 @@ const Video = require('../src/models/Video');
 const Quiz = require('../src/models/Quiz');
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/edupor')
+mongoose
+  .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/edupor')
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
@@ -15,111 +16,115 @@ const sampleQuizzes = [
   {
     questions: [
       {
-        question: "HTML là viết tắt của gì?",
+        question: 'HTML là viết tắt của gì?',
         options: [
-          "HyperText Markup Language",
-          "Home Tool Markup Language", 
-          "Hyperlinks and Text Markup Language",
-          "HyperText Making Language"
+          'HyperText Markup Language',
+          'Home Tool Markup Language',
+          'Hyperlinks and Text Markup Language',
+          'HyperText Making Language',
         ],
-        correctIndex: 0
+        correctIndex: 0,
       },
       {
-        question: "Thẻ nào được sử dụng để tạo tiêu đề lớn nhất trong HTML?",
-        options: ["<h6>", "<h1>", "<header>", "<title>"],
-        correctIndex: 1
+        question: 'Thẻ nào được sử dụng để tạo tiêu đề lớn nhất trong HTML?',
+        options: ['<h6>', '<h1>', '<header>', '<title>'],
+        correctIndex: 1,
       },
       {
-        question: "Thuộc tính nào được sử dụng để thêm CSS inline?",
-        options: ["class", "id", "style", "css"],
-        correctIndex: 2
-      }
-    ]
+        question: 'Thuộc tính nào được sử dụng để thêm CSS inline?',
+        options: ['class', 'id', 'style', 'css'],
+        correctIndex: 2,
+      },
+    ],
   },
   {
     questions: [
       {
-        question: "CSS là viết tắt của gì?",
+        question: 'CSS là viết tắt của gì?',
         options: [
-          "Computer Style Sheets",
-          "Creative Style Sheets",
-          "Cascading Style Sheets",
-          "Colorful Style Sheets"
+          'Computer Style Sheets',
+          'Creative Style Sheets',
+          'Cascading Style Sheets',
+          'Colorful Style Sheets',
         ],
-        correctIndex: 2
+        correctIndex: 2,
       },
       {
-        question: "Cách nào để thay đổi màu nền trong CSS?",
-        options: ["color", "background-color", "bgcolor", "background"],
-        correctIndex: 1
-      }
-    ]
+        question: 'Cách nào để thay đổi màu nền trong CSS?',
+        options: ['color', 'background-color', 'bgcolor', 'background'],
+        correctIndex: 1,
+      },
+    ],
   },
   {
     questions: [
       {
-        question: "JavaScript là ngôn ngữ lập trình gì?",
+        question: 'JavaScript là ngôn ngữ lập trình gì?',
         options: [
-          "Compiled language",
-          "Interpreted language", 
-          "Assembly language",
-          "Machine language"
+          'Compiled language',
+          'Interpreted language',
+          'Assembly language',
+          'Machine language',
         ],
-        correctIndex: 1
+        correctIndex: 1,
       },
       {
-        question: "Cách khai báo biến trong JavaScript?",
-        options: ["var", "let", "const", "Tất cả đều đúng"],
-        correctIndex: 3
+        question: 'Cách khai báo biến trong JavaScript?',
+        options: ['var', 'let', 'const', 'Tất cả đều đúng'],
+        correctIndex: 3,
       },
       {
-        question: "Hàm nào dùng để in ra console?",
-        options: ["print()", "console.log()", "echo()", "alert()"],
-        correctIndex: 1
-      }
-    ]
-  }
+        question: 'Hàm nào dùng để in ra console?',
+        options: ['print()', 'console.log()', 'echo()', 'alert()'],
+        correctIndex: 1,
+      },
+    ],
+  },
 ];
 
 async function createSampleQuizzes() {
   try {
-    // Lấy danh sách video
-    const videos = await Video.find().limit(3);
-    console.log(`Found ${videos.length} videos`);
+    // Lấy danh sách lesson
+    const Lesson = require('../src/models/Lesson');
+    const lessons = await Lesson.find().limit(3);
+    console.log(`Found ${lessons.length} lessons`);
 
-    if (videos.length === 0) {
-      console.log('No videos found. Please create videos first.');
+    if (lessons.length === 0) {
+      console.log('No lessons found. Please create lessons first.');
       return;
     }
 
-    // Tạo quiz cho từng video
-    for (let i = 0; i < Math.min(videos.length, sampleQuizzes.length); i++) {
-      const video = videos[i];
+    // Tạo quiz cho từng lesson
+    for (let i = 0; i < Math.min(lessons.length, sampleQuizzes.length); i++) {
+      const lesson = lessons[i];
       const quizData = sampleQuizzes[i];
 
-      // Kiểm tra xem đã có quiz cho video này chưa
-      const existingQuiz = await Quiz.findOne({ video_id: video._id });
+      // Kiểm tra xem đã có quiz cho lesson này chưa
+      const existingQuiz = await Quiz.findOne({ lesson_id: lesson._id });
       if (existingQuiz) {
-        console.log(`Quiz already exists for video ${video._id}`);
+        console.log(`Quiz already exists for lesson ${lesson._id}`);
         continue;
       }
 
       // Tạo quiz mới
       const quiz = new Quiz({
-        video_id: video._id,
-        questions: quizData.questions
+        lesson_id: lesson._id,
+        questions: quizData.questions,
       });
 
       await quiz.save();
-      console.log(`Created quiz for video ${video._id} with ${quizData.questions.length} questions`);
+      console.log(
+        `Created quiz for lesson ${lesson._id} with ${quizData.questions.length} questions`,
+      );
     }
 
     console.log('Sample quizzes created successfully!');
   } catch (error) {
     console.error('Error creating sample quizzes:', error);
+    console.error('Error details:', error.message);
   } finally {
     mongoose.connection.close();
   }
 }
 
-createSampleQuizzes(); 
+createSampleQuizzes();

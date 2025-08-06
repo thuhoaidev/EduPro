@@ -100,7 +100,7 @@ const voucherService = {
   // Validate voucher (cần auth)
   validate: async (data: ValidateVoucherData, token: string): Promise<ValidateVoucherResponse> => {
     const response = await axios.post(`${API_URL}/vouchers/validate`, data, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
     });
     return response.data.data;
   },
@@ -108,7 +108,7 @@ const voucherService = {
   // Apply voucher (cần auth)
   apply: async (data: ApplyVoucherData, token: string) => {
     const response = await axios.post(`${API_URL}/vouchers/apply`, data, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
     });
     return response.data;
   },
@@ -129,7 +129,7 @@ const voucherService = {
   delete: async (id: string) => {
     const response = await axios.delete(`${API_URL}/vouchers/${id}`);
     return response.data;
-  }
+  },
 };
 
-export default voucherService; 
+export default voucherService;

@@ -45,7 +45,9 @@ export const getAllCategories = async (params?: {
   }
 };
 
-export const createCategory = async (data: Omit<Category, '_id' | 'createdAt' | 'updatedAt'>): Promise<CategoryResponse> => {
+export const createCategory = async (
+  data: Omit<Category, '_id' | 'createdAt' | 'updatedAt'>,
+): Promise<CategoryResponse> => {
   try {
     const response = await axios.post(API_URL, data);
     return response.data;
@@ -59,7 +61,10 @@ export const createCategory = async (data: Omit<Category, '_id' | 'createdAt' | 
   }
 };
 
-export const updateCategory = async (id: string, data: Partial<Category>): Promise<CategoryResponse> => {
+export const updateCategory = async (
+  id: string,
+  data: Partial<Category>,
+): Promise<CategoryResponse> => {
   try {
     const response = await axios.put(`${API_URL}/${id}`, data);
     return response.data;

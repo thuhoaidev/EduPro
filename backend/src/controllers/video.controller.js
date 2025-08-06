@@ -5,13 +5,13 @@ const { validateSchema } = require('../utils/validateSchema');
 const { createVideoSchema, updateVideoSchema } = require('../validations/video.validation');
 const {
   uploadMultipleQualitiesToCloudinary,
-  deleteFromCloudinary
+  deleteFromCloudinary,
 } = require('../utils/cloudinary');
 
 // Tạo video mới với nhiều chất lượng
 exports.createVideo = async (req, res, next) => {
   try {
-    const { lesson_id, duration } = req.body;
+    const { lesson_id, duration, description, status } = req.body;
 
     // Kiểm tra lesson
     const lesson = await Lesson.findById(lesson_id);
@@ -19,11 +19,8 @@ exports.createVideo = async (req, res, next) => {
       throw new ApiError(404, 'Không tìm thấy bài học');
     }
 
-    // Kiểm tra đã có video chưa
-    const existingVideo = await Video.findOne({ lesson_id });
-    if (existingVideo) {
-      throw new ApiError(400, 'Bài học này đã có video');
-    }
+    // Cho phép nhiều video cho một bài học
+    // Không cần kiểm tra existing video nữa
 
     // Kiểm tra file
     if (!req.file || !req.file.buffer) {
@@ -37,6 +34,8 @@ exports.createVideo = async (req, res, next) => {
     const validatedData = await validateSchema(createVideoSchema, {
       lesson_id,
       duration: parseInt(duration) || 0,
+      description: description || '',
+      status: status || 'draft',
       quality_urls: qualityUrls,
     });
 
@@ -54,7 +53,7 @@ exports.createVideo = async (req, res, next) => {
 exports.updateVideo = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { duration } = req.body;
+    const { duration, description, status } = req.body;
 
     const oldVideo = await Video.findById(id);
     if (!oldVideo) {
@@ -76,13 +75,19 @@ exports.updateVideo = async (req, res, next) => {
 
     const validatedData = await validateSchema(updateVideoSchema, {
       duration: duration ? parseInt(duration) : oldVideo.duration,
+      description: description !== undefined ? description : oldVideo.description,
+      status: status !== undefined ? status : oldVideo.status,
       quality_urls: newQualityUrls,
     });
 
-    const updatedVideo = await Video.findByIdAndUpdate(id, { $set: validatedData }, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedVideo = await Video.findByIdAndUpdate(
+      id,
+      { $set: validatedData },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
 
     res.json({ success: true, data: updatedVideo });
   } catch (error) {
@@ -113,26 +118,19 @@ exports.deleteVideo = async (req, res, next) => {
   }
 };
 
-// Lấy video theo bài học
+// Lấy tất cả video theo bài học
 exports.getVideoByLesson = async (req, res, next) => {
   try {
     const { lesson_id } = req.params;
-    console.log('Looking for video with lesson_id:', lesson_id);
+    console.log('Looking for videos with lesson_id:', lesson_id);
 
     const lesson = await Lesson.findById(lesson_id);
     if (!lesson) throw new ApiError(404, 'Không tìm thấy bài học');
 
-    const video = await Video.findOne({ lesson_id });
-    console.log('Found video:', video ? 'Yes' : 'No');
-    if (!video) throw new ApiError(404, 'Không tìm thấy video');
+    const videos = await Video.find({ lesson_id }).sort({ createdAt: 1 });
+    console.log('Found videos count:', videos.length);
 
-    console.log('Video quality_urls type:', typeof video.quality_urls);
-    console.log('Video quality_urls:', video.quality_urls);
-    if (video.quality_urls instanceof Map) {
-      console.log('Quality URLs as Map entries:', Array.from(video.quality_urls.entries()));
-    }
-
-    res.json({ success: true, data: video });
+    res.json({ success: true, data: videos });
   } catch (error) {
     next(error);
   }
