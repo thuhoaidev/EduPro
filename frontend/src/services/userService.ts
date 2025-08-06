@@ -56,4 +56,10 @@ export const updateUser = async (
 export const deleteUser = async (id: string): Promise<ApiResponse<void>> => {
   const response = await config.delete(`/users/${id}`);
   return response.data;
+};
+
+// Get users by role
+export const getUsersByRole = async (roleId: string): Promise<ApiResponse<any[]>> => {
+  const response = await config.get(`/users/by-role/${roleId}`);
+  return response.data;
 }; 

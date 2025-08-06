@@ -3,7 +3,7 @@
 .homepage-container {
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  overflow-x: hidden;
+  overflow-x: visible;
 }
 
 /* Loading Container */
@@ -27,7 +27,7 @@
   position: relative;
   padding: 120px 0 80px;
   text-align: center;
-  overflow: hidden;
+  overflow: visible;
   background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%);
 }
 
@@ -247,10 +247,123 @@
 /* Section Styles */
 .section-header {
   text-align: center;
-  margin-bottom: 64px;
-  max-width: 800px;
+  margin-bottom: 80px;
+  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
+  overflow: visible;
+  position: relative;
+  padding: 40px 20px;
+  background: transparent !important;
+  border-radius: 0;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  z-index: 1;
+}
+
+.section-header::before {
+  display: none !important;
+  background: none !important;
+}
+
+.section-header::after {
+  display: none !important;
+  background: none !important;
+}
+
+.section-header .section-title {
+  position: relative;
+  z-index: 1;
+  color: #1e3a8a !important;
+  font-size: clamp(2.2rem, 4.5vw, 3rem) !important;
+  font-weight: 800 !important;
+  margin-bottom: 20px !important;
+  letter-spacing: -0.02em;
+  text-shadow: none;
+}
+
+.section-header .section-subtitle {
+  position: relative;
+  z-index: 1;
+  font-size: 1.2rem !important;
+  color: #64748b !important;
+  line-height: 1.7 !important;
+  font-weight: 500 !important;
+  max-width: 600px;
+  margin: 0 auto !important;
+  opacity: 1;
+}
+
+.section-header:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.section-header:hover::after {
+  transform: none !important;
+  transition: none !important;
+  display: none !important;
+}
+
+.section-header:hover::before {
+  display: none !important;
+  background: none !important;
+}
+
+/* Animation for section headers */
+@keyframes sectionHeaderFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.section-header {
+  animation: sectionHeaderFadeIn 0.6s ease-out;
+}
+
+/* Responsive design for section headers */
+@media (max-width: 768px) {
+  .section-header {
+    padding: 30px 16px;
+    margin-bottom: 60px;
+  }
+  
+  .section-header .section-title {
+    font-size: clamp(1.8rem, 5vw, 2.2rem) !important;
+    margin-bottom: 16px !important;
+  }
+  
+  .section-header .section-subtitle {
+    font-size: 1.1rem !important;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-header {
+    padding: 24px 12px;
+    margin-bottom: 50px;
+  }
+  
+  .section-header .section-title {
+    font-size: clamp(1.6rem, 6vw, 2rem) !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .section-header .section-subtitle {
+    font-size: 1rem !important;
+  }
 }
 
 .section-title {
@@ -259,6 +372,7 @@
   color: #1e3a8a !important;
   font-weight: 700 !important;
   line-height: 1.3 !important;
+  position: relative;
 }
 
 .section-subtitle {
@@ -266,6 +380,41 @@
   color: #64748b !important;
   line-height: 1.6 !important;
   font-weight: 400 !important;
+  position: relative;
+}
+
+/* Special section headers for different sections - Clean version */
+.courses-section .section-header,
+.testimonials-section .section-header,
+.vouchers-section .section-header,
+.stats-section .section-header {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.courses-section .section-header::before,
+.testimonials-section .section-header::before,
+.vouchers-section .section-header::before,
+.stats-section .section-header::before {
+  display: none !important;
+  background: none !important;
+}
+
+/* Disable all hover effects for section headers */
+.courses-section .section-header:hover,
+.testimonials-section .section-header:hover,
+.vouchers-section .section-header:hover,
+.stats-section .section-header:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
 }
 
 .section-icon {
@@ -711,9 +860,37 @@
   text-align: center !important;
 }
 
+.testimonial-avatar-container {
+  position: relative !important;
+  display: inline-block !important;
+  margin-bottom: 16px !important;
+}
+
 .testimonial-avatar {
   border: 4px solid #e2e8f0 !important;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+  transition: transform 0.3s ease !important;
+}
+
+.testimonial-avatar:hover {
+  transform: scale(1.05) !important;
+}
+
+.quote-icon {
+  position: absolute !important;
+  top: -8px !important;
+  right: -8px !important;
+  width: 32px !important;
+  height: 32px !important;
+  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%) !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: white !important;
+  font-size: 14px !important;
+  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.3) !important;
+  border: 2px solid white !important;
 }
 
 .testimonial-text {
@@ -1042,7 +1219,7 @@ select:focus {
   position: relative;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 24px;
-  overflow: hidden;
+  overflow: visible;
   margin-bottom: 48px;
   box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
 }

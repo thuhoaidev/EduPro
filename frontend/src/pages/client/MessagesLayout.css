@@ -1,56 +1,306 @@
+/* Reset và base styles */
+* {
+  box-sizing: border-box;
+}
+
 .messages-layout-wrapper {
   height: 100vh;
-  background: #fff;
+  width: 100vw;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
 }
 
 .messages-header-wrapper {
-  height: auto;
-  padding: 0;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  height: 72px; /* Cập nhật theo chiều cao thực tế của AppHeader */
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  flex-shrink: 0;
 }
 
 .messages-layout {
   flex: 1;
-  background: #fff;
   display: flex;
   flex-direction: row;
+  height: calc(100vh - 72px); /* Cập nhật theo chiều cao header */
+  margin-top: 72px; /* Cập nhật margin-top */
   overflow: hidden;
+  position: relative;
 }
 
 .messages-layout-loading {
   height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  padding-top: 72px; /* Cập nhật padding-top */
+}
+
+.messages-layout-loading .ant-spin {
+  color: #1890ff;
+}
+
+.messages-layout-error {
+  height: 100vh;
+  width: 100vw;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #fff;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  padding-top: 72px; /* Cập nhật padding-top */
+}
+
+.error-content {
+  text-align: center;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .messages-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: transparent;
   overflow: hidden;
+  position: relative;
+  height: 100%;
+  min-width: 0;
 }
 
 .no-conversation-selected {
   flex: 1;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: #fafafa;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  padding: 40px 20px;
+  text-align: center;
+  height: 100%;
 }
 
-/* Responsive */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 400px;
+  padding: 40px 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.empty-state .ant-typography {
+  margin-bottom: 16px;
+}
+
+.empty-state .ant-btn {
+  border-radius: 8px;
+  height: 40px;
+  padding: 0 24px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.empty-state .ant-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+}
+
+/* Custom scrollbar for the entire layout */
+.messages-layout-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages-layout-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messages-layout-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+.messages-layout-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Animation for layout transitions */
+.messages-layout {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .messages-layout {
+    flex-direction: row;
+  }
+  
+  .messages-content {
+    min-width: 0;
+  }
+}
+
 @media (max-width: 768px) {
+  .messages-header-wrapper {
+    height: 56px; /* Giảm chiều cao cho mobile */
+  }
+  
   .messages-layout {
     flex-direction: column;
+    height: calc(100vh - 56px);
+    margin-top: 56px;
   }
   
   .messages-content {
     height: calc(100vh - 200px);
+    min-height: 400px;
+  }
+  
+  .messages-layout-loading,
+  .messages-layout-error {
+    padding-top: 56px;
+  }
+  
+  .empty-state {
+    padding: 20px 16px;
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .messages-layout-wrapper {
+    height: 100vh;
+    width: 100vw;
+  }
+  
+  .messages-header-wrapper {
+    height: 48px; /* Giảm thêm cho mobile nhỏ */
+  }
+  
+  .messages-layout {
+    height: calc(100vh - 48px);
+    margin-top: 48px;
+  }
+  
+  .messages-content {
+    height: calc(100vh - 180px);
+    min-height: 350px;
+  }
+  
+  .messages-layout-loading,
+  .messages-layout-error {
+    padding-top: 48px;
+  }
+  
+  .no-conversation-selected {
+    padding: 20px 16px;
+  }
+  
+  .empty-state {
+    padding: 16px 12px;
+    max-width: 280px;
+  }
+  
+  .error-content {
+    padding: 20px;
+    margin: 20px;
+  }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+  .messages-layout-wrapper {
+    background: linear-gradient(135deg, #1f1f1f 0%, #2d2d2d 100%);
+  }
+  
+  .messages-header-wrapper {
+    background: rgba(45, 45, 45, 0.95);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .no-conversation-selected {
+    background: linear-gradient(135deg, #1f1f1f 0%, #2d2d2d 100%);
+  }
+  
+  .empty-state {
+    background: rgba(45, 45, 45, 0.9);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .error-content {
+    background: rgba(45, 45, 45, 0.9);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .messages-header-wrapper {
+    border-bottom: 2px solid #000;
+  }
+  
+  .messages-layout-wrapper {
+    background: #ffffff;
+  }
+  
+  .empty-state,
+  .error-content {
+    border: 2px solid #000;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .messages-layout {
+    animation: none;
+  }
+  
+  .empty-state {
+    animation: none;
   }
 }

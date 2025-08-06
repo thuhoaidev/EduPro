@@ -71,7 +71,7 @@ const MyCourseList: React.FC = () => {
     return courses.filter((course) => {
       const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || course.status === statusFilter;
-      const matchesDisplayStatus = displayStatusFilter === 'all' || 
+      const matchesDisplayStatus = displayStatusFilter === 'all' ||
         (displayStatusFilter === 'hidden' && course.displayStatus === 'hidden') ||
         (displayStatusFilter === 'published' && course.displayStatus === 'published');
       return matchesSearch && matchesStatus && matchesDisplayStatus;
@@ -101,8 +101,8 @@ const MyCourseList: React.FC = () => {
     try {
       await courseService.updateCourseStatus(courseId, { status: 'pending' });
       // Cập nhật trạng thái khóa học trong state
-      setCourses((prev) => 
-        prev.map((course) => 
+      setCourses((prev) =>
+        prev.map((course) =>
           course.id === courseId ? { ...course, status: 'pending' } : course
         )
       );
@@ -133,15 +133,46 @@ const MyCourseList: React.FC = () => {
       render: () => Math.floor(Math.random() * 500) + 50,
     },
     {
-      title: "Giá",
+      title: "Giá gốc",
+      dataIndex: "oldPrice",
+      key: "oldPrice",
+      render: (oldPrice, record) => {
+        if (!record.hasDiscount || !oldPrice) {
+          return <span style={{ color: '#999' }}>-</span>;
+        }
+        return (
+          <span style={{ textDecoration: 'line-through', color: '#999' }}>
+            {Number(oldPrice).toLocaleString('vi-VN')}đ
+          </span>
+        );
+      },
+    },
+    {
+      title: "Giá đã giảm",
       dataIndex: "price",
       key: "price",
-      render: (price) => {
+      render: (price, record) => {
         const numPrice = Number(price);
         if (isNaN(numPrice) || numPrice === 0) {
           return <Tag color="green">Miễn phí</Tag>;
         }
-        return numPrice.toLocaleString('vi-VN') + 'đ';
+
+        const displayPrice = numPrice.toLocaleString('vi-VN') + 'đ';
+
+        if (record.hasDiscount && record.discountPercent) {
+          return (
+            <div>
+              <div style={{ color: '#52c41a', fontWeight: 'bold' }}>
+                {displayPrice}
+              </div>
+              <Tag color="red">
+                -{record.discountPercent}%
+              </Tag>
+            </div>
+          );
+        }
+
+        return displayPrice;
       },
     },
     {
@@ -155,7 +186,7 @@ const MyCourseList: React.FC = () => {
           'approved': 'green',
           'rejected': 'red'
         };
-        
+
         const statusLabels: Record<string, string> = {
           'draft': 'Bản nháp',
           'pending': 'Chờ duyệt',
@@ -228,7 +259,7 @@ const MyCourseList: React.FC = () => {
         <Space size="middle">
           {record.status === 'draft' && (
             <Tooltip title="Gửi để duyệt">
-              <Button 
+              <Button
                 type="primary"
                 icon={<SendOutlined />}
                 onClick={() => handleSubmit(record.id)}
@@ -236,8 +267,8 @@ const MyCourseList: React.FC = () => {
             </Tooltip>
           )}
           <Tooltip title="Sửa">
-            <Button 
-              icon={<EditOutlined />} 
+            <Button
+              icon={<EditOutlined />}
               onClick={() => navigate(`/instructor/courses/edit/${record.id}`)}
             />
           </Tooltip>
@@ -251,10 +282,10 @@ const MyCourseList: React.FC = () => {
             description={
               <div style={{ maxWidth: '320px' }}>
                 {/* Cảnh báo chính */}
-                <div style={{ 
-                  marginBottom: '12px', 
-                  padding: '12px', 
-                  backgroundColor: '#fff2f0', 
+                <div style={{
+                  marginBottom: '12px',
+                  padding: '12px',
+                  backgroundColor: '#fff2f0',
                   border: '1px solid #ffccc7',
                   borderRadius: '6px'
                 }}>
@@ -265,19 +296,19 @@ const MyCourseList: React.FC = () => {
                     </span>
                   </Space>
                 </div>
-                
+
                 {/* Danh sách nội dung */}
                 <div style={{ marginBottom: '12px' }}>
-                  <div style={{ 
-                    marginBottom: '8px', 
-                    color: '#595959', 
+                  <div style={{
+                    marginBottom: '8px',
+                    color: '#595959',
                     fontSize: '14px',
                     fontWeight: '500'
                   }}>
                     Thao tác này sẽ xóa tất cả nội dung bao gồm:
                   </div>
-                  
-                  <div style={{ 
+
+                  <div style={{
                     padding: '8px 12px',
                     backgroundColor: '#fafafa',
                     border: '1px solid #f0f0f0',
@@ -303,9 +334,9 @@ const MyCourseList: React.FC = () => {
                     </Space>
                   </div>
                 </div>
-                
+
                 {/* Cảnh báo cuối */}
-                <div style={{ 
+                <div style={{
                   padding: '8px 12px',
                   backgroundColor: '#fff2f0',
                   border: '1px solid #ffccc7',
@@ -314,8 +345,8 @@ const MyCourseList: React.FC = () => {
                 }}>
                   <Space>
                     <span style={{ fontSize: '14px' }}>⚠️</span>
-                    <span style={{ 
-                      fontWeight: '600', 
+                    <span style={{
+                      fontWeight: '600',
                       fontSize: '13px',
                       color: '#ff4d4f'
                     }}>
@@ -331,9 +362,9 @@ const MyCourseList: React.FC = () => {
             okType="danger"
           >
             <Tooltip title="Xóa">
-              <Button 
-                danger 
-                icon={<DeleteOutlined />} 
+              <Button
+                danger
+                icon={<DeleteOutlined />}
                 loading={deleteLoading === record.id}
               />
             </Tooltip>
@@ -352,7 +383,7 @@ const MyCourseList: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-       <style>{`
+      <style>{`
         .ant-table-row:hover {
           background-color: #fafafa !important;
         }
@@ -362,14 +393,14 @@ const MyCourseList: React.FC = () => {
       `}</style>
       <motion.div initial="hidden" animate="visible" variants={FADE_IN_UP_VARIANTS}>
         <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
-            <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Tổng số khóa học" value={stats.totalCourses} prefix={<BookOutlined />} /></Card></motion.div></Col>
-            <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Đã xuất bản" value={stats.publishedCourses} prefix={<BookOutlined />} valueStyle={{color: '#3f8600'}}/></Card></motion.div></Col>
-            <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Chưa xuất bản" value={stats.draftCourses} prefix={<BookOutlined />} valueStyle={{color: '#cf1322'}} /></Card></motion.div></Col>
-            <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Tổng học viên" value={stats.totalStudents} prefix={<UserOutlined />} /></Card></motion.div></Col>
+          <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Tổng số khóa học" value={stats.totalCourses} prefix={<BookOutlined />} /></Card></motion.div></Col>
+          <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Đã xuất bản" value={stats.publishedCourses} prefix={<BookOutlined />} valueStyle={{ color: '#3f8600' }} /></Card></motion.div></Col>
+          <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Chưa xuất bản" value={stats.draftCourses} prefix={<BookOutlined />} valueStyle={{ color: '#cf1322' }} /></Card></motion.div></Col>
+          <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Tổng học viên" value={stats.totalStudents} prefix={<UserOutlined />} /></Card></motion.div></Col>
         </Row>
       </motion.div>
 
-      <motion.div initial="hidden" animate="visible" variants={{...FADE_IN_UP_VARIANTS, visible: {...FADE_IN_UP_VARIANTS.visible, transition: {delay: 0.2}}}}>
+      <motion.div initial="hidden" animate="visible" variants={{ ...FADE_IN_UP_VARIANTS, visible: { ...FADE_IN_UP_VARIANTS.visible, transition: { delay: 0.2 } } }}>
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
             <Title level={4} style={{ margin: 0 }}>Danh sách khóa học của tôi</Title>

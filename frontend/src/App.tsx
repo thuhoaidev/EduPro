@@ -31,6 +31,7 @@ import ModeratorLayout from "./pages/layout/ModeratorLayout";
 import InstructorLayout from "./pages/layout/InstructorLayout";
 import ChangePassword from "./pages/layout/ChangePassword";
 import Profile from "./pages/client/Profile/Profile";
+import Courses from "./pages/client/Profile/Courses";
 import CategoryPage from "./pages/admin/categories/CategoryPage";
 import BlogWritePage from "./pages/client/blog/BlogWritePage";
 import MyBlogPosts from "./pages/client/blog/MyBlogPosts";
@@ -151,7 +152,7 @@ function App() {
         { path: "courses/id/:id", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
-        {path:  "/blog/:id", element: <BlogPage />},
+        { path:  "/blog/:id", element: <BlogPage />},
         { path: "/blog/post/:id", element: <BlogPage /> },
         { path: "cart", element: <CartPage /> },
         { path: "checkout", element: <CheckoutPage /> },
@@ -178,6 +179,7 @@ function App() {
       children: [
         { path: "", element: <Profile /> },
         { path: 'edit', element: <ProfileEdit /> },
+        { path: 'courses', element: <Courses /> },
         { path: 'change-password', element: <ChangePassword /> },
         { path: 'orders', element: <OrdersPage /> },
         { path: 'certificates', element: <Certificates /> },

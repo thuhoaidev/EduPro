@@ -1,14 +1,11 @@
 import { useEffect, useState } from "react";
-import { User, Mail, BookOpen, Users, Calendar } from "lucide-react";
+import { User, Mail, BookOpen, Users, Calendar, MapPin, Globe, Award, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import { config } from "../../../api/axios";
 import { formatDistanceToNow, format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Progress } from 'antd';
-import { ArrowRightOutlined } from '@ant-design/icons';
-import { courseService, getCourseById } from '../../../services/courseService';
-import { getProgress } from '../../../services/progressService';
+
 import { debugAvatar, forceRefreshUser as debugForceRefreshUser } from '../../../utils/debugUserData';
 import { testAvatarLoading } from '../../../utils/testAvatarLoading';
 import { clearCacheAndRefresh } from '../../../utils/clearCacheAndRefresh';
@@ -65,11 +62,7 @@ const Profile = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
-  const [courseLessonsMap, setCourseLessonsMap] = useState<Record<string, number>>({});
-  const [courseSectionsMap, setCourseSectionsMap] = useState<Record<string, any[]>>({});
-  const [courseProgressMap, setCourseProgressMap] = useState<Record<string, any>>({});
-  const [progressLoading, setProgressLoading] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -131,17 +124,7 @@ const Profile = () => {
       }
     };
 
-    const fetchEnrolledCourses = async () => {
-      try {
-        const response = await config.get('/users/me/enrollments');
-        setEnrolledCourses(response.data.data || []);
-      } catch (error) {
-        // Có thể log lỗi nếu cần
-      }
-    };
-
     fetchUserProfile();
-    fetchEnrolledCourses();
     // Nếu có ?refresh=1 thì xóa nó khỏi URL sau khi fetch
     const urlParams = new URLSearchParams(location.search);
     if (urlParams.get('refresh') === '1') {
@@ -228,84 +211,10 @@ const Profile = () => {
     (window as any).autoFixAvatar = autoFixAvatar;
   }, []);
 
-  // Fetch chi tiết từng khóa học để lấy số lượng bài học
-  useEffect(() => {
-    const fetchLessonsCount = async () => {
-      const lessonsMap: Record<string, number> = {};
-      const sectionsMap: Record<string, any[]> = {};
-      await Promise.all(
-        enrolledCourses.map(async (enroll) => {
-          const course = enroll.course || {};
-          const courseId = course._id || course.id;
-          if (!courseId) return;
-          try {
-            const detail = await getCourseById(courseId);
-            let total = 0;
-            if (Array.isArray(detail.sections)) {
-              total = detail.sections.reduce(
-                (sum: number, sec: any) => sum + (Array.isArray(sec.lessons) ? sec.lessons.length : 0),
-                0
-              );
-              sectionsMap[courseId] = detail.sections;
-            } else if (Array.isArray(detail.lessons)) {
-              total = detail.lessons.length;
-              sectionsMap[courseId] = [{ lessons: detail.lessons }];
-            } else if (typeof detail.totalLessons === 'number') {
-              total = detail.totalLessons;
-              sectionsMap[courseId] = [];
-            } else {
-              sectionsMap[courseId] = [];
-            }
-            lessonsMap[courseId] = total;
-          } catch (e) {
-            lessonsMap[courseId] = 0;
-            sectionsMap[courseId] = [];
-          }
-        })
-      );
-      setCourseLessonsMap(lessonsMap);
-      setCourseSectionsMap(sectionsMap);
-    };
-    if (enrolledCourses.length > 0) {
-      fetchLessonsCount();
-    }
-  }, [enrolledCourses]);
-
-  // Fetch progress cho từng course
-  useEffect(() => {
-    const fetchAllProgress = async () => {
-      if (enrolledCourses.length === 0) return;
-      
-      setProgressLoading(true);
-      const progressMap: Record<string, any> = {};
-      try {
-        await Promise.all(
-          enrolledCourses.map(async (enroll) => {
-            const course = enroll.course || {};
-            const courseId = course._id || course.id;
-            if (!courseId) return;
-            try {
-              const progress = await getProgress(courseId);
-              console.log('Fetched progress for', courseId, JSON.stringify(progress));
-              progressMap[courseId] = progress;
-            } catch (error) {
-              console.error('Error fetching progress for course', courseId, error);
-              progressMap[courseId] = {};
-            }
-          })
-        );
-        setCourseProgressMap(progressMap);
-      } finally {
-        setProgressLoading(false);
-      }
-    };
-    fetchAllProgress();
-  }, [enrolledCourses, refreshKey]); // Thêm refreshKey để refresh khi cần
-
   if (loading) {
     return (
       <motion.div
-        className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100"
+        className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
@@ -317,17 +226,20 @@ const Profile = () => {
           transition={{ delay: 0.2 }}
         >
           <motion.div
-            className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent"
+            className="relative"
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          />
+          >
+            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full"></div>
+            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-purple-600 rounded-full animate-ping"></div>
+          </motion.div>
           <motion.p
-            className="mt-4 text-gray-600 font-medium"
+            className="mt-6 text-gray-600 font-medium text-lg"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            Đang tải thông tin...
+            Đang tải thông tin cá nhân...
           </motion.p>
         </motion.div>
       </motion.div>
@@ -337,29 +249,29 @@ const Profile = () => {
   if (error) {
     return (
       <motion.div
-        className="flex flex-col justify-center items-center min-h-screen bg-gradient-to-br from-red-50 to-pink-100"
+        className="flex flex-col justify-center items-center min-h-screen bg-gradient-to-br from-red-50 via-pink-50 to-orange-50"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
         <motion.div
-          className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4"
+          className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 border border-red-100"
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
           <div className="text-center">
             <motion.div
-              className="text-2xl text-red-500 mb-4"
+              className="text-4xl mb-4"
               animate={{ rotate: [0, -10, 10, 0] }}
               transition={{ duration: 0.5, repeat: 2 }}
             >
               ⚠️
             </motion.div>
-            <div className="text-xl text-red-600 mb-4 font-semibold">{error}</div>
+            <div className="text-xl text-red-600 mb-6 font-semibold">{error}</div>
             <motion.button
               onClick={() => window.location.href = '/login'}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -382,78 +294,69 @@ const Profile = () => {
 
   const joinInfo = user?.created_at ? formatJoinDate(user.created_at) : null;
 
-  const getTotalLessons = (course: any) => {
-    if (typeof course.totalLessons === 'number' && course.totalLessons > 0) {
-      return course.totalLessons;
-    }
-    if (Array.isArray(course.sections)) {
-      return course.sections.reduce(
-        (sum: number, sec: any) => sum + (Array.isArray(sec.lessons) ? sec.lessons.length : 0),
-        0
-      );
-    }
-    if (Array.isArray(course.lessons)) {
-      return course.lessons.length;
-    }
-    return 0;
-  };
-
   return (
     <motion.div
-      className="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen py-12"
+      className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
     >
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-12 px-4 lg:px-12">
-        {/* Left: User Info Card */}
+      <div className="max-w-4xl mx-auto px-4 lg:px-8">
+        {/* Header Section */}
         <motion.div
-          className="w-full lg:w-1/3"
-          initial={{ x: -50, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
+          className="text-center mb-8"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
         >
-          <motion.div
-            className="bg-white/90 rounded-3xl shadow-2xl p-10 border border-blue-100"
-            whileHover={{ y: -8, boxShadow: "0 24px 48px -8px rgba(80,80,180,0.13)" }}
-            transition={{ duration: 0.3 }}
-          >
-            {/* Avatar Section */}
-            <div className="text-center mb-10">
+        </motion.div>
+
+        {/* Main Profile Card */}
+        <motion.div
+          className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 overflow-hidden"
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          whileHover={{ y: -5, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}
+        >
+          {/* Avatar & Basic Info Section */}
+          <div className="relative bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 p-8 text-white">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="relative z-10 text-center">
               <motion.div
-                className="relative inline-block"
-                whileHover={{ scale: 1.07 }}
+                className="relative inline-block mb-6"
+                whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.2 }}
               >
-                <motion.div className="w-36 h-36 rounded-full p-1 bg-gradient-to-tr from-blue-400 via-purple-400 to-pink-400 shadow-xl mx-auto">
+                <div className="w-32 h-32 rounded-full p-2 bg-white/20 backdrop-blur-sm mx-auto shadow-2xl">
                   <img
                     src={user?.avatar && user.avatar !== 'default-avatar.jpg' && user.avatar !== '' && (user.avatar.includes('googleusercontent.com') || user.avatar.startsWith('http')) ? user.avatar : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.fullname || '') + '&background=4f8cff&color=fff&size=256'}
                     alt="avatar"
-                    className="w-full h-full rounded-full border-4 border-white object-cover"
+                    className="w-full h-full rounded-full object-cover border-4 border-white/30"
                   />
-                </motion.div>
+                </div>
                 <motion.div
-                  className="absolute -bottom-3 -right-3 w-10 h-10 bg-green-500 rounded-full border-4 border-white flex items-center justify-center shadow-lg"
+                  className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-400 rounded-full border-3 border-white flex items-center justify-center shadow-lg"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.3, delay: 0.6 }}
                 >
-                  <div className="w-4 h-4 bg-white rounded-full"></div>
+                  <div className="w-3 h-3 bg-white rounded-full"></div>
                 </motion.div>
               </motion.div>
 
-              <motion.h1
-                className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mt-6 mb-2 tracking-tight"
+              <motion.h2
+                className="text-3xl font-bold mb-2"
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
                 {user?.fullname ?? 'Chưa có tên'}
-              </motion.h1>
+              </motion.h2>
 
               {user?.nickname && (
                 <motion.p
-                  className="text-blue-400 text-lg font-mono mb-3"
+                  className="text-blue-100 text-lg font-mono mb-3"
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.5 }}
@@ -463,7 +366,7 @@ const Profile = () => {
               )}
 
               <motion.div
-                className="flex items-center justify-center gap-2 text-gray-500 mb-4"
+                className="flex items-center justify-center gap-2 text-blue-100 mb-4"
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.6 }}
@@ -472,326 +375,188 @@ const Profile = () => {
                 <span className="text-base">{user?.email ?? ''}</span>
               </motion.div>
 
-              {/* Bio Section - Hiển thị cho tất cả user */}
-              {user?.bio && (
+              {/* Role Badge */}
+              {user?.role?.name && (
                 <motion.div
-                  className="text-center mb-4"
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.5, delay: 0.65 }}
+                  className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.3, delay: 0.7 }}
                 >
-                  <p className="text-gray-600 text-base leading-relaxed max-w-xs mx-auto">
-                    {user?.bio ?? ''}
+                  <Award size={16} />
+                  {user.role.name === 'instructor' ? 'Giảng viên' : 
+                   user.role.name === 'admin' ? 'Quản trị viên' : 
+                   user.role.name === 'moderator' ? 'Điều hành viên' : 'Học viên'}
+                </motion.div>
+              )}
+            </div>
+          </div>
+
+          {/* Content Section */}
+          <div className="p-8">
+            {/* Bio Section */}
+            {user?.bio && (
+              <motion.div
+                className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl border border-blue-100"
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.8 }}
+              >
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <User size={20} className="text-blue-600" />
+                  Giới thiệu
+                </h3>
+                <p className="text-gray-700 leading-relaxed">
+                  {user.bio}
                   </p>
                 </motion.div>
               )}
 
-              {/* Social links */}
+            {/* Social Links */}
               {user?.social_links && (user?.social_links?.facebook || user?.social_links?.github || user?.social_links?.website) && (
                 <motion.div
-                  className="flex items-center justify-center gap-4 mb-4"
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.5, delay: 0.65 }}
-                >
+                className="mb-8"
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.9 }}
+              >
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <Globe size={20} className="text-blue-600" />
+                  Liên kết mạng xã hội
+                </h3>
+                <div className="flex gap-4">
                   {user?.social_links?.facebook && (
-                    <a href={user.social_links.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:scale-110 transition-transform text-2xl">
-                      <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M22.675 0h-21.35c-.733 0-1.325.592-1.325 1.326v21.348c0 .733.592 1.326 1.325 1.326h11.495v-9.294h-3.128v-3.622h3.128v-2.672c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.326v-21.349c0-.734-.593-1.326-1.324-1.326z" /></svg>
-                    </a>
+                    <motion.a 
+                      href={user.social_links.facebook} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M22.675 0h-21.35c-.733 0-1.325.592-1.325 1.326v21.348c0 .733.592 1.326 1.325 1.326h11.495v-9.294h-3.128v-3.622h3.128v-2.672c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.326v-21.349c0-.734-.593-1.326-1.324-1.326z" />
+                      </svg>
+                      Facebook
+                    </motion.a>
                   )}
                   {user?.social_links?.github && (
-                    <a href={user.social_links.github} target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:scale-110 transition-transform text-2xl">
-                      <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.415-4.042-1.415-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.084-.729.084-.729 1.205.084 1.84 1.236 1.84 1.236 1.07 1.834 2.809 1.304 3.495.997.108-.775.418-1.305.762-1.605-2.665-.305-5.466-1.334-5.466-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.553 3.297-1.23 3.297-1.23.653 1.653.242 2.873.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.803 5.624-5.475 5.921.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.218.694.825.576 4.765-1.588 8.199-6.084 8.199-11.386 0-6.627-5.373-12-12-12z" /></svg>
-                    </a>
+                    <motion.a 
+                      href={user.social_links.github} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-xl hover:bg-gray-900 transition-all duration-200 shadow-md hover:shadow-lg"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.415-4.042-1.415-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.084-.729.084-.729 1.205.084 1.84 1.236 1.84 1.236 1.07 1.834 2.809 1.304 3.495.997.108-.775.418-1.305.762-1.605-2.665-.305-5.466-1.334-5.466-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.553 3.297-1.23 3.297-1.23.653 1.653.242 2.873.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.803 5.624-5.475 5.921.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.218.694.825.576 4.765-1.588 8.199-6.084 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                      </svg>
+                      GitHub
+                    </motion.a>
                   )}
                   {user?.social_links?.website && (
-                    <a href={user.social_links.website} target="_blank" rel="noopener noreferrer" className="text-purple-700 hover:scale-110 transition-transform text-2xl">
-                      <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm0 22c-5.514 0-10-4.486-10-10s4.486-10 10-10 10 4.486 10 10-4.486 10-10 10zm0-18c-4.411 0-8 3.589-8 8s3.589 8 8 8 8-3.589 8-8-3.589-8-8-8zm0 14c-3.309 0-6-2.691-6-6s2.691-6 6-6 6 2.691 6 6-2.691 6-6 6zm0-10c-2.206 0-4 1.794-4 4s1.794 4 4 4 4-1.794 4-4-1.794-4-4-4z" /></svg>
-                    </a>
+                    <motion.a 
+                      href={user.social_links.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Globe size={16} />
+                      Website
+                    </motion.a>
                   )}
+                </div>
                 </motion.div>
               )}
-            </div>
 
-            {/* Thông tin giảng viên */}
+            {/* Instructor Information */}
             {user?.role?.name === 'instructor' && (
               <motion.div
-                className="mt-10 border-t border-blue-100 pt-8"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 1 }}
+                className="mb-8 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100"
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 1.0 }}
               >
-                <h3 className="text-xl font-bold text-blue-700 mb-5 flex items-center gap-2">
-                  <BookOpen className="inline-block w-6 h-6 text-blue-500" /> Thông tin giảng viên
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <BookOpen size={20} className="text-green-600" />
+                  Thông tin giảng viên
                 </h3>
-                <div className="space-y-3 text-gray-700 text-lg">
-                  <div><b>Chuyên môn:</b> {user?.instructorInfo?.specializations && user.instructorInfo.specializations.length > 0 ? (
+                <div className="space-y-4">
+                  <div>
+                    <span className="font-medium text-gray-700">Chuyên môn:</span>
+                    {user?.instructorInfo?.specializations && user.instructorInfo.specializations.length > 0 ? (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {user.instructorInfo.specializations.map((spec, idx) => (
-                        <span key={idx} className="inline-block bg-gradient-to-r from-cyan-400 to-purple-400 text-white px-4 py-2 rounded-full text-base font-semibold shadow-sm border-0">
+                          <span key={idx} className="inline-block bg-gradient-to-r from-green-400 to-emerald-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-sm">
                           {spec}
                         </span>
                       ))}
                     </div>
-                  ) : 'Chưa cập nhật'}</div>
-                  <div><b>Kinh nghiệm giảng dạy:</b> {typeof user?.instructorInfo?.experience_years === 'number' ? user.instructorInfo.experience_years : 'Chưa cập nhật'} năm</div>
-                  <div><b>Giới thiệu:</b> {user?.instructorInfo?.teaching_experience?.description ? user.instructorInfo.teaching_experience.description : 'Không có mô tả'}</div>
-                  {/* {user?.bio && (
-                    <div><b>Giới thiệu cá nhân:</b> <span className="text-gray-600">{user.bio}</span></div>
-                  )} */}
+                    ) : (
+                      <span className="text-gray-500 ml-2">Chưa cập nhật</span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Kinh nghiệm giảng dạy:</span>
+                    <span className="text-gray-600 ml-2">
+                      {typeof user?.instructorInfo?.experience_years === 'number' ? user.instructorInfo.experience_years : 'Chưa cập nhật'} năm
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Giới thiệu:</span>
+                    <p className="text-gray-600 mt-1">
+                      {user?.instructorInfo?.teaching_experience?.description ? user.instructorInfo.teaching_experience.description : 'Không có mô tả'}
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             )}
 
-            {/* Stats Section: Người theo dõi/Đang theo dõi */}
+            {/* Stats Section */}
             <motion.div
-              className="border-t border-blue-100 pt-8 mt-10"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 1.2 }}
+              className="mb-8"
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 1.1 }}
             >
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-4">
                 <motion.div
-                  className="text-center p-6 rounded-2xl bg-blue-50 hover:bg-blue-100 transition-colors duration-200 shadow-md"
-                  whileHover={{ scale: 1.07 }}
-                  whileTap={{ scale: 0.97 }}
+                  className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-2xl shadow-lg"
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <div className="text-3xl font-extrabold text-blue-600">{user?.followers_count ?? 0}</div>
-                  <div className="text-base text-gray-500">Người theo dõi</div>
+                  <div className="text-3xl font-bold mb-1">{user?.followers_count ?? 0}</div>
+                  <div className="text-blue-100 text-sm">Người theo dõi</div>
                 </motion.div>
                 <motion.div
-                  className="text-center p-6 rounded-2xl bg-green-50 hover:bg-green-100 transition-colors duration-200 shadow-md"
-                  whileHover={{ scale: 1.07 }}
-                  whileTap={{ scale: 0.97 }}
+                  className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-2xl shadow-lg"
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <div className="text-3xl font-extrabold text-green-600">{user?.following_count ?? 0}</div>
-                  <div className="text-base text-gray-500">Đang theo dõi</div>
+                  <div className="text-3xl font-bold mb-1">{user?.following_count ?? 0}</div>
+                  <div className="text-green-100 text-sm">Đang theo dõi</div>
                 </motion.div>
               </div>
             </motion.div>
 
             {/* Join Date Section */}
-            {joinInfo ? (
+            {joinInfo && (
               <motion.div
-                className="border-t border-blue-100 pt-8 mt-8"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 1.4 }}
+                className="p-6 bg-gradient-to-r from-gray-50 to-slate-50 rounded-2xl border border-gray-100"
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 1.2 }}
               >
-                <div className="flex items-center justify-center gap-2 text-gray-500">
-                  <Calendar size={18} />
+                <div className="flex items-center justify-center gap-3 text-gray-600">
+                  <Clock size={20} className="text-blue-600" />
                   <span className="text-base">Tham gia {joinInfo.timeAgo}</span>
                 </div>
               </motion.div>
-            ) : null}
-
-          </motion.div>
-        </motion.div>
-
-        {/* Right: Activity & Courses */}
-        <motion.div
-          className="w-full lg:w-2/3 space-y-8"
-          initial={{ x: 50, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-        >
-
-            
-
-          {/* Courses Section */}
-          <motion.div
-            className="bg-white/90 rounded-3xl shadow-2xl p-10 border border-blue-100"
-            whileHover={{ y: -8, boxShadow: "0 24px 48px -8px rgba(56,189,248,0.12)" }}
-            transition={{ duration: 0.3 }}
-          >
-            <motion.div
-              className="flex items-center gap-4 mb-8"
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.6 }}
-            >
-              <motion.div
-                className="w-12 h-12 bg-gradient-to-r from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-lg"
-                whileHover={{ rotate: 360 }}
-                transition={{ duration: 0.5 }}
-              >
-                <Users className="w-6 h-6 text-white" />
-              </motion.div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                Khóa học đang học
-              </h2>
-              <span className="ml-2 text-base text-gray-500 font-medium">
-                ({enrolledCourses.length} khóa học)
-              </span>
-            </motion.div>
-
-            {enrolledCourses.length === 0 ? (
-              <p>Bạn chưa đăng ký khóa học nào.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-10">
-                {enrolledCourses.map((enroll) => {
-                  const course = enroll.course || {};
-                  const courseId = course._id || course.id;
-                  const progress = courseProgressMap[courseId] || {};
-                  // Debug: log lessonIds và progress để kiểm tra key
-                  const sections = courseSectionsMap[courseId] || [];
-                  let lessonIds: string[] = [];
-                  sections.forEach(section => {
-                    if (Array.isArray(section.lessons)) {
-                      lessonIds = lessonIds.concat(section.lessons.map((lesson: any) => String(lesson._id)));
-                    }
-                  });
-                  console.log('lessonIds:', lessonIds);
-                  console.log('progress:', progress);
-                  
-                  // Tính toán tiến độ dựa trên completed (đã hoàn thành cả video và quiz)
-                  const completedCount = lessonIds.filter(
-                    id => {
-                      const p = progress[id];
-                      // Chỉ tính là hoàn thành khi completed = true (đã xem đủ video và qua quiz)
-                      const isCompleted = p && p.completed === true;
-                      console.log(`Lesson ${id}: completed=${p?.completed}, videoCompleted=${p?.videoCompleted}, isCompleted=${isCompleted}`);
-                      return isCompleted;
-                    }
-                  ).length;
-                  
-                  // Tính số bài học đã xem video (videoCompleted = true)
-                  const videoCompletedCount = lessonIds.filter(
-                    id => {
-                      const p = progress[id];
-                      return p && p.videoCompleted === true;
-                    }
-                  ).length;
-                  
-                  const total = lessonIds.length;
-                  const percent = total === 0 ? 0 : Math.round((completedCount / total) * 100);
-                  console.log(`Course ${courseId}: completedCount=${completedCount}, videoCompletedCount=${videoCompletedCount}, total=${total}, percent=${percent}`);
-
-                  // Lấy sections từ courseSectionsMap để xác định bài học tiếp tục
-                  let continueLessonId = null;
-                  if (progress.lastWatchedLessonId) {
-                    continueLessonId = progress.lastWatchedLessonId;
-                  } else if (Array.isArray(sections)) {
-                    outer: for (const section of sections) {
-                      if (Array.isArray(section.lessons)) {
-                        for (const lesson of section.lessons) {
-                          // Tìm bài học chưa hoàn thành (completed !== true)
-                          if (!progress[lesson._id]?.completed) {
-                            continueLessonId = lesson._id;
-                            break outer;
-                          }
-                        }
-                      }
-                    }
-                  }
-                  // Nếu đã hoàn thành hết thì lấy bài đầu tiên
-                  if (!continueLessonId && Array.isArray(sections) && sections[0]?.lessons?.[0]?._id) {
-                    continueLessonId = sections[0].lessons[0]._id;
-                  }
-
-                                     return (
-                     <motion.div
-                       key={course._id || course.id}
-                       className="relative bg-white rounded-3xl shadow-xl overflow-hidden group border border-blue-100 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 cursor-pointer hover:border-blue-300"
-                       whileHover={{ scale: 1.03 }}
-                       transition={{ duration: 0.25 }}
-                       onClick={() => {
-                         if (course.slug) {
-                           navigate(`/courses/slug/${course.slug}`);
-                         }
-                       }}
-                       title="Click để xem chi tiết khóa học"
-                     >
-                                             {/* Course Image */}
-                       <div className="relative group-hover:brightness-110 transition-all duration-300">
-                        <img
-                          src={course.thumbnail || '/default-course.jpg'}
-                          alt={course.title}
-                          className="w-full h-48 object-cover rounded-t-3xl group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-t-3xl pointer-events-none" />
-                                                 {percent < 100 && continueLessonId && (
-                           <button
-                             onClick={e => {
-                               e.stopPropagation();
-                               navigate(`/lessons/${continueLessonId}/video`);
-                             }}
-                             className="absolute bottom-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white !text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg z-10"
-                           >
-                             Tiếp tục học <ArrowRightOutlined />
-                           </button>
-                         )}
-                         {percent < 100 && !continueLessonId && (
-                           <button
-                             onClick={e => {
-                               e.stopPropagation();
-                               if (course.slug) {
-                                 navigate(`/courses/slug/${course.slug}`);
-                               }
-                             }}
-                             className="absolute bottom-4 right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white !text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 hover:shadow-xl flex items-center gap-2 transition text-lg z-10"
-                           >
-                             Xem khóa học <ArrowRightOutlined />
-                           </button>
-                         )}
-                                                 {percent === 100 && (
-                           <span className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full font-semibold text-sm shadow-lg z-10">Hoàn thành</span>
-                         )}
-                         {/* Click indicator */}
-                         <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                           <div className="bg-black/50 text-white p-2 rounded-full">
-                             <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                               <path d="M7 17l9.2-9.2M17 17V7H7"/>
-                             </svg>
-                           </div>
-                         </div>
-                      </div>
-                                             {/* Course Info */}
-                       <div className="p-6 flex flex-col gap-2" onClick={e => e.stopPropagation()}>
-                                                 <h3 className="font-bold text-xl mb-1 text-gray-900 truncate" title={`${course.title} - Click để xem chi tiết`}>{course.title}</h3>
-                        <div className="text-gray-500 text-base mb-2">
-                          {total > 0 ? `${total} bài học` : 'Đang cập nhật'}
-                        </div>
-                        <div className="flex items-center gap-3 mb-2">
-                          {progressLoading ? (
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-                            </div>
-                          ) : (
-                            <Progress
-                              percent={percent}
-                              size="small"
-                              strokeColor={{ '0%': '#4f8cff', '100%': '#16a34a' }}
-                              showInfo={false}
-                              className="flex-1"
-                            />
-                          )}
-                          <span className={`font-bold text-lg ${percent === 100 ? 'text-green-600' : 'text-blue-600'}`}>
-                            {progressLoading ? '...' : `${percent}%`}
-                          </span>
-                        </div>
-
-                        <div className="text-gray-500 text-sm">
-                          {completedCount}/{total} bài học đã hoàn thành
-                        </div>
-                        {total > 0 && videoCompletedCount > completedCount && (
-                          <div className="text-xs text-blue-500 mt-1">
-                            {videoCompletedCount - completedCount} bài học đã xem video, chưa làm quiz
-                          </div>
-                        )}
-                        {total > 0 && (
-                          <div className="text-xs text-gray-400 mt-1">
-                            {total - completedCount} bài học còn lại
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
             )}
-
-          </motion.div>
+          </div>
         </motion.div>
       </div>
     </motion.div>

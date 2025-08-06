@@ -4,6 +4,7 @@ import { config } from "../../../api/axios";
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Download, Award, Calendar, User, BookOpen } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
 
 interface Certificate {
   id: string;
@@ -26,6 +27,7 @@ const Certificates = () => {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCertificates = async () => {
@@ -183,12 +185,12 @@ const Certificates = () => {
               Hoàn thành khóa học để nhận chứng chỉ đầu tiên của bạn
             </p>
             <motion.button
-              onClick={() => window.history.back()}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
+              onClick={() => navigate('/courses')}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              Quay lại
+              Khám phá khóa học đa dạng và nhận ngay chứng chỉ của riêng bạn
             </motion.button>
           </motion.div>
         ) : (

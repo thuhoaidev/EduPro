@@ -1,7 +1,7 @@
-import axios from "axios";
+import axios from 'axios';
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/api", // Đúng port backend của bạn
+  baseURL: 'http://localhost:5000/api', // Đúng port backend của bạn
   // Nếu cần gửi token:
   // headers: { Authorization: `Bearer ${token}` }
 });
