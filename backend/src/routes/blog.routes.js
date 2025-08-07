@@ -27,7 +27,9 @@ router.post('/:id/comment', auth, blogController.commentBlog);
 router.get('/:id/comments', blogController.getBlogComments);
 router.post('/comment/:commentId/reply', auth, blogController.replyComment);
 // === COMMENT LIKE ===
-
+router.get('/comment-likes/check/:commentId', blogController.checkCommentLike);
+router.post('/comment-likes/toggle/:commentId', blogController.toggleCommentLike);
+router.get('/comment-likes/count/:commentId', blogController.countCommentLike);
 // === CRUD BLOG (PHẢI Ở CUỐI) ===
 router.get('/:id', blogController.getBlogById);
 router.put('/:id', blogController.updateBlog);
