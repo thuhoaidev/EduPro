@@ -24,7 +24,7 @@ interface ApiCourse {
     user?: {
       fullname: string;
       avatar: string;
-    }
+    };
   };
   category: {
     _id: string;
@@ -34,6 +34,8 @@ interface ApiCourse {
   language: string;
   price: number;
   discount: number;
+  discount_percentage?: number;
+  discount_amount?: number;
   finalPrice: number;
   status: string;
   displayStatus?: string;
@@ -103,13 +105,17 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
   const durationMap: Record<string, string> = {
     beginner: '10 giờ học',
     intermediate: '15 giờ học',
-    advanced: '20 giờ học'
+    advanced: '20 giờ học',
   };
   const baseLessons = apiCourse.requirements?.length || 0;
   const lessons = baseLessons + 15;
-  const finalPrice = apiCourse.finalPrice || (apiCourse.price * (1 - apiCourse.discount / 100));
+  const finalPrice =
+    apiCourse.finalPrice ||
+    apiCourse.price * (1 - (apiCourse.discount_percentage || apiCourse.discount || 0) / 100);
   const isFree = finalPrice === 0;
-  const hasDiscount = apiCourse.discount > 0;
+  const hasDiscount =
+    (apiCourse.discount_percentage || apiCourse.discount || 0) > 0 ||
+    (apiCourse.discount_amount || 0) > 0;
   return {
     id: apiCourse._id,
     slug: apiCourse.slug,
@@ -118,10 +124,10 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
     author: {
       name: apiCourse.instructor?.user?.fullname || 'Giảng viên EduPro',
       avatar: apiCourse.instructor?.user?.avatar || '',
-      bio: apiCourse.instructor?.bio || 'Thông tin giảng viên đang được cập nhật.'
+      bio: apiCourse.instructor?.bio || 'Thông tin giảng viên đang được cập nhật.',
     },
     rating: typeof apiCourse.rating === 'number' ? apiCourse.rating : 0,
-    reviews: typeof (apiCourse.totalReviews) === 'number' ? apiCourse.totalReviews : 0,
+    reviews: typeof apiCourse.totalReviews === 'number' ? apiCourse.totalReviews : 0,
     price: finalPrice,
     oldPrice: hasDiscount ? apiCourse.price : undefined,
     Image: apiCourse.thumbnail || 'https://via.placeholder.com/600x400/4A90E2/FFFFFF?text=Khóa+học',
@@ -131,13 +137,15 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
     requirements: apiCourse.requirements || [],
     isFree,
     hasDiscount,
-    discountPercent: hasDiscount ? apiCourse.discount : undefined,
+    discountPercent: hasDiscount
+      ? apiCourse.discount_percentage || apiCourse.discount || 0
+      : undefined,
     status: apiCourse.status,
     displayStatus: apiCourse.displayStatus,
     language: apiCourse.language,
     level: apiCourse.level,
     updatedAt: apiCourse.updatedAt,
-    rejection_reason: apiCourse.rejection_reason
+    rejection_reason: apiCourse.rejection_reason,
   };
 };
 
@@ -158,7 +166,9 @@ export const courseService = {
   // Tìm kiếm khóa học có trạng thái published
   searchCourses: async (searchTerm: string): Promise<Course[]> => {
     try {
-      const response = await apiClient.get<ApiResponse<ApiCourse[]>>(`/courses?search=${encodeURIComponent(searchTerm)}`);
+      const response = await apiClient.get<ApiResponse<ApiCourse[]>>(
+        `/courses?search=${encodeURIComponent(searchTerm)}`,
+      );
       return response.data?.success && Array.isArray(response.data.data)
         ? response.data.data.map(mapApiCourseToAppCourse)
         : [];
@@ -171,7 +181,9 @@ export const courseService = {
   // Lấy khóa học theo danh mục có trạng thái published
   getCoursesByCategory: async (categoryId: string): Promise<Course[]> => {
     try {
-      const response = await apiClient.get<ApiResponse<ApiCourse[]>>(`/courses?category=${categoryId}`);
+      const response = await apiClient.get<ApiResponse<ApiCourse[]>>(
+        `/courses?category=${categoryId}`,
+      );
       return response.data?.success && Array.isArray(response.data.data)
         ? response.data.data.map(mapApiCourseToAppCourse)
         : [];
@@ -210,10 +222,14 @@ export const courseService = {
   getCourseContent: async (courseId: string): Promise<Section[]> => {
     try {
       console.log(`🔍 Fetching course content for course ID: ${courseId}`);
-      const response = await apiClient.get<{ success: boolean; data: Section[] }>(`/courses/${courseId}/content`);
+      const response = await apiClient.get<{ success: boolean; data: Section[] }>(
+        `/courses/${courseId}/content`,
+      );
       console.log(`📡 API Response:`, response.data);
       if (response.data?.success && Array.isArray(response.data.data)) {
-        console.log(`✅ Course content loaded successfully. Sections: ${response.data.data.length}`);
+        console.log(
+          `✅ Course content loaded successfully. Sections: ${response.data.data.length}`,
+        );
         return response.data.data;
       }
       console.log(`⚠️ No course content found or invalid response`);
@@ -240,7 +256,7 @@ export const courseService = {
   createCourse: async (data: any) => {
     try {
       const response = await apiClient.post('/courses', data, {
-        headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined
+        headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
       });
       return response.data;
     } catch (error: any) {
@@ -248,7 +264,10 @@ export const courseService = {
     }
   },
 
-  updateCourseStatus: async (courseId: string, data: { status?: string; displayStatus?: string }) => {
+  updateCourseStatus: async (
+    courseId: string,
+    data: { status?: string; displayStatus?: string },
+  ) => {
     try {
       const response = await apiClient.patch(`/courses/${courseId}/status`, data);
       return response.data;
@@ -287,9 +306,14 @@ export const courseService = {
     }
   },
 
-  getCourseStats: async (courseId: string): Promise<{ enrolledCount: number; averageRating: number; reviewCount: number }> => {
+  getCourseStats: async (
+    courseId: string,
+  ): Promise<{ enrolledCount: number; averageRating: number; reviewCount: number }> => {
     try {
-      const response = await apiClient.get<{ success: boolean; data: { enrolledCount: number; averageRating: number; reviewCount: number } }>(`/courses/${courseId}/stats`);
+      const response = await apiClient.get<{
+        success: boolean;
+        data: { enrolledCount: number; averageRating: number; reviewCount: number };
+      }>(`/courses/${courseId}/stats`);
       if (response.data?.success && response.data.data) {
         return response.data.data;
       }
@@ -300,9 +324,15 @@ export const courseService = {
     }
   },
 
-  updateCourse: async (courseId: string, courseData: Partial<ApiCourse>): Promise<ApiCourse | null> => {
+  updateCourse: async (
+    courseId: string,
+    courseData: Partial<ApiCourse>,
+  ): Promise<ApiCourse | null> => {
     try {
-      const response = await apiClient.put<ApiResponse<ApiCourse>>(`/courses/${courseId}`, courseData);
+      const response = await apiClient.put<ApiResponse<ApiCourse>>(
+        `/courses/${courseId}`,
+        courseData,
+      );
       return response.data?.success ? response.data.data : null;
     } catch (error: any) {
       console.error('Lỗi khi cập nhật khóa học:', error);
@@ -382,7 +412,7 @@ export const instructorService = {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
-        }
+        },
       );
       return response.data;
     } catch (error: any) {
@@ -397,7 +427,7 @@ export const instructorService = {
   verifyInstructorEmail: async (token: string): Promise<InstructorRegistrationResponse> => {
     try {
       const response = await apiClient.get<InstructorRegistrationResponse>(
-        `/auth/verify-instructor-email/${token}`
+        `/auth/verify-instructor-email/${token}`,
       );
       return response.data;
     } catch (error: any) {
@@ -407,7 +437,7 @@ export const instructorService = {
       }
       throw new Error('Lỗi kết nối server');
     }
-  }
+  },
 };
 
 export { mapApiCourseToAppCourse };
@@ -453,7 +483,6 @@ const apiService = {
     }
   },
 
-
   unsavePost: async (savedPostId: string) => {
     return apiClient.delete(`/blogs/${savedPostId}/unsave`);
   },
@@ -462,7 +491,6 @@ const apiService = {
   toggleSavePost: async (blogId: string) => {
     return apiClient.post(`/blogs/${blogId}/toggle-save`);
   },
-
 
   fetchComments: async (postId: string) => {
     const res = await apiClient.get(`/blogs/${postId}/comments`);
@@ -480,7 +508,6 @@ const apiService = {
     const res = await apiClient.post(`/blogs/comment/${commentId}/reply`, { content });
     return res.data; // Trả về toàn bộ response
   },
-
 };
 
 export { apiClient, apiService };
@@ -488,7 +515,12 @@ export { apiClient, apiService };
 // API rút tiền user
 export const userWalletService = {
   // Gửi yêu cầu rút tiền
-  requestWithdraw: async (data: { amount: number; bank: string; account: string; holder: string }) => {
+  requestWithdraw: async (data: {
+    amount: number;
+    bank: string;
+    account: string;
+    holder: string;
+  }) => {
     const res = await apiClient.post('/wallet/withdraw', data);
     return res.data;
   },
@@ -515,6 +547,15 @@ export const userWalletService = {
   // User hủy yêu cầu
   cancelWithdraw: async (id: string) => {
     const res = await apiClient.delete(`/wallet/withdraw/${id}/cancel`);
+    return res.data;
+  },
+};
+
+// API hóa đơn
+export const invoiceService = {
+  // Admin lấy tất cả hóa đơn
+  getAllInvoices: async () => {
+    const res = await apiClient.get('/invoices');
     return res.data;
   },
 };

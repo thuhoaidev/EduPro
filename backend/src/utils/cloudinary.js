@@ -1,6 +1,9 @@
 const cloudinary = require('cloudinary').v2;
 const fs = require('fs');
 const path = require('path');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+ffmpeg.setFfmpegPath(ffmpegPath);
 // Cấu hình Cloudinary với các biến môi trường riêng lẻ
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -18,11 +21,12 @@ console.log('[Cloudinary] api_key:', process.env.CLOUDINARY_API_KEY);
  * @param {string} folder - Thư mục lưu trữ trên Cloudinary
  * @returns {Promise<Object>} - Kết quả upload
  */
-exports.uploadBufferToCloudinary = async (fileBuffer, folder = 'misc') => {
+exports.uploadBufferToCloudinary = async (fileBuffer, folder = 'misc', additionalOptions = {}) => {
   return new Promise((resolve, reject) => {
     const options = {
       folder: `edupor/${folder}`,
       resource_type: 'auto',
+      ...additionalOptions,
     };
     if (folder !== 'videos') {
       options.transformation = [
@@ -96,6 +100,38 @@ exports.getPublicIdFromUrl = url => {
 
   const matches = url.match(/\/v\d+\/([^/]+)\./);
   return matches ? matches[1] : null;
+};
+
+/**
+ * Tính thời lượng video từ buffer
+ * @param {Buffer} videoBuffer - Buffer của video file
+ * @returns {Promise<number>} - Thời lượng video tính bằng giây
+ */
+exports.getVideoDuration = videoBuffer => {
+  return new Promise((resolve, reject) => {
+    // Tạo file tạm để ffmpeg có thể đọc
+    const tempPath = path.join(__dirname, `../temp_${Date.now()}.mp4`);
+
+    fs.writeFileSync(tempPath, videoBuffer);
+
+    ffmpeg.ffprobe(tempPath, (err, metadata) => {
+      // Xóa file tạm
+      try {
+        fs.unlinkSync(tempPath);
+      } catch (unlinkError) {
+        console.error('Error deleting temp file:', unlinkError);
+      }
+
+      if (err) {
+        console.error('Error getting video duration:', err);
+        resolve(0); // Trả về 0 nếu không thể đọc duration
+        return;
+      }
+
+      const duration = metadata.format.duration || 0;
+      resolve(Math.round(duration));
+    });
+  });
 };
 // Upload 1 video và chuyển đổi nhiều độ phân giải
 exports.uploadVideoWithQualitiesToCloudinary = async (filePath, folder = 'videos') => {

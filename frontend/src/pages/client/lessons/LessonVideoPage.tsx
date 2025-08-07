@@ -21,7 +21,7 @@ import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, tog
 import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
 import { issueCertificate, getCertificate } from '../../../services/certificateService';
 import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
-import AIChatBox from '../../../components/AIChatBox';
+import CourseAccessWrapper from '../../../components/DeviceSecurity/CourseAccessWrapper';
 dayjs.extend(relativeTime);
 
 
@@ -1411,12 +1411,7 @@ const LessonVideoPage: React.FC = () => {
   const [reportReason, setReportReason] = useState('');
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
 
-  // AI Chat states
-  const [isChatOpen, setIsChatOpen] = useState(false);
 
-  const toggleChat = () => {
-    setIsChatOpen(!isChatOpen);
-  };
 
   // Tính toán dữ liệu tổng quan đánh giá
   const ratingStats = React.useMemo(() => {
@@ -1674,7 +1669,12 @@ const LessonVideoPage: React.FC = () => {
   const lessonStatus = getLessonCompletionStatus();
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
+    <CourseAccessWrapper 
+      courseId={courseId ? parseInt(courseId) : 0} 
+      courseName={courseOverview.title || 'Khóa học'}
+      requireDeviceCheck={true}
+    >
+      <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
       <div style={{
         width: '30%',
         minWidth: 280,
@@ -2562,15 +2562,8 @@ const LessonVideoPage: React.FC = () => {
           placeholder="Nhập lý do báo cáo..."
         />
       </Modal>
-
-      {/* AI Chat Box Component */}
-      <AIChatBox
-        lessonTitle={lessonTitle}
-        courseTitle={courseOverview.title}
-        isOpen={isChatOpen}
-        onToggle={toggleChat}
-      />
-    </div>
+      </div>
+    </CourseAccessWrapper>
   );
 };
 

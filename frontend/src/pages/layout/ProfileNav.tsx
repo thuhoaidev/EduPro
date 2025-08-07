@@ -5,6 +5,7 @@ import {
   UserOutlined,
   LockOutlined,
   TrophyOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -26,6 +27,13 @@ const profileMenuItems: ProfileMenuItem[] = [
     icon: <UserOutlined />,
     description: 'Cập nhật thông tin cá nhân',
     path: '/profile/edit'
+  },
+  { 
+    id: 'courses',
+    name: 'Khóa học', 
+    icon: <BookOutlined />,
+    description: 'Xem khóa học đã đăng ký',
+    path: '/profile/courses'
   },
   { 
     id: 'certificates',

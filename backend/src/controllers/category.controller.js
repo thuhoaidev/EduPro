@@ -99,6 +99,44 @@ exports.getCategoriesByStatus = async (req, res, next) => {
     }
 };
 
+// Lấy danh sách danh mục với số lượng khóa học
+exports.getCategoriesWithCourseCount = async (req, res, next) => {
+    try {
+        const { status } = req.params;
+        
+        // Kiểm tra giá trị status có hợp lệ không
+        if (!['active', 'inactive'].includes(status.toLowerCase())) {
+            throw new ApiError(400, 'Trạng thái không hợp lệ. Phải là active hoặc inactive');
+        }
+
+        const Course = require('../models/Course');
+        
+        // Lấy danh mục và đếm số khóa học
+        const categories = await Category.find({ status: status.toLowerCase() });
+        
+        const categoriesWithCount = await Promise.all(
+            categories.map(async (category) => {
+                const courseCount = await Course.countDocuments({ 
+                    category: category._id,
+                    displayStatus: 'published'
+                });
+                
+                return {
+                    ...category.toObject(),
+                    courseCount
+                };
+            })
+        );
+        
+        res.json({
+            success: true,
+            data: categoriesWithCount
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // Lấy chi tiết danh mục
 exports.getCategoryById = async (req, res, next) => {
     try {

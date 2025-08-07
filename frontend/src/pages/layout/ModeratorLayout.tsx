@@ -42,7 +42,12 @@ interface ModeratorUser {
   fullname?: string;
   name?: string;
   email: string;
-  role_id?: any;
+  role_id?: {
+    _id: string;
+    name: string;
+    description?: string;
+    permissions?: string[];
+  };
   approval_status?: string;
 }
 
@@ -144,6 +149,16 @@ const ModeratorLayout = () => {
     }
   }, [authUser, isAuthenticated, navigate]);
 
+  // --- Monitor permissions changes for dynamic sidebar update ---
+  useEffect(() => {
+    if ((authUser?.role_id as any)?.permissions) {
+      console.log('ModeratorLayout - Permissions changed:', (authUser?.role_id as any)?.permissions);
+      console.log('ModeratorLayout - Sidebar will re-render with new permissions');
+      // Force re-render by updating forceUpdate
+      setForceUpdate(prev => prev + 1);
+    }
+  }, [(authUser?.role_id as any)?.permissions]);
+
   // --- Menu Items ---
   const menuItems: MenuProps["items"] = useMemo(
     () => {
@@ -162,11 +177,10 @@ const ModeratorLayout = () => {
         if (authUser?.role_id?.name === 'admin' || authUser?.role_id?.name === 'quản trị viên') {
           return true;
         }
-        // Moderator có quyền truy cập các trang cơ bản
-        if (authUser?.role_id?.name === 'moderator' || authUser?.role_id?.name === 'kiểm duyệt viên') {
-          return true;
-        }
-        return permissions.includes(permission);
+        // Moderator chỉ có quyền dựa trên permissions thực tế
+        const hasPermission = permissions.includes(permission);
+        console.log(`ModeratorLayout - canAccessRoute(${permission}): ${hasPermission}`);
+        return hasPermission;
       };
       
       // Tạo menu items dựa trên permissions
@@ -180,11 +194,22 @@ const ModeratorLayout = () => {
           label: collapsed ? "KD" : "KIỂM DUYỆT NỘI DUNG",
           type: "group" as const,
           children: [
-            // Hiển thị các trang cơ bản cho moderator
-            { key: "/moderator/blogs", icon: <FileSearchOutlined />, label: collapsed ? "BL" : "Duyệt Blog" },
-            { key: "/moderator/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Duyệt Khóa học" },
-            { key: "/moderator/comments", icon: <CommentOutlined />, label: collapsed ? "BL" : "Danh sách Bình luận" },
-            { key: "/moderator/reports", icon: <WarningOutlined />, label: collapsed ? "BC" : "Báo cáo vi phạm" },
+            // Chỉ hiển thị nếu có quyền duyệt blog
+            ...(canAccessRoute('duyệt blog') ? [
+              { key: "/moderator/blogs", icon: <FileSearchOutlined />, label: collapsed ? "BL" : "Duyệt Blog" }
+            ] : []),
+            // Chỉ hiển thị nếu có quyền duyệt khóa học
+            ...(canAccessRoute('duyệt khóa học') ? [
+              { key: "/moderator/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Duyệt Khóa học" }
+            ] : []),
+            // Chỉ hiển thị nếu có quyền duyệt bình luận
+            ...(canAccessRoute('duyệt bình luận') ? [
+              { key: "/moderator/comments", icon: <CommentOutlined />, label: collapsed ? "BL" : "Danh sách Bình luận" }
+            ] : []),
+            // Chỉ hiển thị nếu có quyền xử lý báo cáo
+            ...(canAccessRoute('xử lý báo cáo') ? [
+              { key: "/moderator/reports", icon: <WarningOutlined />, label: collapsed ? "BC" : "Báo cáo vi phạm" }
+            ] : []),
           ].filter(Boolean),
         },
         {

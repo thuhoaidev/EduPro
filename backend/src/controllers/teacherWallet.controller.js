@@ -80,8 +80,51 @@ exports.approveWithdraw = async (req, res) => {
       
       await wallet.save();
     }
-    
-    res.json({ success: true, message: 'Đã duyệt rút tiền', request });
+
+    // Tạo hóa đơn khi duyệt rút tiền
+    try {
+      const invoiceController = require('./invoice.controller');
+      const invoice = await invoiceController.createInvoice(id, req.user._id);
+      
+      // Gửi notification cho giảng viên
+      try {
+        const Notification = require('../models/Notification');
+        await Notification.create({
+          title: 'Rút tiền thành công',
+          content: `Yêu cầu rút tiền ${Number(request.amount).toLocaleString()} VNĐ đã được duyệt. Hóa đơn đã được tạo.`,
+          type: 'success',
+          receiver: request.teacherId,
+          icon: 'check-circle',
+          meta: { 
+            amount: Number(request.amount), 
+            invoiceId: invoice._id,
+            link: '/earnings' 
+          }
+        });
+      } catch (notiErr) {
+        console.error('Lỗi tạo notification rút tiền:', notiErr);
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Đã duyệt rút tiền và tạo hóa đơn', 
+        request,
+        invoice: {
+          id: invoice._id,
+          invoiceNumber: invoice.invoiceNumber,
+          file: invoice.file
+        }
+      });
+    } catch (invoiceError) {
+      console.error('Lỗi tạo hóa đơn:', invoiceError);
+      // Vẫn trả về thành công nếu duyệt được nhưng lỗi tạo hóa đơn
+      res.json({ 
+        success: true, 
+        message: 'Đã duyệt rút tiền nhưng lỗi tạo hóa đơn', 
+        request,
+        invoiceError: invoiceError.message
+      });
+    }
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi duyệt rút tiền', error: err.message });
   }
@@ -91,7 +134,9 @@ exports.approveWithdraw = async (req, res) => {
 exports.getMyWithdrawRequests = async (req, res) => {
   try {
     const teacherId = req.user._id;
-    const requests = await WithdrawRequest.find({ teacherId }).sort({ createdAt: -1 });
+    const requests = await WithdrawRequest.find({ teacherId })
+      .sort({ createdAt: -1 })
+      .populate('teacherId', 'fullname email avatar');
     res.json({ success: true, requests });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi lấy danh sách yêu cầu rút tiền', error: err.message });

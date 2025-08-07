@@ -24,6 +24,7 @@ const {
   getFollowing,
   getUserBySlug,
   searchInstructors,
+  getUsersByRole,
 } = require('../controllers/user.controller');
 
 // Các route public cho phép xem danh sách follower/following
@@ -98,6 +99,9 @@ router.get('/instructors', getInstructors);
 router.get('/instructors/:id/detail', getInstructorDetail);
 // Cập nhật trạng thái hồ sơ giảng viên (cần đăng nhập)
 router.put('/instructors/:id/approval', updateInstructorApproval);
+
+// Lấy danh sách người dùng theo vai trò (cần đăng nhập)
+router.get('/by-role/:roleId', getUsersByRole);
 
 // Các route follow/unfollow (cần đăng nhập)
 router.post('/:id/follow', followUser); // Theo dõi user

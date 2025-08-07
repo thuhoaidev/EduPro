@@ -14,4 +14,4 @@ router.put('/:id', upload.single('video'), handleUploadError, updateVideo);
 router.delete('/:id', deleteVideo);
 router.get('/lesson/:lesson_id', getVideoByLesson);
 
-module.exports = router; 
+module.exports = router;

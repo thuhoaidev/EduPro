@@ -17,7 +17,7 @@ interface UseRealtimeProgressProps {
 export const useRealtimeProgress = ({
   courseId,
   onProgressUpdate,
-  onUnlockedLessonsUpdate
+  onUnlockedLessonsUpdate,
 }: UseRealtimeProgressProps) => {
   const socketRef = useRef<Socket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -27,14 +27,14 @@ export const useRealtimeProgress = ({
     debounce((progress: any) => {
       onProgressUpdate(progress);
     }, 300),
-    [onProgressUpdate]
+    [onProgressUpdate],
   );
 
   const debouncedUnlockedLessonsUpdate = useCallback(
     debounce((unlockedLessons: string[]) => {
       onUnlockedLessonsUpdate(unlockedLessons);
     }, 300),
-    [onUnlockedLessonsUpdate]
+    [onUnlockedLessonsUpdate],
   );
 
   useEffect(() => {
@@ -43,8 +43,8 @@ export const useRealtimeProgress = ({
     // Tạo socket connection
     const socket = io(process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000', {
       auth: {
-        token: localStorage.getItem('token')
-      }
+        token: localStorage.getItem('token'),
+      },
     });
 
     socketRef.current = socket;
@@ -88,7 +88,7 @@ export const useRealtimeProgress = ({
       }, 3000);
     });
 
-    socket.on('connect_error', (error) => {
+    socket.on('connect_error', error => {
       console.error('Socket connection error:', error);
     });
 
@@ -101,15 +101,18 @@ export const useRealtimeProgress = ({
   }, [courseId, debouncedProgressUpdate, debouncedUnlockedLessonsUpdate]);
 
   // Function để emit progress update
-  const emitProgressUpdate = useCallback((lessonId: string, progressData: any) => {
-    if (socketRef.current && courseId) {
-      socketRef.current.emit('update-progress', {
-        courseId,
-        lessonId,
-        progressData
-      });
-    }
-  }, [courseId]);
+  const emitProgressUpdate = useCallback(
+    (lessonId: string, progressData: any) => {
+      if (socketRef.current && courseId) {
+        socketRef.current.emit('update-progress', {
+          courseId,
+          lessonId,
+          progressData,
+        });
+      }
+    },
+    [courseId],
+  );
 
   return { emitProgressUpdate };
 };
@@ -117,11 +120,11 @@ export const useRealtimeProgress = ({
 // Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
   func: T,
-  wait: number
+  wait: number,
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout;
   return (...args: Parameters<T>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
-} 
+}

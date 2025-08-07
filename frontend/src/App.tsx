@@ -31,6 +31,7 @@ import ModeratorLayout from "./pages/layout/ModeratorLayout";
 import InstructorLayout from "./pages/layout/InstructorLayout";
 import ChangePassword from "./pages/layout/ChangePassword";
 import Profile from "./pages/client/Profile/Profile";
+import Courses from "./pages/client/Profile/Courses";
 import CategoryPage from "./pages/admin/categories/CategoryPage";
 import BlogWritePage from "./pages/client/blog/BlogWritePage";
 import MyBlogPosts from "./pages/client/blog/MyBlogPosts";
@@ -63,6 +64,7 @@ import UserProfile from "./pages/client/Profile/UserProfile";
 import CheckPayment from "./pages/client/CheckPayment";
 import WithdrawRequestsAdmin from "./pages/admin/earnings/Earnings";
 import UserWithdrawRequestsAdmin from './pages/admin/earnings/UserWithdrawRequestsAdmin';
+import InvoicesAdmin from './pages/admin/earnings/InvoicesAdmin';
 import RolesPage from './pages/admin/roles/RolesPage';
 import RoleDetailPage from './pages/admin/roles/RoleDetailPage';
 import TestRoleUpdate from './pages/admin/roles/TestRoleUpdate';
@@ -88,6 +90,8 @@ import WalletPage from "./pages/client/WalletPage";
 import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
 import MessagesPage from './pages/client/MessagesPage';
 import MessagesLayout from './pages/client/MessagesLayout';
+import AdminDeviceViolationsPage from './pages/admin/DeviceSecurity/AdminDeviceViolationsPage';
+import DeviceSecurityDebug from './components/DeviceSecurity/DeviceSecurityDebug';
 import CertificatePage from "./pages/client/CertificatePage";
 import Certificates from "./pages/client/Profile/Certificates";
 import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
@@ -148,7 +152,7 @@ function App() {
         { path: "courses/id/:id", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
-        {path:  "/blog/:id", element: <BlogPage />},
+        { path:  "/blog/:id", element: <BlogPage />},
         { path: "/blog/post/:id", element: <BlogPage /> },
         { path: "cart", element: <CartPage /> },
         { path: "checkout", element: <CheckoutPage /> },
@@ -164,6 +168,7 @@ function App() {
         { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
         { path: "certificates/:courseId", element: <CertificatePage /> },
+        { path: "debug/device-security", element: <DeviceSecurityDebug /> },
 
         { path: '/social-callback', element: <SocialAuthCallback /> },
       ]
@@ -174,6 +179,7 @@ function App() {
       children: [
         { path: "", element: <Profile /> },
         { path: 'edit', element: <ProfileEdit /> },
+        { path: 'courses', element: <Courses /> },
         { path: 'change-password', element: <ChangePassword /> },
         { path: 'orders', element: <OrdersPage /> },
         { path: 'certificates', element: <Certificates /> },
@@ -208,9 +214,11 @@ function App() {
         { path: "transactions", element: <TransactionHistory /> },
         { path: "earnings", element: <WithdrawRequestsAdmin />},
         { path: "user-withdraw-requests", element: <UserWithdrawRequestsAdmin /> },
+        { path: "invoices", element: <InvoicesAdmin /> },
         { path: "roles", element: <RolesPage /> },
         { path: "roles/:id", element: <RoleDetailPage /> },
         { path: "roles/test", element: <TestRoleUpdate /> },
+        { path: "device-violations", element: <AdminDeviceViolationsPage /> },
       ],
     },
     {

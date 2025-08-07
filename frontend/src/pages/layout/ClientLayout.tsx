@@ -5,6 +5,9 @@ import AppHeader from './Header';
 import AppFooter from './Footer';
 import AppSidebar from './CategoryNav';
 import './ClientLayout.css';
+import AIRecommendationModal from '../../components/ai/AIRecommendationModal';
+import { useAIRecommendation } from '../../hooks/useAIRecommendation';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { Content } = Layout;
 
@@ -25,6 +28,9 @@ const ClientLayout = () => {
   const isOrdersPage = location.pathname === '/orders';
   const isCertificatesPage = location.pathname.startsWith('/certificates');
 
+  const { user } = useAuth();
+  const ai = useAIRecommendation(user?._id || '');
+
   return (
     <Layout className="client-layout">
       <AppHeader />
@@ -43,6 +49,16 @@ const ClientLayout = () => {
         </Layout>
       </Layout>
       <AppFooter />
+      {user && (
+        <AIRecommendationModal
+          visible={ai.visible}
+          onClose={() => ai.setVisible(false)}
+          loading={ai.loading}
+          recommendations={ai.recommendations}
+          reasons={ai.reasons}
+          error={ai.error}
+        />
+      )}
     </Layout>
   );
 };

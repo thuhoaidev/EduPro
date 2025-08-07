@@ -18,7 +18,6 @@ export interface CreateOrderData {
   notes?: string;
 }
 
-
 export interface Order {
   shippingAddress: any;
   id: string;
@@ -69,42 +68,47 @@ class OrderService {
     try {
       console.log('🔍 OrderService - Creating order with data:', data);
       console.log('🔍 OrderService - Token present:', !!token);
-      
+
       const response = await axios.post(`${API_URL}/orders`, data, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
-      
+
       console.log('🔍 OrderService - Response:', response.data);
       return response.data.data;
     } catch (error: any) {
       console.error('🔍 OrderService - Error details:', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status
+        status: error.response?.status,
       });
       throw new Error(error.response?.data?.message || 'Lỗi khi tạo đơn hàng');
     }
   }
 
   // Lấy danh sách đơn hàng của user
-  async getUserOrders(token: string, page: number = 1, limit: number = 10, status?: string): Promise<OrderListResponse> {
+  async getUserOrders(
+    token: string,
+    page: number = 1,
+    limit: number = 10,
+    status?: string,
+  ): Promise<OrderListResponse> {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: limit.toString()
+        limit: limit.toString(),
       });
-      
+
       if (status) {
         params.append('status', status);
       }
 
       const response = await axios.get(`${API_URL}/orders?${params}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       return response.data.data;
     } catch (error: any) {
@@ -117,8 +121,8 @@ class OrderService {
     try {
       const response = await axios.get(`${API_URL}/orders/${orderId}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       return response.data.data;
     } catch (error: any) {
@@ -129,11 +133,15 @@ class OrderService {
   // Hủy đơn hàng
   async cancelOrder(orderId: string, token: string): Promise<void> {
     try {
-      await axios.put(`${API_URL}/orders/${orderId}/cancel`, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      await axios.put(
+        `${API_URL}/orders/${orderId}/cancel`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi hủy đơn hàng');
     }
@@ -142,14 +150,15 @@ class OrderService {
   // Hoàn thành thanh toán (admin)
   async completePayment(orderId: string, paymentMethod: string, token: string): Promise<void> {
     try {
-      await axios.post(`${API_URL}/orders/${orderId}/complete-payment`, 
+      await axios.post(
+        `${API_URL}/orders/${orderId}/complete-payment`,
         { paymentMethod },
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        },
       );
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi hoàn thành thanh toán');
@@ -159,16 +168,40 @@ class OrderService {
   // Hoàn tiền đơn hàng cho một khóa học
   async refundOrder(orderId: string, courseId: string, token: string): Promise<void> {
     try {
-      await axios.post(`${API_URL}/orders/${orderId}/refund`, { courseId }, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      await axios.post(
+        `${API_URL}/orders/${orderId}/refund`,
+        { courseId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Lỗi khi hoàn tiền');
     }
   }
+
+  // Kiểm tra điều kiện hoàn tiền cho một khóa học
+  async checkRefundEligibility(courseId: string, token: string): Promise<{
+    eligible: boolean;
+    reason?: string;
+    orderId?: string;
+    progressPercentage?: number;
+    daysRemaining?: number;
+  }> {
+    try {
+      const response = await axios.get(`${API_URL}/orders/check-refund/${courseId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Lỗi khi kiểm tra điều kiện hoàn tiền');
+    }
+  }
 }
 
-export default new OrderService(); 
+export default new OrderService();

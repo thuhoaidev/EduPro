@@ -34,9 +34,12 @@ import {
   TrophyOutlined,
   RiseOutlined,
   FallOutlined,
+  FileTextOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import styles from '../Users/UserPage.module.css';
+import { invoiceService } from '../../../services/apiService';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -206,11 +209,17 @@ const WithdrawRequestsAdmin = () => {
   const handleApprove = async (id: string) => {
     try {
       const token = localStorage.getItem("token");
-      await axios.post(`http://localhost:5000/api/teacher-wallet/withdraw/${id}/approve`, {}, {
+      const response = await axios.post(`http://localhost:5000/api/teacher-wallet/withdraw/${id}/approve`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      message.success("Đã duyệt rút tiền!");
-      setRequests((prev) => prev.map(r => r._id === id ? { ...r, status: "approved" } : r));
+      
+      if (response.data.invoice) {
+        message.success("Đã duyệt rút tiền và tạo hóa đơn!");
+      } else {
+        message.success("Đã duyệt rút tiền!");
+      }
+      
+      setRequests((prev) => prev.map(r => r._id === id ? { ...r, status: "approved", invoice: response.data.invoice } : r));
     } catch (err: any) {
       message.error(err.response?.data?.message || "Lỗi duyệt rút tiền");
     }
@@ -237,6 +246,23 @@ const WithdrawRequestsAdmin = () => {
 
   const showDetail = (record: any) => {
     setDetailModal({ open: true, data: record });
+  };
+
+  const handleDownloadInvoice = async (fileName: string) => {
+    try {
+      const blob = await invoiceService.downloadInvoice(fileName);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      message.success('Đã tải hóa đơn thành công!');
+    } catch (error) {
+      message.error('Lỗi tải hóa đơn!');
+    }
   };
 
   // Tính toán thống kê
@@ -339,6 +365,34 @@ const WithdrawRequestsAdmin = () => {
         { text: "Đã hủy", value: "cancelled" }
       ],
       onFilter: (value: any, record: any) => record.status === value,
+    },
+    {
+      title: "Hóa đơn",
+      key: "invoice",
+      width: 120,
+      align: 'center' as const,
+      render: (_: any, record: any) => {
+        if (record.status === "approved" && record.invoice) {
+          return (
+            <Tooltip title="Tải hóa đơn">
+              <Button 
+                type="primary" 
+                onClick={() => handleDownloadInvoice(record.invoice.file)} 
+                icon={<DownloadOutlined />} 
+                style={{ borderRadius: 8, background: "#52c41a", border: "none", fontWeight: 600 }}
+                size="small"
+              >
+                Tải HĐ
+              </Button>
+            </Tooltip>
+          );
+        }
+        return (
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            {record.status === "approved" ? "Đã tạo" : "-"}
+          </Text>
+        );
+      },
     },
     {
       title: "Thao tác",

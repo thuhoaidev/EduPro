@@ -49,6 +49,7 @@ interface BackendCategory {
   createdAt: string;
   updatedAt: string;
   __v: number;
+  courseCount?: number;
 }
 
 interface ApiResponse {
@@ -59,20 +60,41 @@ interface ApiResponse {
 
 // Modern icon mapping with trending categories
 const modernIconMap: { [key: string]: { icon: React.ReactNode; color: string; isPopular?: boolean; isNew?: boolean } } = {
-  'Công nghệ thông tin': { 
+  'Lập trình Web': { 
     icon: <CodeOutlined />, 
-    color: '#3b82f6',
-    isPopular: true 
+    color: '#3b82f6'
   },
-  'Phát triển web': { 
-    icon: <GlobalOutlined />, 
-    color: '#10b981',
-    isPopular: true 
+  'Lập trình Backend': { 
+    icon: <CloudOutlined />, 
+    color: '#10b981'
   },
-  'Phát triển mobile': { 
+  'An ninh mạng': { 
+    icon: <SafetyCertificateOutlined />, 
+    color: '#ef4444'
+  },
+  'Trí tuệ nhân tạo & Deep Learning': { 
+    icon: <RocketOutlined />, 
+    color: '#f97316'
+  },
+  'Cơ sở dữ liệu': { 
+    icon: <DatabaseOutlined />, 
+    color: '#06b6d4'
+  },
+  'Khoa học máy tính': { 
+    icon: <StarOutlined />, 
+    color: '#8b5cf6' 
+  },
+  'Kỹ thuật phần mềm': { 
+    icon: <SettingOutlined />, 
+    color: '#7c3aed' 
+  },
+  'Phát triển Mobile': { 
     icon: <MobileOutlined />, 
-    color: '#f59e0b',
-    isPopular: true 
+    color: '#f59e0b'
+  },
+  'Digital Marketing': { 
+    icon: <FireOutlined />, 
+    color: '#dc2626'
   },
   'Kinh doanh': { 
     icon: <AreaChartOutlined />, 
@@ -82,67 +104,21 @@ const modernIconMap: { [key: string]: { icon: React.ReactNode; color: string; is
     icon: <MessageOutlined />, 
     color: '#ec4899' 
   },
-  'Marketing': { 
-    icon: <ThunderboltOutlined />, 
-    color: '#ef4444',
-    isPopular: true 
-  },
-  'Data Science': { 
-    icon: <DatabaseOutlined />, 
-    color: '#06b6d4',
-    isNew: true 
-  },
-  'Cloud Computing': { 
-    icon: <CloudOutlined />, 
-    color: '#6366f1',
-    isNew: true 
-  },
-  'AI & Machine Learning': { 
-    icon: <RocketOutlined />, 
-    color: '#f97316',
-    isNew: true 
-  },
   'Design & UI/UX': { 
     icon: <LaptopOutlined />, 
     color: '#84cc16' 
   },
-  'Digital Marketing': { 
-    icon: <FireOutlined />, 
-    color: '#dc2626',
-    isPopular: true 
+  'Blockchain & Công nghệ Tài chính': { 
+    icon: <ThunderboltOutlined />, 
+    color: '#fbbf24'
   },
-  'Project Management': { 
-    icon: <SettingOutlined />, 
-    color: '#7c3aed' 
+  'Công nghệ Phần mềm Nhúng & IoT': { 
+    icon: <BulbOutlined />, 
+    color: '#059669'
   },
-  'Cybersecurity': { 
-    icon: <SafetyCertificateOutlined />, 
-    color: '#059669',
-    isNew: true 
-  },
-  'Leadership': { 
-    icon: <TrophyOutlined />, 
-    color: '#d97706' 
-  },
-  'Communication': { 
+  'Hệ thống thông tin': { 
     icon: <TeamOutlined />, 
     color: '#0891b2' 
-  },
-  'Innovation': { 
-    icon: <BulbOutlined />, 
-    color: '#be185d' 
-  },
-  'Health & Wellness': { 
-    icon: <HeartOutlined />, 
-    color: '#e11d48' 
-  },
-  'Education': { 
-    icon: <BookOutlined />, 
-    color: '#2563eb' 
-  },
-  'Video Production': { 
-    icon: <VideoCameraOutlined />, 
-    color: '#7c2d12' 
   },
 };
 
@@ -164,7 +140,7 @@ const formatCategory = (category: BackendCategory, index: number): Category => {
     name: category.name,
     icon: categoryInfo.icon,
     description: category.description,
-    courseCount: Math.floor(Math.random() * 50) + 5,
+    courseCount: category.courseCount || 0,
     isPopular: categoryInfo.isPopular,
     isNew: categoryInfo.isNew,
     color: categoryInfo.color,
@@ -181,7 +157,7 @@ const AppSidebar: React.FC = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await config.get<ApiResponse>('/categories/status/active');
+        const response = await config.get<ApiResponse>('/categories/status/active/count');
         const backendCategories = response.data.data;
         const formattedCategories = backendCategories.map((cat, index) => formatCategory(cat, index));
 
@@ -194,51 +170,53 @@ const AppSidebar: React.FC = () => {
         // Modern fallback categories
         const fallbackCategories: Category[] = [
           { 
-            id: 'tech', 
-            name: 'Công nghệ thông tin', 
+            id: 'web', 
+            name: 'Lập trình Web', 
             icon: <CodeOutlined />, 
-            courseCount: 25, 
-            isPopular: true,
+            courseCount: 6, 
             color: '#3b82f6'
           },
           { 
-            id: 'web', 
-            name: 'Phát triển web', 
-            icon: <GlobalOutlined />, 
-            courseCount: 18, 
-            isPopular: true,
+            id: 'backend', 
+            name: 'Lập trình Backend', 
+            icon: <CloudOutlined />, 
+            courseCount: 1, 
             color: '#10b981'
           },
           { 
-            id: 'mobile', 
-            name: 'Phát triển mobile', 
-            icon: <MobileOutlined />, 
-            courseCount: 12, 
-            isPopular: true,
-            color: '#f59e0b'
+            id: 'security', 
+            name: 'An ninh mạng', 
+            icon: <SafetyCertificateOutlined />, 
+            courseCount: 1, 
+            color: '#ef4444'
           },
           { 
             id: 'ai-ml', 
-            name: 'AI & Machine Learning', 
+            name: 'Trí tuệ nhân tạo & Deep Learning', 
             icon: <RocketOutlined />, 
-            courseCount: 8, 
-            isNew: true,
+            courseCount: 0, 
             color: '#f97316'
           },
           { 
-            id: 'business', 
-            name: 'Kinh doanh', 
-            icon: <AreaChartOutlined />, 
-            courseCount: 15,
+            id: 'database', 
+            name: 'Cơ sở dữ liệu', 
+            icon: <DatabaseOutlined />, 
+            courseCount: 0, 
+            color: '#06b6d4'
+          },
+          { 
+            id: 'cs', 
+            name: 'Khoa học máy tính', 
+            icon: <StarOutlined />, 
+            courseCount: 0,
             color: '#8b5cf6'
           },
           { 
-            id: 'marketing', 
-            name: 'Digital Marketing', 
-            icon: <FireOutlined />, 
-            courseCount: 20, 
-            isPopular: true,
-            color: '#dc2626'
+            id: 'software-eng', 
+            name: 'Kỹ thuật phần mềm', 
+            icon: <SettingOutlined />, 
+            courseCount: 0,
+            color: '#7c3aed'
           },
         ];
         setCategories(fallbackCategories);
@@ -318,22 +296,9 @@ const AppSidebar: React.FC = () => {
                         {category.icon}
                       </motion.div>
                       
-                      {/* Badges for popular and new categories */}
+                      {/* Badges for popular and new categories - Removed */}
                       <div className="category-badges">
-                        {category.isPopular && (
-                          <Badge 
-                            count="Hot" 
-                            className="popular-badge"
-                            style={{ backgroundColor: '#ef4444' }}
-                          />
-                        )}
-                        {category.isNew && (
-                          <Badge 
-                            count="New" 
-                            className="new-badge"
-                            style={{ backgroundColor: '#10b981' }}
-                          />
-                        )}
+                        {/* Badges removed as requested */}
                       </div>
                     </div>
 
