@@ -43,7 +43,6 @@ interface Testimonial {
   content: string;
   rating: number;
   avatar?: string;
-  courseCount?: number;
 }
 
 interface VoucherDisplay {
@@ -240,98 +239,21 @@ const Homepage = () => {
           .slice(0, 4);
         setPopularCourses(popular);
         
-        // Fetch testimonials from comments
-        try {
-          const response = await fetch('http://localhost:5000/api/blogs/68547db672358427a53d9ece/comments');
-          const commentsRes = await response.json();
-          const commentsData = commentsRes.data || [];
-          
-          if (Array.isArray(commentsData) && commentsData.length > 0) {
-            const mappedTestimonials: Testimonial[] = commentsData.map((comment: CommentData) => ({
-              name: comment.user?.fullname || 'Học viên',
-              role: 'Sinh viên',
-              content: comment.content || 'Khóa học rất hay và bổ ích!',
-              rating: comment.rating || 5,
-              avatar: `https://i.pravatar.cc/80?u=${comment.user?.fullname || 'user'}`,
-              courseCount: Math.floor(Math.random() * 5) + 1
-            }));
-            setTestimonials(mappedTestimonials);
-          } else {
-            // Fallback testimonials nếu không có dữ liệu từ API
-            const fallbackTestimonials: Testimonial[] = [
-              {
-                name: 'Nguyễn Văn An',
-                role: 'Sinh viên',
-                content: 'Khóa học rất hay và bổ ích! Giảng viên dạy rất dễ hiểu, nội dung thực tế và ứng dụng được ngay.',
-                rating: 5,
-                avatar: 'https://i.pravatar.cc/80?u=nguyenvanan',
-                courseCount: 3
-              },
-              {
-                name: 'Trần Thị Bình',
-                role: 'Sinh viên',
-                content: 'EduPro có nhiều khóa học chất lượng cao. Tôi đã học được rất nhiều kiến thức mới và thực tế.',
-                rating: 5,
-                avatar: 'https://i.pravatar.cc/80?u=tranthibinh',
-                courseCount: 2
-              },
-              {
-                name: 'Lê Văn Cường',
-                role: 'Sinh viên',
-                content: 'Nền tảng học tập tuyệt vời! Giao diện dễ sử dụng, nội dung đa dạng và giảng viên nhiệt tình.',
-                rating: 4,
-                avatar: 'https://i.pravatar.cc/80?u=levancuong',
-                courseCount: 4
-              },
-              {
-                name: 'Phạm Thị Dung',
-                role: 'Sinh viên',
-                content: 'Rất hài lòng với chất lượng khóa học. Kiến thức được cập nhật thường xuyên và có tính ứng dụng cao.',
-                rating: 5,
-                avatar: 'https://i.pravatar.cc/80?u=phamthidung',
-                courseCount: 1
-              }
-            ];
-            setTestimonials(fallbackTestimonials);
-          }
-        } catch (error) {
-          console.error('Error fetching testimonials:', error);
-          // Fallback testimonials khi có lỗi
-          const fallbackTestimonials: Testimonial[] = [
-            {
-              name: 'Nguyễn Văn An',
-              role: 'Sinh viên',
-              content: 'Khóa học rất hay và bổ ích! Giảng viên dạy rất dễ hiểu, nội dung thực tế và ứng dụng được ngay.',
-              rating: 5,
-              avatar: 'https://i.pravatar.cc/80?u=nguyenvanan',
-              courseCount: 3
-            },
-            {
-              name: 'Trần Thị Bình',
-              role: 'Sinh viên',
-              content: 'EduPro có nhiều khóa học chất lượng cao. Tôi đã học được rất nhiều kiến thức mới và thực tế.',
-              rating: 5,
-              avatar: 'https://i.pravatar.cc/80?u=tranthibinh',
-              courseCount: 2
-            },
-            {
-              name: 'Lê Văn Cường',
-              role: 'Sinh viên',
-              content: 'Nền tảng học tập tuyệt vời! Giao diện dễ sử dụng, nội dung đa dạng và giảng viên nhiệt tình.',
-              rating: 4,
-              avatar: 'https://i.pravatar.cc/80?u=levancuong',
-              courseCount: 4
-            },
-            {
-              name: 'Phạm Thị Dung',
-              role: 'Sinh viên',
-              content: 'Rất hài lòng với chất lượng khóa học. Kiến thức được cập nhật thường xuyên và có tính ứng dụng cao.',
-              rating: 5,
-              avatar: 'https://i.pravatar.cc/80?u=phamthidung',
-              courseCount: 1
-            }
-          ];
-          setTestimonials(fallbackTestimonials);
+        const response = await fetch('http://localhost:5000/api/blogs/68547db672358427a53d9ece/comments');
+        const commentsRes = await response.json();
+        const commentsData = commentsRes.data || [];
+        if (Array.isArray(commentsData)) {
+          const mappedTestimonials: Testimonial[] = commentsData.map((comment: CommentData) => ({
+            name: comment.user?.fullname || 'Học viên',
+            role: 'Sinh viên',
+            content: comment.content || 'Khóa học rất hay!',
+            rating: comment.rating || 5,
+            avatar: `https://i.pravatar.cc/80?u=${comment.user?.fullname || 'user'}`
+          }));
+          setTestimonials(mappedTestimonials);
+        } else {
+          console.error('commentsData is not an array:', commentsData);
+          setTestimonials([]);
         }
         
         try {
@@ -521,6 +443,10 @@ const Homepage = () => {
       {/* Stats Section */}
       <SectionWrapper className="stats-section">
         <div className="section-header">
+          <div className="section-badge">
+            <RiseOutlined className="badge-icon" />
+            <span>Thống kê ấn tượng</span>
+          </div>
           <Title level={2} className="section-title">Những con số nổi bật</Title>
           <Text className="section-subtitle">Thể hiện sự tin tưởng và thành công của cộng đồng EduPro</Text>
         </div>
@@ -563,6 +489,10 @@ const Homepage = () => {
       {/* Vouchers Section */}
       <SectionWrapper className="vouchers-section">
         <div className="section-header">
+          <div className="section-badge">
+            <GiftOutlined className="badge-icon" />
+            <span>Ưu đãi đặc biệt</span>
+          </div>
           <Title level={2} className="section-title">
             Mã giảm giá hấp dẫn
           </Title>
@@ -720,6 +650,10 @@ const Homepage = () => {
       {/* Courses Section */}
       <SectionWrapper className="courses-section">
         <div className="section-header">
+          <div className="section-badge">
+            <BookOutlined className="badge-icon" />
+            <span>Khóa học chất lượng</span>
+          </div>
           <Title level={2} className="section-title">Khám phá khóa học</Title>
           <Text className="section-subtitle">Chọn lựa khóa học phù hợp nhất với mục tiêu của bạn</Text>
         </div>
@@ -844,6 +778,10 @@ const Homepage = () => {
       {/* Instructors Section */}
       <SectionWrapper className="instructors-section">
         <div className="section-header">
+          <div className="section-badge">
+            <CrownOutlined className="badge-icon" />
+            <span>Giảng viên tiêu biểu</span>
+          </div>
           <Title level={2} className="section-title">Đội ngũ giảng viên xuất sắc</Title>
           <Text className="section-subtitle">Học hỏi từ các chuyên gia hàng đầu</Text>
         </div>
@@ -885,6 +823,10 @@ const Homepage = () => {
       {/* Blogs Section */}
       <SectionWrapper className="blogs-section">
         <div className="section-header">
+          <div className="section-badge">
+            <BookOutlined className="badge-icon" />
+            <span>Bài viết nổi bật</span>
+          </div>
           <Title level={2} className="section-title">Tin tức & Chia sẻ</Title>
           <Text className="section-subtitle">Cập nhật kiến thức, xu hướng mới nhất</Text>
         </div>
@@ -919,9 +861,14 @@ const Homepage = () => {
       {/* Testimonials Section */}
       <SectionWrapper className="testimonials-section">
         <div className="section-header">
+          <div className="section-badge">
+            <HeartOutlined className="badge-icon" />
+            <span>Đánh giá từ học viên</span>
+          </div>
           <Title level={2} className="section-title">Học viên nói về EduPro</Title>
           <Text className="section-subtitle">Những chia sẻ thực tế từ cộng đồng học viên của chúng tôi</Text>
         </div>
+
         <Carousel 
           autoplay 
           arrows
@@ -942,11 +889,10 @@ const Homepage = () => {
                   <Space direction="vertical" size="large" className="testimonial-content">
                     <div className="testimonial-avatar-container">
                       <Avatar 
-                        src={testimonial.avatar} 
+                        src={testimonial.avatar && testimonial.avatar !== 'default-avatar.jpg' && testimonial.avatar !== '' && (testimonial.avatar.includes('googleusercontent.com') || testimonial.avatar.startsWith('http')) ? testimonial.avatar : undefined} 
                         alt={testimonial.name} 
                         size={80}
                         className="testimonial-avatar"
-                        icon={<UserOutlined />}
                       />
                       <div className="quote-icon">
                         <HeartOutlined />
@@ -956,10 +902,10 @@ const Homepage = () => {
                     <Rate value={testimonial.rating} disabled className="testimonial-rating" />
                     <div className="testimonial-author">
                       <Text strong className="author-name">{testimonial.name}</Text>
-                      <br />
-                      <Text className="author-role">{testimonial.role} • Đã học {testimonial.courseCount || 1} khóa học</Text>
-                    </div>
-                  </Space>
+                            <br />
+                      <Text className="author-role">{testimonial.role}</Text>
+                        </div>
+                        </Space>
                     </Card>
                 </motion.div>
             </div>
