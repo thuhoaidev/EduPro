@@ -49,6 +49,8 @@ interface BlogPost {
   title: string;
   content: string;
   excerpt: string;
+  coverImage?: string;
+  image?: string;
   thumbnail?: string;
   status: 'published' | 'draft' | 'pending';
   createdAt: string;
@@ -61,6 +63,7 @@ interface BlogPost {
   author: {
     _id: string;
     name: string;
+    fullname?: string;
     avatar?: string;
   };
   isLiked?: boolean;
@@ -392,28 +395,39 @@ const navigate = useNavigate();
 
       <Row gutter={0}>
         <Col xs={24} sm={8}>
-  <div style={{ height: 200, overflow: 'hidden' }}>
-    {post.image ? (
-  <img
-    src={post.image}
-        alt="Thumbnail"
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-      />
-    ) : (
-      <div style={{
-        height: '100%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <EyeOutlined style={{ fontSize: 24, marginRight: 8 }} />
-        Không có ảnh
-      </div>
-    )}
-  </div>
-</Col>
+          <div style={{ 
+            height: 200, 
+            borderRadius: 12, 
+            overflow: 'hidden',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+          }}>
+            {post.coverImage ? (
+              <img 
+                src={post.coverImage} 
+                alt={post.title}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : post.image ? (
+              <img 
+                src={post.image} 
+                alt={post.title}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <div style={{
+                height: '100%',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <EyeOutlined style={{ fontSize: 24, marginRight: 8 }} />
+                Không có ảnh
+              </div>
+            )}
+          </div>
+        </Col>
 
         <Col xs={24} sm={16}>
           <div style={{ padding: 24 }}>
@@ -614,15 +628,6 @@ const navigate = useNavigate();
                   <Option value="pending">Chờ duyệt</Option>
                 </Select>
               </Col>
-              <Col xs={24} sm={24} md={10}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16 }}>
-                  <Badge count={filteredPosts.length} color="#108ee9">
-                    <Text type="secondary">
-                      Tổng cộng bài viết
-                    </Text>
-                  </Badge>
-                </div>
-              </Col>
             </Row>
           </Card>
 
@@ -764,7 +769,7 @@ const navigate = useNavigate();
   icon={<UserOutlined />}
   size={32}
 />
-<Text strong>{comment.author?.fullname || 'Người dùng ẩn danh'}</Text>
+<Text strong>{comment.author?.name || 'Người dùng ẩn danh'}</Text>
 
 
                     <div style={{ flex: 1 }}>
@@ -845,7 +850,7 @@ const navigate = useNavigate();
   size={24}
 />
 <Text strong style={{ fontSize: 13 }}>
-  {reply.author?.fullname || 'Ẩn danh'}
+  {reply.author?.name || 'Ẩn danh'}
 </Text>
 
 

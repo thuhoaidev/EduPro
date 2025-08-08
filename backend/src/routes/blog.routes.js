@@ -3,10 +3,14 @@ const router = express.Router();
 const blogController = require('../controllers/blog.controller');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
+const uploadMultiple = multer({ storage: multer.memoryStorage() }).fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'coverImage', maxCount: 1 }
+]);
 const { auth } = require('../middlewares/auth');
 
 // === CRUD BLOG ===
-router.post('/', auth, upload.single('image'), blogController.createBlog);
+router.post('/', auth, uploadMultiple, blogController.createBlog);
 router.get('/', blogController.getAllBlogs);
 router.get('/my-posts', auth, blogController.getMyPosts);
 
@@ -32,7 +36,7 @@ router.post('/comment-likes/toggle/:commentId', blogController.toggleCommentLike
 router.get('/comment-likes/count/:commentId', blogController.countCommentLike);
 // === CRUD BLOG (PHẢI Ở CUỐI) ===
 router.get('/:id', blogController.getBlogById);
-router.put('/:id', blogController.updateBlog);
+router.put('/:id', auth, uploadMultiple, blogController.updateBlog);
 router.delete('/:id', auth, blogController.deleteBlog);
 router.patch('/:id/publish', blogController.publishBlog);
 router.patch('/:id/approve-reject', blogController.approveOrRejectBlog);
