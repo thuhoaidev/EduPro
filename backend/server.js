@@ -28,16 +28,6 @@ mongoose
 // Import app từ src/app.js
 const app = require('./src/app');
 
-// Các middleware cơ bản
-app.use(cors({
-  origin: 'http://localhost:5173', // Chỉ cho phép từ frontend
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  exposedHeaders: ['Authorization'],
-  maxAge: 86400 // 24 hours
-}));
-
 // Xử lý preflight request (OPTIONS)
 app.options('*', cors());
 

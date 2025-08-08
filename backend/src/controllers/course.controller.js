@@ -1406,22 +1406,32 @@ exports.enrollCourse = async (req, res, next) => {
     const userId = req.user._id;
     const courseId = req.params.courseId;
 
-    const course = await Course.findById(courseId).populate('instructor', 'user');
+    console.log('🔍 Enroll request:', { userId, courseId });
+
+    const course = await Course.findById(courseId);
     if (!course) {
+      console.log('❌ Course not found:', courseId);
       return res.status(404).json({ message: 'Không tìm thấy khóa học' });
     }
 
+    console.log('📚 Course found:', { 
+      id: course._id, 
+      title: course.title, 
+      status: course.status, 
+      displayStatus: course.displayStatus,
+      price: course.price,
+      instructor: course.instructor
+    });
+
     // Kiểm tra khóa học có được publish không
     if (course.status !== 'approved' || course.displayStatus !== 'published') {
+      console.log('❌ Course not published:', { status: course.status, displayStatus: course.displayStatus });
       return res.status(403).json({ message: 'Khóa học chưa được phát hành' });
     }
 
     // Kiểm tra xem người dùng có phải là giảng viên của khóa học này không
-    if (
-      course.instructor &&
-      course.instructor.user &&
-      course.instructor.user.toString() === userId.toString()
-    ) {
+    if (course.instructor && course.instructor.toString() === userId.toString()) {
+      console.log('❌ User is instructor of this course');
       return res.status(403).json({
         message:
           'Bạn không thể đăng ký khóa học của chính mình. Giảng viên đã có quyền truy cập đầy đủ vào khóa học của mình.',
@@ -1433,20 +1443,27 @@ exports.enrollCourse = async (req, res, next) => {
     // TODO: Thay thế đoạn này bằng logic kiểm tra đã mua thực tế
     const hasPurchased = isFree ? true : false; // Tạm thời chỉ cho phép miễn phí
 
+    console.log('💰 Price check:', { isFree, hasPurchased, price: course.price });
+
     if (!isFree && !hasPurchased) {
+      console.log('❌ Course not free and not purchased');
       return res.status(403).json({ message: 'Bạn cần mua khóa học này' });
     }
 
     // Đã enroll chưa?
     const alreadyEnrolled = await Enrollment.findOne({ student: userId, course: courseId });
     if (alreadyEnrolled) {
-      return res.status(400).json({ message: 'Bạn đã tham gia khóa học này' });
+      console.log('ℹ️ User already enrolled');
+      return res.json({ success: true, message: 'Bạn đã tham gia khóa học này' });
     }
 
+    console.log('✅ Creating enrollment...');
     // Tạo enrollment
     await Enrollment.create({ student: userId, course: courseId });
+    console.log('✅ Enrollment created successfully');
     res.json({ message: 'Tham gia thành công' });
   } catch (err) {
+    console.error('❌ Enroll error:', err);
     res.status(500).json({ message: err.message });
   }
 };
