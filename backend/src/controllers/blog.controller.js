@@ -13,17 +13,30 @@ const Notification = require('../models/Notification');
 const createBlog = async (req, res) => {
   try {
     let imageUrl = '';
+    let coverImageUrl = '';
+    
     if (req.file) {
       const result = await uploadBufferToCloudinary(req.file.buffer, 'blog-images');
       imageUrl = result.secure_url;
     }
+    
+    if (req.files && req.files.coverImage) {
+      const result = await uploadBufferToCloudinary(req.files.coverImage[0].buffer, 'blog-cover-images');
+      coverImageUrl = result.secure_url;
+    }
+    
     const { title, content, category, status } = req.body;
     const author = getUserId(req);
     if (!author) return res.status(400).json({ success: false, message: 'Thiếu tác giả!' });
+    
+    if (!coverImageUrl) {
+      return res.status(400).json({ success: false, message: 'Ảnh bìa là bắt buộc!' });
+    }
 
     const blog = new Blog({
       title,
       content,
+      coverImage: coverImageUrl,
       image: imageUrl,
       category,
       status: status || 'pending',
@@ -493,9 +506,17 @@ const updateBlog = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Bạn không có quyền cập nhật bài viết này.' });
     }
 
+    // Xử lý coverImage nếu có
+    let coverImageUrl = blog.coverImage;
+    if (req.files && req.files.coverImage) {
+      const result = await uploadBufferToCloudinary(req.files.coverImage[0].buffer, 'blog-cover-images');
+      coverImageUrl = result.secure_url;
+    }
+
     blog.title = title || blog.title;
     blog.content = content || blog.content;
     blog.category = category || blog.category;
+    blog.coverImage = coverImageUrl;
     blog.thumbnail = thumbnail || blog.thumbnail;
     blog.excerpt = excerpt || blog.excerpt;
     blog.tags = tags || blog.tags;

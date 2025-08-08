@@ -56,39 +56,31 @@ const getAuthToken = () => {
 
 // API Helper function
 const apiRequest = async (endpoint, method = 'GET', data = null, isFormData = false) => {
-  try {
-    const token = getAuthToken();
-    const config = {
-      method,
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : '',
-      }
-    };
+  const token = getAuthToken();
+  const config: any = {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
 
-    if (isFormData && data) {
+  if (data && method !== 'GET') {
+    if (isFormData) {
       config.body = data;
-    } else if (data) {
+    } else {
       config.headers['Content-Type'] = 'application/json';
       config.body = JSON.stringify(data);
     }
-
-    const response = await fetch(`${apiUrl}${endpoint}`, config);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-    
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return await response.json();
-    }
-    
-    return { success: true };
-  } catch (error) {
-    console.error('API Error:', error);
-    throw error;
   }
+
+  const response = await fetch(`${apiUrl}${endpoint}`, config);
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || 'Request failed');
+  }
+
+  return result;
 };
 
 // Blog API
@@ -146,6 +138,8 @@ const BlogWritePage = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
+  const [coverImage, setCoverImage] = useState(null);
+  const [coverImagePreview, setCoverImagePreview] = useState('');
 
   
   // UI states
@@ -322,6 +316,34 @@ const BlogWritePage = () => {
     return false;
   };
 
+  // Cover image upload handler
+  const handleCoverImageUpload = (file) => {
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      message.error('Chỉ được upload file ảnh!');
+      return false;
+    }
+    
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      message.error('Ảnh phải nhỏ hơn 5MB!');
+      return false;
+    }
+
+    setCoverImage(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setCoverImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    return false;
+  };
+
+  // Remove cover image
+  const removeCoverImage = () => {
+    setCoverImage(null);
+    setCoverImagePreview('');
+  };
 
 
   // Publish blog
@@ -339,6 +361,10 @@ const BlogWritePage = () => {
     message.error('Vui lòng chọn danh mục');
     return;
   }
+  if (!coverImage) {
+    message.error('Vui lòng thêm ảnh bìa cho bài viết');
+    return;
+  }
 
   setIsPublishing(true);
 
@@ -348,7 +374,7 @@ const BlogWritePage = () => {
     formData.append('content', content.trim());
     formData.append('category', category);
     formData.append('status', 'pending');
-
+    formData.append('coverImage', coverImage);
 
     let response;
     if (blogId) {
@@ -381,17 +407,18 @@ const BlogWritePage = () => {
     setIsSaving(true);
 
     try {
-      const draftData = {
-        title: title.trim(),
-        content: content.trim(),
-        category,
-        
-        status: 'draft'
-      };
+      const draftData = new FormData();
+      draftData.append('title', title.trim());
+      draftData.append('content', content.trim());
+      draftData.append('category', category);
+      draftData.append('status', 'draft');
+      if (coverImage) {
+        draftData.append('coverImage', coverImage);
+      }
 
       let response;
       if (blogId) {
-        response = await blogAPI.updateBlog(blogId, draftData);
+        response = await blogAPI.updateBlog(blogId, draftData, true);
         message.success('Bản nháp đã được cập nhật!');
       } else {
         response = await blogAPI.createBlog(draftData);
@@ -412,6 +439,8 @@ const BlogWritePage = () => {
     setTitle('');
     setContent('');
     setCategory('');
+    setCoverImage(null);
+    setCoverImagePreview('');
     setBlogId(null);
     setApiError(null);
   };
@@ -470,7 +499,7 @@ const BlogWritePage = () => {
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 via-blue-100 to-cyan-100 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
-      <style jsx>{`
+      <style>{`
         .gradient-border {
           background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
           padding: 2px;
@@ -642,9 +671,6 @@ const BlogWritePage = () => {
                      </Tooltip>
                    </Upload>
                    <div className="flex-1" />
-                   <span className="text-sm font-medium text-purple-600 bg-white px-3 py-1 rounded-full border border-purple-200">
-                     {wordCount} từ
-                   </span>
                  </div>
                )}
 
@@ -681,6 +707,47 @@ Hãy chia sẻ những kiến thức và kinh nghiệm quý báu của bạn!"
                      {/* Sidebar */}
            <Col xs={24} lg={6}>
              <Space direction="vertical" size="large" className="w-full">
+               {/* Cover Image Upload */}
+               <Card title={<span className="rainbow-text font-bold">🖼️ Ảnh bìa</span>} className="floating-card shadow-lg border-0">
+                 {coverImagePreview ? (
+                   <div className="space-y-3">
+                     <div className="relative">
+                       <img
+                         src={coverImagePreview}
+                         alt="Cover preview"
+                         className="w-full h-32 object-cover rounded-lg border-2 border-purple-200"
+                       />
+                       <button
+                         onClick={removeCoverImage}
+                         className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                       >
+                         ×
+                       </button>
+                     </div>
+                     <div className="text-xs text-gray-500 text-center">
+                       {coverImage?.name}
+                     </div>
+                   </div>
+                 ) : (
+                   <Upload
+                     beforeUpload={handleCoverImageUpload}
+                     showUploadList={false}
+                     accept="image/*"
+                   >
+                     <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center hover:border-purple-400 transition-colors cursor-pointer">
+                       <PictureOutlined className="text-3xl text-purple-400 mb-2" />
+                       <div className="text-sm font-medium text-purple-600 mb-1">Thêm ảnh bìa</div>
+                       <div className="text-xs text-gray-500">JPG, PNG, GIF (tối đa 5MB)</div>
+                     </div>
+                   </Upload>
+                 )}
+                 {!coverImage && (
+                   <div className="mt-2 text-xs text-red-500 text-center">
+                     ⚠️ Ảnh bìa là bắt buộc
+                   </div>
+                 )}
+               </Card>
+
                {/* Category Selection - THAY ĐỔI CHÍNH Ở ĐÂY */}
                                <Card title={<span className="rainbow-text font-bold">🎨 Danh mục</span>} className="floating-card shadow-lg border-0">
                   <Spin spinning={loadingCategories}>
@@ -728,14 +795,7 @@ Hãy chia sẻ những kiến thức và kinh nghiệm quý báu của bạn!"
                     ) : null}
                   </Spin>
                  
-                 {/* Debug info - có thể xóa */}
-                 {process.env.NODE_ENV === 'development' && (
-                   <div className="mt-4 p-2 bg-gradient-to-r from-pink-100 to-purple-100 rounded text-xs border border-pink-200">
-                     <div>Categories loaded: {categories.length}</div>
-                     <div>Selected: {category}</div>
-                     <div>Loading: {loadingCategories.toString()}</div>
-                   </div>
-                 )}
+
                </Card>
 
                {/* Publishing */}
@@ -787,21 +847,7 @@ Hãy chia sẻ những kiến thức và kinh nghiệm quý báu của bạn!"
                  </div>
                </Card>
 
-               {/* Statistics */}
-               <Card title={<span className="rainbow-text font-bold">📊 Thống kê</span>} className="floating-card shadow-lg border-0">
-                 <div className="grid grid-cols-2 gap-4">
-                   <div className="text-center p-3 bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg border border-pink-200">
-                     <div className="text-2xl font-bold text-purple-600">{wordCount}</div>
-                     <div className="text-xs text-purple-500">Từ</div>
-                   </div>
-                   <div className="text-center p-3 bg-gradient-to-br from-cyan-100 to-blue-100 rounded-lg border border-cyan-200">
-                     <div className="text-2xl font-bold text-blue-600">
-                       {Math.ceil(wordCount / 200) || 0}
-                     </div>
-                     <div className="text-xs text-blue-500">Phút đọc</div>
-                   </div>
-                 </div>
-               </Card>
+
              </Space>
            </Col>
         </Row>

@@ -658,7 +658,9 @@ const extractFirstImageFromContent = (content: string): string | null => {
                   <div className="md:w-64 flex-shrink-0 flex items-center justify-center bg-gray-50">
                     {(() => {
                       const fallbackImage =
-                        blog.image?.trim() !== ''
+                        blog.coverImage?.trim() !== ''
+                          ? blog.coverImage
+                          : blog.image?.trim() !== ''
                           ? blog.image
                           : extractFirstImageFromContent(blog.content) || '/images/no-image.png';
                       return (
@@ -771,10 +773,10 @@ const extractFirstImageFromContent = (content: string): string | null => {
           <div className="h-8" />
 
           {/* Blog Cover Image (nếu có) */}
-          {selectedBlog.image && selectedBlog.image.trim() !== '' && (
+          {selectedBlog.coverImage && selectedBlog.coverImage.trim() !== '' && (
             <div className="mb-10">
               <img
-                src={selectedBlog.image}
+                src={selectedBlog.coverImage}
                 alt={selectedBlog.title}
                 className="w-full max-h-[380px] object-cover rounded-3xl shadow-xl border-4 border-white/80 bg-gradient-to-br from-blue-50 to-purple-50"
                 style={{ objectPosition: 'center' }}
