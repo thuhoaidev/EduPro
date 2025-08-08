@@ -508,6 +508,21 @@ const apiService = {
     const res = await apiClient.post(`/blogs/comment/${commentId}/reply`, { content });
     return res.data; // Trả về toàn bộ response
   },
+
+  toggleCommentLike: async (commentId: string) => {
+    const res = await apiClient.post(`/blogs/comment-likes/toggle/${commentId}`);
+    return res.data;
+  },
+
+  getCommentLikeCount: async (commentId: string) => {
+    const res = await apiClient.get(`/blogs/comment-likes/count/${commentId}`);
+    return res.data;
+  },
+
+  checkCommentLike: async (commentId: string) => {
+    const res = await apiClient.get(`/blogs/comment-likes/check/${commentId}`);
+    return res.data;
+  },
 };
 
 export { apiClient, apiService };

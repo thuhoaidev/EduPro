@@ -12,7 +12,7 @@ import {
   Typography, message,List, Form
 } from 'antd';
 import { Comment } from '@ant-design/compatible';
-import { apiService } from '../../../services/apiService';
+import { apiService, apiClient } from '../../../services/apiService';
 import leoProfanity from 'leo-profanity';
 
 const { Content } = Layout;
@@ -56,6 +56,8 @@ interface CommentItem {
   content: string;
   createdAt: string;
   replies?: CommentItem[];
+  likes?: string[];
+  likes_count?: number;
 }
 
 
@@ -76,10 +78,15 @@ const SavedBlogPosts = () => {
   const [replyWarning, setReplyWarning] = useState('');
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRealtimeActive, setIsRealtimeActive] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
+  const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
+  const [commentLikesCount, setCommentLikesCount] = useState<{ [key: string]: number }>({});
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchSavedPosts();
+    const t = setTimeout(() => setShowSkeleton(false), 500);
+    return () => clearTimeout(t);
   }, []);
 
   // Realtime update every 30 seconds
@@ -104,12 +111,16 @@ const fetchSavedPosts = async (silent = false) => {
   try {
     const saved = await apiService.fetchSavedPosts();
     const validPosts = (saved as SavedPost[]).filter((p: SavedPost) => p.blog && p.blog._id);
-    // ✅ Nếu blog.thumbnail không có, cố gắng lấy ảnh đầu tiên từ content Markdown
+    // ✅ Ưu tiên ảnh từ field image backend, nếu không có thì lấy ảnh đầu tiên trong content Markdown
     validPosts.forEach((item: SavedPost) => {
-      if (!item.blog.thumbnail && item.blog.content) {
-        const match = item.blog.content.match(/!\[.*?\]\((.*?)\)/);
+      const anyBlog: any = item.blog as any;
+      if (!anyBlog.thumbnail && anyBlog.image) {
+        anyBlog.thumbnail = anyBlog.image;
+      }
+      if (!anyBlog.thumbnail && anyBlog.content) {
+        const match = anyBlog.content.match(/!\[.*?\]\((.*?)\)/);
         if (match && match[1]) {
-          item.blog.thumbnail = match[1];
+          anyBlog.thumbnail = match[1];
         }
       }
     });
@@ -125,10 +136,52 @@ const fetchSavedPosts = async (silent = false) => {
       validPosts.map((post: SavedPost) => apiService.fetchComments(post.blog._id))
     );
     const newComments: Record<string, CommentItem[]> = {};
+    const newLikesCount: { [key: string]: number } = {};
+    const newLikedComments = new Set<string>();
+    
     validPosts.forEach((post: SavedPost, i: number) => {
-      newComments[post.blog._id] = commentResponses[i].data;
+      const comments = commentResponses[i].data || [];
+      newComments[post.blog._id] = comments;
     });
+    
     setComments(newComments);
+    
+    // ✅ Gộp comment + reply rồi xử lý like (giống main blog page)
+    const allComments = Object.values(newComments).flat();
+    
+    // Helper function to get all comment IDs including replies
+    const getAllCommentIds = (comments: CommentItem[]): string[] => {
+      const ids: string[] = [];
+      comments.forEach(comment => {
+        ids.push(comment._id);
+        if (comment.replies) {
+          comment.replies.forEach(reply => {
+            ids.push(reply._id);
+          });
+        }
+      });
+      return ids;
+    };
+    
+    const allCommentIds = getAllCommentIds(allComments);
+    
+    // Fetch like data for all comments and replies
+    for (const commentId of allCommentIds) {
+      try {
+        const checkRes = await apiService.checkCommentLike(commentId);
+        const countRes = await apiService.getCommentLikeCount(commentId);
+        
+        if (checkRes.liked) {
+          newLikedComments.add(commentId);
+        }
+        newLikesCount[commentId] = countRes.count || 0;
+      } catch (err) {
+        console.error(`❌ Lỗi khi load like comment ${commentId}:`, err);
+      }
+    }
+    
+    setCommentLikesCount(newLikesCount);
+    setLikedComments(newLikedComments);
   } catch (error) {
     console.error('❌ Lỗi fetchSavedPosts:', error);
     if (!silent) message.error('Không thể tải bài viết đã lưu');
@@ -279,6 +332,37 @@ const handleAddComment = async (blogId: string) => {
     return `${Math.floor(diffInSeconds / 3600)}h trước`;
   };
 
+  const getCurrentUser = () => JSON.parse(localStorage.getItem('user') || '{}');
+
+  const handleCommentLike = async (commentId: string) => {
+    try {
+      const res = await apiService.toggleCommentLike(commentId);
+      console.log('API /comment-likes/toggle response:', res);
+      const isLiked = res.liked;
+
+      // 🔁 Reload lại count thực tế từ server
+      const countRes = await apiService.getCommentLikeCount(commentId);
+      console.log('API /comment-likes/count response:', countRes);
+
+      setLikedComments(prev => {
+        const newSet = new Set(prev);
+        if (isLiked) newSet.add(commentId);
+        else newSet.delete(commentId);
+        return newSet;
+      });
+
+      setCommentLikesCount(prev => ({
+        ...prev,
+        [commentId]: countRes.count || 0, // dùng giá trị thực tế
+      }));
+
+      message.success(isLiked ? '❤️ Đã thích bình luận!' : '❌ Đã bỏ thích bình luận!');
+    } catch (err) {
+      console.error('❌ Không thể like comment:', err);
+      message.error('⚠️ Có lỗi khi thích/bỏ thích bình luận!');
+    }
+  };
+
   const processedPosts = savedPosts
     .filter(item => {
       const blog = item.blog;
@@ -303,6 +387,27 @@ const handleAddComment = async (blogId: string) => {
 
   const paginatedPosts = processedPosts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  const SkeletonCard = () => (
+    <Card
+      hoverable
+      style={{ marginBottom: 24, borderRadius: 14, overflow: 'hidden' }}
+      bodyStyle={{ padding: 0 }}
+    >
+      <Row gutter={0}>
+        <Col xs={24} sm={8}>
+          <div style={{ height: 200, background: '#f0f0f0' }} />
+        </Col>
+        <Col xs={24} sm={16}>
+          <div style={{ padding: 24 }}>
+            <div style={{ height: 24, background: '#f5f5f5', width: '70%', borderRadius: 6 }} />
+            <div style={{ height: 12, background: '#f5f5f5', width: '95%', marginTop: 12, borderRadius: 6 }} />
+            <div style={{ height: 12, background: '#f5f5f5', width: '60%', marginTop: 8, borderRadius: 6 }} />
+          </div>
+        </Col>
+      </Row>
+    </Card>
+  );
+
   const renderComments = (blogId: string) => (
   <div style={{ marginTop: 16 }}>
     <List
@@ -311,14 +416,43 @@ const handleAddComment = async (blogId: string) => {
       renderItem={(item) => (
         <Comment
           author={item.author.fullname}
-          avatar={<Avatar 
-            src={item.author.avatar && item.author.avatar !== 'default-avatar.jpg' && item.author.avatar !== '' && (item.author.avatar.includes('googleusercontent.com') || item.author.avatar.startsWith('http')) ? item.author.avatar : undefined} 
-            icon={<UserOutlined />} 
-          />}
+          avatar={
+            <Avatar 
+              src={
+                item.author.avatar && 
+                item.author.avatar !== 'default-avatar.jpg' && 
+                item.author.avatar !== '' && 
+                (item.author.avatar.includes('googleusercontent.com') || item.author.avatar.startsWith('http')) 
+                  ? item.author.avatar 
+                  : undefined
+              } 
+              icon={<UserOutlined />} 
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = '/images/default-avatar.png';
+              }}
+            />
+          }
           content={
             <>
               <div>{item.content}</div>
-              <Button type="link" size="small" onClick={() => setReplyingTo(item._id)}>Phản hồi</Button>
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Button 
+                  type="text" 
+                  size="small" 
+                  icon={likedComments.has(item._id) ? <HeartFilled style={{ color: '#ff4757' }} /> : <HeartOutlined />}
+                  onClick={() => handleCommentLike(item._id)}
+                >
+                  {commentLikesCount[item._id] || 0}
+                </Button>
+                <Button 
+                  type="text" 
+                  size="small" 
+                  onClick={() => setReplyingTo(item._id)}
+                >
+                  Phản hồi
+                </Button>
+              </div>
               {replyingTo === item._id && (
                 <div style={{ marginTop: 8 }}>
                   <Input.TextArea
@@ -346,11 +480,38 @@ const handleAddComment = async (blogId: string) => {
                 <Comment
                   key={reply._id}
                   author={reply.author.fullname}
-                  avatar={<Avatar 
-                    src={reply.author.avatar && reply.author.avatar !== 'default-avatar.jpg' && reply.author.avatar !== '' && (reply.author.avatar.includes('googleusercontent.com') || reply.author.avatar.startsWith('http')) ? reply.author.avatar : undefined} 
-                    icon={<UserOutlined />} 
-                  />}
-                  content={reply.content}
+                  avatar={
+                    <Avatar 
+                      src={
+                        reply.author.avatar && 
+                        reply.author.avatar !== 'default-avatar.jpg' && 
+                        reply.author.avatar !== '' && 
+                        (reply.author.avatar.includes('googleusercontent.com') || reply.author.avatar.startsWith('http')) 
+                          ? reply.author.avatar 
+                          : undefined
+                      } 
+                      icon={<UserOutlined />} 
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/images/default-avatar.png';
+                      }}
+                    />
+                  }
+                  content={
+                    <>
+                      <div>{reply.content}</div>
+                      <div style={{ marginTop: 8 }}>
+                        <Button 
+                          type="text" 
+                          size="small" 
+                          icon={likedComments.has(reply._id) ? <HeartFilled style={{ color: '#ff4757' }} /> : <HeartOutlined />}
+                          onClick={() => handleCommentLike(reply._id)}
+                        >
+                          {commentLikesCount[reply._id] || 0}
+                        </Button>
+                      </div>
+                    </>
+                  }
                   datetime={formatDate(reply.createdAt)}
                   style={{ marginTop: 16, marginLeft: 40 }}
                 />
@@ -572,11 +733,28 @@ const handleUnsavePost = async (blogId: string, blogTitle: string) => {
 
 
   return (
-    <div style={{ padding: '24px 0', minHeight: '100vh', background: '#f5f5f5' }}>
+    <div style={{ padding: '24px 0', minHeight: '100vh', background: 'linear-gradient(180deg, #f7faff 0%, #ffffff 100%)' }}>
       <Content style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
-        <div style={{ marginBottom: 32 }}>
-          <Title level={2}>Bài viết đã lưu</Title>
-          <Text type="secondary">Quản lý và xem lại các bài viết bạn đã lưu</Text>
+        <div style={{
+          marginBottom: 24,
+          background: 'linear-gradient(90deg, rgba(59,130,246,0.08) 0%, rgba(147,51,234,0.08) 100%)',
+          padding: 24,
+          borderRadius: 16,
+          border: '1px solid #edf2ff'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <Title level={2} style={{ margin: 0 }}>Bài viết đã lưu</Title>
+              <Text type="secondary">Quản lý và xem lại các bài viết bạn đã lưu</Text>
+            </div>
+            <Space>
+              <Button
+                icon={isRealtimeActive ? <SyncOutlined spin /> : <ReloadOutlined />}
+                onClick={() => setIsRealtimeActive(v => !v)}
+              >{isRealtimeActive ? 'Realtime ON' : 'Realtime OFF'}</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => fetchSavedPosts()}>Làm mới</Button>
+            </Space>
+          </div>
         </div>
 
         <Card style={{ marginBottom: 24, borderRadius: 12 }}>
@@ -614,11 +792,12 @@ const handleUnsavePost = async (blogId: string, blogTitle: string) => {
           </Row>
         </Card>
 
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 60 }}>
-            <Spin size="large" />
-            <div style={{ marginTop: 16 }}>Đang tải bài viết...</div>
-          </div>
+        {loading || showSkeleton ? (
+          <>
+            {[...Array(3)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </>
         ) : paginatedPosts.length > 0 ? (
           <>
             {paginatedPosts.map(renderSavedPostCard)}

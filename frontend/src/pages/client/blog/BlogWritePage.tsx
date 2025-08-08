@@ -262,7 +262,6 @@ const BlogWritePage = () => {
       setTitle(blog.title || '');
       setContent(blog.content || '');
       setCategory(blog.category || '');
-      setThumbnailUrl(blog.thumbnail || '');
       setBlogId(id);
 
       message.success('Đã tải bài viết để chỉnh sửa');
@@ -323,20 +322,7 @@ const BlogWritePage = () => {
     return false;
   };
 
-  // Thumbnail upload handler
-  const handleThumbnailUpload = async (file) => {
-    try {
-      const response = await blogAPI.uploadImage(file);
-      const imageUrl = response.data?.url || response.url;
-      if (imageUrl) {
-        setThumbnailUrl(imageUrl);
-        message.success('Ảnh đại diện đã được tải lên!');
-      }
-    } catch (error) {
-      message.error('Không thể tải ảnh đại diện: ' + error.message);
-    }
-    return false;
-  };
+
 
   // Publish blog
   const navigate = useNavigate();
@@ -426,7 +412,6 @@ const BlogWritePage = () => {
     setTitle('');
     setContent('');
     setCategory('');
-    setThumbnailUrl('');
     setBlogId(null);
     setApiError(null);
   };
@@ -484,7 +469,7 @@ const BlogWritePage = () => {
   }, [content, isPreviewMode, isFullscreen]);
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+    <div className={`min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 via-blue-100 to-cyan-100 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
       <style jsx>{`
         .gradient-border {
           background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
@@ -497,20 +482,33 @@ const BlogWritePage = () => {
           height: 100%;
         }
         .toolbar-btn {
-          transition: all 0.2s ease;
+          transition: all 0.3s ease;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
         }
         .toolbar-btn:hover {
-          background: linear-gradient(45deg, #667eea, #764ba2);
+          background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
           color: white;
-          transform: translateY(-1px);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
         }
-        .category-item {
-          transition: all 0.2s ease;
-        }
-        .category-item:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
+                 .category-item {
+           transition: all 0.3s ease;
+           background: white;
+           border: 2px solid #e5e7eb;
+         }
+         .category-item:hover {
+           transform: translateY(-2px);
+           box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+           border-color: #d1d5db;
+           background: #f9fafb;
+         }
+         .category-item.selected {
+           background: #eff6ff;
+           border-color: #3b82f6;
+           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+         }
         .line-clamp-2 {
           display: -webkit-box;
           -webkit-line-clamp: 2;
@@ -521,6 +519,35 @@ const BlogWritePage = () => {
           max-width: 1200px;
           margin: 0 auto;
           padding: 20px;
+        }
+        .rainbow-text {
+          background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57, #ff9ff3, #54a0ff);
+          background-size: 400% 400%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: rainbow 3s ease-in-out infinite;
+        }
+        @keyframes rainbow {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .floating-card {
+          background: rgba(255, 255, 255, 0.9);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+        .glow-effect {
+          box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+        }
+        .pulse-animation {
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
         }
         @media (max-width: 768px) {
           .write-container {
@@ -543,93 +570,95 @@ const BlogWritePage = () => {
           />
         )}
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              {blogId ? 'Chỉnh sửa bài viết' : 'Viết bài mới'}
-            </h1>
-            <p className="text-gray-600 mt-1">Chia sẻ kiến thức và kinh nghiệm của bạn</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {blogId && (
-              <Button 
-                icon={<PlusOutlined />}
-                onClick={resetForm}
-                className="toolbar-btn"
-              >
-                Bài mới
-              </Button>
-            )}
-            <Button 
-              icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="toolbar-btn"
-            />
-            <Button 
-              icon={<EyeOutlined />} 
-              onClick={() => setIsPreviewMode(!isPreviewMode)}
-              type={isPreviewMode ? 'primary' : 'default'}
-            >
-              {isPreviewMode ? 'Chỉnh sửa' : 'Xem trước'}
-            </Button>
-          </div>
-        </div>
+                 {/* Header */}
+         <div className="flex items-center justify-between mb-6">
+           <div>
+             <h1 className="text-4xl font-bold rainbow-text pulse-animation">
+               {blogId ? 'Chỉnh sửa bài viết' : 'Viết bài mới'}
+             </h1>
+             <p className="text-purple-600 mt-2 font-medium">✨ Chia sẻ kiến thức và kinh nghiệm của bạn ✨</p>
+           </div>
+           <div className="flex items-center gap-3">
+             {blogId && (
+               <Button 
+                 icon={<PlusOutlined />}
+                 onClick={resetForm}
+                 className="toolbar-btn glow-effect"
+               >
+                 Bài mới
+               </Button>
+             )}
+             <Button 
+               icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+               onClick={() => setIsFullscreen(!isFullscreen)}
+               className="toolbar-btn glow-effect"
+             />
+             <Button 
+               icon={<EyeOutlined />} 
+               onClick={() => setIsPreviewMode(!isPreviewMode)}
+               className={`toolbar-btn ${isPreviewMode ? 'pulse-animation' : ''}`}
+             >
+               {isPreviewMode ? 'Chỉnh sửa' : 'Xem trước'}
+             </Button>
+           </div>
+         </div>
 
         <Row gutter={24}>
-          {/* Main Content */}
-          <Col xs={24} lg={16}>
-            <Card className="shadow-lg border-0">
-              {/* Title Input */}
-              <div className="mb-6">
-                <Input
-                  placeholder="Tiêu đề bài viết..."
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="text-xl font-semibold border-0 border-b-2 border-gray-200 rounded-none px-0 py-3 focus:border-blue-500"
-                  style={{ boxShadow: 'none' }}
-                />
-              </div>
+                     {/* Main Content */}
+           <Col xs={24} lg={18}>
+             <Card className="floating-card shadow-lg border-0">
+               {/* Title Input */}
+               <div className="mb-6">
+                 <Input
+                   placeholder="Tiêu đề bài viết..."
+                   value={title}
+                   onChange={(e) => setTitle(e.target.value)}
+                   className="text-xl font-semibold border-0 border-b-2 border-purple-300 rounded-none px-0 py-3 focus:border-pink-500 focus:shadow-lg"
+                   style={{ boxShadow: 'none' }}
+                 />
+               </div>
 
-              {/* Toolbar */}
-              {!isPreviewMode && (
-                <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
-                  {toolbarButtons.map((btn, index) => (
-                    <Tooltip key={index} title={btn.tooltip}>
-                      <Button
-                        size="small"
-                        icon={btn.icon}
-                        onClick={btn.action}
-                        className="toolbar-btn border-0"
-                      />
-                    </Tooltip>
-                  ))}
-                  <div className="w-px h-6 bg-gray-300 mx-2" />
-                  <Upload
-                    beforeUpload={handleImageUpload}
-                    showUploadList={false}
-                    accept="image/*"
-                  >
-                    <Tooltip title="Thêm ảnh">
-                      <Button size="small" icon={<PictureOutlined />} className="toolbar-btn border-0" />
-                    </Tooltip>
-                  </Upload>
-                  <div className="flex-1" />
-                  <span className="text-sm text-gray-500">{wordCount} từ</span>
-                </div>
-              )}
+               {/* Toolbar */}
+               {!isPreviewMode && (
+                 <div className="flex items-center gap-2 mb-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
+                   {toolbarButtons.map((btn, index) => (
+                     <Tooltip key={index} title={btn.tooltip}>
+                       <Button
+                         size="small"
+                         icon={btn.icon}
+                         onClick={btn.action}
+                         className="toolbar-btn border-0"
+                       />
+                     </Tooltip>
+                   ))}
+                   <div className="w-px h-6 bg-gradient-to-b from-pink-300 to-purple-300 mx-2" />
+                   <Upload
+                     beforeUpload={handleImageUpload}
+                     showUploadList={false}
+                     accept="image/*"
+                   >
+                     <Tooltip title="Thêm ảnh">
+                       <Button size="small" icon={<PictureOutlined />} className="toolbar-btn border-0" />
+                     </Tooltip>
+                   </Upload>
+                   <div className="flex-1" />
+                   <span className="text-sm font-medium text-purple-600 bg-white px-3 py-1 rounded-full border border-purple-200">
+                     {wordCount} từ
+                   </span>
+                 </div>
+               )}
 
-              {/* Content Area */}
-              <div className="min-h-[500px]">
-                {isPreviewMode ? (
-                  <div className="prose max-w-none">
-                    <h2 className="text-2xl font-bold mb-4">{title || 'Tiêu đề bài viết'}</h2>
-                    {renderPreview()}
-                  </div>
-                ) : (
-                  <TextArea
-                    ref={textAreaRef}
-                    placeholder="Viết nội dung bài viết của bạn ở đây...
+               {/* Content Area */}
+               <div className="min-h-[500px]">
+                 {isPreviewMode ? (
+                   <div className="prose max-w-none">
+                     <h2 className="text-2xl font-bold mb-4 rainbow-text">{title || 'Tiêu đề bài viết'}</h2>
+                     {renderPreview()}
+                   </div>
+                 ) : (
+                   <TextArea
+                     ref={textAreaRef}
+                     placeholder="Viết nội dung bài viết của bạn ở đây...
 
 Một số gợi ý:
 - Sử dụng **in đậm** để nhấn mạnh
@@ -638,159 +667,143 @@ Một số gợi ý:
 - Thêm ảnh để minh họa
 
 Hãy chia sẻ những kiến thức và kinh nghiệm quý báu của bạn!"
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    autoSize={{ minRows: 20 }}
-                    className="border-0 text-base leading-relaxed resize-none"
-                    style={{ boxShadow: 'none' }}
-                  />
-                )}
-              </div>
-            </Card>
-          </Col>
+                     value={content}
+                     onChange={(e) => setContent(e.target.value)}
+                     autoSize={{ minRows: 20 }}
+                     className="border-0 text-base leading-relaxed resize-none focus:ring-2 focus:ring-pink-300"
+                     style={{ boxShadow: 'none' }}
+                   />
+                 )}
+               </div>
+             </Card>
+           </Col>
 
-          {/* Sidebar */}
-          <Col xs={24} lg={8}>
-            <Space direction="vertical" size="large" className="w-full">
-              {/* Category Selection - THAY ĐỔI CHÍNH Ở ĐÂY */}
-              <Card title="Danh mục" className="shadow-lg border-0">
-                <Spin spinning={loadingCategories}>
-                  {categories.length > 0 ? (
-                    <List
-                      dataSource={categories}
-                      renderItem={(cat) => (
-                        <List.Item
-                          key={cat.id}
-                          style={{
-                            padding: '8px 0',
-                            border: 'none'
-                          }}
-                        >
+                     {/* Sidebar */}
+           <Col xs={24} lg={6}>
+             <Space direction="vertical" size="large" className="w-full">
+               {/* Category Selection - THAY ĐỔI CHÍNH Ở ĐÂY */}
+                               <Card title={<span className="rainbow-text font-bold">🎨 Danh mục</span>} className="floating-card shadow-lg border-0">
+                  <Spin spinning={loadingCategories}>
+                    {categories.length > 0 ? (
+                      <div className="space-y-2">
+                        {categories.map((cat) => (
                           <div
-                            className={`category-item w-full flex items-center p-3 rounded-lg border-2 cursor-pointer ${
-                              category === cat.value 
-                                ? 'border-blue-500 bg-blue-50' 
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            key={cat.id}
+                            className={`category-item p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              category === cat.value ? 'selected' : ''
                             }`}
                             onClick={() => {
                               setCategory(cat.value);
                               console.log('Selected category:', cat);
                             }}
                           >
-                            <div 
-                              className="flex items-center justify-center w-12 h-12 rounded-lg mr-3 text-lg"
-                              style={{ 
-                                backgroundColor: category === cat.value ? '#e6f4ff' : '#f5f5f5',
-                                color: category === cat.value ? '#1677ff' : '#666'
-                              }}
-                            >
-                              {cat.icon}
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900 mb-1">{cat.name}</div>
-                              {cat.description && (
-                                <div className="text-sm text-gray-500 line-clamp-2">
-                                  {cat.description}
+                            <div className="flex items-center">
+                              <div 
+                                className="flex items-center justify-center w-8 h-8 rounded-lg mr-3 text-sm"
+                                style={{ 
+                                  backgroundColor: category === cat.value ? '#3b82f6' : '#f3f4f6',
+                                  color: category === cat.value ? '#ffffff' : '#6b7280'
+                                }}
+                              >
+                                {cat.icon}
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-900 text-sm">{cat.name}</div>
+                              </div>
+                              {category === cat.value && (
+                                <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center ml-2">
+                                  <div className="w-2 h-2 bg-white rounded-full"></div>
                                 </div>
                               )}
                             </div>
-                            {category === cat.value && (
-                              <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center ml-2">
-                                <div className="w-2 h-2 bg-white rounded-full"></div>
-                              </div>
-                            )}
                           </div>
-                        </List.Item>
-                      )}
-                      split={false}
-                    />
-                  ) : !loadingCategories ? (
-                    <div className="text-center text-gray-500 py-8">
-                      <CodeOutlined className="text-2xl mb-2" />
-                      <div>Không có danh mục nào</div>
-                      <div className="text-xs mt-1">Kiểm tra kết nối API</div>
-                    </div>
-                  ) : null}
-                </Spin>
-                
-                {/* Debug info - có thể xóa */}
-                {process.env.NODE_ENV === 'development' && (
-                  <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
-                    <div>Categories loaded: {categories.length}</div>
-                    <div>Selected: {category}</div>
-                    <div>Loading: {loadingCategories.toString()}</div>
-                  </div>
-                )}
-              </Card>
+                        ))}
+                      </div>
+                    ) : !loadingCategories ? (
+                      <div className="text-center text-gray-500 py-8">
+                        <CodeOutlined className="text-2xl mb-2" />
+                        <div>Không có danh mục nào</div>
+                        <div className="text-xs mt-1">Kiểm tra kết nối API</div>
+                      </div>
+                    ) : null}
+                  </Spin>
+                 
+                 {/* Debug info - có thể xóa */}
+                 {process.env.NODE_ENV === 'development' && (
+                   <div className="mt-4 p-2 bg-gradient-to-r from-pink-100 to-purple-100 rounded text-xs border border-pink-200">
+                     <div>Categories loaded: {categories.length}</div>
+                     <div>Selected: {category}</div>
+                     <div>Loading: {loadingCategories.toString()}</div>
+                   </div>
+                 )}
+               </Card>
 
-              
+               {/* Publishing */}
+               <Card className="floating-card shadow-lg border-0">
+                 <Space direction="vertical" size="middle" className="w-full">
+                   <Button
+                     type="primary"
+                     size="large"
+                     icon={<SendOutlined />}
+                     onClick={handlePublish}
+                     loading={isPublishing}
+                     className="w-full h-12 bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 border-0 font-semibold glow-effect pulse-animation"
+                   >
+                     {blogId ? 'Cập nhật bài' : 'Đăng bài'}
+                   </Button>
+                   <Button
+                     size="large"
+                     icon={<SaveOutlined />}
+                     onClick={handleSaveDraft}
+                     loading={isSaving}
+                     className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-500 border-0 font-semibold text-white hover:from-yellow-500 hover:to-orange-600"
+                   >
+                     Lưu nháp
+                   </Button>
+                 </Space>
+               </Card>
 
-              {/* Publishing */}
-              <Card className="shadow-lg border-0">
-                <Space direction="vertical" size="middle" className="w-full">
-                  <Button
-                    type="primary"
-                    size="large"
-                    icon={<SendOutlined />}
-                    onClick={handlePublish}
-                    loading={isPublishing}
-                    className="w-full h-12 bg-gradient-to-r from-blue-500 to-purple-600 border-0 font-semibold"
-                  >
-                    {blogId ? 'Cập nhật bài' : 'Đăng bài'}
-                  </Button>
-                  <Button
-                    size="large"
-                    icon={<SaveOutlined />}
-                    onClick={handleSaveDraft}
-                    loading={isSaving}
-                    className="w-full h-12"
-                  >
-                    Lưu nháp
-                  </Button>
-                </Space>
-              </Card>
+               {/* Writing Tips */}
+               <Card title={<><QuestionCircleOutlined className="mr-2 rainbow-text" />💡 Gợi ý viết bài</>} className="floating-card shadow-lg border-0">
+                 <div className="space-y-3">
+                   <div className="text-sm p-3 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
+                     <div className="font-medium text-purple-700 mb-1">✍️ Tiêu đề hấp dẫn</div>
+                     <div className="text-purple-600 text-xs">Sử dụng từ khóa quan trọng, tạo tò mò cho người đọc</div>
+                   </div>
+                   <div className="text-sm p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-200">
+                     <div className="font-medium text-blue-700 mb-1">🎯 Nội dung có cấu trúc</div>
+                     <div className="text-blue-600 text-xs">Chia thành các phần rõ ràng, sử dụng heading</div>
+                   </div>
+                   <div className="text-sm p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                     <div className="font-medium text-green-700 mb-1">🖼️ Sử dụng hình ảnh</div>
+                     <div className="text-green-600 text-xs">Thêm ảnh minh họa để bài viết sinh động hơn</div>
+                   </div>
+                   <div className="text-sm p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+                     <div className="font-medium text-orange-700 mb-1">⌨️ Phím tắt</div>
+                     <div className="text-orange-600 text-xs">
+                       Ctrl+B (đậm), Ctrl+I (nghiêng), Ctrl+S (lưu), Ctrl+Enter (đăng)
+                     </div>
+                   </div>
+                 </div>
+               </Card>
 
-              {/* Writing Tips */}
-              <Card title={<><QuestionCircleOutlined className="mr-2" />Gợi ý viết bài</>} className="shadow-lg border-0">
-                <div className="space-y-3">
-                  <div className="text-sm">
-                    <div className="font-medium text-gray-700 mb-1">✍️ Tiêu đề hấp dẫn</div>
-                    <div className="text-gray-600 text-xs">Sử dụng từ khóa quan trọng, tạo tò mò cho người đọc</div>
-                  </div>
-                  <div className="text-sm">
-                    <div className="font-medium text-gray-700 mb-1">🎯 Nội dung có cấu trúc</div>
-                    <div className="text-gray-600 text-xs">Chia thành các phần rõ ràng, sử dụng heading</div>
-                  </div>
-                  <div className="text-sm">
-                    <div className="font-medium text-gray-700 mb-1">🖼️ Sử dụng hình ảnh</div>
-                    <div className="text-gray-600 text-xs">Thêm ảnh minh họa để bài viết sinh động hơn</div>
-                  </div>
-                  <div className="text-sm">
-                    <div className="font-medium text-gray-700 mb-1">⌨️ Phím tắt</div>
-                    <div className="text-gray-600 text-xs">
-                      Ctrl+B (đậm), Ctrl+I (nghiêng), Ctrl+S (lưu), Ctrl+Enter (đăng)
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Statistics */}
-              <Card title="Thống kê" className="shadow-lg border-0">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">{wordCount}</div>
-                    <div className="text-xs text-gray-600">Từ</div>
-                  </div>
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      {Math.ceil(wordCount / 200) || 0}
-                    </div>
-                    <div className="text-xs text-gray-600">Phút đọc</div>
-                  </div>
-                </div>
-              </Card>
-            </Space>
-          </Col>
+               {/* Statistics */}
+               <Card title={<span className="rainbow-text font-bold">📊 Thống kê</span>} className="floating-card shadow-lg border-0">
+                 <div className="grid grid-cols-2 gap-4">
+                   <div className="text-center p-3 bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg border border-pink-200">
+                     <div className="text-2xl font-bold text-purple-600">{wordCount}</div>
+                     <div className="text-xs text-purple-500">Từ</div>
+                   </div>
+                   <div className="text-center p-3 bg-gradient-to-br from-cyan-100 to-blue-100 rounded-lg border border-cyan-200">
+                     <div className="text-2xl font-bold text-blue-600">
+                       {Math.ceil(wordCount / 200) || 0}
+                     </div>
+                     <div className="text-xs text-blue-500">Phút đọc</div>
+                   </div>
+                 </div>
+               </Card>
+             </Space>
+           </Col>
         </Row>
 
         {/* Keyboard Shortcuts Modal */}
