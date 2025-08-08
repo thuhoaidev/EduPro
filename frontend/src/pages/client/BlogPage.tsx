@@ -97,6 +97,8 @@ const BlogPage = () => {
   const [commentWarning, setCommentWarning] = useState('');
   const [replyWarning, setReplyWarning] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
+  const [expandedReplies, setExpandedReplies] = useState<{ [key: string]: boolean }>({});
+  const [newlyAddedId, setNewlyAddedId] = useState<string | null>(null);
 
   const commentEndRef = useRef<HTMLDivElement>(null);
  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -174,8 +176,8 @@ const loadDetail = async (id: string) => {
     // ✅ Xử lý like cho cả comment và reply
     const all = flattenComments(mappedComments);
     for (const cmt of all) {
-      const check = await axiosClient.get(`/comment-likes/check/${cmt._id}`);
-      const count = await axiosClient.get(`/comment-likes/count/${cmt._id}`);
+      const check = await axiosClient.get(`/blogs/comment-likes/check/${cmt._id}`);
+      const count = await axiosClient.get(`/blogs/comment-likes/count/${cmt._id}`);
 
       setLikedComments(prev => {
         const newSet = new Set(prev);
@@ -253,12 +255,12 @@ const flattenComments = (comments: any[]): any[] => {
 
 const handleToggleCommentLike = async (commentId: string) => {
   try {
-    const res = await axiosClient.post(`/comment-likes/toggle/${commentId}`, {});
+    const res = await axiosClient.post(`/blogs/comment-likes/toggle/${commentId}`, {});
     console.log('API /comment-likes/toggle response:', res);
     const isLiked = res.liked;
 
     // 🔁 Reload lại count thực tế từ server
-    const countRes = await axiosClient.get(`/comment-likes/count/${commentId}`);
+    const countRes = await axiosClient.get(`/blogs/comment-likes/count/${commentId}`);
     console.log('API /comment-likes/count response:', countRes);
 
     setLikedComments(prev => {
@@ -302,8 +304,8 @@ const reloadComments = async (blogId: string) => {
   const all = flattenComments(mapped);
   for (const cmt of all) {
     try {
-      const check = await axiosClient.get(`/comment-likes/check/${cmt._id}`);
-      const count = await axiosClient.get(`/comment-likes/count/${cmt._id}`);
+      const check = await axiosClient.get(`/blogs/comment-likes/check/${cmt._id}`);
+      const count = await axiosClient.get(`/blogs/comment-likes/count/${cmt._id}`);
 
       setLikedComments(prev => {
         const newSet = new Set(prev);
@@ -394,16 +396,18 @@ const handleSave = async (blogId: string) => {
     }
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const fakeId = Date.now().toString();
     setComments([
       ...comments,
       {
-        _id: Date.now().toString(),
+        _id: fakeId,
         content: newComment,
         author: { name: user.fullname || 'Bạn' },
         createdAt: new Date().toISOString(),
         replies: [],
       },
     ]);
+    setNewlyAddedId(fakeId);
     setNewComment('');
     await reloadComments(selectedBlog._id); // tải lại danh sách bình luận thật
     scrollToBottom();
@@ -423,6 +427,19 @@ const handleSave = async (blogId: string) => {
     }
   };
 
+  // Đệ quy thêm reply vào đúng vị trí trong cây bình luận
+  function addReplyRecursive(comments: any[], parentId: string, replyObj: any) {
+    return comments.map(cmt => {
+      if (cmt._id === parentId) {
+        return { ...cmt, replies: [...(cmt.replies || []), replyObj] };
+      } else if (cmt.replies && cmt.replies.length > 0) {
+        return { ...cmt, replies: addReplyRecursive(cmt.replies, parentId, replyObj) };
+      } else {
+        return cmt;
+      }
+    });
+  }
+
   const handleReply = async () => {
   if (!replyContent.trim() || !replyingTo) return;
   try {
@@ -438,17 +455,16 @@ const handleSave = async (blogId: string) => {
       return;
     }
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const newReply = {
-      _id: Date.now().toString(),
+    const fakeId = Date.now().toString();
+    const replyObj = {
+      _id: fakeId,
       content: replyContent,
-      author: { name: user.fullname || 'Bạn' },
+      author: { name: user.fullname || 'Bạn', avatar: user.avatar || '' },
       createdAt: new Date().toISOString(),
+      replies: [],
     };
-    setComments((prev) =>
-      prev.map((c) =>
-        c._id === replyingTo ? { ...c, replies: [...(c.replies || []), newReply] } : c
-      )
-    );
+    setComments(prev => addReplyRecursive(prev, replyingTo, replyObj));
+    setNewlyAddedId(fakeId);
     setReplyContent('');
     setReplyingTo(null);
     scrollToBottom();
@@ -845,7 +861,7 @@ const extractFirstImageFromContent = (content: string): string | null => {
                 <div className="flex items-center gap-8">
                   {/* ❤️ Like button */}
                   <button
-                    onClick={handleLike}
+                    onClick={() => handleLike(selectedBlog._id)}
                     className={`flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-xl transition-all
                       ${selectedBlog.isLiked
                         ? 'bg-gradient-to-r from-red-100 to-pink-100 text-red-600 border border-red-200 shadow-lg scale-105'
@@ -918,100 +934,25 @@ const extractFirstImageFromContent = (content: string): string | null => {
             {/* Comments List */}
             <div className="space-y-8">
               {comments.map((cmt) => (
-  <div key={cmt._id} className="bg-gray-50 rounded-2xl p-7">
-    <div className="flex items-start gap-5">
-      <img
-        src={cmt.author?.avatar && cmt.author.avatar.trim() !== '' ? cmt.author.avatar : '/images/default-avatar.png'}
-        alt="avatar"
-        className="w-12 h-12 rounded-full object-cover flex-shrink-0 border-2 border-blue-100 shadow"
-        onError={handleImageError}
-      />
-      <div className="flex-1">
-        <div className="flex items-center gap-3 mb-2">
-          <span className="font-semibold text-gray-800 text-lg">{cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'}</span>
-          <span className="text-base text-gray-500">{formatDate(cmt.createdAt)}</span>
-        </div>
-        <p className="text-gray-700 mb-4 leading-relaxed text-base">{cmt.content}</p>
-        {/* ✅ Like & Reply Buttons */}
-        <div className="flex items-center gap-6">
-          {/* ❤️ Nút thả tim */}
-          <button
-            onClick={() => handleToggleCommentLike(cmt._id)}
-            className={`flex items-center gap-1 text-lg font-semibold
-              ${likedComments.has(cmt._id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'} transition-colors`}
-          >
-            <Heart className={`w-5 h-5 ${likedComments.has(cmt._id) ? 'fill-red-500' : ''}`} />
-            <span>{commentLikesCount[cmt._id] || 0}</span>
-          </button>
-          {/* 💬 Nút trả lời */}
-          <button
-            onClick={() => {
-              setReplyingTo(cmt._id);
-              setReplyWarning(''); // Reset cảnh báo khi chuyển sang trả lời comment khác
-              setReplyContent(''); // Reset nội dung trả lời
-            }}
-            className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors text-lg font-semibold"
-          >
-            <Reply className="w-5 h-5" />
-            <span>Trả lời ({cmt.replies?.length || 0})</span>
-          </button>
-        </div>
-        {replyingTo === cmt._id && (
-          <div className="mt-5 p-5 bg-white rounded-2xl border border-gray-200">
-            <textarea
-              className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base"
-              rows={3}
-              value={replyContent}
-              onChange={handleReplyInput}
-              placeholder="Nhập phản hồi..."
-            />
-            {replyWarning && (
-              <div className="text-red-500 text-sm mt-1">{replyWarning}</div>
-            )}
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                onClick={() => setReplyingTo(null)}
-                className="px-5 py-2 text-gray-600 hover:text-gray-800 transition-colors text-base"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleReply}
-                className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:scale-105 hover:shadow-lg transition-all text-base font-semibold"
-                disabled={!replyContent.trim() || !!replyWarning}
-              >
-                Gửi
-              </button>
-            </div>
-          </div>
-        )}
-        {cmt.replies?.length > 0 && (
-          <div className="mt-5 ml-8 space-y-4">
-            {cmt.replies.map((reply: any) => (
-              <div key={reply._id} className="bg-white rounded-xl p-4 border border-gray-200">
-                <div className="flex items-start gap-3">
-                  <img
-                    src={reply.author?.avatar && reply.author.avatar.trim() !== '' ? reply.author.avatar : '/images/default-avatar.png'}
-                    alt="avatar"
-                    className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-blue-100 shadow"
-                    onError={handleImageError}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-medium text-gray-800 text-base">{reply.author?.name}</span>
-                      <span className="text-xs text-gray-500">{formatDate(reply.createdAt)}</span>
-                    </div>
-                    <p className="text-gray-700 text-base">{reply.content}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-))}
+                <CommentTree
+                  key={cmt._id}
+                  comment={cmt}
+                  replyingTo={replyingTo}
+                  setReplyingTo={setReplyingTo}
+                  replyContent={replyContent}
+                  setReplyContent={setReplyContent}
+                  handleReplyInput={handleReplyInput}
+                  handleReply={handleReply}
+                  handleToggleCommentLike={handleToggleCommentLike}
+                  likedComments={likedComments}
+                  commentLikesCount={commentLikesCount}
+                  handleImageError={handleImageError}
+                  formatDate={formatDate}
+                  expandedReplies={expandedReplies}
+                  setExpandedReplies={setExpandedReplies}
+                  newlyAddedId={newlyAddedId}
+                />
+              ))}
               <div ref={commentEndRef}></div>
             </div>
             {comments.length === 0 && (
@@ -1024,6 +965,136 @@ const extractFirstImageFromContent = (content: string): string | null => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+function isValidObjectId(id: string) {
+  return typeof id === 'string' && id.length === 24 && /^[a-fA-F0-9]+$/.test(id);
+}
+
+// Thêm component đệ quy cho comment tree
+const CommentTree = ({ comment, replyingTo, setReplyingTo, replyContent, setReplyContent, handleReplyInput, handleReply, handleToggleCommentLike, likedComments, commentLikesCount, handleImageError, formatDate, level = 0, expandedReplies, setExpandedReplies, newlyAddedId }) => {
+  const isDeep = level >= 3;
+  const isExpanded = expandedReplies[comment._id] || false;
+  const repliesToShow = isDeep && !isExpanded ? (comment.replies || []).slice(0, 1) : comment.replies || [];
+  const hasMoreReplies = isDeep && (comment.replies?.length || 0) > 1 && !isExpanded;
+  const isNew = newlyAddedId === comment._id;
+  // Luôn fallback avatar nếu thiếu
+  const avatarSrc = comment.author?.avatar && comment.author.avatar.trim() !== '' ? comment.author.avatar : '/images/default-avatar.png';
+  // Chỉ cho phép trả lời ở các cấp chưa phải cuối (level < 2)
+  const canReply = level < 2 && isValidObjectId(comment._id);
+  return (
+    <div style={{ marginLeft: level > 0 ? 32 : 0, marginTop: level > 0 ? 12 : 0 }}>
+      <div className={`bg-gray-50 rounded-2xl p-5 mb-2 transition-all duration-700 ${isNew ? 'animate-fadein' : ''}`}
+        style={{ animation: isNew ? 'fadein 0.7s' : undefined }}>
+        <div className="flex items-start gap-4">
+          <img
+            src={avatarSrc}
+            alt="avatar"
+            className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-blue-100 shadow"
+            onError={handleImageError}
+          />
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-1">
+              <span className="font-semibold text-gray-800 text-lg">{comment.author?.name || comment.author?.fullname || 'Ẩn danh'}</span>
+              <span className="text-base text-gray-500">{formatDate(comment.createdAt)}</span>
+            </div>
+            <p className="text-gray-700 mb-2 leading-relaxed text-base">{comment.content}</p>
+            <div className="flex items-center gap-6">
+              {isValidObjectId(comment._id) && (
+                <button
+                  onClick={() => handleToggleCommentLike(comment._id)}
+                  className={`flex items-center gap-1 text-lg font-semibold ${likedComments.has(comment._id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'} transition-colors`}
+                >
+                  <Heart className={`w-5 h-5 ${likedComments.has(comment._id) ? 'fill-red-500' : ''}`} />
+                  <span>{commentLikesCount[comment._id] || 0}</span>
+                </button>
+              )}
+              {canReply && (
+                <button
+                  onClick={() => {
+                    setReplyingTo(comment._id);
+                    setReplyContent('');
+                  }}
+                  className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors text-lg font-semibold"
+                >
+                  <Reply className="w-5 h-5" />
+                  <span>Trả lời ({comment.replies?.length || 0})</span>
+                </button>
+              )}
+            </div>
+            {replyingTo === comment._id && canReply && (
+              <div className="mt-4">
+                <textarea
+                  className="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base"
+                  rows={3}
+                  value={replyContent}
+                  onChange={handleReplyInput}
+                  placeholder="Nhập phản hồi..."
+                />
+                <div className="flex justify-end gap-2 mt-2">
+                  <button
+                    onClick={() => setReplyingTo(null)}
+                    className="px-5 py-2 text-gray-600 hover:text-gray-800 transition-colors text-base"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={handleReply}
+                    className="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:scale-105 hover:shadow-lg transition-all text-base font-semibold"
+                    disabled={!replyContent.trim()}
+                  >
+                    Gửi
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        {/* Đệ quy render replies */}
+        {repliesToShow.length > 0 && (
+          <div className="mt-3 ml-8">
+            {repliesToShow.map((reply) => (
+              <CommentTree
+                key={reply._id}
+                comment={reply}
+                replyingTo={replyingTo}
+                setReplyingTo={setReplyingTo}
+                replyContent={replyContent}
+                setReplyContent={setReplyContent}
+                handleReplyInput={handleReplyInput}
+                handleReply={handleReply}
+                handleToggleCommentLike={handleToggleCommentLike}
+                likedComments={likedComments}
+                commentLikesCount={commentLikesCount}
+                handleImageError={handleImageError}
+                formatDate={formatDate}
+                level={level + 1}
+                expandedReplies={expandedReplies}
+                setExpandedReplies={setExpandedReplies}
+                newlyAddedId={newlyAddedId}
+              />
+            ))}
+            {hasMoreReplies && (
+              <button
+                className="text-blue-600 text-sm mt-2 hover:underline"
+                onClick={() => setExpandedReplies((prev) => ({ ...prev, [comment._id]: true }))}
+              >
+                Xem thêm {comment.replies.length - 1} trả lời
+              </button>
+            )}
+            {isDeep && isExpanded && (
+              <button
+                className="text-gray-500 text-xs mt-2 hover:underline"
+                onClick={() => setExpandedReplies((prev) => ({ ...prev, [comment._id]: false }))}
+              >
+                Thu gọn
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

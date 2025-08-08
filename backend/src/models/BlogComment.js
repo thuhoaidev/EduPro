@@ -20,6 +20,11 @@ const blogCommentSchema = new mongoose.Schema({
     ref: 'BlogComment',
     default: null
   },
+  likes: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: []
+  }],
   createdAt: {
     type: Date,
     default: Date.now

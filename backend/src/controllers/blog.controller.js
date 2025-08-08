@@ -222,12 +222,26 @@ const getBlogComments = async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ success: false, message: 'ID blog không hợp lệ.' });
   }
-
   try {
-    const comments = await BlogComment.find({ blog: id, parent: null })
-      .populate('author', 'fullname nickname email')
-      .populate({ path: 'replies', populate: { path: 'author', select: 'fullname nickname email' } })
-      .sort({ createdAt: -1 });
+    // Lấy comment cha và populate replies nhiều cấp
+    let comments = await BlogComment.find({ blog: id, parent: null })
+      .populate('author', 'fullname nickname email avatar')
+      .populate({ path: 'replies', populate: { path: 'author', select: 'fullname nickname email avatar' } })
+      .sort({ createdAt: -1 })
+      .lean();
+    // Đệ quy populate replies sâu
+    const populateReplies = async (commentArr) => {
+      for (let c of commentArr) {
+        if (c.replies && c.replies.length) {
+          c.replies = await BlogComment.populate(c.replies, [
+            { path: 'author', select: 'fullname nickname email avatar' },
+            { path: 'replies', populate: { path: 'author', select: 'fullname nickname email avatar' } }
+          ]);
+          await populateReplies(c.replies);
+        }
+      }
+    };
+    await populateReplies(comments);
     res.json({ success: true, data: comments });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi lấy bình luận', error: error.message });
@@ -397,7 +411,7 @@ const getBlogById = async (req, res) => {
     }
 
     const blog = await Blog.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true })
-      .populate('author', 'fullname nickname email')
+      .populate('author', 'fullname nickname email avatar')
       .populate('category')
       .lean();
 
@@ -524,6 +538,61 @@ const getAllApprovedBlogs = async (req, res) => {
   }
 };
 
+// === COMMENT LIKE ===
+const checkCommentLike = async (req, res) => {
+  try {
+    const { commentId } = req.params;
+    const userId = getUserId(req);
+    if (!mongoose.Types.ObjectId.isValid(commentId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ liked: false, message: 'ID không hợp lệ' });
+    }
+    const comment = await BlogComment.findById(commentId);
+    if (!comment) return res.status(404).json({ liked: false, message: 'Không tìm thấy bình luận' });
+    const liked = (comment.likes || []).some(id => id.toString() === userId.toString());
+    res.json({ liked });
+  } catch (err) {
+    res.status(500).json({ liked: false, message: 'Lỗi kiểm tra like', error: err.message });
+  }
+};
+
+const toggleCommentLike = async (req, res) => {
+  try {
+    const { commentId } = req.params;
+    const userId = getUserId(req);
+    if (!mongoose.Types.ObjectId.isValid(commentId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ liked: false, message: 'ID không hợp lệ' });
+    }
+    const comment = await BlogComment.findById(commentId);
+    if (!comment) return res.status(404).json({ liked: false, message: 'Không tìm thấy bình luận' });
+    let liked = false;
+    if (!comment.likes) comment.likes = [];
+    if (comment.likes.some(id => id.toString() === userId.toString())) {
+      comment.likes = comment.likes.filter(id => id.toString() !== userId.toString());
+      liked = false;
+    } else {
+      comment.likes.push(userId);
+      liked = true;
+    }
+    await comment.save();
+    res.json({ liked });
+  } catch (err) {
+    res.status(500).json({ liked: false, message: 'Lỗi toggle like', error: err.message });
+  }
+};
+
+const countCommentLike = async (req, res) => {
+  try {
+    const { commentId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+      return res.status(400).json({ count: 0, message: 'ID không hợp lệ' });
+    }
+    const comment = await BlogComment.findById(commentId);
+    if (!comment) return res.status(404).json({ count: 0, message: 'Không tìm thấy bình luận' });
+    res.json({ count: (comment.likes || []).length });
+  } catch (err) {
+    res.status(500).json({ count: 0, message: 'Lỗi đếm like', error: err.message });
+  }
+};
 // === EXPORT ===
 module.exports = {
   createBlog,
@@ -542,5 +611,8 @@ module.exports = {
   updateBlog,
   deleteBlog,
   getMyPosts,
-  publishBlog
+  publishBlog,
+  checkCommentLike,
+  toggleCommentLike,
+  countCommentLike
 };
