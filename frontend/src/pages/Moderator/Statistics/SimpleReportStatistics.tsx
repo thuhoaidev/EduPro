@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Typography, Progress, Divider } from 'antd';
+import { Card, Row, Col, Statistic, Typography, Progress, Divider, DatePicker, Segmented, Space } from 'antd';
+import { Area, Column } from '@ant-design/charts';
+import dayjs, { Dayjs } from 'dayjs';
 import { 
   WarningOutlined, 
   CheckCircleOutlined, 
@@ -10,7 +12,7 @@ import {
   FileTextOutlined,
   CalendarOutlined
 } from '@ant-design/icons';
-import { fetchReports } from '../../services/reportModerationService';
+import { fetchReports } from '../../../services/reportModerationService';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -21,6 +23,11 @@ interface ReportStats {
   todayReports: number;
 }
 
+interface ReportItem {
+  createdAt: string;
+  status: 'resolved' | 'pending' | string;
+}
+
 const SimpleReportStatistics: React.FC = () => {
   const [stats, setStats] = useState<ReportStats>({
     totalReports: 0,
@@ -29,38 +36,66 @@ const SimpleReportStatistics: React.FC = () => {
     todayReports: 0
   });
   const [loading, setLoading] = useState(false);
+  const [reports, setReports] = useState<ReportItem[]>([]);
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
+    dayjs().subtract(13, 'day'),
+    dayjs()
+  ]);
+  const [granularity, setGranularity] = useState<'day' | 'week'>('day');
 
   useEffect(() => {
     const getReportStats = async () => {
       setLoading(true);
       try {
         const response = await fetchReports();
-        const reports = response.data.data || [];
+        const apiReports: ReportItem[] = response.data.data || [];
         
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        const todayReports = reports.filter((report: any) => {
+        const todayReports = apiReports.filter((report: any) => {
           const reportDate = new Date(report.createdAt);
           reportDate.setHours(0, 0, 0, 0);
           return reportDate.getTime() === today.getTime();
         }).length;
 
         setStats({
-          totalReports: reports.length,
-          resolvedReports: reports.filter((r: any) => r.status === 'resolved').length,
-          pendingReports: reports.filter((r: any) => r.status === 'pending').length,
+          totalReports: apiReports.length,
+          resolvedReports: apiReports.filter((r: any) => r.status === 'resolved').length,
+          pendingReports: apiReports.filter((r: any) => r.status === 'pending').length,
           todayReports
         });
+        setReports(apiReports);
       } catch (error) {
         console.error('Error fetching report stats:', error);
         // Fallback to mock data if API fails
+        const mockTotal = 134;
+        const mockResolved = 85;
+        const mockPending = 49;
+        const mockToday = 7;
+
+        // Tạo dữ liệu mô phỏng 30 ngày gần nhất
+        const mockReports: ReportItem[] = [];
+        const start = dayjs().subtract(29, 'day');
+        for (let i = 0; i < 30; i++) {
+          const date = start.add(i, 'day');
+          const newCount = Math.max(0, Math.round(3 + Math.sin(i / 3) * 2 + (i % 5 === 0 ? 4 : 0)));
+          const resolvedCount = Math.max(0, Math.round(2 + Math.cos(i / 4) * 2));
+          for (let n = 0; n < newCount; n++) {
+            mockReports.push({ createdAt: date.toDate().toISOString(), status: 'pending' });
+          }
+          for (let r = 0; r < resolvedCount; r++) {
+            mockReports.push({ createdAt: date.toDate().toISOString(), status: 'resolved' });
+          }
+        }
+
         setStats({
-          totalReports: 134,
-          resolvedReports: 85,
-          pendingReports: 49,
-          todayReports: 7
+          totalReports: mockTotal,
+          resolvedReports: mockResolved,
+          pendingReports: mockPending,
+          todayReports: mockToday
         });
+        setReports(mockReports);
       } finally {
         setLoading(false);
       }
@@ -71,6 +106,118 @@ const SimpleReportStatistics: React.FC = () => {
 
   const resolutionRate = stats.totalReports > 0 ? (stats.resolvedReports / stats.totalReports) * 100 : 0;
   const pendingRate = stats.totalReports > 0 ? (stats.pendingReports / stats.totalReports) * 100 : 0;
+  const resolvedTodayApprox = Math.floor(stats.resolvedReports * 0.1);
+  const remainingApprox = stats.pendingReports + Math.floor(stats.resolvedReports * 0.9);
+
+  const dailyActivityData = [
+    { type: 'Báo cáo mới', value: stats.todayReports },
+    { type: 'Đã xử lý', value: resolvedTodayApprox },
+    { type: 'Còn lại', value: remainingApprox }
+  ];
+
+  const columnConfig: any = {
+    data: dailyActivityData,
+    xField: 'type',
+    yField: 'value',
+    columnWidthRatio: 0.6,
+    label: {
+      position: 'top',
+      style: { fill: '#1f2937', fontWeight: 600 }
+    },
+    // Để mặc định tooltip tránh hiển thị null
+    color: (d: { type: string }) => {
+      if (d.type === 'Báo cáo mới') return '#ff4d4f';
+      if (d.type === 'Đã xử lý') return '#52c41a';
+      return '#faad14';
+    },
+    animation: true,
+    autoFit: true
+  };
+
+  // Helpers cho biểu đồ xu hướng
+  const getAllBucketsInRange = (
+    start: Dayjs,
+    end: Dayjs,
+    mode: 'day' | 'week'
+  ): string[] => {
+    const buckets: string[] = [];
+    if (mode === 'day') {
+      let d = start.startOf('day');
+      while (d.isBefore(end.endOf('day')) || d.isSame(end, 'day')) {
+        buckets.push(d.format('YYYY-MM-DD'));
+        d = d.add(1, 'day');
+      }
+    } else {
+      // Xác định các tuần (lấy thứ Hai làm đầu tuần)
+      let d = start.startOf('week').add(1, 'day'); // startOf('week') là Chủ nhật -> +1 ngày thành thứ Hai
+      const endWeek = end.endOf('week').add(1, 'day');
+      while (d.isBefore(endWeek)) {
+        buckets.push(d.format('YYYY-MM-DD'));
+        d = d.add(1, 'week');
+      }
+    }
+    return buckets;
+  };
+
+  const buildTrendData = () => {
+    const [start, end] = dateRange;
+    const filtered = reports.filter((r) => {
+      const dt = dayjs(r.createdAt);
+      const afterOrEqualStart = dt.isAfter(start.startOf('day')) || dt.isSame(start, 'day');
+      const beforeOrEqualEnd = dt.isBefore(end.endOf('day')) || dt.isSame(end, 'day');
+      return afterOrEqualStart && beforeOrEqualEnd;
+    });
+
+    // map bucket -> { new, resolved }
+    const bucketMap: Record<string, { newCount: number; resolvedCount: number }> = {};
+    const buckets = getAllBucketsInRange(start, end, granularity);
+    buckets.forEach((b) => (bucketMap[b] = { newCount: 0, resolvedCount: 0 }));
+
+    const getBucketKey = (dt: Dayjs) => {
+      if (granularity === 'day') return dt.format('YYYY-MM-DD');
+      // với tuần, bucket key là thứ Hai của tuần đó
+      const monday = dt.startOf('week').add(1, 'day');
+      return monday.format('YYYY-MM-DD');
+    };
+
+    filtered.forEach((r) => {
+      const key = getBucketKey(dayjs(r.createdAt));
+      if (!bucketMap[key]) bucketMap[key] = { newCount: 0, resolvedCount: 0 };
+      if (r.status === 'resolved') bucketMap[key].resolvedCount += 1;
+      else bucketMap[key].newCount += 1;
+    });
+
+    // Chuyển sang mảng cho Area với 2 series (dùng key không dấu để tránh lỗi TS)
+    const result: { bucket: string; category: string; value: number; label: string }[] = [];
+    const sortedKeys = Object.keys(bucketMap).sort((a, b) => (a < b ? -1 : 1));
+    sortedKeys.forEach((key) => {
+      const d = dayjs(key);
+      const label = granularity === 'day'
+        ? d.format('DD/MM')
+        : `${d.format('DD/MM')} - ${d.add(6, 'day').format('DD/MM')}`;
+      result.push({ bucket: key, category: 'Báo cáo mới', value: bucketMap[key].newCount, label });
+      result.push({ bucket: key, category: 'Đã xử lý', value: bucketMap[key].resolvedCount, label });
+    });
+    return result;
+  };
+
+  const trendData = buildTrendData();
+
+  const areaConfig: any = {
+    data: trendData,
+    xField: 'label',
+    yField: 'value',
+    seriesField: 'category',
+    smooth: true,
+    areaStyle: { fillOpacity: 0.15 },
+    color: (d: any) => (d.category === 'Báo cáo mới' ? '#ff4d4f' : '#52c41a'),
+    // Dùng tooltip mặc định để tránh null
+    legend: { position: 'top' },
+    xAxis: { label: { autoRotate: false } },
+    yAxis: { min: 0 },
+    animation: true,
+    autoFit: true
+  };
 
   return (
     <div style={{ 
@@ -314,7 +461,7 @@ const SimpleReportStatistics: React.FC = () => {
                 <CheckCircleOutlined style={{ color: '#52c41a' }} />
                 <Text>Đã xử lý: </Text>
                 <Text strong style={{ color: '#52c41a' }}>
-                  {Math.floor(stats.resolvedReports * 0.1)} {/* Mock: 10% of resolved reports today */}
+                  {resolvedTodayApprox} {/* Ước tính: 10% số đã xử lý hôm nay */}
                 </Text>
               </div>
               
@@ -322,12 +469,57 @@ const SimpleReportStatistics: React.FC = () => {
                 <ClockCircleOutlined style={{ color: '#faad14' }} />
                 <Text>Còn lại: </Text>
                 <Text strong style={{ color: '#faad14' }}>
-                  {stats.pendingReports + Math.floor(stats.resolvedReports * 0.9)}
+                  {remainingApprox}
                 </Text>
+              </div>
+              
+              <Divider style={{ margin: '16px 0' }} />
+              <div style={{ height: 240 }}>
+                <Column {...columnConfig} height={220} />
               </div>
             </Card>
           </Col>
         </Row>
+
+        {/* Trend Chart */}
+        <Card
+          hoverable
+          style={{
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            border: 'none',
+            marginBottom: '32px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <BarChartOutlined style={{ color: '#1890ff', fontSize: 20 }} />
+              <Title level={4} style={{ margin: 0, color: '#1e293b' }}>Xu hướng theo thời gian</Title>
+            </div>
+            <Space size={12} wrap>
+              <Segmented
+                options={[
+                  { label: 'Ngày', value: 'day' },
+                  { label: 'Tuần', value: 'week' }
+                ]}
+                value={granularity}
+                onChange={(val) => setGranularity(val as 'day' | 'week')}
+              />
+              <DatePicker.RangePicker
+                value={dateRange}
+                onChange={(v) => {
+                  if (!v || v.length !== 2) return;
+                  setDateRange([v[0]!, v[1]!] as [Dayjs, Dayjs]);
+                }}
+                allowClear={false}
+                format="DD/MM/YYYY"
+              />
+            </Space>
+          </div>
+          <div style={{ height: 320 }}>
+            <Area {...areaConfig} height={300} />
+          </div>
+        </Card>
         
         {/* Summary Card */}
         <Card 

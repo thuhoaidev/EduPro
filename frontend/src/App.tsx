@@ -76,7 +76,6 @@ import ModeratorDashboard from "./pages/Moderator/Dashboard";
 import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
 import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
 import CoursesModerationPage from "./pages/Moderator/Courses/CoursesModerationPage";
-import SimpleReportStatistics from "./pages/Moderator/SimpleReportStatistics";
 import Reports from "./pages/Moderator/reports/Reports";
 
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
@@ -96,6 +95,7 @@ import CertificatePage from "./pages/client/CertificatePage";
 import Certificates from "./pages/client/Profile/Certificates";
 import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
 import InstructorDashboard from './pages/instructor/Dashboard/InstructorDashboard';
+import SimpleReportStatistics from "./pages/Moderator/Statistics/SimpleReportStatistics";
 
 const queryClient = new QueryClient();
 
