@@ -54,6 +54,7 @@ const CheckoutPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
   const { user, token } = useAuth();
   const { removeItemsFromCart } = useCart();
   const navigate = useNavigate();
@@ -84,6 +85,7 @@ const CheckoutPage: React.FC = () => {
   // Hàm xử lý click phương thức thanh toán
   const handlePaymentMethodClick = (method: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay' | 'wallet', event: React.MouseEvent<HTMLDivElement>) => {
     createRipple(event);
+    setSelectedPaymentMethod(method);
     form.setFieldsValue({ paymentMethod: method });
   };
 
@@ -132,6 +134,14 @@ const CheckoutPage: React.FC = () => {
     };
     fetchWallet();
   }, [token]);
+
+  // Đồng bộ selectedPaymentMethod với form
+  useEffect(() => {
+    const paymentMethod = form.getFieldValue('paymentMethod');
+    if (paymentMethod) {
+      setSelectedPaymentMethod(paymentMethod);
+    }
+  }, [form]);
 
 const handleSubmit = async (values: FormValues) => {
   if (!checkoutData || !token) {
@@ -540,7 +550,7 @@ const handleSubmit = async (values: FormValues) => {
                         {/* VNPAY */}
                         <div
                           className={`payment-method-card vnpay ${
-                            form.getFieldValue('paymentMethod') === 'vnpay' ? 'selected' : ''
+                            selectedPaymentMethod === 'vnpay' ? 'selected' : ''
                           }`}
                           onClick={(e) => handlePaymentMethodClick('vnpay', e)}
                         >
@@ -574,7 +584,7 @@ const handleSubmit = async (values: FormValues) => {
                         {/* MoMo */}
                         <div
                           className={`payment-method-card momo ${
-                            form.getFieldValue('paymentMethod') === 'momo' ? 'selected' : ''
+                            selectedPaymentMethod === 'momo' ? 'selected' : ''
                           }`}
                           onClick={(e) => handlePaymentMethodClick('momo', e)}
                         >
@@ -608,7 +618,7 @@ const handleSubmit = async (values: FormValues) => {
                         {/* ZaloPay */}
                         <div
                           className={`payment-method-card zalopay ${
-                            form.getFieldValue('paymentMethod') === 'zalopay' ? 'selected' : ''
+                            selectedPaymentMethod === 'zalopay' ? 'selected' : ''
                           }`}
                           onClick={(e) => handlePaymentMethodClick('zalopay', e)}
                         >
@@ -648,7 +658,7 @@ const handleSubmit = async (values: FormValues) => {
                         {/* Wallet */}
                         <div
                           className={`payment-method-card wallet ${
-                            form.getFieldValue('paymentMethod') === 'wallet' ? 'selected' : ''
+                            selectedPaymentMethod === 'wallet' ? 'selected' : ''
                           } ${walletBalance < (checkoutData?.total || 0) ? 'wallet-balance-low' : ''}`}
                           onClick={(e) => handlePaymentMethodClick('wallet', e)}
                         >

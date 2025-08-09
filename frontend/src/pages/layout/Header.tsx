@@ -161,9 +161,24 @@ const AppHeader = () => {
       refreshCart();
     };
 
+    const handleCartUpdate = (event: CustomEvent) => {
+      console.log('Header: Cart updated, refreshing cart count');
+      refreshCart();
+    };
+
+    const handleCartItemAdded = (event: CustomEvent) => {
+      console.log('Header: Cart item added, updating cart count');
+      refreshCart();
+    };
+
+    const handleCartItemRemoved = (event: CustomEvent) => {
+      console.log('Header: Cart item removed, updating cart count');
+      refreshCart();
+    };
+
     // Lắng nghe các sự kiện từ localStorage changes
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'cart' || event.key === 'cartCount') {
+      if (event.key === 'cart' || event.key === 'cartCount' || event.key === 'checkoutData') {
         console.log('Header: Cart storage changed, updating cart count');
         refreshCart();
       }
@@ -173,6 +188,9 @@ const AppHeader = () => {
     window.addEventListener('course-purchased', handleCoursePurchase as EventListener);
     window.addEventListener('order-success', handleOrderSuccess as EventListener);
     window.addEventListener('payment-success', handlePaymentSuccess as EventListener);
+    window.addEventListener('cart-updated', handleCartUpdate as EventListener);
+    window.addEventListener('cart-item-added', handleCartItemAdded as EventListener);
+    window.addEventListener('cart-item-removed', handleCartItemRemoved as EventListener);
     window.addEventListener('storage', handleStorageChange);
 
     // Lắng nghe sự kiện từ URL changes (khi quay về từ payment)
@@ -190,13 +208,58 @@ const AppHeader = () => {
     // Kiểm tra URL khi component mount
     handleUrlChange();
 
+    // Cập nhật giỏ hàng khi component mount và khi user thay đổi
+    if (user) {
+      refreshCart();
+    }
+
     return () => {
       window.removeEventListener('course-purchased', handleCoursePurchase as EventListener);
       window.removeEventListener('order-success', handleOrderSuccess as EventListener);
       window.removeEventListener('payment-success', handlePaymentSuccess as EventListener);
+      window.removeEventListener('cart-updated', handleCartUpdate as EventListener);
+      window.removeEventListener('cart-item-added', handleCartItemAdded as EventListener);
+      window.removeEventListener('cart-item-removed', handleCartItemRemoved as EventListener);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [refreshCart]);
+  }, [refreshCart, user]);
+
+  // Cập nhật giỏ hàng khi user quay lại tab
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Header: Window focused, updating cart count');
+      if (user) {
+        refreshCart();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        console.log('Header: Page became visible, updating cart count');
+        refreshCart();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshCart, user]);
+
+  // Tự động cập nhật giỏ hàng định kỳ
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      console.log('Header: Auto-refreshing cart count');
+      refreshCart();
+    }, 30000); // Cập nhật mỗi 30 giây
+
+    return () => clearInterval(interval);
+  }, [refreshCart, user]);
 
   useEffect(() => {
     setLoadingNotifications(true);

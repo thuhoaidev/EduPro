@@ -40,8 +40,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const response = await config.get('/carts');
       const items = response.data.items || [];
-      setCartCount(items.length);
-      setCartItems(items);
+      const newCount = items.length;
+      
+      // Chỉ emit event nếu số lượng thay đổi
+      if (newCount !== cartCount) {
+        setCartCount(newCount);
+        setCartItems(items);
+        // Emit event để thông báo cho Header
+        window.dispatchEvent(new CustomEvent('cart-updated'));
+      } else {
+        setCartCount(newCount);
+        setCartItems(items);
+      }
     } catch (error: any) {
       console.error('Error fetching cart count:', error);
       
@@ -73,6 +83,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await config.post('/carts', { courseId });
       await updateCartCount();
+      
+      // Emit event để thông báo cho Header
+      window.dispatchEvent(new CustomEvent('cart-item-added', { detail: { courseId } }));
+      window.dispatchEvent(new CustomEvent('cart-updated'));
+      
       return true;
     } catch (error: any) {
       console.error('Error adding to cart:', error);
@@ -105,6 +120,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await config.delete(`/carts/${cartItemId}`);
       await updateCartCount();
+      
+      // Emit event để thông báo cho Header
+      window.dispatchEvent(new CustomEvent('cart-item-removed', { detail: { cartItemId } }));
+      window.dispatchEvent(new CustomEvent('cart-updated'));
     } catch (error: any) {
       console.error('Error removing from cart:', error);
       
@@ -130,6 +149,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await config.delete('/carts/bulk', { data: { itemIds: cartItemIds } });
       await updateCartCount();
+      
+      // Emit event để thông báo cho Header
+      window.dispatchEvent(new CustomEvent('cart-item-removed', { detail: { cartItemIds } }));
+      window.dispatchEvent(new CustomEvent('cart-updated'));
+      
       console.log('✅ Đã xóa các món hàng đã thanh toán:', cartItemIds);
     } catch (error: any) {
       console.error('Error removing items from cart:', error);
@@ -162,6 +186,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Cập nhật state local
       setCartCount(0);
       setCartItems([]);
+      
+      // Emit event để thông báo cho Header
+      window.dispatchEvent(new CustomEvent('cart-updated'));
+      
       console.log('✅ Đã xóa giỏ hàng thành công - Cart count:', 0, 'Items:', []);
     } catch (error: any) {
       console.error('Error clearing cart:', error);

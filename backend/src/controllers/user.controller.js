@@ -729,7 +729,12 @@ exports.getInstructors = async (req, res) => {
 
     // Lọc theo trạng thái duyệt nếu có
     if (approvalStatus) {
-      conditions.push({ approval_status: approvalStatus });
+      conditions.push({
+        $or: [
+          { approval_status: approvalStatus },
+          { 'instructorInfo.instructor_profile_status': approvalStatus }
+        ]
+      });
     }
 
     // Lọc theo khoảng thời gian nộp hồ sơ
@@ -789,7 +794,7 @@ exports.getInstructors = async (req, res) => {
             role: instructor.role_id?.name || 'instructor',
             createdAt: instructor.createdAt,
             updatedAt: instructor.updatedAt,
-            approvalStatus: instructor.approval_status || 'pending',
+            approvalStatus: info.instructor_profile_status || instructor.approval_status || 'pending',
             isApproved: info.is_approved || false,
             specializations: info.specializations || [],
             experienceYears: info.experience_years || (info.teaching_experience?.years ?? 0),
@@ -869,7 +874,12 @@ exports.getAllInstructors = async (req, res) => {
 
     // Lọc theo trạng thái duyệt nếu có
     if (approvalStatus) {
-      conditions.push({ approval_status: approvalStatus });
+      conditions.push({
+        $or: [
+          { approval_status: approvalStatus },
+          { 'instructorInfo.instructor_profile_status': approvalStatus }
+        ]
+      });
     }
 
     // Lọc theo khoảng thời gian nộp hồ sơ
@@ -929,7 +939,7 @@ exports.getAllInstructors = async (req, res) => {
             role: instructor.role_id?.name || 'instructor',
             createdAt: instructor.createdAt,
             updatedAt: instructor.updatedAt,
-            approvalStatus: instructor.approval_status || 'pending',
+            approvalStatus: info.instructor_profile_status || instructor.approval_status || 'pending',
             isApproved: info.is_approved || false,
             specializations: info.specializations || [],
             experienceYears: info.experience_years || (info.teaching_experience?.years ?? 0),
@@ -1013,6 +1023,7 @@ exports.updateInstructorApproval = async (req, res) => {
         instructor.instructorInfo = {};
       }
       instructor.instructorInfo.is_approved = true;
+      instructor.instructorInfo.instructor_profile_status = 'approved';
       instructor.instructorInfo.approval_date = new Date();
       instructor.instructorInfo.rejection_reason = null;
       instructor.markModified('instructorInfo');
@@ -1029,6 +1040,7 @@ exports.updateInstructorApproval = async (req, res) => {
         instructor.instructorInfo = {};
       }
       instructor.instructorInfo.is_approved = false;
+      instructor.instructorInfo.instructor_profile_status = 'rejected';
       instructor.instructorInfo.rejection_reason = rejection_reason?.trim();
       instructor.instructorInfo.approval_date = new Date();
       instructor.markModified('instructorInfo');
