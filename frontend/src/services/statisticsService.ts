@@ -1,5 +1,5 @@
 import { config } from '../api/axios';
-import type { StatisticsData, TopCourse, RevenueData, CategoryStat, MonthlyStat } from '../types/statistics';
+import type { StatisticsData, RevenueData, CategoryStat, MonthlyStat } from '../types/statistics';
 
 class StatisticsService {
   // Lấy thống kê tổng quan
@@ -13,8 +13,52 @@ class StatisticsService {
     }
   }
 
-  // Lấy dữ liệu doanh thu theo thời gian
-  async getRevenueData(days: number = 30): Promise<RevenueData[]> {
+  // Lấy thống kê khóa học
+  async getCourseStatistics(days: number = 30): Promise<any> {
+    try {
+      const response = await config.get(`/statistics/courses?days=${days}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching course statistics:', error);
+      throw error;
+    }
+  }
+
+  // Lấy thống kê đơn hàng
+  async getOrderStatistics(days: number = 30): Promise<any> {
+    try {
+      const response = await config.get(`/statistics/orders?days=${days}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching order statistics:', error);
+      throw error;
+    }
+  }
+
+  // Lấy thống kê học viên
+  async getStudentStatistics(days: number = 30): Promise<any> {
+    try {
+      const response = await config.get(`/statistics/students?days=${days}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching student statistics:', error);
+      throw error;
+    }
+  }
+
+  // Lấy thống kê giảng viên
+  async getInstructorStatistics(days: number = 30): Promise<any> {
+    try {
+      const response = await config.get(`/statistics/instructors?days=${days}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching instructor statistics:', error);
+      throw error;
+    }
+  }
+
+  // Lấy dữ liệu doanh thu theo thời gian (legacy method for backward compatibility)
+  async getRevenueData(days: number = 30): Promise<any[]> {
     try {
       const response = await config.get(`/statistics/revenue?days=${days}`);
       return response.data.data;
@@ -24,16 +68,7 @@ class StatisticsService {
     }
   }
 
-  // Lấy top khóa học bán chạy
-  async getTopCourses(limit: number = 5): Promise<TopCourse[]> {
-    try {
-      const response = await config.get(`/statistics/top-courses?limit=${limit}`);
-      return response.data.data;
-    } catch (error) {
-      console.error('Error fetching top courses:', error);
-      throw error;
-    }
-  }
+
 
   // Lấy thống kê theo danh mục
   async getCategoryStatistics(): Promise<CategoryStat[]> {
@@ -41,8 +76,7 @@ class StatisticsService {
       const response = await config.get('/statistics/categories');
       return response.data.data;
     } catch (error) {
-      console.error('Error fetching category statistics:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -52,8 +86,7 @@ class StatisticsService {
       const response = await config.get(`/statistics/monthly?year=${year}`);
       return response.data.data;
     } catch (error) {
-      console.error('Error fetching monthly statistics:', error);
-      throw error;
+      return [];
     }
   }
 }

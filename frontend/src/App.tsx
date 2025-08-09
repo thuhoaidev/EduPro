@@ -76,7 +76,6 @@ import ModeratorDashboard from "./pages/Moderator/Dashboard";
 import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
 import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
 import CoursesModerationPage from "./pages/Moderator/Courses/CoursesModerationPage";
-import SimpleReportStatistics from "./pages/Moderator/SimpleReportStatistics";
 import Reports from "./pages/Moderator/reports/Reports";
 
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
@@ -96,6 +95,7 @@ import CertificatePage from "./pages/client/CertificatePage";
 import Certificates from "./pages/client/Profile/Certificates";
 import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
 import InstructorDashboard from './pages/instructor/Dashboard/InstructorDashboard';
+import SimpleReportStatistics from "./pages/Moderator/Statistics/SimpleReportStatistics";
 
 const queryClient = new QueryClient();
 
@@ -152,7 +152,7 @@ function App() {
         { path: "courses/id/:id", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
-        { path:  "/blog/:id", element: <BlogPage />},
+        { path: "/blog/:id", element: <BlogPage />},
         { path: "/blog/post/:id", element: <BlogPage /> },
         { path: "cart", element: <CartPage /> },
         { path: "checkout", element: <CheckoutPage /> },
@@ -219,6 +219,8 @@ function App() {
         { path: "roles/:id", element: <RoleDetailPage /> },
         { path: "roles/test", element: <TestRoleUpdate /> },
         { path: "device-violations", element: <AdminDeviceViolationsPage /> },
+        { path: "comments", element: <CommentsModerationPage /> },
+        { path: "blogs", element: <BlogModeration /> },
       ],
     },
     {
@@ -226,10 +228,11 @@ function App() {
       element: <ModeratorLayout />,
       children: [
         { path: "", element: <ModeratorDashboard /> },
-        { path: "reports", element: <Reports /> },
+        { path: "reports", element: <ReportsPage /> },
         { path: "blogs", element: <BlogModeration /> },
         { path: "comments", element: <CommentsModerationPage /> },
-        { path: "courses", element: <CoursesModerationPage /> },
+        { path: "courses", element: <CoursesModerationPage />},
+        { path: "courses/:id", element: <AdminCourseDetail />},
         { path: "statistics", element: <SimpleReportStatistics /> },
       ],
     },

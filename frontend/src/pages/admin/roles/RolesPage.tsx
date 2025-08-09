@@ -438,6 +438,13 @@ const RolesPage: React.FC = () => {
        isActive: true,
      },
      {
+       id: '60',
+       name: 'approve_courses',
+       description: 'Duyệt khóa học',
+       category: 'Duyệt nội dung',
+       isActive: true,
+     },
+     {
        id: '51',
        name: 'xem báo cáo',
        description: 'Xem danh sách báo cáo',

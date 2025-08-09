@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   Input,
@@ -51,6 +52,7 @@ const statusColorMap: Record<string, string> = {
 };
 
 const CoursesModerationPage: React.FC = () => {
+  const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -121,14 +123,17 @@ const CoursesModerationPage: React.FC = () => {
           const data = await courseService.getAllCourses();
           const allCourses = Array.isArray(data) ? data : [];
           setCourses(allCourses);
-        } catch (error) {
-          message.error('Duyệt khóa học thất bại!');
+        } catch (error: any) {
+          const errorMessage = error.response?.data?.message || error.message;
+          message.error(`Duyệt khóa học thất bại: ${errorMessage}`);
         }
       },
     });
   };
 
   const handleReject = async (courseId: string) => {
+    let rejectReason = '';
+    
     Modal.confirm({
       title: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -136,7 +141,22 @@ const CoursesModerationPage: React.FC = () => {
           <span>Từ chối khóa học</span>
         </div>
       ),
-      content: 'Bạn có chắc chắn muốn từ chối khóa học này? Khóa học sẽ bị ẩn khỏi hệ thống.',
+      content: (
+        <div>
+          <p style={{ marginBottom: '12px' }}>
+            Bạn có chắc chắn muốn từ chối khóa học này? Khóa học sẽ bị ẩn khỏi hệ thống.
+          </p>
+          <Input.TextArea
+            placeholder="Nhập lý do từ chối (tối thiểu 10 ký tự)..."
+            rows={3}
+            onChange={(e) => rejectReason = e.target.value}
+            style={{ marginBottom: '8px' }}
+          />
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            * Lý do từ chối là bắt buộc và phải có ít nhất 10 ký tự
+          </Text>
+        </div>
+      ),
       okText: 'Từ chối',
       okType: 'danger',
       cancelText: 'Hủy',
@@ -144,8 +164,13 @@ const CoursesModerationPage: React.FC = () => {
         style: { borderRadius: '6px' }
       },
       onOk: async () => {
+        if (!rejectReason.trim() || rejectReason.trim().length < 10) {
+          message.error('Lý do từ chối phải có ít nhất 10 ký tự!');
+          return Promise.reject();
+        }
+        
         try {
-          await courseService.approveCourse(courseId, 'reject');
+          await courseService.approveCourse(courseId, 'reject', rejectReason.trim());
           message.success('Đã từ chối khóa học!');
           const data = await courseService.getAllCourses();
           const allCourses = Array.isArray(data) ? data : [];
@@ -304,9 +329,10 @@ const CoursesModerationPage: React.FC = () => {
               size="small"
               icon={<EyeOutlined />}
               style={{ color: '#1890ff' }}
+              onClick={() => navigate(`/moderator/courses/${record.id}`)}
             />
           </Tooltip>
-          {record.status !== 'approved' && (
+          {record.status === 'pending' && (
             <Tooltip title="Duyệt khóa học">
               <Button
                 type="primary"
@@ -323,7 +349,7 @@ const CoursesModerationPage: React.FC = () => {
               </Button>
             </Tooltip>
           )}
-          {record.status !== 'rejected' && (
+          {record.status === 'pending' && (
             <Tooltip title="Từ chối khóa học">
               <Button
                 danger
