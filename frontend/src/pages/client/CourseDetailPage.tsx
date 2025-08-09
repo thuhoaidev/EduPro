@@ -82,70 +82,98 @@ const CourseDetailPage: React.FC = () => {
       daysRemaining?: number;
     } | null>(null);
     const [courseStats, setCourseStats] = useState<{ enrolledCount: number; averageRating: number; reviewCount: number }>({ enrolledCount: 0, averageRating: 0, reviewCount: 0 });
+  // Lưu thời lượng video theo từng bài học (giây)
+  const [lessonDurations, setLessonDurations] = useState<Record<string, number>>({});
 
-    // Function to calculate total duration from course content
-    const calculateTotalDuration = (sections: Section[]): string => {
-        let totalSeconds = 0;
-        let hasVideoDuration = false;
-        
-        sections.forEach(section => {
-            section.lessons.forEach(lesson => {
-                // Check if lesson has video with duration
-                if (lesson.video && lesson.video.duration && lesson.video.duration > 0) {
-                    totalSeconds += lesson.video.duration;
-                    hasVideoDuration = true;
-                }
-            });
-        });
-        
-        // If no video duration available, fall back to course.duration or estimate
-        if (!hasVideoDuration) {
-            return course?.duration || '0 giờ';
-        }
-        
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        
-        if (hours > 0) {
-            return `${hours} giờ ${minutes} phút`;
-        } else {
-            return `${minutes} phút`;
-        }
-    };
+  // Function to calculate total duration from course content (ưu tiên dữ liệu thực từ backend)
+  const calculateTotalDuration = (sections: Section[]): string => {
+    let totalSeconds = 0;
+    sections.forEach(section => {
+      section.lessons.forEach(lesson => {
+        const dur = lessonDurations[lesson._id] || lesson.video?.duration || 0;
+        totalSeconds += typeof dur === 'number' && dur > 0 ? dur : 0;
+      });
+    });
 
-    // Function to format individual lesson duration
-    const formatLessonDuration = (lesson: Lesson): string => {
-        if (lesson.video && lesson.video.duration && lesson.video.duration > 0) {
-            const minutes = Math.floor(lesson.video.duration / 60);
-            const seconds = lesson.video.duration % 60;
-            if (minutes > 0) {
-                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            } else {
-                return `${seconds}s`;
+    if (totalSeconds <= 0) {
+      // Fallback khi chưa có dữ liệu thời lượng thật
+      return course?.duration || '0 phút';
+    }
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    if (hours > 0) return `${hours} giờ ${minutes} phút`;
+    return `${minutes} phút`;
+  };
+
+  // Function to format individual lesson duration (ưu tiên dữ liệu thực từ backend)
+  const formatLessonDuration = (lesson: Lesson): string => {
+    const rawSeconds = lessonDurations[lesson._id] || lesson.video?.duration || 0;
+    if (rawSeconds > 0) {
+      const minutes = Math.floor(rawSeconds / 60);
+      const seconds = rawSeconds % 60;
+      return minutes > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}` : `${seconds}s`;
+    }
+    return '~15 phút';
+  };
+
+  // Function to calculate section duration (ưu tiên dữ liệu thực từ backend)
+  const calculateSectionDuration = (section: Section): string => {
+    const totalSeconds = section.lessons.reduce((sum, lesson) => {
+      const dur = lessonDurations[lesson._id] || lesson.video?.duration || 0;
+      return sum + (typeof dur === 'number' && dur > 0 ? dur : 0);
+    }, 0);
+
+    if (totalSeconds <= 0) return `~${Math.ceil(section.lessons.length * 15)} phút`;
+    const minutes = Math.floor(totalSeconds / 60);
+    return `${minutes} phút`;
+  };
+
+  // Fetch thời lượng thực tế cho tất cả bài học khi nội dung khóa học tải xong
+  useEffect(() => {
+    const fetchDurations = async () => {
+      try {
+        const allLessons: string[] = [];
+        courseContent.forEach(sec => sec.lessons.forEach(ls => allLessons.push(ls._id)));
+        const uniqueLessonIds = Array.from(new Set(allLessons)).filter(Boolean);
+        if (uniqueLessonIds.length === 0) {
+          setLessonDurations({});
+          return;
+        }
+
+        const results = await Promise.all(
+          uniqueLessonIds.map(async (lessonId) => {
+            try {
+              const res = await config.get(`/videos/lesson/${lessonId}`);
+              const videos = Array.isArray(res?.data?.data) ? res.data.data : [];
+              if (videos.length > 0) {
+                // Lấy thời lượng lớn nhất (hoặc video mới nhất cuối mảng)
+                const maxDuration = videos.reduce((mx: number, v: any) => {
+                  const d = typeof v?.duration === 'number' ? v.duration : 0;
+                  return d > mx ? d : mx;
+                }, 0);
+                return [lessonId, maxDuration] as const;
+              }
+              return [lessonId, 0] as const;
+            } catch {
+              return [lessonId, 0] as const;
             }
-        }
-        return '~15 phút'; // Fallback for lessons without video duration
-    };
+          })
+        );
 
-    // Function to calculate section duration
-    const calculateSectionDuration = (section: Section): string => {
-        let totalSeconds = 0;
-        let hasVideoDuration = false;
-        
-        section.lessons.forEach(lesson => {
-            if (lesson.video && lesson.video.duration && lesson.video.duration > 0) {
-                totalSeconds += lesson.video.duration;
-                hasVideoDuration = true;
-            }
-        });
-        
-        if (!hasVideoDuration) {
-            return `~${Math.ceil(section.lessons.length * 15)} phút`;
-        }
-        
-        const minutes = Math.floor(totalSeconds / 60);
-        return `${minutes} phút`;
+        const map: Record<string, number> = {};
+        results.forEach(([lid, dur]) => { if (dur > 0) map[lid] = dur; });
+        setLessonDurations(map);
+      } catch {
+        // ignore errors, fallback logic will be used
+      }
     };
+    if (courseContent && courseContent.length > 0) {
+      fetchDurations();
+    } else {
+      setLessonDurations({});
+    }
+  }, [courseContent]);
 
     useEffect(() => {
         const fetchCourseData = async () => {

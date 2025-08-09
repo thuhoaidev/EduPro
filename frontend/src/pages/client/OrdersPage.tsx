@@ -631,8 +631,8 @@ const OrdersPage: React.FC = () => {
                             border: '1px solid #e2e8f0'
                           }}>
                             <img
-                              src={item.courseId.thumbnail}
-                              alt={item.courseId.title}
+                              src={item.courseId?.thumbnail || '/images/no-image.png'}
+                              alt={item.courseId?.title || 'Khóa học'}
                               style={{
                                 width: '80px',
                                 height: '60px',
@@ -648,14 +648,14 @@ const OrdersPage: React.FC = () => {
                                 display: 'block',
                                 marginBottom: '8px'
                               }}>
-                                {item.courseId.title}
+                                {item.courseId?.title || 'Khóa học'}
                               </Text>
 
                               {/* Instructor Info */}
                               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                                {item.courseId.author?.avatar ? (
+                                {item.courseId?.author?.avatar ? (
                                   <img
-                                    src={item.courseId.author.avatar}
+                                    src={item.courseId?.author?.avatar}
                                     alt="Instructor"
                                     style={{
                                       width: '20px',
@@ -679,14 +679,14 @@ const OrdersPage: React.FC = () => {
                                     fontSize: '10px',
                                     fontWeight: 'bold'
                                   }}>
-                                    {item.courseId.author?.name?.charAt(0) || 'E'}
+                                    {item.courseId?.author?.name?.charAt(0) || 'E'}
                                   </div>
                                 )}
                                 <Text style={{
                                   fontSize: '14px',
                                   color: '#718096'
                                 }}>
-                                  {item.courseId.author?.name || 'EduPro'}
+                                  {item.courseId?.author?.name || 'EduPro'}
                                 </Text>
                               </div>
 
@@ -696,7 +696,9 @@ const OrdersPage: React.FC = () => {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   <StarFilled style={{ color: '#fbbf24', fontSize: '14px' }} />
                                   <Text style={{ fontSize: '12px', color: '#718096' }}>
-                                    {item.courseId.rating > 0 ? item.courseId.rating.toFixed(1) : 'Chưa có đánh giá'}
+                                    {typeof item.courseId?.rating === 'number' && item.courseId?.rating > 0
+                                      ? item.courseId?.rating.toFixed(1)
+                                      : 'Chưa có đánh giá'}
                                   </Text>
                                 </div>
 
@@ -704,7 +706,7 @@ const OrdersPage: React.FC = () => {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   <PlayCircleOutlined style={{ color: '#667eea', fontSize: '14px' }} />
                                   <Text style={{ fontSize: '12px', color: '#718096' }}>
-                                    {item.courseId.duration && item.courseId.duration !== '0 phút' ? item.courseId.duration : 'Chưa có nội dung'}
+                                    {item.courseId?.duration && item.courseId?.duration !== '0 phút' ? item.courseId?.duration : 'Chưa có nội dung'}
                                   </Text>
                                 </div>
 
@@ -712,7 +714,9 @@ const OrdersPage: React.FC = () => {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   <UserOutlined style={{ color: '#10b981', fontSize: '14px' }} />
                                   <Text style={{ fontSize: '12px', color: '#718096' }}>
-                                    {item.courseId.students > 0 ? item.courseId.students.toLocaleString() : 'Chưa có học viên'}
+                                    {typeof item.courseId?.students === 'number' && item.courseId?.students > 0
+                                      ? item.courseId?.students.toLocaleString()
+                                      : 'Chưa có học viên'}
                                   </Text>
                                 </div>
                               </div>
@@ -980,8 +984,8 @@ const OrdersPage: React.FC = () => {
                       border: '1px solid #e2e8f0'
                     }}>
                       <img
-                        src={item.courseId.thumbnail}
-                        alt={item.courseId.title}
+                        src={item.courseId?.thumbnail || '/images/no-image.png'}
+                        alt={item.courseId?.title || 'Khóa học'}
                         style={{
                           width: '100px',
                           height: '80px',
@@ -997,14 +1001,14 @@ const OrdersPage: React.FC = () => {
                           display: 'block',
                           marginBottom: '8px'
                         }}>
-                          {item.courseId.title}
+                          {item.courseId?.title || 'Khóa học'}
                         </Text>
 
                         {/* Instructor Info */}
                         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                          {item.courseId.author?.avatar ? (
+                          {item.courseId?.author?.avatar ? (
                             <img
-                              src={item.courseId.author.avatar}
+                              src={item.courseId?.author?.avatar}
                               alt="Instructor"
                               style={{
                                 width: '20px',
@@ -1028,14 +1032,14 @@ const OrdersPage: React.FC = () => {
                               fontSize: '10px',
                               fontWeight: 'bold'
                             }}>
-                              {item.courseId.author?.name?.charAt(0) || 'E'}
+                              {item.courseId?.author?.name?.charAt(0) || 'E'}
                             </div>
                           )}
                           <Text style={{
                             fontSize: '14px',
                             color: '#718096'
                           }}>
-                            {item.courseId.author?.name || 'EduPro'}
+                            {item.courseId?.author?.name || 'EduPro'}
                           </Text>
                         </div>
 
@@ -1045,7 +1049,9 @@ const OrdersPage: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <StarFilled style={{ color: '#fbbf24', fontSize: '14px' }} />
                             <Text style={{ fontSize: '12px', color: '#718096' }}>
-                              {item.courseId.rating > 0 ? item.courseId.rating.toFixed(1) : 'Chưa có đánh giá'}
+                              {typeof item.courseId?.rating === 'number' && item.courseId?.rating > 0
+                                ? item.courseId?.rating.toFixed(1)
+                                : 'Chưa có đánh giá'}
                             </Text>
                           </div>
 
@@ -1053,7 +1059,7 @@ const OrdersPage: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <PlayCircleOutlined style={{ color: '#667eea', fontSize: '14px' }} />
                             <Text style={{ fontSize: '12px', color: '#718096' }}>
-                              {item.courseId.duration && item.courseId.duration !== '0 phút' ? item.courseId.duration : 'Chưa có nội dung'}
+                              {item.courseId?.duration && item.courseId?.duration !== '0 phút' ? item.courseId?.duration : 'Chưa có nội dung'}
                             </Text>
                           </div>
 
@@ -1061,7 +1067,9 @@ const OrdersPage: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <UserOutlined style={{ color: '#10b981', fontSize: '14px' }} />
                             <Text style={{ fontSize: '12px', color: '#718096' }}>
-                              {item.courseId.students > 0 ? item.courseId.students.toLocaleString() : 'Chưa có học viên'}
+                              {typeof item.courseId?.students === 'number' && item.courseId?.students > 0
+                                ? item.courseId?.students.toLocaleString()
+                                : 'Chưa có học viên'}
                             </Text>
                           </div>
                         </div>

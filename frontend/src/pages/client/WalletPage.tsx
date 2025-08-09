@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card, Table, Button, InputNumber, Select, message, Tag, Form, Typography, Modal, Statistic, Row, Col, Divider, Space, Alert, Descriptions, Avatar } from "antd";
 import { useNavigate } from "react-router-dom";
 import WithdrawModal from '../../components/common/WithdrawModal';
@@ -25,6 +25,8 @@ const WalletPage: React.FC = () => {
   const [vnpayError, setVnpayError] = useState(false);
   const [vnpayErrorCount, setVnpayErrorCount] = useState(0);
   const [vnpayPopupOpen, setVnpayPopupOpen] = useState(false);
+  const [awaitingPayment, setAwaitingPayment] = useState(false);
+  const pollTimerRef = useRef<number | null>(null);
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
 
@@ -174,10 +176,8 @@ const WalletPage: React.FC = () => {
         // Xóa tham số để tránh refresh liên tục
         window.history.replaceState({}, document.title, window.location.pathname);
         
-        // Hiển thị thông báo thành công nếu có
-        if (fromPayment === 'true') {
-          message.success('Đã quay về từ thanh toán. Số dư ví đã được cập nhật.');
-        }
+        // Hiển thị thông báo thành công
+        message.success('Thanh toán thành công. Số dư ví đã được cập nhật.');
       }
     };
 
@@ -205,6 +205,59 @@ const WalletPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Poll số dư ví trong nền, không ảnh hưởng loading UI
+  const fetchWalletSilent = async (): Promise<{ success: boolean; balance?: number }> => {
+    try {
+      const res = await fetch("http://localhost:5000/api/wallet", {
+        headers: token ? { Authorization: "Bearer " + token } : {},
+      });
+      const json = await res.json();
+      if (json.success && typeof json.balance === 'number') {
+        setBalance(json.balance);
+        setHistory(json.history || []);
+        return { success: true, balance: json.balance };
+      }
+      return { success: false };
+    } catch (e) {
+      return { success: false };
+    }
+  };
+
+  const startPaymentPolling = (prevBalance: number, expectedAmount: number | null) => {
+    // Dọn timer cũ nếu có
+    if (pollTimerRef.current) {
+      window.clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    setAwaitingPayment(true);
+    let ticks = 0;
+    const maxTicks = 45; // ~3 phút nếu 4s/tick
+    pollTimerRef.current = window.setInterval(async () => {
+      ticks += 1;
+      const result = await fetchWalletSilent();
+      if (result.success) {
+        const newBalance = result.balance ?? prevBalance;
+        const increased = expectedAmount ? newBalance >= prevBalance + expectedAmount : newBalance > prevBalance;
+        if (increased) {
+          setAwaitingPayment(false);
+          if (pollTimerRef.current) {
+            window.clearInterval(pollTimerRef.current);
+            pollTimerRef.current = null;
+          }
+          message.success('Thanh toán thành công. Số dư ví đã được cập nhật.');
+        }
+      }
+      if (ticks >= maxTicks) {
+        // Hết thời gian chờ
+        setAwaitingPayment(false);
+        if (pollTimerRef.current) {
+          window.clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+        }
+      }
+    }, 4000);
   };
 
   const fetchWithdrawHistory = async () => {
@@ -262,6 +315,7 @@ const WalletPage: React.FC = () => {
     try {
       if (loading) return;
       sessionStorage.setItem('walletDepositInProgress', '1');
+      const prevBalance = balance;
       const res = await fetch("http://localhost:5000/api/wallet/deposit", {
         method: "POST",
         headers: {
@@ -271,7 +325,8 @@ const WalletPage: React.FC = () => {
         body: JSON.stringify({ 
           amount, 
           method,
-          callbackUrl: `${window.location.origin}/wallet/payment-result`
+          // Điều hướng về trực tiếp trang ví với tham số đánh dấu để FE nhận biết
+          callbackUrl: `${window.location.origin}/wallet?fromPayment=true`
         })
       });
       if (res.status === 401) {
@@ -283,8 +338,8 @@ const WalletPage: React.FC = () => {
       if (json.success && json.payUrl) {
         sessionStorage.removeItem('walletDepositInProgress');
         
-        // Chuyển hướng trực tiếp đến trang thanh toán thay vì mở popup
-        message.info(`Đang chuyển đến ${method.toUpperCase()} để thanh toán...`);
+        // Mở trang thanh toán trong tab mới để vẫn giữ nguyên trang ví cho việc polling
+        message.info(`Đang mở ${method.toUpperCase()} để thanh toán...`);
         
         // Lưu thông tin thanh toán vào sessionStorage để kiểm tra khi quay về
         sessionStorage.setItem('paymentInProgress', JSON.stringify({
@@ -293,8 +348,9 @@ const WalletPage: React.FC = () => {
           timestamp: Date.now()
         }));
         
-        // Chuyển hướng trực tiếp trong cùng tab
-        window.location.href = json.payUrl;
+        // Mở trong tab mới và bắt đầu polling số dư
+        window.open(json.payUrl, '_blank');
+        startPaymentPolling(prevBalance, amount);
         
       } else {
         message.error(json.message || "Lỗi tạo yêu cầu nạp tiền");
@@ -678,6 +734,15 @@ const WalletPage: React.FC = () => {
 
   return (
     <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+      {awaitingPayment && (
+        <Alert
+          type="info"
+          showIcon
+          message="Đang chờ xác nhận thanh toán"
+          description="Bạn đã mở ứng dụng để thanh toán. Hệ thống sẽ tự động cập nhật số dư khi thanh toán hoàn tất."
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Card 
         style={{ 
           borderRadius: 16, 

@@ -66,6 +66,7 @@ function clearQuizAnswersCache(courseId: string | null, lessonId: string | null)
 const LessonVideoPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoSources, setVideoSources] = useState<{ [quality: string]: string } | null>(null);
   const [lessonTitle, setLessonTitle] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -454,11 +455,27 @@ const LessonVideoPage: React.FC = () => {
         if (!lessonId) {
           setError('ID bài học không hợp lệ.');
         } else {
-          // Lấy video
+          // Lấy danh sách video của bài học
           const videoRes = await config.get(`/videos/lesson/${lessonId}`);
-          if (videoRes.data && videoRes.data.data) {
-            setVideoUrl(videoRes.data.data.url);
-            setVideoId(videoRes.data.data._id || videoRes.data.data.id || null);
+          const videos = Array.isArray(videoRes?.data?.data) ? videoRes.data.data : [];
+          if (videos.length > 0) {
+            // Lấy video mới nhất
+            const latestVideo = videos[videos.length - 1];
+            setVideoId(latestVideo?._id || latestVideo?.id || null);
+
+            // Trích xuất nguồn theo chất lượng từ quality_urls
+            const qualityUrls = latestVideo?.quality_urls || {};
+            const sources: { [quality: string]: string } = {};
+            const preferred = ['360p', '480p', '720p', '1080p'];
+            preferred.forEach(k => {
+              const entry = (qualityUrls as any)[k];
+              if (entry?.url) sources[k] = entry.url;
+            });
+            Object.entries(qualityUrls as any).forEach(([k, v]: any) => {
+              if (v?.url && !sources[k]) sources[k] = v.url;
+            });
+            setVideoSources(Object.keys(sources).length ? sources : null);
+            setVideoUrl(sources['720p'] || sources['480p'] || sources['360p'] || sources['1080p'] || null);
 
             // Lấy tên bài học từ lesson
             const lessonRes = await config.get(`/lessons/${lessonId}`);
@@ -468,12 +485,6 @@ const LessonVideoPage: React.FC = () => {
           } else {
             setError('Không tìm thấy video cho bài học này.');
           }
-        }
-
-        // Lấy tên bài học từ lesson
-        const lessonRes = await config.get(`/lessons/${lessonId}`);
-        if (lessonRes.data && lessonRes.data.data) {
-          setLessonTitle(lessonRes.data.data.title || 'Bài học');
         }
       } catch (e: any) {
         console.error('Error fetching lesson video:', e);
@@ -1748,9 +1759,41 @@ const LessonVideoPage: React.FC = () => {
             <Divider style={{ margin: '12px 0 24px 0' }} />
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
               <Card style={{ borderRadius: 18, boxShadow: '0 4px 24px #e6e6e6', marginBottom: 32, width: '100%', maxWidth: 'none', background: 'linear-gradient(135deg, #f0f7ff 0%, #f8f5ff 100%)', border: 'none', padding: 0 }} styles={{ body: { padding: 0 } }}>
-                {videoUrl ? (
+                {videoSources && Object.keys(videoSources).length > 0 ? (
                   <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden' }}>
-                    {/* <video
+                    <CustomVideoPlayer
+                      ref={videoRef}
+                      sources={videoSources}
+                      onTimeUpdate={handleVideoTimeUpdate}
+                      onEnded={handleVideoEnded}
+                      onLoadedMetadata={handleVideoLoadedMetadata}
+                      onPlay={() => setIsVideoPlaying(true)}
+                      onPause={() => {
+                        setIsVideoPlaying(false);
+                        // Lưu tiến trình khi pause
+                        if (courseId && currentLessonId) {
+                          const video = document.querySelector('video');
+                          if (video && (video as HTMLVideoElement).currentTime > 0) {
+                            updateVideoProgress(courseId, currentLessonId, (video as HTMLVideoElement).currentTime, (video as HTMLVideoElement).duration)
+                              .catch(e => console.error("Failed to save progress on pause", e));
+                          }
+                        }
+                      }}
+                      initialTime={savedVideoTime}
+                      isLessonCompleted={!!progress && !!currentLessonId && (progress[currentLessonId]?.completed === true || progress[currentLessonId]?.videoCompleted === true)}
+                    />
+
+                    {videoWatched && !quiz && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
+                        <span style={{ background: '#52c41a', color: '#fff', padding: '10px 24px', borderRadius: 32, boxShadow: '0 2px 8px #b7eb8f', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 18 }}>
+                          <CheckCircleOutlined style={{ fontSize: 22 }} /> Đã hoàn thành bài học
+                        </span>
+                      </motion.div>
+                    )}
+                  </div>
+                ) : videoUrl ? (
+                  <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden' }}>
+                    <video
                       ref={videoRef}
                       key={videoUrl}
                       src={videoUrl}
@@ -1762,106 +1805,19 @@ const LessonVideoPage: React.FC = () => {
                       onEnded={handleVideoEnded}
                       onLoadedMetadata={handleVideoLoadedMetadata}
                       onPlay={() => setIsVideoPlaying(true)}
-                                                  onPause={() => {
-                              setIsVideoPlaying(false);
-                              // Lưu tiến trình khi pause
-                              if (courseId && currentLessonId) {
-                                const video = document.querySelector('video');
-                                if (video && video.currentTime > 0) {
-                                  updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration)
-                                    .catch(e => console.error("Failed to save progress on pause", e));
-                                }
-                              }
-                            }}
+                      onPause={() => {
+                        setIsVideoPlaying(false);
+                        if (courseId && currentLessonId) {
+                          const video = document.querySelector('video');
+                          if (video && (video as HTMLVideoElement).currentTime > 0) {
+                            updateVideoProgress(courseId, currentLessonId, (video as HTMLVideoElement).currentTime, (video as HTMLVideoElement).duration)
+                              .catch(e => console.error("Failed to save progress on pause", e));
+                          }
+                        }
+                      }}
                     >
                       Trình duyệt không hỗ trợ video tag.
-                    </video> */}
-                    {(() => {
-                      // Extract cloudName and publicId from videoUrl
-                      let cloudName = '';
-                      let publicId = '';
-
-                      if (videoUrl) {
-                        try {
-                          const url = new URL(videoUrl);
-                          const pathParts = url.pathname.split('/');
-
-                          // For Cloudinary URLs: https://res.cloudinary.com/[cloudName]/video/upload/...
-                          if (url.hostname === 'res.cloudinary.com' && pathParts.length >= 3) {
-                            cloudName = pathParts[1];
-                            // Find the public_id (usually after 'upload/')
-                            const uploadIndex = pathParts.indexOf('upload');
-                            if (uploadIndex !== -1 && uploadIndex + 1 < pathParts.length) {
-                              publicId = pathParts.slice(uploadIndex + 1).join('/').replace(/\.[^/.]+$/, ''); // Remove extension
-                            }
-                          }
-                        } catch (e) {
-                          console.error('Error parsing video URL:', e);
-                        }
-                      }
-
-                      // If we have cloudName and publicId, use CustomVideoPlayer with multiple qualities
-                      if (cloudName && publicId) {
-                        return (
-                          <CustomVideoPlayer
-                            ref={videoRef}
-                            sources={{
-                              '360p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_640,h_360,c_limit/${publicId}.mp4`,
-                              '720p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1280,h_720,c_limit/${publicId}.mp4`,
-                              '1080p': `https://res.cloudinary.com/${cloudName}/video/upload/q_auto,f_auto,w_1920,h_1080,c_limit/${publicId}.mp4`,
-                            }}
-                            onTimeUpdate={handleVideoTimeUpdate}
-                            onEnded={handleVideoEnded}
-                            onLoadedMetadata={handleVideoLoadedMetadata}
-                            onPlay={() => setIsVideoPlaying(true)}
-                            onPause={() => {
-                              setIsVideoPlaying(false);
-                              // Lưu tiến trình khi pause
-                              if (courseId && currentLessonId) {
-                                const video = document.querySelector('video');
-                                if (video && video.currentTime > 0) {
-                                  updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration)
-                                    .catch(e => console.error("Failed to save progress on pause", e));
-                                }
-                              }
-                            }}
-                            initialTime={savedVideoTime}
-                            isLessonCompleted={!!progress && !!currentLessonId && (progress[currentLessonId]?.completed === true || progress[currentLessonId]?.videoCompleted === true)}
-                          />
-                        );
-                      } else {
-                        // Fallback to regular video element if not Cloudinary or parsing failed
-                        return (
-                          <video
-                            ref={videoRef}
-                            key={videoUrl}
-                            src={videoUrl}
-                            controls
-                            controlsList="nodownload noplaybackrate"
-                            onContextMenu={(e) => e.preventDefault()}
-                            style={{ width: '100%', borderRadius: 0, background: '#000', display: 'block', maxHeight: 480 }}
-                            onTimeUpdate={handleVideoTimeUpdate}
-                            onEnded={handleVideoEnded}
-                            onLoadedMetadata={handleVideoLoadedMetadata}
-                            onPlay={() => setIsVideoPlaying(true)}
-                            onPause={() => {
-                              setIsVideoPlaying(false);
-                              // Lưu tiến trình khi pause
-                              if (courseId && currentLessonId) {
-                                const video = document.querySelector('video');
-                                if (video && video.currentTime > 0) {
-                                  updateVideoProgress(courseId, currentLessonId, video.currentTime, video.duration)
-                                    .catch(e => console.error("Failed to save progress on pause", e));
-                                }
-                              }
-                            }}
-                          >
-                            Trình duyệt không hỗ trợ video tag.
-                          </video>
-                        );
-                      }
-                    })()}
-
+                    </video>
 
                     {videoWatched && !quiz && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-4 right-4 z-10">
@@ -1870,8 +1826,6 @@ const LessonVideoPage: React.FC = () => {
                         </span>
                       </motion.div>
                     )}
-
-
                   </div>
                 ) : (
                   <Alert message="Không có video" type="warning" style={{ borderRadius: 12, margin: 24 }} />

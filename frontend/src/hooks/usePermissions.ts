@@ -21,7 +21,7 @@ export const usePermissions = () => {
 
   // Create a simplified permission checking function that works with the actual user structure
   const hasPermissionSimple = (user: any, permission: string): boolean => {
-    if (!user || !user.role) {
+    if (!user || !user.role_id) {
       return false;
     }
     
@@ -38,8 +38,7 @@ export const usePermissions = () => {
       return user.role_id.permissions.includes(permission);
     }
     
-    // For now, return false for other roles since we don't have permission arrays
-    // This can be enhanced later when the backend provides full role data
+    // No explicit permissions available; default deny
     return false;
   };
 
@@ -250,20 +249,12 @@ export const usePermissions = () => {
       return hasPermissionSimple(user, PERMISSIONS.MANAGE_REPORTS);
     },
     canViewOwnOrders: () => {
-      // Tất cả user đã đăng nhập đều có thể xem đơn hàng của mình
-      const roleName = typeof user?.role_id === 'string' ? user.role_id : user?.role_id?.name;
-      if (roleName === 'admin' || roleName === 'quản trị viên' || roleName === 'instructor' || roleName === 'giảng viên' || roleName === 'student' || roleName === 'học viên') {
-        return true;
-      }
-      return hasPermissionSimple(user, PERMISSIONS.VIEW_OWN_ORDERS);
+      // Bất kỳ user đã đăng nhập nào cũng có quyền xem đơn hàng của chính mình
+      return !!user;
     },
     canCancelOwnOrders: () => {
-      // Tất cả user đã đăng nhập đều có thể hủy đơn hàng của mình
-      const roleName = typeof user?.role_id === 'string' ? user.role_id : user?.role_id?.name;
-      if (roleName === 'admin' || roleName === 'quản trị viên' || roleName === 'instructor' || roleName === 'giảng viên' || roleName === 'student' || roleName === 'học viên') {
-        return true;
-      }
-      return hasPermissionSimple(user, PERMISSIONS.CANCEL_OWN_ORDERS);
+      // Bất kỳ user đã đăng nhập nào cũng có quyền hủy đơn hàng của chính mình
+      return !!user;
     },
     canManageOrders: () => {
       // Admin có quyền quản lý tất cả đơn hàng
