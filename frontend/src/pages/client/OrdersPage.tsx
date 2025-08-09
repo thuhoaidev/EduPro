@@ -21,6 +21,7 @@ import {
   Modal,
   Input,
   Statistic
+  , Steps
 } from 'antd';
 import {
   ShoppingOutlined,
@@ -46,17 +47,32 @@ import { usePermissions } from '../../hooks/usePermissions';
 import orderService from '../../services/orderService';
 import type { Order } from '../../services/orderService';
 
+// Extend Order type with enriched course fields provided by backend
+type EnrichedOrder = Omit<Order, 'items'> & {
+  items: Array<{
+    courseId: Order['items'][number]['courseId'] & {
+      rating?: number;
+      duration?: string;
+      students?: number;
+      videosCount?: number;
+      author?: { name?: string; avatar?: string | null };
+    };
+    price: number;
+    quantity: number;
+  }>;
+};
+
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
 const OrdersPage: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<EnrichedOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<EnrichedOrder | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [orderSearch, setOrderSearch] = useState('');
   const { token } = useAuth();
@@ -96,8 +112,6 @@ const OrdersPage: React.FC = () => {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'pending':
-        return 'Chờ xử lý';
       case 'paid':
         return 'Đã thanh toán';
       case 'cancelled':
@@ -482,7 +496,6 @@ const OrdersPage: React.FC = () => {
                     borderRadius: '12px'
                   }}
                 >
-                  <Option value="pending">Chờ xử lý</Option>
                   <Option value="paid">Đã thanh toán</Option>
                   <Option value="cancelled">Đã hủy</Option>
                   <Option value="refunded">Đã hoàn tiền</Option>
@@ -783,7 +796,7 @@ const OrdersPage: React.FC = () => {
               </AnimatePresence>
 
               {/* Pagination */}
-              {total > pageSize && (
+              {total > 0 && (
                 <div style={{
                   display: 'flex',
                   justifyContent: 'center',
@@ -794,21 +807,128 @@ const OrdersPage: React.FC = () => {
                     boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                     border: '1px solid #e2e8f0',
                     background: 'rgba(255, 255, 255, 0.95)',
-                    backdropFilter: 'blur(10px)'
+                    backdropFilter: 'blur(10px)',
+                    padding: '16px 24px'
                   }}>
-                    <Pagination
-                      current={currentPage}
-                      total={total}
-                      pageSize={pageSize}
-                      showSizeChanger
-                      showQuickJumper
-                      showTotal={(total, range) =>
-                        `${range[0]}-${range[1]} của ${total} đơn hàng`
-                      }
-                      onChange={handlePageChange}
-                      onShowSizeChange={handlePageChange}
-                      style={{ padding: '8px' }}
-                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Text style={{ color: '#4a5568', fontSize: '14px' }}>
+                          Hiển thị
+                        </Text>
+                        <Select
+                          value={pageSize}
+                          onChange={(value) => {
+                            setPageSize(value);
+                            setCurrentPage(1);
+                          }}
+                          style={{ width: '80px' }}
+                          options={[
+                            { value: 5, label: '5' },
+                            { value: 10, label: '10' },
+                            { value: 20, label: '20' },
+                            { value: 50, label: '50' }
+                          ]}
+                        />
+                        <Text style={{ color: '#4a5568', fontSize: '14px' }}>
+                          đơn hàng mỗi trang
+                        </Text>
+                      </div>
+                      
+                      <Divider type="vertical" style={{ margin: '0 8px' }} />
+                      
+                      <Text style={{ color: '#4a5568', fontSize: '14px' }}>
+                        {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} của ${total} đơn hàng`}
+                      </Text>
+                    </div>
+                    
+                    <div style={{ marginTop: '16px' }}>
+                      <Pagination
+                        current={currentPage}
+                        total={total}
+                        pageSize={pageSize}
+                        showSizeChanger={false}
+                        showQuickJumper
+                        showTotal={null}
+                        onChange={handlePageChange}
+                        onShowSizeChange={handlePageChange}
+                        style={{ 
+                          textAlign: 'center',
+                          '--ant-pagination-item-bg': 'transparent',
+                          '--ant-pagination-item-border': '1px solid #e2e8f0',
+                          '--ant-pagination-item-active-bg': '#667eea',
+                          '--ant-pagination-item-active-border-color': '#667eea',
+                          '--ant-pagination-item-hover-bg': 'rgba(102, 126, 234, 0.1)',
+                          '--ant-pagination-item-hover-border-color': '#667eea'
+                        } as React.CSSProperties}
+                        itemRender={(page, type, originalElement) => {
+                          if (type === 'prev') {
+                            return (
+                              <Button
+                                type="text"
+                                icon={<span style={{ fontSize: '12px' }}>‹</span>}
+                                disabled={currentPage === 1}
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '8px',
+                                  border: '1px solid #e2e8f0',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: currentPage === 1 ? '#cbd5e0' : '#4a5568',
+                                  background: currentPage === 1 ? '#f7fafc' : 'white'
+                                }}
+                              />
+                            );
+                          }
+                          if (type === 'next') {
+                            return (
+                              <Button
+                                type="text"
+                                icon={<span style={{ fontSize: '12px' }}>›</span>}
+                                disabled={currentPage === Math.ceil(total / pageSize)}
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '8px',
+                                  border: '1px solid #e2e8f0',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: currentPage === Math.ceil(total / pageSize) ? '#cbd5e0' : '#4a5568',
+                                  background: currentPage === Math.ceil(total / pageSize) ? '#f7fafc' : 'white'
+                                }}
+                              />
+                            );
+                          }
+                          if (type === 'page') {
+                            return (
+                              <Button
+                                type={currentPage === page ? 'primary' : 'text'}
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '8px',
+                                  border: currentPage === page ? 'none' : '1px solid #e2e8f0',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  background: currentPage === page 
+                                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                                    : 'white',
+                                  color: currentPage === page ? 'white' : '#4a5568',
+                                  fontWeight: currentPage === page ? 600 : 400
+                                }}
+                                onClick={() => handlePageChange(page)}
+                              >
+                                {page}
+                              </Button>
+                            );
+                          }
+                          return originalElement;
+                        }}
+                      />
+                    </div>
                   </Card>
                 </div>
               )}
@@ -827,87 +947,56 @@ const OrdersPage: React.FC = () => {
           open={detailModalVisible}
           onCancel={() => setDetailModalVisible(false)}
           footer={null}
-          width={800}
+          width={920}
           style={{ top: 20 }}
           bodyStyle={{ padding: '24px' }}
         >
           {selectedOrder && (
-            <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-              <div style={{ marginBottom: '24px' }}>
-                <Row gutter={[24, 16]}>
-                  <Col xs={24} sm={12}>
-                    <div style={{
-                      padding: '16px',
-                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                      borderRadius: '12px',
-                      border: '1px solid #e2e8f0'
-                    }}>
-                      <Text strong style={{ color: '#2d3748', display: 'block', marginBottom: '8px' }}>
-                        Mã đơn hàng
-                      </Text>
-                      <Text code style={{ fontSize: '16px', fontWeight: 600 }}>
-                        {selectedOrder.id}
-                      </Text>
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <div style={{
-                      padding: '16px',
-                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                      borderRadius: '12px',
-                      border: '1px solid #e2e8f0'
-                    }}>
-                      <Text strong style={{ color: '#2d3748', display: 'block', marginBottom: '8px' }}>
-                        Ngày đặt
-                      </Text>
-                      <Text style={{ fontSize: '16px' }}>
-                        {formatDate(selectedOrder.createdAt)}
-                      </Text>
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <div style={{
-                      padding: '16px',
-                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                      borderRadius: '12px',
-                      border: '1px solid #e2e8f0'
-                    }}>
-                      <Text strong style={{ color: '#2d3748', display: 'block', marginBottom: '8px' }}>
-                        Phương thức thanh toán
-                      </Text>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {getPaymentMethodIcon(selectedOrder.paymentMethod)}
-                        <Text style={{ fontSize: '16px' }}>
-                          {getPaymentMethodText(selectedOrder.paymentMethod)}
-                        </Text>
+            <div style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+              {/* Top Summary */}
+              <div style={{
+                marginBottom: 16,
+                border: '1px solid #e2e8f0',
+                borderRadius: 16,
+                background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
+                padding: 16
+              }}>
+                <Row gutter={[16, 16]} align="middle">
+                  <Col xs={24} md={14}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      <Text code style={{ fontSize: 14, fontWeight: 600 }}>{selectedOrder.id}</Text>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <CalendarOutlined style={{ color: '#667eea' }} />
+                        <Text style={{ color: '#4a5568' }}>{formatDate(selectedOrder.createdAt)}</Text>
                       </div>
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <div style={{
-                      padding: '16px',
-                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                      borderRadius: '12px',
-                      border: '1px solid #e2e8f0'
-                    }}>
-                      <Text strong style={{ color: '#2d3748', display: 'block', marginBottom: '8px' }}>
-                        Trạng thái
-                      </Text>
-                      <Tag
-                        color={getStatusColor(selectedOrder.status)}
-                        icon={getStatusIcon(selectedOrder.status)}
-                        style={{
-                          borderRadius: '8px',
-                          padding: '6px 16px',
-                          fontWeight: 600,
-                          fontSize: '14px'
-                        }}
-                      >
+                      <Tag color={getStatusColor(selectedOrder.status)} icon={getStatusIcon(selectedOrder.status)} style={{ borderRadius: 8 }}>
                         {getStatusText(selectedOrder.status)}
                       </Tag>
                     </div>
                   </Col>
+                  <Col xs={24} md={10}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {getPaymentMethodIcon(selectedOrder.paymentMethod)}
+                        <Text>{getPaymentMethodText(selectedOrder.paymentMethod)}</Text>
+                      </div>
+                      <Divider type="vertical" />
+                      <Text strong style={{ fontSize: 20, color: '#e53e3e' }}>{formatCurrency(selectedOrder.finalAmount)}</Text>
+                    </div>
+                  </Col>
                 </Row>
+                {/* Status Steps */}
+                <div style={{ marginTop: 12 }}>
+                  {(() => {
+                    const steps = [
+                      { title: 'Chờ xử lý' },
+                      { title: 'Đã thanh toán' },
+                      { title: selectedOrder.status === 'cancelled' ? 'Đã hủy' : 'Đã hoàn tiền' },
+                    ];
+                    const statusIndex = selectedOrder.status === 'pending' ? 0 : selectedOrder.status === 'paid' ? 1 : 2;
+                    return <Steps size="small" items={steps} current={statusIndex} />;
+                  })()}
+                </div>
               </div>
 
               {/* Customer Information */}
@@ -975,26 +1064,20 @@ const OrdersPage: React.FC = () => {
                   {selectedOrder.items.map((item, index) => (
                     <div key={index} style={{
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '16px',
-                      padding: '16px',
-                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                      borderRadius: '16px',
-                      marginBottom: '12px',
-                      border: '1px solid #e2e8f0'
+                      alignItems: 'stretch',
+                      gap: 16,
+                      padding: 16,
+                      background: '#ffffff',
+                      borderRadius: 14,
+                      border: '1px solid #edf2f7',
+                      boxShadow: '0 4px 10px rgba(0,0,0,0.04)'
                     }}>
                       <img
                         src={item.courseId?.thumbnail || '/images/no-image.png'}
                         alt={item.courseId?.title || 'Khóa học'}
-                        style={{
-                          width: '100px',
-                          height: '80px',
-                          objectFit: 'cover',
-                          borderRadius: '12px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                        }}
+                        style={{ width: 110, height: 80, objectFit: 'cover', borderRadius: 10 }}
                       />
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <Text strong style={{
                           fontSize: '16px',
                           color: '#1a202c',
@@ -1044,9 +1127,9 @@ const OrdersPage: React.FC = () => {
                         </div>
 
                         {/* Course Stats */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                           {/* Rating */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <StarFilled style={{ color: '#fbbf24', fontSize: '14px' }} />
                             <Text style={{ fontSize: '12px', color: '#718096' }}>
                               {typeof item.courseId?.rating === 'number' && item.courseId?.rating > 0
@@ -1056,7 +1139,7 @@ const OrdersPage: React.FC = () => {
                           </div>
 
                           {/* Duration */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <PlayCircleOutlined style={{ color: '#667eea', fontSize: '14px' }} />
                             <Text style={{ fontSize: '12px', color: '#718096' }}>
                               {item.courseId?.duration && item.courseId?.duration !== '0 phút' ? item.courseId?.duration : 'Chưa có nội dung'}
@@ -1064,7 +1147,7 @@ const OrdersPage: React.FC = () => {
                           </div>
 
                           {/* Students */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <UserOutlined style={{ color: '#10b981', fontSize: '14px' }} />
                             <Text style={{ fontSize: '12px', color: '#718096' }}>
                               {typeof item.courseId?.students === 'number' && item.courseId?.students > 0
@@ -1074,13 +1157,12 @@ const OrdersPage: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      <Text strong style={{
-                        color: '#e53e3e',
-                        fontSize: '18px',
-                        fontWeight: 700
-                      }}>
-                        {formatCurrency(item.price * item.quantity)}
-                      </Text>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                        <Text strong style={{ color: '#e53e3e', fontSize: 18 }}>
+                          {formatCurrency(item.price * item.quantity)}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#718096' }}>x{item.quantity}</Text>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1088,45 +1170,46 @@ const OrdersPage: React.FC = () => {
 
               {/* Order Summary */}
               <div style={{
-                padding: '20px',
-                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                borderRadius: '16px',
-                border: '1px solid #e2e8f0'
+                padding: 20,
+                background: '#ffffff',
+                borderRadius: 16,
+                border: '1px solid #edf2f7',
+                boxShadow: '0 6px 16px rgba(0,0,0,0.06)'
               }}>
                 <Title level={4} style={{ marginBottom: '16px', color: '#2d3748' }}>
                   Tổng kết đơn hàng
                 </Title>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Subtotal */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4a5568' }}>
+                    <span>Tạm tính</span>
+                    <span>
+                      {formatCurrency(
+                        selectedOrder.items.reduce((s, it) => s + it.price * it.quantity, 0)
+                      )}
+                    </span>
+                  </div>
+                  {/* Discount */}
                   {selectedOrder.discountAmount > 0 && (
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '12px'
-                    }}>
-                      <Text style={{ fontSize: '16px', color: '#4a5568' }}>Giảm giá:</Text>
-                      <Text style={{
-                        fontSize: '16px',
-                        color: '#38a169',
-                        fontWeight: 600
-                      }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Giảm giá</span>
+                      <span style={{ color: '#38a169', fontWeight: 600 }}>
                         -{formatCurrency(selectedOrder.discountAmount)}
-                      </Text>
+                      </span>
                     </div>
                   )}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    borderTop: '2px solid #e2e8f0',
-                    paddingTop: '16px'
-                  }}>
-                    <Text strong style={{ fontSize: '20px', color: '#2d3748' }}>
-                      Tổng cộng:
-                    </Text>
-                    <Text strong style={{
-                      fontSize: '24px',
-                      color: '#e53e3e',
-                      fontWeight: 800
-                    }}>
+                  {/* Voucher */}
+                  {selectedOrder.voucher && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4a5568' }}>
+                      <span>Mã voucher</span>
+                      <span style={{ fontFamily: 'monospace' }}>{selectedOrder.voucher.code}</span>
+                    </div>
+                  )}
+                  <Divider style={{ margin: '10px 0' }} />
+                  {/* Total */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text strong style={{ fontSize: 18 }}>Tổng cộng</Text>
+                    <Text strong style={{ fontSize: 22, color: '#e53e3e' }}>
                       {formatCurrency(selectedOrder.finalAmount)}
                     </Text>
                   </div>

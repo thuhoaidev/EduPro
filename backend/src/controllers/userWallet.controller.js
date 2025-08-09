@@ -32,6 +32,9 @@ exports.createDeposit = async (req, res) => {
     // Sử dụng callbackUrl từ request hoặc fallback về URL mặc định
     const redirectUrl = callbackUrl || "http://localhost:5173/wallet/payment-result";
 
+    // Helper: nối query param an toàn (tránh trùng '??')
+    const appendQuery = (base, queryStr) => `${base}${base.includes('?') ? '&' : '?'}${queryStr}`;
+
     if (method === 'momo') {
       // Momo config
       const momoConfig = {
@@ -40,8 +43,8 @@ exports.createDeposit = async (req, res) => {
         secretKey: "K951B6PE1waDMi640xX08PD3vg6EkVlz",
         requestType: "captureWallet",
         endpoint: "https://test-payment.momo.vn/v2/gateway/api/create",
-        redirectUrl: `${redirectUrl}?paymentMethod=momo`,
-        ipnUrl: "http://localhost:5000/api/wallet/momo-callback",
+        redirectUrl: appendQuery(redirectUrl, 'paymentMethod=momo'),
+        ipnUrl: process.env.MOMO_WALLET_IPN_URL || "http://localhost:5000/api/wallet/momo-callback",
       };
       const orderId = depositId;
       const requestId = orderId;
@@ -69,7 +72,7 @@ exports.createDeposit = async (req, res) => {
         tmnCode: "NXQHNEYW",
         secretKey: "K7RFK8JIMPMJIXYFPKMCG59N6KFN3DN4",
         vnp_Url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
-        returnUrl: `${redirectUrl}?paymentMethod=vnpay`,
+        returnUrl: appendQuery(redirectUrl, 'paymentMethod=vnpay'),
       };
       const crypto = require("crypto");
       const ipAddr = "127.0.0.1";
@@ -107,8 +110,8 @@ exports.createDeposit = async (req, res) => {
       const transID = Math.floor(Math.random() * 1000000);
       const items = [{}];
       const embed_data = {
-        return_url: `${redirectUrl}?paymentMethod=zalopay`,
-        redirecturl: `${redirectUrl}?paymentMethod=zalopay`
+        return_url: appendQuery(redirectUrl, 'paymentMethod=zalopay'),
+        redirecturl: appendQuery(redirectUrl, 'paymentMethod=zalopay')
       };
       const app_trans_id = `${moment().format("YYMMDD")}_${transID}`;
       const order = {
@@ -144,7 +147,7 @@ exports.createDeposit = async (req, res) => {
       await UserWalletDeposit.create({ app_trans_id, userId: req.user._id, amount });
     }
 
-    res.json({ success: true, payUrl });
+    res.json({ success: true, payUrl, orderId: depositId });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi tạo yêu cầu nạp tiền', error: err.message });
   }
@@ -154,11 +157,11 @@ exports.createDeposit = async (req, res) => {
 exports.handlePaymentResult = async (req, res) => {
   try {
     // Momo gửi callback qua query parameters, không phải body
-    const resultCode = req.query.resultCode || req.body.resultCode;
+    const resultCode = req.query.resultCode || req.body.resultCode || req.query.resultcode || req.body.resultcode;
     const message = req.query.message || req.body.message;
-    const orderId = req.query.orderId || req.body.orderId;
+    const orderId = req.query.orderId || req.body.orderId || req.query.orderid || req.body.orderid;
     const amount = req.query.amount || req.body.amount;
-    const transId = req.query.transId || req.body.transId;
+    const transId = req.query.transId || req.body.transId || req.query.transid || req.body.transid;
     
     console.log('Momo callback received:', { 
       resultCode, 
@@ -184,8 +187,8 @@ exports.handlePaymentResult = async (req, res) => {
     
     let wallet = await UserWallet.findOne({ userId });
     if (!wallet) {
-      console.log('Wallet not found for userId:', userId);
-      return res.status(404).json({ success: false, message: 'Không tìm thấy ví' });
+      console.log('Wallet not found for userId, creating new wallet:', userId);
+      wallet = await UserWallet.create({ userId, balance: 0, history: [] });
     }
 
     console.log('Current wallet balance:', wallet.balance);
@@ -231,6 +234,12 @@ exports.handlePaymentResult = async (req, res) => {
       } catch (notiErr) {
         console.error('Lỗi tạo notification nạp tiền:', notiErr);
       }
+      return res.json({ 
+        success: true, 
+        message: 'Đã xử lý kết quả thanh toán',
+        balance: wallet.balance,
+        amount: depositAmount
+      });
     } else {
       // Thất bại
       const depositAmount = Number(amount);
@@ -245,9 +254,12 @@ exports.handlePaymentResult = async (req, res) => {
       });
       await wallet.save();
       console.log('Giao dịch thất bại:', { userId, amount: depositAmount, transId, resultCode, message });
+      return res.json({ 
+        success: false, 
+        message: message || `Thanh toán thất bại (resultCode: ${resultCode})`,
+        balance: wallet.balance
+      });
     }
-
-    res.json({ success: true, message: 'Đã xử lý kết quả thanh toán' });
   } catch (err) {
     console.error('handlePaymentResult error:', err);
     res.status(500).json({ success: false, message: 'Lỗi xử lý kết quả thanh toán', error: err.message });
@@ -297,8 +309,8 @@ exports.handleZaloPayCallback = async (req, res) => {
     
     let wallet = await UserWallet.findOne({ userId });
     if (!wallet) {
-      console.log('Wallet not found for userId:', userId);
-      return res.status(404).json({ success: false, message: 'Không tìm thấy ví' });
+      console.log('Wallet not found for userId, creating new wallet:', userId);
+      wallet = await UserWallet.create({ userId, balance: 0, history: [] });
     }
 
     console.log('Current wallet balance:', wallet.balance);
@@ -414,8 +426,8 @@ exports.paymentCallback = async (req, res) => {
     
     let wallet = await UserWallet.findOne({ userId });
     if (!wallet) {
-      console.log('Wallet not found for userId:', userId);
-      return res.status(404).json({ success: false, message: 'Không tìm thấy ví' });
+      console.log('Wallet not found for userId, creating new wallet:', userId);
+      wallet = await UserWallet.create({ userId, balance: 0, history: [] });
     }
 
     console.log('Current wallet balance:', wallet.balance);

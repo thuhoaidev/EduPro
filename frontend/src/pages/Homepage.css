@@ -248,6 +248,7 @@
 .section-header {
   text-align: center;
   margin-bottom: 64px;
+  margin-top: 64px;
   max-width: 800px;
   margin-left: auto;
   margin-right: auto;
@@ -357,19 +358,20 @@
 .modern-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 2.5rem;
+  gap: 2rem;
   margin: 3rem 0 2rem 0;
   justify-items: center;
   align-items: stretch;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
   .modern-stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 2rem;
   }
 }
-@media (max-width: 700px) {
+
+@media (max-width: 600px) {
   .modern-stats-grid {
     grid-template-columns: 1fr;
     gap: 1.5rem;
@@ -457,6 +459,13 @@
 }
 .gradient-pink {
   background: linear-gradient(90deg, #f472b6 0%, #f87171 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-purple {
+  background: linear-gradient(90deg, #8b5cf6 0%, #06b6d4 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

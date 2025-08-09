@@ -105,13 +105,41 @@ const WalletPaymentResultPage: React.FC = () => {
           });
         }
 
-        const json = await res.json();
+        let json = await res.json();
         
+        // Fallback: nếu MoMo callback không thành công nhưng resultCode = '0', thử endpoint có auth để xác nhận giao dịch
+        if ((!json.success) && (query.get('resultCode') === '0')) {
+          try {
+            const token = localStorage.getItem('token');
+            const fallbackRes = await fetch(`http://localhost:5000/api/wallet/payment-callback`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+              },
+              body: JSON.stringify({
+                orderId: query.get('orderId') || query.get('orderid') || transactionId || undefined,
+                resultCode: '0',
+                message: query.get('message') || 'Thanh toán thành công',
+                amount: amountParam ? parseInt(amountParam) : undefined,
+                method: 'momo',
+                transId: query.get('transId') || query.get('transid') || undefined
+              })
+            });
+            const fallbackJson = await fallbackRes.json();
+            if (fallbackJson && fallbackJson.success) {
+              json = fallbackJson;
+            }
+          } catch (e) {
+            // ignore, sẽ hiển thị lỗi như bình thường
+          }
+        }
+
         if (json.success) {
           setStatus("success");
           setTitle("Nạp tiền thành công!");
           setSubTitle(`Số dư mới: ${json.balance?.toLocaleString() || ""}₫`);
-          setAmount(json.amount || amountParam ? parseInt(amountParam) : null);
+          setAmount((json.amount != null ? json.amount : (amountParam ? parseInt(amountParam) : null)) as any);
           
           // Đánh dấu đã xác thực giao dịch này
           sessionStorage.setItem(checkedKey, '1');

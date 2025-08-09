@@ -20,12 +20,15 @@ const WalletPage: React.FC = () => {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [detailModal, setDetailModal] = useState<{ open: boolean; data?: any }>({ open: false });
   const [invoiceModal, setInvoiceModal] = useState<{ open: boolean; data?: any }>({ open: false });
-  const [showAllWithdraw, setShowAllWithdraw] = useState(false);
   const [showVnpayWarning, setShowVnpayWarning] = useState(false);
   const [vnpayError, setVnpayError] = useState(false);
   const [vnpayErrorCount, setVnpayErrorCount] = useState(0);
   const [vnpayPopupOpen, setVnpayPopupOpen] = useState(false);
   const [awaitingPayment, setAwaitingPayment] = useState(false);
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(10);
+  const [withdrawCurrentPage, setWithdrawCurrentPage] = useState(1);
+  const [withdrawPageSize, setWithdrawPageSize] = useState(10);
   const pollTimerRef = useRef<number | null>(null);
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
@@ -326,7 +329,8 @@ const WalletPage: React.FC = () => {
           amount, 
           method,
           // Điều hướng về trực tiếp trang ví với tham số đánh dấu để FE nhận biết
-          callbackUrl: `${window.location.origin}/wallet?fromPayment=true`
+          // Chuyển hướng về trang kết quả để đảm bảo gửi callback lên BE ngay cả khi IPN không tới
+          callbackUrl: `${window.location.origin}/wallet/payment-result?fromPayment=true`
         })
       });
       if (res.status === 401) {
@@ -416,6 +420,21 @@ const WalletPage: React.FC = () => {
       const userInfo = JSON.parse(localStorage.getItem('user') || '{}');
       invoiceData.userAvatar = userInfo.avatar || 'https://via.placeholder.com/40x40';
       invoiceData.userName = userInfo.fullname || userInfo.username || 'Người dùng';
+      
+      // Tạo mã hóa đơn có ý nghĩa
+      if (record.type === 'withdraw') {
+        // Cho giao dịch rút tiền, sử dụng _id làm mã hóa đơn
+        invoiceData.invoiceId = `WD-${record._id?.slice(-8) || 'N/A'}`;
+      } else if (record.type === 'deposit') {
+        // Cho giao dịch nạp tiền, sử dụng txId hoặc tạo mã mới
+        invoiceData.invoiceId = record.txId || `DP-${record._id?.slice(-8) || 'N/A'}`;
+      } else if (record.type === 'payment') {
+        // Cho giao dịch thanh toán, sử dụng orderId
+        invoiceData.invoiceId = record.orderId || `PAY-${record._id?.slice(-8) || 'N/A'}`;
+      } else {
+        // Fallback
+        invoiceData.invoiceId = record.txId || record.orderId || record._id || 'N/A';
+      }
       
       // Nếu có orderId, lấy thông tin đơn hàng để hiển thị thông tin khóa học
       if (record.orderId && token) {
@@ -691,7 +710,40 @@ const WalletPage: React.FC = () => {
         return getMethodLogo(method);
       }
     },
-    { title: "Trạng thái", dataIndex: "status", key: "status" },
+    { 
+      title: "Trạng thái", 
+      dataIndex: "status", 
+      key: "status",
+      render: (status: string) => {
+        // Chuyển đổi status thành lowercase để so sánh
+        const statusLower = status?.toLowerCase();
+        
+        if (statusLower === "success" || statusLower === "completed" || statusLower === "approved") {
+          return <Tag color="green" style={{ borderRadius: '6px' }}>Thành công</Tag>;
+        }
+        if (statusLower === "pending" || statusLower === "processing") {
+          return <Tag color="orange" style={{ borderRadius: '6px' }}>Đang xử lý</Tag>;
+        }
+        if (statusLower === "failed" || statusLower === "error" || statusLower === "rejected") {
+          return <Tag color="red" style={{ borderRadius: '6px' }}>Thất bại</Tag>;
+        }
+        if (statusLower === "cancelled" || statusLower === "canceled") {
+          return <Tag color="gray" style={{ borderRadius: '6px' }}>Đã hủy</Tag>;
+        }
+        if (statusLower === "refunded") {
+          return <Tag color="blue" style={{ borderRadius: '6px' }}>Đã hoàn tiền</Tag>;
+        }
+        if (statusLower === "expired") {
+          return <Tag color="purple" style={{ borderRadius: '6px' }}>Hết hạn</Tag>;
+        }
+        if (statusLower === "timeout") {
+          return <Tag color="cyan" style={{ borderRadius: '6px' }}>Hết thời gian</Tag>;
+        }
+        
+        // Nếu không khớp với bất kỳ trạng thái nào, hiển thị nguyên gốc
+        return <Tag color="default" style={{ borderRadius: '6px' }}>{status}</Tag>;
+      }
+    },
     { 
       title: "Thời gian", 
       dataIndex: "createdAt", 
@@ -726,11 +778,30 @@ const WalletPage: React.FC = () => {
   const approvedRequests = withdrawHistory.filter(r => r.status === "approved").length;
   const rejectedRequests = withdrawHistory.filter(r => r.status === "rejected").length;
   const totalAmount = withdrawHistory.filter(r => r.status === "approved").reduce((sum, r) => sum + (r.amount || 0), 0);
-  const displayWithdrawHistory = showAllWithdraw ? sortedWithdrawHistory : sortedWithdrawHistory.slice(0, 5);
+  
+  // Phân trang cho lịch sử rút tiền
+  const withdrawStartIndex = (withdrawCurrentPage - 1) * withdrawPageSize;
+  const withdrawEndIndex = withdrawStartIndex + withdrawPageSize;
+  const paginatedWithdrawHistory = sortedWithdrawHistory.slice(withdrawStartIndex, withdrawEndIndex);
+
+  const handleWithdrawPageChange = (page: number, size?: number) => {
+    setWithdrawCurrentPage(page);
+    if (size) setWithdrawPageSize(size);
+  };
 
   // Thống kê ví tiền
   const totalDeposit = history.filter(h => h.type === "deposit").reduce((sum, h) => sum + (h.amount || 0), 0);
   const totalWithdraw = history.filter(h => h.type === "withdraw" && h.status === "approved").reduce((sum, h) => sum + Math.abs(h.amount || 0), 0);
+
+  // Phân trang cho lịch sử giao dịch
+  const startIndex = (historyCurrentPage - 1) * historyPageSize;
+  const endIndex = startIndex + historyPageSize;
+  const paginatedHistory = history.slice(startIndex, endIndex);
+
+  const handleHistoryPageChange = (page: number, size?: number) => {
+    setHistoryCurrentPage(page);
+    if (size) setHistoryPageSize(size);
+  };
 
   return (
     <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
@@ -1205,9 +1276,23 @@ const WalletPage: React.FC = () => {
           </Title>
           <Table 
             columns={columns} 
-            dataSource={history} 
+            dataSource={paginatedHistory} 
             rowKey={(r) => r.createdAt + r.amount + r.type} 
-            pagination={false} 
+            pagination={{
+              current: historyCurrentPage,
+              pageSize: historyPageSize,
+              total: history.length,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} giao dịch`,
+              pageSizeOptions: ['5', '10', '20', '50'],
+              onChange: handleHistoryPageChange,
+              onShowSizeChange: handleHistoryPageChange,
+              style: { 
+                textAlign: 'center',
+                marginTop: '16px'
+              }
+            }}
             style={{ marginBottom: 32 }}
             size="middle"
           />
@@ -1301,9 +1386,23 @@ const WalletPage: React.FC = () => {
 
           <Table
             columns={withdrawColumns}
-            dataSource={displayWithdrawHistory}
+            dataSource={paginatedWithdrawHistory}
             rowKey={(r) => r._id}
-            pagination={false}
+            pagination={{
+              current: withdrawCurrentPage,
+              pageSize: withdrawPageSize,
+              total: sortedWithdrawHistory.length,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu rút tiền`,
+              pageSizeOptions: ['5', '10', '20', '50'],
+              onChange: handleWithdrawPageChange,
+              onShowSizeChange: handleWithdrawPageChange,
+              style: { 
+                textAlign: 'center',
+                marginTop: '16px'
+              }
+            }}
             size="middle"
             rowClassName={(record) => {
               if (record.status === "approved") return "table-row-approved";
@@ -1313,17 +1412,7 @@ const WalletPage: React.FC = () => {
             }}
           />
           
-          {sortedWithdrawHistory.length > 5 && (
-            <div style={{ textAlign: "center", marginTop: 16 }}>
-              <Button 
-                type="link" 
-                onClick={() => setShowAllWithdraw(v => !v)}
-                style={{ fontSize: '16px', fontWeight: 500 }}
-              >
-                {showAllWithdraw ? "Ẩn bớt" : "Xem tất cả"}
-              </Button>
-            </div>
-          )}
+
         </Card>
 
         {/* Detail Modal */}
@@ -1480,9 +1569,9 @@ const WalletPage: React.FC = () => {
                   labelStyle={{ fontWeight: 600, color: '#374151' }}
                   contentStyle={{ color: '#1f2937' }}
                 >
-                  <Descriptions.Item label="Mã giao dịch" span={1}>
+                  <Descriptions.Item label="Mã hóa đơn" span={1}>
                     <Text code style={{ fontSize: '14px' }}>
-                      {invoiceModal.data.txId || invoiceModal.data.orderId || 'N/A'}
+                      {invoiceModal.data.invoiceId || 'N/A'}
                     </Text>
                   </Descriptions.Item>
                   <Descriptions.Item label="Ngày giao dịch" span={1}>

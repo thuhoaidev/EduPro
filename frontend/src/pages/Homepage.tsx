@@ -111,6 +111,14 @@ interface Blog {
   createdAt?: string;
 }
 
+interface PublicStatistics {
+  totalUsers: number;
+  totalCourses: number;
+  totalInstructors: number;
+  averageRating: number;
+  totalEnrollments: number;
+}
+
 // Sửa CustomArrow để không truyền currentSlide, slideCount vào DOM
 const CustomArrow = ({ children, ...rest }: {
   children: React.ReactNode;
@@ -225,6 +233,14 @@ const Homepage = () => {
   // Thêm state cho instructors và blogs
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [blogs, setBlogs] = useState<Blog[]>([]);
+  // Thêm state cho thống kê
+  const [statistics, setStatistics] = useState<PublicStatistics>({
+    totalUsers: 0,
+    totalCourses: 0,
+    totalInstructors: 0,
+    averageRating: 4.9,
+    totalEnrollments: 0
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -238,6 +254,17 @@ const Homepage = () => {
           .sort((a, b) => b.reviews - a.reviews || b.rating - a.rating)
           .slice(0, 4);
         setPopularCourses(popular);
+        
+        // Fetch thống kê công khai
+        try {
+          const statsResponse = await fetch('http://localhost:5000/api/statistics/public');
+          if (statsResponse.ok) {
+            const statsData = await statsResponse.json();
+            setStatistics(statsData.data);
+          }
+        } catch (statsError) {
+          console.error('Error fetching statistics:', statsError);
+        }
         
         const response = await fetch('http://localhost:5000/api/blogs/68547db672358427a53d9ece/comments');
         const commentsRes = await response.json();
@@ -443,10 +470,6 @@ const Homepage = () => {
       {/* Stats Section */}
       <SectionWrapper className="stats-section">
         <div className="section-header">
-          <div className="section-badge">
-            <RiseOutlined className="badge-icon" />
-            <span>Thống kê ấn tượng</span>
-          </div>
           <Title level={2} className="section-title">Những con số nổi bật</Title>
           <Text className="section-subtitle">Thể hiện sự tin tưởng và thành công của cộng đồng EduPro</Text>
         </div>
@@ -457,7 +480,9 @@ const Homepage = () => {
               <TeamOutlined />
             </div>
             <div className="modern-stat-label">Học viên</div>
-            <div className="modern-stat-value gradient-blue">1,200<span className="modern-stat-plus">+</span></div>
+            <div className="modern-stat-value gradient-blue">
+              {statistics.totalUsers.toLocaleString()}<span className="modern-stat-plus">+</span>
+            </div>
           </div>
           {/* Khóa học */}
           <div className="modern-stat-card">
@@ -465,7 +490,9 @@ const Homepage = () => {
               <BookOutlined />
             </div>
             <div className="modern-stat-label">Khóa học</div>
-            <div className="modern-stat-value gradient-green">50<span className="modern-stat-plus">+</span></div>
+            <div className="modern-stat-value gradient-green">
+              {statistics.totalCourses.toLocaleString()}<span className="modern-stat-plus">+</span>
+            </div>
           </div>
           {/* Giảng viên */}
           <div className="modern-stat-card">
@@ -473,7 +500,9 @@ const Homepage = () => {
               <CrownOutlined />
             </div>
             <div className="modern-stat-label">Giảng viên</div>
-            <div className="modern-stat-value gradient-orange">12<span className="modern-stat-plus">+</span></div>
+            <div className="modern-stat-value gradient-orange">
+              {statistics.totalInstructors.toLocaleString()}<span className="modern-stat-plus">+</span>
+            </div>
           </div>
           {/* Đánh giá */}
           <div className="modern-stat-card">
@@ -481,7 +510,7 @@ const Homepage = () => {
               <HeartOutlined />
             </div>
             <div className="modern-stat-label">Đánh giá</div>
-            <div className="modern-stat-value gradient-pink">4.9/5</div>
+            <div className="modern-stat-value gradient-pink">{statistics.averageRating}/5</div>
           </div>
         </div>
       </SectionWrapper>
@@ -489,10 +518,6 @@ const Homepage = () => {
       {/* Vouchers Section */}
       <SectionWrapper className="vouchers-section">
         <div className="section-header">
-          <div className="section-badge">
-            <GiftOutlined className="badge-icon" />
-            <span>Ưu đãi đặc biệt</span>
-          </div>
           <Title level={2} className="section-title">
             Mã giảm giá hấp dẫn
           </Title>
@@ -650,10 +675,6 @@ const Homepage = () => {
       {/* Courses Section */}
       <SectionWrapper className="courses-section">
         <div className="section-header">
-          <div className="section-badge">
-            <BookOutlined className="badge-icon" />
-            <span>Khóa học chất lượng</span>
-          </div>
           <Title level={2} className="section-title">Khám phá khóa học</Title>
           <Text className="section-subtitle">Chọn lựa khóa học phù hợp nhất với mục tiêu của bạn</Text>
         </div>
@@ -778,10 +799,6 @@ const Homepage = () => {
       {/* Instructors Section */}
       <SectionWrapper className="instructors-section">
         <div className="section-header">
-          <div className="section-badge">
-            <CrownOutlined className="badge-icon" />
-            <span>Giảng viên tiêu biểu</span>
-          </div>
           <Title level={2} className="section-title">Đội ngũ giảng viên xuất sắc</Title>
           <Text className="section-subtitle">Học hỏi từ các chuyên gia hàng đầu</Text>
         </div>
@@ -823,10 +840,7 @@ const Homepage = () => {
       {/* Blogs Section */}
       <SectionWrapper className="blogs-section">
         <div className="section-header">
-          <div className="section-badge">
-            <BookOutlined className="badge-icon" />
-            <span>Bài viết nổi bật</span>
-          </div>
+      
           <Title level={2} className="section-title">Tin tức & Chia sẻ</Title>
           <Text className="section-subtitle">Cập nhật kiến thức, xu hướng mới nhất</Text>
         </div>
@@ -861,10 +875,6 @@ const Homepage = () => {
       {/* Testimonials Section */}
       <SectionWrapper className="testimonials-section">
         <div className="section-header">
-          <div className="section-badge">
-            <HeartOutlined className="badge-icon" />
-            <span>Đánh giá từ học viên</span>
-          </div>
           <Title level={2} className="section-title">Học viên nói về EduPro</Title>
           <Text className="section-subtitle">Những chia sẻ thực tế từ cộng đồng học viên của chúng tôi</Text>
         </div>

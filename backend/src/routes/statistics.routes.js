@@ -3,6 +3,9 @@ const router = express.Router();
 const statisticsController = require('../controllers/statistics.controller');
 const { auth, checkRole } = require('../middlewares/auth');
 
+// Route công khai cho homepage (không cần authentication)
+router.get('/public', statisticsController.getPublicStatistics);
+
 // Tất cả routes đều yêu cầu đăng nhập và quyền admin hoặc moderator
 router.use(auth);
 router.use(checkRole(['admin', 'moderator']));

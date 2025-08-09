@@ -40,6 +40,15 @@ import './Header.css';
 import { io } from 'socket.io-client';
 import socket from '../../services/socket';
 
+// Extend Window interface for cartContext
+declare global {
+  interface Window {
+    cartContext?: {
+      refreshCart?: () => void;
+    };
+  }
+}
+
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
 const role = localStorage.getItem('role');
@@ -84,7 +93,7 @@ const AppHeader = () => {
       console.log('- Is student:', getRoleName(user) === 'student' || getRoleName(user) === 'học viên');
     }
   };
-  const { cartCount } = useCart();
+  const { cartCount, refreshCart } = useCart();
 
   const [user, setUser] = useState<User | null | false>(null);
   const [loading, setLoading] = useState(true);
@@ -134,6 +143,60 @@ const AppHeader = () => {
       return () => clearInterval(interval);
     }
   }, [user]);
+
+  // Lắng nghe sự kiện mua khóa học thành công để cập nhật cart count
+  useEffect(() => {
+    const handleCoursePurchase = (event: CustomEvent) => {
+      console.log('Header: Course purchased, updating cart count');
+      refreshCart();
+    };
+
+    const handleOrderSuccess = (event: CustomEvent) => {
+      console.log('Header: Order success, updating cart count');
+      refreshCart();
+    };
+
+    const handlePaymentSuccess = (event: CustomEvent) => {
+      console.log('Header: Payment success, updating cart count');
+      refreshCart();
+    };
+
+    // Lắng nghe các sự kiện từ localStorage changes
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'cart' || event.key === 'cartCount') {
+        console.log('Header: Cart storage changed, updating cart count');
+        refreshCart();
+      }
+    };
+
+    // Lắng nghe các sự kiện custom
+    window.addEventListener('course-purchased', handleCoursePurchase as EventListener);
+    window.addEventListener('order-success', handleOrderSuccess as EventListener);
+    window.addEventListener('payment-success', handlePaymentSuccess as EventListener);
+    window.addEventListener('storage', handleStorageChange);
+
+    // Lắng nghe sự kiện từ URL changes (khi quay về từ payment)
+    const handleUrlChange = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromPayment = urlParams.get('fromPayment');
+      const orderSuccess = urlParams.get('orderSuccess');
+      
+      if (fromPayment === 'true' || orderSuccess === 'true') {
+        console.log('Header: URL indicates payment success, updating cart count');
+        refreshCart();
+      }
+    };
+
+    // Kiểm tra URL khi component mount
+    handleUrlChange();
+
+    return () => {
+      window.removeEventListener('course-purchased', handleCoursePurchase as EventListener);
+      window.removeEventListener('order-success', handleOrderSuccess as EventListener);
+      window.removeEventListener('payment-success', handlePaymentSuccess as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [refreshCart]);
 
   useEffect(() => {
     setLoadingNotifications(true);

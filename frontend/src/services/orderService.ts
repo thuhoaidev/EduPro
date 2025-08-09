@@ -28,6 +28,15 @@ export interface Order {
       thumbnail: string;
       price: number;
       discount?: number;
+      // Enriched fields for display on Orders page
+      rating?: number;
+      duration?: string; // e.g. "120 phút"
+      videosCount?: number; // total number of videos
+      students?: number; // enrolled count
+      author?: {
+        name?: string;
+        avatar?: string | null;
+      };
     };
     price: number;
     quantity: number;
@@ -44,7 +53,7 @@ export interface Order {
   };
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   paymentStatus: 'pending' | 'paid' | 'failed';
-  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay';
+  paymentMethod: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay' | 'wallet';
   fullName?: string;
   phone?: string;
   email?: string;

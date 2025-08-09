@@ -5,6 +5,7 @@ interface CartContextType {
   cartCount: number;
   cartItems: any[];
   updateCartCount: () => Promise<void>;
+  refreshCart: () => Promise<void>;
   addToCart: (courseId: string) => Promise<boolean>;
   removeFromCart: (cartItemId: string) => Promise<void>;
   removeItemsFromCart: (cartItemIds: string[]) => Promise<void>;
@@ -56,6 +57,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
   };
+
+  // Alias cho updateCartCount để dễ sử dụng từ bên ngoài
+  const refreshCart = updateCartCount;
 
   const addToCart = async (courseId: string): Promise<boolean> => {
     console.log('addToCart - courseId:', courseId);
@@ -182,10 +186,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [localStorage.getItem('token')]);
 
+  // Expose refreshCart method to window object for external access
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.cartContext = {
+        refreshCart
+      };
+    }
+  }, [refreshCart]);
+
   const value = {
     cartCount,
     cartItems,
     updateCartCount,
+    refreshCart,
     addToCart,
     removeFromCart,
     removeItemsFromCart,
