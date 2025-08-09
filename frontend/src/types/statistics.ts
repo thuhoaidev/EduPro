@@ -13,15 +13,7 @@ export interface StatisticsData {
   orderGrowth: number;
 }
 
-export interface TopCourse {
-  _id: string;
-  title: string;
-  instructor: string;
-  sales: number;
-  revenue: number;
-  rating: number;
-  thumbnail: string;
-}
+
 
 export interface RevenueData {
   date: string;
