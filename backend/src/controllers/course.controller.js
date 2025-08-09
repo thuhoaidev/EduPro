@@ -1,4 +1,5 @@
 const Course = require('../models/Course');
+const mongoose = require('mongoose');
 const InstructorProfile = require('../models/InstructorProfile');
 const {
   uploadBufferToCloudinary,
@@ -1015,18 +1016,21 @@ exports.getCourseBySlug = async (req, res, next) => {
   try {
     const { slug } = req.params;
 
-    const course = await Course.findOne({
-      slug,
-      displayStatus: 'published', // Chỉ hiển thị khóa học có trạng thái published
-    })
-      .populate({
-        path: 'instructor',
-        populate: {
-          path: 'user',
-          select: 'fullname avatar',
-        },
-      })
+    const isPrivileged = req.user && (req.user.roles?.includes('admin') || req.user.roles?.includes('instructor'));
+
+    // Ưu tiên tìm theo slug
+    const slugFilter = isPrivileged ? { slug } : { slug, displayStatus: 'published' };
+    let course = await Course.findOne(slugFilter)
+      .populate({ path: 'instructor', populate: { path: 'user', select: 'fullname avatar' } })
       .populate('category', 'name');
+
+    // Nếu không thấy và slug trông như ObjectId, thử tìm theo _id
+    if (!course && mongoose.Types.ObjectId.isValid(slug)) {
+      const idFilter = isPrivileged ? { _id: slug } : { _id: slug, displayStatus: 'published' };
+      course = await Course.findOne(idFilter)
+        .populate({ path: 'instructor', populate: { path: 'user', select: 'fullname avatar' } })
+        .populate('category', 'name');
+    }
 
     if (!course) {
       throw new ApiError(404, 'Không tìm thấy khóa học');
@@ -1041,21 +1045,14 @@ exports.getCourseBySlug = async (req, res, next) => {
       obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
       obj.discount = obj.discount || 0;
       obj.instructor = course.instructor
-        ? {
-            bio: course.instructor.bio,
-            expertise: course.instructor.expertise,
-            user: course.instructor.user,
-          }
+        ? { bio: course.instructor.bio, expertise: course.instructor.expertise, user: course.instructor.user }
         : null;
       return obj;
     };
 
     const formattedCourse = formatCourse(course);
 
-    res.json({
-      success: true,
-      data: formattedCourse,
-    });
+    res.json({ success: true, data: formattedCourse });
   } catch (error) {
     console.error('\n=== LỖI LẤY KHÓA HỌC THEO SLUG ===');
     console.error('Error name:', error.name);
@@ -1141,30 +1138,44 @@ exports.getCourseById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Không giới hạn displayStatus, cho phép admin xem mọi trạng thái
-    const course = await Course.findOne({ _id: id })
-      .populate('category', 'name')
-      .populate({
-        path: 'instructor',
-        select: 'user bio expertise',
-        populate: {
-          path: 'user',
-          select: 'fullname avatar',
-        },
-      });
+    // Thử tìm theo ObjectId trước; nếu không có, fallback sang slug
+    let course = null;
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(id);
+
+    if (isValidObjectId) {
+      course = await Course.findOne({ _id: id })
+        .populate('category', 'name')
+        .populate({
+          path: 'instructor',
+          select: 'user bio expertise',
+          populate: { path: 'user', select: 'fullname avatar' },
+        });
+    }
+
+    if (!course) {
+      // Fallback tìm theo slug. Public chỉ xem published, instructor/admin xem được tất cả
+      const isPrivileged = req.user && (req.user.roles?.includes('admin') || req.user.roles?.includes('instructor'));
+      const slugQuery = isPrivileged ? { slug: id } : { slug: id, displayStatus: 'published' };
+
+      course = await Course.findOne(slugQuery)
+        .populate('category', 'name')
+        .populate({
+          path: 'instructor',
+          select: 'user bio expertise',
+          populate: { path: 'user', select: 'fullname avatar' },
+        });
+    }
 
     if (!course) {
       throw new ApiError(404, 'Không tìm thấy khóa học');
     }
 
+    const courseIdForSections = course._id;
+
     // Lấy danh sách chương học và bài học
-    const sections = await Section.find({ course_id: id })
+    const sections = await Section.find({ course_id: courseIdForSections })
       .sort({ position: 1 })
-      .populate({
-        path: 'lessons',
-        select: 'title position is_preview',
-        options: { sort: { position: 1 } },
-      });
+      .populate({ path: 'lessons', select: 'title position is_preview', options: { sort: { position: 1 } } });
 
     // Lấy thông tin video và quiz cho từng lesson
     const Video = require('../models/Video');
@@ -1187,25 +1198,15 @@ exports.getCourseById = async (req, res, next) => {
                 status: video.status,
                 url: video.quality_urls?.get('high')?.url || null,
               })),
-              quiz: quiz
-                ? {
-                    _id: quiz._id,
-                    questions: quiz.questions,
-                  }
-                : null,
+              quiz: quiz ? { _id: quiz._id, questions: quiz.questions } : null,
             };
           }),
         );
-        return {
-          _id: section._id,
-          title: section.title,
-          position: section.position,
-          lessons: lessonsWithVideo,
-        };
+        return { _id: section._id, title: section.title, position: section.position, lessons: lessonsWithVideo };
       }),
     );
 
-    // Tăng lượt xem
+    // Tăng lượt xem với course công khai; nếu là instructor/admin thì vẫn tăng
     course.views = (course.views || 0) + 1;
     await course.save();
 
@@ -1213,21 +1214,13 @@ exports.getCourseById = async (req, res, next) => {
       const obj = course.toObject();
       // Tính toán giá cuối cùng dựa trên discount_amount và discount_percentage
       let finalPrice = obj.price;
-      if (obj.discount_percentage > 0) {
-        finalPrice = finalPrice * (1 - obj.discount_percentage / 100);
-      }
-      if (obj.discount_amount > 0) {
-        finalPrice = Math.max(0, finalPrice - obj.discount_amount);
-      }
+      if (obj.discount_percentage > 0) finalPrice = finalPrice * (1 - obj.discount_percentage / 100);
+      if (obj.discount_amount > 0) finalPrice = Math.max(0, finalPrice - obj.discount_amount);
       obj.finalPrice = Math.round(finalPrice);
       obj.discount_amount = obj.discount_amount || 0;
       obj.discount_percentage = obj.discount_percentage || 0;
       obj.instructor = course.instructor
-        ? {
-            bio: course.instructor.bio,
-            expertise: course.instructor.expertise,
-            user: course.instructor.user,
-          }
+        ? { bio: course.instructor.bio, expertise: course.instructor.expertise, user: course.instructor.user }
         : null;
       return obj;
     };
@@ -1236,15 +1229,11 @@ exports.getCourseById = async (req, res, next) => {
 
     // Lấy số lượng học viên đã đăng ký
     const Enrollment = require('../models/Enrollment');
-    const enrolledCount = await Enrollment.countDocuments({ course: id });
+    const enrolledCount = await Enrollment.countDocuments({ course: courseIdForSections });
 
     res.json({
       success: true,
-      data: {
-        ...formattedCourse,
-        sections: sectionsWithVideoDetails,
-        enrolledCount: enrolledCount || 0,
-      },
+      data: { ...formattedCourse, sections: sectionsWithVideoDetails, enrolledCount: enrolledCount || 0 },
     });
   } catch (error) {
     console.error('\n=== LỖI LẤY CHI TIẾT KHÓA HỌC ===');
