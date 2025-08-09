@@ -1267,7 +1267,7 @@ exports.getAllCourses = async (req, res, next) => {
     filter.displayStatus = 'published';
     if (category) filter.category = category;
     if (level) filter.level = level;
-    if (language) filter.language = language;
+
     if (minPrice) filter.price = { ...filter.price, $gte: Number(minPrice) };
     if (maxPrice) filter.price = { ...filter.price, $lte: Number(maxPrice) };
     if (isFree === 'true') filter.is_free = true;

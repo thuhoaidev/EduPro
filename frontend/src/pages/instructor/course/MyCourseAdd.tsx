@@ -67,10 +67,7 @@ const levels = [
       { label: "Nâng cao", value: "advanced" },
 ];
 
-const languages = [
-      { label: "Tiếng Việt", value: "vi" },
-      { label: "Tiếng Anh", value: "en" },
-];
+
 
 interface QuizQuestion {
       question: string;
@@ -87,7 +84,6 @@ interface CourseFormData {
       description: string;
       category: string;
       level: string;
-      language: string;
       price: number;
       discountType?: 'amount' | 'percentage';
       discountAmount?: number;
@@ -278,7 +274,7 @@ const MyCourseAdd: React.FC = () => {
                         !finalValues.description ||
                         finalValues.category == null || finalValues.category === '' ||
                         finalValues.level == null || finalValues.level === '' ||
-                        finalValues.language == null || finalValues.language === '' ||
+
                         finalValues.price === undefined || finalValues.price === null
                   ) {
                         message.error('Vui lòng điền đầy đủ thông tin bắt buộc ở các bước!');
@@ -326,7 +322,7 @@ const MyCourseAdd: React.FC = () => {
                   formData.append('description', finalValues.description || '');
                   formData.append('category', finalValues.category || '');
                   formData.append('level', finalValues.level || '');
-                  formData.append('language', finalValues.language || '');
+
                   formData.append('price', (finalValues.price || 0).toString());
 
                   // Giảm giá (nếu có)
@@ -503,24 +499,7 @@ const MyCourseAdd: React.FC = () => {
                                                       />
                                                 </Form.Item>
                                           </Col>
-                                          <Col span={12}>
-                                                <Form.Item
-                                                      label={
-                                                            <span style={{ fontWeight: 600, color: '#1a1a1a' }}>
-                                                                  Ngôn ngữ
-                                                            </span>
-                                                      }
-                                                      name="language"
-                                                      rules={[{ required: true, message: "Vui lòng chọn ngôn ngữ!" }]}
-                                                >
-                                                      <Select
-                                                            placeholder="Chọn ngôn ngữ"
-                                                            size="large"
-                                                            options={languages}
-                                                            style={{ borderRadius: '8px' }}
-                                                      />
-                                                </Form.Item>
-                                          </Col>
+
                                     </Row>
 
                                     <Form.Item
@@ -1121,17 +1100,7 @@ const MyCourseAdd: React.FC = () => {
                                                             {levels.find(level => level.value === displayValues.level)?.label || 'Chưa chọn'}
                                                       </span>
                                                 </Descriptions.Item>
-                                                <Descriptions.Item
-                                                      label={
-                                                            <span style={{ fontWeight: 600, color: '#1a1a1a' }}>
-                                                                  Ngôn ngữ
-                                                            </span>
-                                                      }
-                                                >
-                                                      <span style={{ color: displayValues.language ? '#1a1a1a' : '#999' }}>
-                                                            {languages.find(lang => lang.value === displayValues.language)?.label || 'Chưa chọn'}
-                                                      </span>
-                                                </Descriptions.Item>
+
                                                 <Descriptions.Item
                                                       label={
                                                             <span style={{ fontWeight: 600, color: '#1a1a1a' }}>

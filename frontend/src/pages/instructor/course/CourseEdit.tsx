@@ -23,6 +23,7 @@ import {
   Tooltip,
   Modal,
   Popconfirm,
+  Radio,
 } from "antd";
 import {
   UploadOutlined,
@@ -43,6 +44,10 @@ import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   LockOutlined,
+  BookOutlined,
+  DollarOutlined,
+  SettingOutlined,
+  BarChartOutlined,
 } from "@ant-design/icons";
 import { useParams, useNavigate } from "react-router-dom";
 import { getCourseById, updateCourse, updateSection, createSection, deleteSection, createLesson, updateLesson, deleteLesson, createVideo, updateVideo, deleteVideo, createQuiz, updateQuiz } from "../../../services/courseService";
@@ -61,7 +66,10 @@ const levels = [
 
 const languages = [
   { label: "Tiếng Việt", value: "vi" },
-  { label: "English", value: "en" },
+  { label: "Tiếng Anh", value: "en" },
+  { label: "Tiếng Trung", value: "zh" },
+  { label: "Tiếng Nhật", value: "ja" },
+  { label: "Tiếng Hàn", value: "ko" },
 ];
 
 const statuses = [
@@ -129,7 +137,7 @@ interface CourseData {
     name: string;
   };
   level: string;
-  language: string;
+
   price: number;
   discount_amount: number;
   discount_percentage: number;
@@ -182,7 +190,10 @@ const EditCourse: React.FC = () => {
   const [showLessonModal, setShowLessonModal] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [lessonForm] = Form.useForm();
-  const [videoFileList, setVideoFileList] = useState<{ [key: number]: any }>({});
+  const [videoFileList, setVideoFileList] = useState<{ [key: number | string]: any }>({});
+  const [draggingQuestionIdx, setDraggingQuestionIdx] = useState<number | null>(null);
+  const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
+  const [showVideoPreview, setShowVideoPreview] = useState(false);
 
   // New modal states
   const [showSectionEditModal, setShowSectionEditModal] = useState(false);
@@ -190,6 +201,70 @@ const EditCourse: React.FC = () => {
   const [showAddSectionModal, setShowAddSectionModal] = useState(false);
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [sectionForm] = Form.useForm();
+  const openVideoPreview = (file: any) => {
+    try {
+      let url: string | null = null;
+      if (file?.url) url = file.url as string;
+      else if (file?.originFileObj) url = URL.createObjectURL(file.originFileObj as File);
+      if (url) {
+        setPreviewVideoUrl(url);
+        setShowVideoPreview(true);
+      } else {
+        message.info('Không có video để xem trước');
+      }
+    } catch (e) {
+      message.error('Không thể xem trước video');
+    }
+  };
+
+  const closeVideoPreview = () => {
+    if (previewVideoUrl && previewVideoUrl.startsWith('blob:')) {
+      try { URL.revokeObjectURL(previewVideoUrl); } catch {}
+    }
+    setShowVideoPreview(false);
+    setPreviewVideoUrl(null);
+  };
+
+  // Chuẩn hóa dữ liệu quiz trước khi gửi backend
+  const sanitizeQuizQuestions = (rawQuestions: any[]): any[] => {
+    if (!Array.isArray(rawQuestions)) return [];
+    return rawQuestions
+      .map((q) => {
+        const questionText = typeof q?.question === 'string' ? q.question.trim() : '';
+        const originalOptions: any[] = Array.isArray(q?.options) ? q.options : [];
+        const parsedCorrect = Number.isInteger(q?.correctIndex)
+          ? q.correctIndex
+          : parseInt(q?.correctIndex, 10);
+        const originalCorrectIndex = Number.isNaN(parsedCorrect) ? -1 : parsedCorrect;
+
+        let newCorrectIndex = -1;
+        const options: string[] = [];
+        originalOptions.forEach((opt, idx) => {
+          const text = typeof opt === 'string' ? opt.trim() : '';
+          if (text) {
+            if (idx === originalCorrectIndex && newCorrectIndex === -1) {
+              newCorrectIndex = options.length;
+            }
+            options.push(text);
+          }
+        });
+
+        if (!questionText || options.length < 2) {
+          return null;
+        }
+
+        if (newCorrectIndex < 0 || newCorrectIndex >= options.length) {
+          newCorrectIndex = 0;
+        }
+
+        return {
+          question: questionText,
+          options,
+          correctIndex: newCorrectIndex,
+        };
+      })
+      .filter(Boolean) as any[];
+  };
 
   // Fetch categories
   useEffect(() => {
@@ -548,7 +623,9 @@ const EditCourse: React.FC = () => {
     lessonForm.setFieldsValue({
       title: '',
       is_preview: false,
-      videos: [{}], // Tạo 1 video entry mặc định
+      video_status: 'draft',
+      video_description: '',
+      video_duration: 0,
       questions: []
     });
     setVideoFileList({});
@@ -607,41 +684,40 @@ const EditCourse: React.FC = () => {
       });
 
       // Xử lý video nếu có
-      console.log('Values videos:', values.videos);
+      console.log('Values video:', values.video_file);
       console.log('Video file list:', videoFileList);
 
-      if (values.videos && values.videos.length > 0) {
-        // Xử lý từng video có file thực sự
-        for (let i = 0; i < values.videos.length; i++) {
-          const videoData = values.videos[i];
-          const videoFile = videoFileList[i]?.originFileObj;
+      if (values.video_file && values.video_file.fileList && values.video_file.fileList.length > 0) {
+        const videoFile = videoFileList.newLesson?.originFileObj;
+        const videoStatus = values.video_status || 'draft';
+        const videoDescription = values.video_description || '';
+        const videoDuration = values.video_duration || 0;
 
-          console.log(`Video ${i}:`, { videoData, videoFile, hasFile: !!videoFile, hasStatus: !!videoData.status });
+        console.log('Video data:', { videoFile, videoStatus, videoDescription, videoDuration });
 
-          // Chỉ tạo video nếu có file và status
-          if (videoFile && videoData.status) {
-            console.log(`Creating video ${i}...`);
-            const formData = new FormData();
-            formData.append('lesson_id', newLesson[0]._id); // Lấy lesson ID từ response
-            formData.append('video', videoFile);
-            formData.append('description', videoData.description || '');
-            formData.append('duration', videoData.duration?.toString() || '0');
-            formData.append('status', videoData.status || 'draft');
+        if (videoFile) {
+          console.log('Creating video...');
+          const formData = new FormData();
+          formData.append('lesson_id', newLesson[0]._id); // Lấy lesson ID từ response
+          formData.append('video', videoFile);
+          formData.append('description', videoDescription);
+          formData.append('duration', videoDuration.toString());
+          formData.append('status', videoStatus);
 
-            await createVideo(newLesson[0]._id, formData);
-            console.log(`Video ${i} created successfully`);
-          } else {
-            console.log(`Skipping video ${i} - no file or status`);
-          }
+          await createVideo(newLesson[0]._id, formData);
+          console.log('Video created successfully');
+        } else {
+          console.log('No video file to process');
         }
       } else {
-        console.log('No videos to process');
+        console.log('No video to process');
       }
 
       // Xử lý quiz nếu có
-      if (values.questions && values.questions.length > 0) {
+      const sanitizedNewQuestions = sanitizeQuizQuestions(values.questions || []);
+      if (sanitizedNewQuestions.length > 0) {
         await createQuiz(newLesson[0]._id, {
-          questions: values.questions
+          questions: sanitizedNewQuestions
         });
       }
 
@@ -744,14 +820,15 @@ const EditCourse: React.FC = () => {
       }
 
       // Xử lý quiz nếu có
-      if (values.questions && values.questions.length > 0) {
+      const sanitizedQuestions = sanitizeQuizQuestions(values.questions || []);
+      if (sanitizedQuestions.length > 0) {
         if (selectedLesson.quiz) {
           await updateQuiz(selectedLesson.quiz._id, {
-            questions: values.questions
+            questions: sanitizedQuestions
           });
         } else {
           await createQuiz(selectedLesson._id, {
-            questions: values.questions
+            questions: sanitizedQuestions
           });
         }
       }
@@ -888,57 +965,101 @@ const EditCourse: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Spin size="large" />
+        <div className="text-center">
+          <Spin size="large" />
+          <div className="mt-4 text-gray-500">Đang tải thông tin khóa học...</div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <Card className="max-w-6xl mx-auto mt-6">
-        <Alert
-          message="Lỗi"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" onClick={() => window.location.reload()}>
-              Thử lại
-            </Button>
-          }
-        />
-      </Card>
+      <div className="max-w-6xl mx-auto mt-6">
+        <Card className="border-red-200 bg-red-50">
+          <Alert
+            message="Lỗi"
+            description={error}
+            type="error"
+            showIcon
+            action={
+              <Button size="small" onClick={() => window.location.reload()}>
+                Thử lại
+              </Button>
+            }
+          />
+        </Card>
+      </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto mt-6">
+    <div className="max-w-7xl mx-auto mt-6 px-4">
       {/* Course Info Header */}
       {course && (
-        <Card className="mb-6">
-          <Row gutter={16} align="middle">
+        <Card className="mb-8 border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50">
+          <Row gutter={24} align="middle">
             <Col span={4}>
-              <img
-                src={course.thumbnail}
-                alt={course.title}
-                style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '8px' }}
-              />
+              <div className="relative">
+                <img
+                  src={course.thumbnail}
+                  alt={course.title}
+                  className="w-full h-24 object-cover rounded-2xl shadow-md border-4 border-white"
+                />
+                <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-semibold shadow-lg">
+                  {course.sections?.length || 0} chương
+                </div>
+              </div>
             </Col>
             <Col span={20}>
-              <Title level={3} style={{ margin: 0 }}>{course.title}</Title>
-              <Space size="small" className="mt-2">
-                <Tag color="blue">{course.category?.name}</Tag>
-                <Tag color="green">{levels.find(l => l.value === course.level)?.label}</Tag>
-                <Tag color="orange">{languages.find(l => l.value === course.language)?.label}</Tag>
-                <Tag color={getStatusColor(course.status)}>
-                  {statuses.find(s => s.value === course.status)?.label}
-                </Tag>
-                {course.enrolledCount && course.enrolledCount > 0 && (
-                  <Tag color="purple">👥 {course.enrolledCount} học viên</Tag>
-                )}
-                {course.views && <Tag color="purple">👁 {course.views} lượt xem</Tag>}
-                {course.rating && <Tag color="gold">⭐ {course.rating}/5 ({course.totalReviews} đánh giá)</Tag>}
-              </Space>
+              <Title level={2} className="mb-3 text-gray-800" style={{ margin: 0 }}>
+                {course.title}
+              </Title>
+              <div className="mb-4">
+                <Space size="small" wrap>
+                  <Tag color="blue" className="px-3 py-1 rounded-full font-medium">
+                    📚 {course.category?.name}
+                  </Tag>
+                  <Tag color="green" className="px-3 py-1 rounded-full font-medium">
+                    🎯 {levels.find(l => l.value === course.level)?.label}
+                  </Tag>
+                  <Tag color={getStatusColor(course.status)} className="px-3 py-1 rounded-full font-medium">
+                    {course.status === 'approved' ? '✅' : course.status === 'pending' ? '⏳' : course.status === 'rejected' ? '❌' : '📝'} 
+                    {statuses.find(s => s.value === course.status)?.label}
+                  </Tag>
+                  {course.enrolledCount && course.enrolledCount > 0 && (
+                    <Tag color="purple" className="px-3 py-1 rounded-full font-medium">
+                      👥 {course.enrolledCount} học viên
+                    </Tag>
+                  )}
+                  {course.views && (
+                    <Tag color="purple" className="px-3 py-1 rounded-full font-medium">
+                      👁 {course.views} lượt xem
+                    </Tag>
+                  )}
+                  {course.rating && (
+                    <Tag color="gold" className="px-3 py-1 rounded-full font-medium">
+                      ⭐ {course.rating}/5 ({course.totalReviews} đánh giá)
+                    </Tag>
+                  )}
+                </Space>
+              </div>
+              <div className="flex items-center gap-6 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <BookOutlined className="text-blue-500" />
+                  <span>Tổng {course.sections?.reduce((total, section) => total + (section.lessons?.length || 0), 0) || 0} bài học</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <DollarOutlined className="text-green-500" />
+                  <span className="font-semibold">
+                    {course.price === 0 ? 'Miễn phí' : `${course.price.toLocaleString('vi-VN')} VNĐ`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <SettingOutlined className="text-orange-500" />
+                  <span>Cập nhật: {new Date(course.updatedAt).toLocaleDateString('vi-VN')}</span>
+                </div>
+              </div>
             </Col>
           </Row>
         </Card>
@@ -952,21 +1073,26 @@ const EditCourse: React.FC = () => {
           type="warning"
           showIcon
           icon={<WarningOutlined />}
-          className="mb-6"
+          className="mb-8 border-orange-200 bg-orange-50 rounded-xl"
         />
       )}
 
       <Card
         title={
-          <Space>
-            <InfoCircleOutlined />
-            <span>Chỉnh sửa thông tin khóa học</span>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+              <InfoCircleOutlined className="text-white text-lg" />
+            </div>
+            <div>
+              <div className="text-xl font-semibold text-gray-800">Chỉnh sửa thông tin khóa học</div>
+              <div className="text-sm text-gray-500">Cập nhật thông tin cơ bản, giá cả và nội dung</div>
+            </div>
             {!permissions.canEditBasicInfo && (
-              <Tag color="red" icon={<LockOutlined />}>
+              <Tag color="red" icon={<LockOutlined />} className="ml-auto">
                 Chế độ xem chỉ
               </Tag>
             )}
-          </Space>
+          </div>
         }
         extra={
           <Button
@@ -975,10 +1101,13 @@ const EditCourse: React.FC = () => {
             loading={saving}
             onClick={() => form.submit()}
             disabled={!permissions.canEditBasicInfo}
+            size="large"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200"
           >
             Lưu thay đổi
           </Button>
         }
+        className="border-0 shadow-lg mb-8"
       >
         <Form
           form={form}
@@ -989,16 +1118,30 @@ const EditCourse: React.FC = () => {
             sections: [{ title: '' }],
           }}
         >
-          <Row gutter={24}>
+          <Row gutter={32}>
             <Col span={16}>
               {/* Basic Information */}
-              <Card title="Thông tin cơ bản" className="mb-6">
+              <Card 
+                title={
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                      <BookOutlined className="text-white" />
+                    </div>
+                    <span className="text-lg font-semibold">Thông tin cơ bản</span>
+                  </div>
+                }
+                className="mb-8 border-0 shadow-md hover:shadow-lg transition-all duration-200"
+              >
                 <Form.Item
                   label="Tiêu đề khóa học"
                   name="title"
                   rules={[{ required: true, message: "Vui lòng nhập tiêu đề!" }]}
                 >
-                  <Input placeholder="Nhập tiêu đề khóa học" />
+                  <Input 
+                    placeholder="Nhập tiêu đề khóa học" 
+                    size="large"
+                    className="rounded-lg"
+                  />
                 </Form.Item>
 
                 <Form.Item
@@ -1009,6 +1152,7 @@ const EditCourse: React.FC = () => {
                   <TextArea
                     rows={4}
                     placeholder="Mô tả chi tiết về khóa học"
+                    className="rounded-lg"
                   />
                 </Form.Item>
 
@@ -1023,6 +1167,8 @@ const EditCourse: React.FC = () => {
                         placeholder="Chọn danh mục"
                         loading={categoriesLoading}
                         showSearch
+                        size="large"
+                        className="rounded-lg"
                         filterOption={(input, option) =>
                           (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
                         }
@@ -1041,7 +1187,11 @@ const EditCourse: React.FC = () => {
                       name="level"
                       rules={[{ required: true, message: "Chọn trình độ!" }]}
                     >
-                      <Select placeholder="Chọn trình độ">
+                      <Select 
+                        placeholder="Chọn trình độ"
+                        size="large"
+                        className="rounded-lg"
+                      >
                         {levels.map(level => (
                           <Select.Option key={level.value} value={level.value}>
                             {level.label}
@@ -1055,26 +1205,15 @@ const EditCourse: React.FC = () => {
                 <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item
-                      label="Ngôn ngữ"
-                      name="language"
-                      rules={[{ required: true, message: "Chọn ngôn ngữ!" }]}
-                    >
-                      <Select placeholder="Chọn ngôn ngữ">
-                        {languages.map(lang => (
-                          <Select.Option key={lang.value} value={lang.value}>
-                            {lang.label}
-                          </Select.Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item
                       label="Trạng thái"
                       name="status"
                       rules={[{ required: true, message: "Chọn trạng thái!" }]}
                     >
-                      <Select placeholder="Chọn trạng thái">
+                      <Select 
+                        placeholder="Chọn trạng thái"
+                        size="large"
+                        className="rounded-lg"
+                      >
                         {statuses.map(status => (
                           <Select.Option key={status.value} value={status.value}>
                             {status.label}
@@ -1083,21 +1222,26 @@ const EditCourse: React.FC = () => {
                       </Select>
                     </Form.Item>
                   </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      label="Trạng thái hiển thị"
+                      name="displayStatus"
+                      rules={[{ required: true, message: "Chọn trạng thái hiển thị!" }]}
+                    >
+                      <Select 
+                        placeholder="Chọn trạng thái hiển thị"
+                        size="large"
+                        className="rounded-lg"
+                      >
+                        {displayStatuses.map(status => (
+                          <Select.Option key={status.value} value={status.value}>
+                            {status.label}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
                 </Row>
-
-                <Form.Item
-                  label="Trạng thái hiển thị"
-                  name="displayStatus"
-                  rules={[{ required: true, message: "Chọn trạng thái hiển thị!" }]}
-                >
-                  <Select placeholder="Chọn trạng thái hiển thị">
-                    {displayStatuses.map(status => (
-                      <Select.Option key={status.value} value={status.value}>
-                        {status.label}
-                      </Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
 
                 {course?.rejection_reason && (
                   <Form.Item
@@ -1108,6 +1252,7 @@ const EditCourse: React.FC = () => {
                       rows={3}
                       placeholder="Lý do từ chối (nếu có)"
                       disabled
+                      className="rounded-lg bg-red-50 border-red-200"
                     />
                   </Form.Item>
                 )}
@@ -1115,15 +1260,20 @@ const EditCourse: React.FC = () => {
 
               {/* Pricing Information */}
               <Card
-                title="Thông tin giá"
-                className="mb-6"
-                extra={
-                  !permissions.canEditPricing && (
-                    <Tag color="red" icon={<LockOutlined />}>
-                      Không thể chỉnh sửa
-                    </Tag>
-                  )
+                title={
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                      <DollarOutlined className="text-white" />
+                    </div>
+                    <span className="text-lg font-semibold">Thông tin giá</span>
+                    {!permissions.canEditPricing && (
+                      <Tag color="red" icon={<LockOutlined />} className="ml-auto">
+                        Không thể chỉnh sửa
+                      </Tag>
+                    )}
+                  </div>
                 }
+                className="mb-8 border-0 shadow-md hover:shadow-lg transition-all duration-200"
               >
                 <Row gutter={16}>
                   <Col span={12}>
@@ -1135,6 +1285,8 @@ const EditCourse: React.FC = () => {
                       <InputNumber
                         style={{ width: "100%" }}
                         min={0}
+                        size="large"
+                        className="rounded-lg"
                         placeholder="Nhập giá khóa học (0 = miễn phí)"
                         formatter={(value) =>
                           value !== undefined && value !== null
@@ -1144,7 +1296,7 @@ const EditCourse: React.FC = () => {
                         disabled={!permissions.canEditPricing}
                       />
                     </Form.Item>
-                    <div style={{ color: '#888', fontSize: 12, marginTop: -12, marginBottom: 12 }}>
+                    <div className="text-gray-500 text-sm -mt-3 mb-4">
                       Nhập <b>0</b> nếu muốn tạo khóa học miễn phí.
                     </div>
                   </Col>
@@ -1155,6 +1307,8 @@ const EditCourse: React.FC = () => {
                         onChange={handleDiscountTypeChange}
                         placeholder="Chọn loại giảm giá"
                         disabled={!permissions.canEditPricing}
+                        size="large"
+                        className="rounded-lg"
                       >
                         {discountTypes.map(type => (
                           <Select.Option key={type.value} value={type.value}>
@@ -1175,6 +1329,8 @@ const EditCourse: React.FC = () => {
                     min={0}
                     max={discountType === "percentage" ? 100 : undefined}
                     placeholder={discountType === "amount" ? "Nhập số tiền giảm" : "Nhập phần trăm giảm"}
+                    size="large"
+                    className="rounded-lg"
                     formatter={(value) =>
                       discountType === "amount"
                         ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
@@ -1186,29 +1342,45 @@ const EditCourse: React.FC = () => {
               </Card>
 
               {/* Requirements */}
-              <Card title="Yêu cầu trước khóa học" className="mb-6">
+              <Card 
+                title={
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+                      <CheckCircleOutlined className="text-white" />
+                    </div>
+                    <span className="text-lg font-semibold">Yêu cầu trước khóa học</span>
+                  </div>
+                }
+                className="mb-8 border-0 shadow-md hover:shadow-lg transition-all duration-200"
+              >
                 <Form.List name="requirements">
                   {(fields, { add, remove }) => (
                     <>
                       {fields.map(({ key, name }) => (
-                        <Space key={key} align="baseline" className="mb-2">
-                          <Form.Item
-                            name={name}
-                            rules={[{ required: true, message: "Nhập nội dung yêu cầu" }]}
-                          >
-                            <Input
-                              placeholder="VD: Có kiến thức cơ bản về JavaScript"
-                              style={{ width: 400 }}
-                              disabled={!permissions.canEditContent}
-                            />
-                          </Form.Item>
+                        <div key={key} className="flex items-center gap-3 mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex-1">
+                            <Form.Item
+                              name={name}
+                              rules={[{ required: true, message: "Nhập nội dung yêu cầu" }]}
+                              className="mb-0"
+                            >
+                              <Input
+                                placeholder="VD: Có kiến thức cơ bản về JavaScript"
+                                className="rounded-lg"
+                                disabled={!permissions.canEditContent}
+                              />
+                            </Form.Item>
+                          </div>
                           {permissions.canEditContent && (
-                            <MinusCircleOutlined
+                            <Button
+                              type="text"
+                              danger
+                              icon={<MinusCircleOutlined />}
                               onClick={() => remove(name)}
-                              style={{ color: '#ff4d4f' }}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
                             />
                           )}
-                        </Space>
+                        </div>
                       ))}
                       {permissions.canEditContent && (
                         <Form.Item>
@@ -1217,6 +1389,8 @@ const EditCourse: React.FC = () => {
                             onClick={() => add()}
                             icon={<PlusOutlined />}
                             block
+                            size="large"
+                            className="border-2 border-dashed border-blue-300 text-blue-600 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50 rounded-xl"
                           >
                             Thêm yêu cầu
                           </Button>
@@ -1229,7 +1403,14 @@ const EditCourse: React.FC = () => {
 
               {/* Course Sections with Lessons */}
               <Card
-                title="Chương trình học"
+                title={
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <FileTextOutlined className="text-white" />
+                    </div>
+                    <span className="text-lg font-semibold">Chương trình học</span>
+                  </div>
+                }
                 extra={
                   <Space>
                     {permissions.canAddLessons && (
@@ -1237,18 +1418,20 @@ const EditCourse: React.FC = () => {
                         type="primary"
                         icon={<PlusOutlined />}
                         onClick={handleAddSection}
-                        size="small"
+                        size="large"
+                        className="bg-gradient-to-r from-purple-500 to-purple-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200"
                       >
                         Thêm chương
                       </Button>
                     )}
                     {!permissions.canEditContent && (
-                      <Tag color="orange" icon={<InfoCircleOutlined />}>
+                      <Tag color="orange" icon={<InfoCircleOutlined />} className="px-3 py-1 rounded-full">
                         Chỉ được thêm mới
                       </Tag>
                     )}
                   </Space>
                 }
+                className="border-0 shadow-md hover:shadow-lg transition-all duration-200"
               >
                 {course?.sections && course.sections.length > 0 ? (
                   <Collapse
@@ -1260,59 +1443,57 @@ const EditCourse: React.FC = () => {
                     {course.sections.map((section, sectionIndex) => (
                       <Panel
                         key={section._id}
-                        className="mb-4 border border-gray-200 rounded-xl shadow-sm bg-white"
+                        className="mb-6 border-0 shadow-lg bg-white rounded-2xl overflow-hidden"
                         header={
-                          <div className="flex items-center justify-between w-full py-2">
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl text-lg font-bold shadow-sm">
+                          <div className="flex items-center justify-between w-full py-4">
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl text-xl font-bold shadow-lg">
                                 {sectionIndex + 1}
                               </div>
                               <div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">
                                   {section.title}
                                 </h3>
                                 {section.description && (
-                                  <p className="text-sm text-gray-500 line-clamp-1">
+                                  <p className="text-sm text-gray-600 line-clamp-1 max-w-md">
                                     {section.description}
                                   </p>
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full">
-                                <FileTextOutlined className="text-blue-600 text-sm" />
-                                <span className="text-sm font-medium text-blue-700">
-                                  {section.lessons?.length || 0} bài học
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full">
+                                <FileTextOutlined className="text-blue-600 text-lg" />
+                                <span className="text-sm font-semibold text-blue-700">
+                                  {section.lessons?.length || 0}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 {permissions.canEditContent && (
                                   <Button
                                     type="text"
-                                    size="small"
+                                    size="large"
                                     icon={<EditOutlined />}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleEditSection(section);
                                     }}
-                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg"
                                   >
-                                    Sửa chương
                                   </Button>
                                 )}
                                 {permissions.canEditContent && (
                                   <Button
                                     type="text"
-                                    size="small"
+                                    size="large"
                                     icon={<DeleteOutlined />}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleDeleteSection(section);
                                     }}
                                     loading={deletingSection}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
                                   >
-                                    Xóa chương
                                   </Button>
                                 )}
                               </div>
@@ -1322,30 +1503,30 @@ const EditCourse: React.FC = () => {
                       >
                         {section.lessons && section.lessons.length > 0 ? (
                           <>
-                            <div className="space-y-3">
+                            <div className="space-y-4">
                               {section.lessons.map((lesson, lessonIndex) => (
                                 <div
                                   key={lesson._id}
-                                  className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200 group"
+                                  className="bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 group"
                                 >
                                   <div className="flex items-start justify-between">
                                     {/* Lesson Info */}
                                     <div className="flex-1">
-                                      <div className="flex items-center gap-3 mb-3">
-                                        <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full text-sm font-semibold">
+                                      <div className="flex items-center gap-4 mb-4">
+                                        <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 text-blue-700 rounded-2xl text-lg font-bold">
                                           {lessonIndex + 1}
                                         </div>
                                         <div className="flex-1">
-                                          <h4 className="text-base font-semibold text-gray-900 mb-1">
+                                          <h4 className="text-lg font-bold text-gray-900 mb-2">
                                             {lesson.title}
                                           </h4>
-                                          <div className="flex items-center gap-2">
+                                          <div className="flex items-center gap-3">
                                             {lesson.is_preview && (
-                                              <Tag color="green" icon={<EyeOutlined />} className="text-xs">
+                                              <Tag color="green" icon={<EyeOutlined />} className="text-xs px-3 py-1 rounded-full">
                                                 Xem trước
                                               </Tag>
                                             )}
-                                            <span className="text-xs text-gray-500">
+                                            <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                                               Bài học #{lesson.position || lessonIndex + 1}
                                             </span>
                                           </div>
@@ -1353,32 +1534,32 @@ const EditCourse: React.FC = () => {
                                       </div>
 
                                       {/* Lesson Content Status */}
-                                      <div className="flex items-center gap-4">
+                                      <div className="flex items-center gap-6">
                                         {/* Video Status */}
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-3">
                                           {(lesson.videos && lesson.videos.length > 0) || lesson.video ? (
-                                            <div className="flex items-center gap-2 px-3 py-1 bg-green-50 border border-green-200 rounded-full">
-                                              <PlayCircleOutlined className="text-green-600 text-sm" />
-                                              <span className="text-xs font-medium text-green-700">
+                                            <div className="flex items-center gap-3 px-4 py-2 bg-green-50 border border-green-200 rounded-full">
+                                              <PlayCircleOutlined className="text-green-600 text-lg" />
+                                              <span className="text-sm font-semibold text-green-700">
                                                 {lesson.videos ? lesson.videos.length : 1} video
                                                 {lesson.videos && lesson.videos.length > 0 && (
-                                                  <span className="ml-1">
+                                                  <span className="ml-2 text-green-600">
                                                     ({lesson.videos.reduce((total, v) => total + (v.duration || 0), 0) > 0
                                                       ? formatDuration(lesson.videos.reduce((total, v) => total + (v.duration || 0), 0))
                                                       : 'N/A'})
                                                   </span>
                                                 )}
                                                 {lesson.videos && lesson.videos.length > 1 && (
-                                                  <span className="ml-1 text-blue-600">
+                                                  <span className="ml-2 text-blue-600 font-medium">
                                                     (Nhiều video)
                                                   </span>
                                                 )}
                                               </span>
                                             </div>
                                           ) : (
-                                            <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-full">
-                                              <VideoCameraOutlined className="text-orange-600 text-sm" />
-                                              <span className="text-xs font-medium text-orange-700">
+                                            <div className="flex items-center gap-3 px-4 py-2 bg-orange-50 border border-orange-200 rounded-full">
+                                              <VideoCameraOutlined className="text-orange-600 text-lg" />
+                                              <span className="text-sm font-semibold text-orange-700">
                                                 Chưa có video
                                               </span>
                                             </div>
@@ -1386,18 +1567,18 @@ const EditCourse: React.FC = () => {
                                         </div>
 
                                         {/* Quiz Status */}
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-3">
                                           {lesson.quiz ? (
-                                            <div className="flex items-center gap-2 px-3 py-1 bg-purple-50 border border-purple-200 rounded-full">
-                                              <QuestionCircleOutlined className="text-purple-600 text-sm" />
-                                              <span className="text-xs font-medium text-purple-700">
+                                            <div className="flex items-center gap-3 px-4 py-2 bg-purple-50 border border-purple-200 rounded-full">
+                                              <QuestionCircleOutlined className="text-purple-600 text-lg" />
+                                              <span className="text-sm font-semibold text-purple-700">
                                                 {lesson.quiz.questions?.length || 0} câu hỏi
                                               </span>
                                             </div>
                                           ) : (
-                                            <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-full">
-                                              <QuestionCircleOutlined className="text-orange-600 text-sm" />
-                                              <span className="text-xs font-medium text-orange-700">
+                                            <div className="flex items-center gap-3 px-4 py-2 bg-orange-50 border border-orange-200 rounded-full">
+                                              <QuestionCircleOutlined className="text-orange-600 text-lg" />
+                                              <span className="text-sm font-semibold text-orange-700">
                                                 Chưa có quiz
                                               </span>
                                             </div>
@@ -1407,24 +1588,25 @@ const EditCourse: React.FC = () => {
 
                                       {/* Hiển thị danh sách video chi tiết nếu có nhiều video */}
                                       {lesson.videos && lesson.videos.length > 1 && (
-                                        <div className="mt-3 p-2 bg-gray-50 rounded-lg">
-                                          <div className="text-xs text-gray-600 mb-2">Danh sách video:</div>
-                                          <div className="space-y-1">
+                                        <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                          <div className="text-sm text-gray-700 mb-3 font-medium">Danh sách video:</div>
+                                          <div className="space-y-2">
                                             {lesson.videos.map((video, index) => (
-                                              <div key={video._id} className="flex items-center justify-between text-xs">
-                                                <div className="flex items-center gap-2">
-                                                  <PlayCircleOutlined className="text-blue-500" />
-                                                  <span className="text-gray-700">
+                                              <div key={video._id} className="flex items-center justify-between text-sm p-3 bg-white rounded-lg border border-gray-200">
+                                                <div className="flex items-center gap-3">
+                                                  <PlayCircleOutlined className="text-blue-500 text-lg" />
+                                                  <span className="text-gray-800 font-medium">
                                                     {video.title || `Video ${index + 1}`}
                                                   </span>
                                                   <span className="text-gray-500">
                                                     ({formatDuration(video.duration || 0)})
                                                   </span>
                                                 </div>
-                                                <span className={`px-2 py-1 rounded text-xs ${video.status === 'published'
-                                                  ? 'bg-green-100 text-green-700'
-                                                  : 'bg-yellow-100 text-yellow-700'
-                                                  }`}>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                  video.status === 'published'
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-yellow-100 text-yellow-700'
+                                                }`}>
                                                   {video.status === 'published' ? 'Công khai' : 'Nháp'}
                                                 </span>
                                               </div>
@@ -1435,25 +1617,25 @@ const EditCourse: React.FC = () => {
                                     </div>
 
                                     {/* Action Buttons */}
-                                    <div className="flex items-center gap-2 ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <div className="flex items-center gap-3 ml-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                       {permissions.canEditLessons ? (
                                         <Tooltip title="Sửa bài học">
                                           <Button
                                             type="text"
-                                            size="small"
+                                            size="large"
                                             icon={<EditOutlined />}
                                             onClick={() => handleEditLesson(lesson)}
-                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl"
                                           />
                                         </Tooltip>
                                       ) : (
                                         <Tooltip title="Không thể chỉnh sửa khi đã có học viên">
                                           <Button
                                             type="text"
-                                            size="small"
+                                            size="large"
                                             icon={<LockOutlined />}
                                             disabled
-                                            className="text-gray-400"
+                                            className="text-gray-400 rounded-xl"
                                           />
                                         </Tooltip>
                                       )}
@@ -1462,21 +1644,21 @@ const EditCourse: React.FC = () => {
                                         <Tooltip title="Xóa bài học">
                                           <Button
                                             type="text"
-                                            size="small"
+                                            size="large"
                                             icon={<DeleteOutlined />}
                                             onClick={() => handleDeleteLesson(lesson)}
                                             loading={deletingLesson}
-                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl"
                                           />
                                         </Tooltip>
                                       ) : (
                                         <Tooltip title="Không thể xóa khi đã có học viên">
                                           <Button
                                             type="text"
-                                            size="small"
+                                            size="large"
                                             icon={<LockOutlined />}
                                             disabled
-                                            className="text-gray-400"
+                                            className="text-gray-400 rounded-xl"
                                           />
                                         </Tooltip>
                                       )}
@@ -1487,12 +1669,12 @@ const EditCourse: React.FC = () => {
                             </div>
 
                             {permissions.canAddLessons && (
-                              <div className="text-center py-6">
+                              <div className="text-center py-8">
                                 <Button
                                   type="dashed"
                                   icon={<PlusOutlined />}
                                   onClick={() => handleAddLesson(section)}
-                                  className="border-2 border-dashed border-blue-300 text-blue-600 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50"
+                                  className="border-3 border-dashed border-blue-300 text-blue-600 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50 rounded-2xl"
                                   size="large"
                                 >
                                   Thêm bài học mới
@@ -1501,13 +1683,13 @@ const EditCourse: React.FC = () => {
                             )}
                           </>
                         ) : (
-                          <div className="text-center py-12">
-                            <div className="bg-gray-50 rounded-2xl p-8 border-2 border-dashed border-gray-200">
-                              <FileTextOutlined className="text-4xl text-gray-400 mb-4" />
-                              <h3 className="text-lg font-medium text-gray-600 mb-2">
+                          <div className="text-center py-16">
+                            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-12 border-3 border-dashed border-gray-300">
+                              <FileTextOutlined className="text-6xl text-gray-400 mb-6" />
+                              <h3 className="text-2xl font-semibold text-gray-600 mb-3">
                                 Chưa có bài học nào
                               </h3>
-                              <p className="text-sm text-gray-500 mb-6">
+                              <p className="text-lg text-gray-500 mb-8 max-w-md mx-auto">
                                 Bắt đầu thêm bài học đầu tiên cho chương này
                               </p>
                               {permissions.canAddLessons && (
@@ -1516,7 +1698,7 @@ const EditCourse: React.FC = () => {
                                   icon={<PlusOutlined />}
                                   onClick={() => handleAddLesson(section)}
                                   size="large"
-                                  className="bg-blue-600 hover:bg-blue-700 border-blue-600 hover:border-blue-700"
+                                  className="bg-gradient-to-r from-blue-500 to-blue-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl px-8 py-4 h-auto text-lg"
                                 >
                                   Thêm bài học đầu tiên
                                 </Button>
@@ -1528,13 +1710,13 @@ const EditCourse: React.FC = () => {
                     ))}
                   </Collapse>
                 ) : (
-                  <div className="text-center py-12">
-                    <div className="bg-gray-50 rounded-2xl p-8 border-2 border-dashed border-gray-200">
-                      <FileTextOutlined className="text-4xl text-gray-400 mb-4" />
-                      <h3 className="text-lg font-medium text-gray-600 mb-2">
+                  <div className="text-center py-16">
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl p-12 border-3 border-dashed border-gray-300">
+                      <FileTextOutlined className="text-6xl text-gray-400 mb-6" />
+                      <h3 className="text-2xl font-semibold text-gray-600 mb-3">
                         Chưa có chương học nào
                       </h3>
-                      <p className="text-sm text-gray-500 mb-6">
+                      <p className="text-lg text-gray-500 mb-8 max-w-md mx-auto">
                         Bắt đầu tạo chương học đầu tiên cho khóa học này
                       </p>
                       {permissions.canAddLessons && (
@@ -1543,7 +1725,7 @@ const EditCourse: React.FC = () => {
                           icon={<PlusOutlined />}
                           onClick={handleAddSection}
                           size="large"
-                          className="bg-blue-600 hover:bg-blue-700 border-blue-600 hover:border-blue-700"
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl px-8 py-4 h-auto text-lg"
                         >
                           Thêm chương học đầu tiên
                         </Button>
@@ -1556,7 +1738,17 @@ const EditCourse: React.FC = () => {
 
             <Col span={8}>
               {/* Thumbnail Upload */}
-              <Card title="Ảnh đại diện" className="mb-6">
+              <Card 
+                title={
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg flex items-center justify-center">
+                      <UploadOutlined className="text-white" />
+                    </div>
+                    <span className="text-lg font-semibold">Ảnh đại diện</span>
+                  </div>
+                }
+                className="mb-8 border-0 shadow-md hover:shadow-lg transition-all duration-200"
+              >
                 <Form.Item name="thumbnail">
                   <Upload
                     listType="picture-card"
@@ -1566,88 +1758,129 @@ const EditCourse: React.FC = () => {
                     fileList={fileList}
                     onChange={({ fileList }) => setFileList(fileList)}
                     disabled={!permissions.canEditBasicInfo}
+                    className="rounded-xl"
                   >
                     {fileList.length < 1 && (
-                      <div>
-                        <PlusOutlined />
-                        <div style={{ marginTop: 8 }}>Tải ảnh</div>
+                      <div className="text-center">
+                        <PlusOutlined className="text-2xl text-blue-500 mb-2" />
+                        <div className="text-blue-600 font-medium">Tải ảnh</div>
                       </div>
                     )}
                   </Upload>
                 </Form.Item>
-                <Text type="secondary" style={{ fontSize: '12px' }}>
+                <Text type="secondary" className="text-xs leading-relaxed">
                   Kích thước khuyến nghị: 800x450px. Định dạng: JPG, PNG, GIF.
                 </Text>
               </Card>
 
               {/* Course Statistics */}
               {course && (
-                <Card title="Thống kê khóa học">
-                  <Descriptions column={1} size="small">
-                    <Descriptions.Item label="Lượt xem">
-                      {course.views || 0}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Đánh giá trung bình">
-                      {course.rating ? `${course.rating}/5` : 'Chưa có'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Số đánh giá">
-                      {course.totalReviews || 0}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Học viên đã đăng ký">
-                      {course.enrolledCount || 0}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Số chương">
-                      {course.sections?.length || 0}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Tổng bài học">
-                      {course.sections?.reduce((total, section) => total + (section.lessons?.length || 0), 0) || 0}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Bài học có video">
-                      {course.sections?.reduce((total, section) =>
-                        total + (section.lessons?.filter(lesson =>
-                          (lesson.videos && lesson.videos.length > 0) || lesson.video
-                        )?.length || 0), 0) || 0}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Bài học có quiz">
-                      {course.sections?.reduce((total, section) =>
-                        total + (section.lessons?.filter(lesson => lesson.quiz)?.length || 0), 0) || 0}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Ngày tạo">
-                      {new Date(course.createdAt).toLocaleDateString('vi-VN')}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Cập nhật lần cuối">
-                      {new Date(course.updatedAt).toLocaleDateString('vi-VN')}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Slug">
-                      <Text code>{course.slug}</Text>
-                    </Descriptions.Item>
-                  </Descriptions>
+                <Card 
+                  title={
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                        <BarChartOutlined className="text-white" />
+                      </div>
+                      <span className="text-lg font-semibold">Thống kê khóa học</span>
+                    </div>
+                  }
+                  className="border-0 shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-200">
+                        <div className="text-2xl font-bold text-blue-600">{course.views || 0}</div>
+                        <div className="text-sm text-blue-700">Lượt xem</div>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 rounded-xl border border-green-200">
+                        <div className="text-2xl font-bold text-green-600">{course.rating ? `${course.rating}/5` : '0'}</div>
+                        <div className="text-sm text-green-700">Đánh giá</div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-4 bg-purple-50 rounded-xl border border-purple-200">
+                        <div className="text-2xl font-bold text-purple-600">{course.totalReviews || 0}</div>
+                        <div className="text-sm text-purple-700">Số đánh giá</div>
+                      </div>
+                      <div className="text-center p-4 bg-orange-50 rounded-xl border border-orange-200">
+                        <div className="text-2xl font-bold text-orange-600">{course.enrolledCount || 0}</div>
+                        <div className="text-sm text-orange-700">Học viên</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="text-gray-600">Số chương:</span>
+                        <span className="font-semibold text-gray-800">{course.sections?.length || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="text-gray-600">Tổng bài học:</span>
+                        <span className="font-semibold text-gray-800">{course.sections?.reduce((total, section) => total + (section.lessons?.length || 0), 0) || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="text-gray-600">Bài học có video:</span>
+                        <span className="font-semibold text-gray-800">{course.sections?.reduce((total, section) =>
+                          total + (section.lessons?.filter(lesson =>
+                            (lesson.videos && lesson.videos.length > 0) || lesson.video
+                          )?.length || 0), 0) || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="text-gray-600">Bài học có quiz:</span>
+                        <span className="font-semibold text-gray-800">{course.sections?.reduce((total, section) =>
+                          total + (section.lessons?.filter(lesson => lesson.quiz)?.length || 0), 0) || 0}</span>
+                      </div>
+                    </div>
+
+                    <Divider className="my-4" />
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="text-gray-600">Ngày tạo:</span>
+                        <span className="font-semibold text-gray-800">{new Date(course.createdAt).toLocaleDateString('vi-VN')}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="text-gray-600">Cập nhật lần cuối:</span>
+                        <span className="font-semibold text-gray-800">{new Date(course.updatedAt).toLocaleDateString('vi-VN')}</span>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <div className="text-gray-600 mb-2">Slug:</div>
+                        <Text code className="text-xs break-all">{course.slug}</Text>
+                      </div>
+                    </div>
+                  </div>
                 </Card>
               )}
             </Col>
           </Row>
 
-          <Divider />
+          <Divider className="my-8" />
 
           <Form.Item>
-            <Space>
+            <div className="flex items-center justify-center gap-6">
               <Button
                 type="primary"
                 htmlType="submit"
                 loading={saving}
                 icon={<SaveOutlined />}
                 disabled={!permissions.canEditBasicInfo}
+                size="large"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl px-8 py-4 h-auto text-lg"
               >
                 Cập nhật khóa học
               </Button>
-              <Button onClick={() => {
-                if (window.confirm('Bạn có chắc chắn muốn hủy không?')) {
-                  navigate("/instructor/courses");
-                }
-              }}>
+              <Button 
+                onClick={() => {
+                  if (window.confirm('Bạn có chắc chắn muốn hủy không?')) {
+                    navigate("/instructor/courses");
+                  }
+                }}
+                size="large"
+                className="rounded-xl px-8 py-4 h-auto text-lg border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+              >
                 Hủy
               </Button>
-            </Space>
+            </div>
           </Form.Item>
         </Form>
       </Card>
@@ -1670,8 +1903,6 @@ const EditCourse: React.FC = () => {
         </p>
         <p>Bạn có muốn tiếp tục không?</p>
       </Modal>
-
-
 
       {/* Lesson Edit Modal */}
       <Modal
@@ -1720,7 +1951,7 @@ const EditCourse: React.FC = () => {
               <div className="flex items-center gap-2">
                 <InfoCircleOutlined className="text-blue-600" />
                 <span className="text-sm text-blue-700">
-                  Mỗi bài học có thể có nhiều video. Mỗi video chỉ cho phép tải 1 file video.
+                  Mỗi bài học chỉ có thể thêm 1 video.
                 </span>
               </div>
             </div>
@@ -1781,7 +2012,7 @@ const EditCourse: React.FC = () => {
                               }
                             ]}
                           >
-                            <Upload
+                              <Upload
                               listType="picture-card"
                               maxCount={1}
                               accept="video/*"
@@ -1827,7 +2058,8 @@ const EditCourse: React.FC = () => {
                                   });
                                 }
                               }}
-                            >
+                                onPreview={(file) => openVideoPreview(file)}
+                              >
                               <div>
                                 <PlusOutlined />
                                 <div style={{ marginTop: 8 }}>Tải lên video</div>
@@ -1936,10 +2168,35 @@ const EditCourse: React.FC = () => {
           {/* Quiz Section */}
           <Card title="Quiz bài học">
             <Form.List name="questions">
-              {(fields, { add, remove }) => (
+              {(fields, { add, remove, move }) => (
                 <>
                   {fields.map(({ key, name }) => (
-                    <Card key={key} title={`Câu hỏi ${name + 1}`} className="mb-4">
+                    <div
+                      key={key}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (draggingQuestionIdx !== null && draggingQuestionIdx !== name) {
+                          move(draggingQuestionIdx, name);
+                        }
+                        setDraggingQuestionIdx(null);
+                      }}
+                      style={{ marginBottom: '16px' }}
+                    >
+                      <Card
+                        title={
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span>{`Câu hỏi ${name + 1}`}</span>
+                            <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', color: '#888' }}
+                              draggable
+                              onDragStart={() => setDraggingQuestionIdx(name)}
+                              onDragEnd={() => setDraggingQuestionIdx(null)}
+                            >
+                              <DragOutlined style={{ cursor: 'grab' }} />
+                            </span>
+                          </div>
+                        }
+                        className="mb-0"
+                      >
                       <Form.Item
                         name={[name, 'question']}
                         label="Câu hỏi"
@@ -1951,16 +2208,58 @@ const EditCourse: React.FC = () => {
                       <Form.List name={[name, 'options']}>
                         {(optionFields, { add: addOption, remove: removeOption }) => (
                           <>
-                            {optionFields.map(({ key: optionKey, name: optionName }) => (
+                            <div style={{ marginBottom: '16px' }}>
+                              <div style={{ marginBottom: '8px', fontWeight: '500', color: '#666' }}>
+                                Lựa chọn (tích vào ô bên trái để chọn đáp án đúng):
+                              </div>
+                              {/* Hidden field to hold correctIndex and enable validation */}
                               <Form.Item
-                                key={optionKey}
-                                name={optionName}
-                                label={`Lựa chọn ${optionName + 1}`}
-                                rules={[{ required: true, message: "Vui lòng nhập lựa chọn!" }]}
+                                name={[name, 'correctIndex']}
+                                rules={[{ required: true, message: 'Vui lòng chọn đáp án đúng!' }]}
+                                style={{ display: 'none' }}
                               >
-                                <Input placeholder={`Nhập lựa chọn ${optionName + 1}`} />
+                                <Input />
                               </Form.Item>
-                            ))}
+                              {optionFields.map(({ key: optionKey, name: optionName }) => (
+                                <div key={optionKey} style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  marginBottom: '8px',
+                                  padding: '8px',
+                                  border: '1px solid #d9d9d9',
+                                  borderRadius: '6px',
+                                  backgroundColor: '#fafafa'
+                                }}>
+                                  <Radio
+                                    checked={lessonForm.getFieldValue(['questions', name, 'correctIndex']) === optionName}
+                                    onChange={() => lessonForm.setFieldValue(['questions', name, 'correctIndex'], optionName)}
+                                    style={{ marginRight: '8px' }}
+                                  />
+                                  <Form.Item
+                                    name={[name, 'options', optionName]}
+                                    style={{ flex: 1, marginBottom: 0 }}
+                                    rules={[{ required: true, message: 'Vui lòng nhập lựa chọn!' }]}
+                                  >
+                                    <Input
+                                      placeholder={`Nhập lựa chọn ${optionName + 1}`}
+                                      style={{ border: 'none', backgroundColor: 'transparent' }}
+                                    />
+                                  </Form.Item>
+                                  {optionFields.length > 2 && (
+                                    <Button
+                                      type="text"
+                                      danger
+                                      size="small"
+                                      icon={<DeleteOutlined />}
+                                      onClick={() => removeOption(optionName)}
+                                      style={{ marginLeft: '8px' }}
+                                    >
+                                      Xóa
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                             <Button
                               type="dashed"
                               onClick={() => addOption()}
@@ -1973,27 +2272,6 @@ const EditCourse: React.FC = () => {
                         )}
                       </Form.List>
 
-                      <Form.Item
-                        name={[name, 'correctIndex']}
-                        label="Đáp án đúng"
-                        rules={[{ required: true, message: "Vui lòng chọn đáp án đúng!" }]}
-                      >
-                        <Select placeholder="Chọn đáp án đúng">
-                          {(() => {
-                            // Lấy số lựa chọn hiện tại của câu hỏi này
-                            const currentOptions = lessonForm.getFieldValue(['questions', name, 'options']) || [];
-                            const optionCount = currentOptions.length;
-
-                            // Tạo mảng index dựa trên số lựa chọn thực tế
-                            return Array.from({ length: Math.max(optionCount, 1) }, (_, index) => (
-                              <Select.Option key={index} value={index}>
-                                Lựa chọn {index + 1}
-                              </Select.Option>
-                            ));
-                          })()}
-                        </Select>
-                      </Form.Item>
-
                       <Button
                         type="text"
                         danger
@@ -2003,10 +2281,15 @@ const EditCourse: React.FC = () => {
                         Xóa câu hỏi
                       </Button>
                     </Card>
+                    </div>
                   ))}
                   <Button
                     type="dashed"
-                    onClick={() => add()}
+                    onClick={() => add({
+                      question: '',
+                      options: ['', ''], // Khởi tạo với 2 lựa chọn mặc định
+                      correctIndex: 0
+                    })}
                     icon={<PlusOutlined />}
                     block
                   >
@@ -2027,6 +2310,7 @@ const EditCourse: React.FC = () => {
         onCancel={() => {
           setShowAddLessonModal(false);
           lessonForm.resetFields();
+          setVideoFileList({});
         }}
         okText="Thêm bài học"
         cancelText="Hủy"
@@ -2066,155 +2350,107 @@ const EditCourse: React.FC = () => {
               <div className="flex items-center gap-2">
                 <InfoCircleOutlined className="text-blue-600" />
                 <span className="text-sm text-blue-700">
-                  Mỗi bài học có thể có nhiều video. Mỗi video chỉ cho phép tải 1 file video.
+                  Mỗi bài học chỉ cho phép tải lên 1 file video.
                 </span>
               </div>
             </div>
 
-            <Form.List name="videos">
-              {(fields, { add, remove }) => (
-                <>
-                  {fields.map(({ key, name }) => (
-                    <Card key={key} title={`Video ${name + 1}`} className="mb-4">
-                      <Form.Item
-                        name={[name, 'status']}
-                        label="Trạng thái video"
-                        rules={[{ required: true, message: "Vui lòng chọn trạng thái!" }]}
-                      >
-                        <Select placeholder="Chọn trạng thái video">
-                          <Select.Option value="draft">Nháp</Select.Option>
-                          <Select.Option value="published">Công khai</Select.Option>
-                        </Select>
-                      </Form.Item>
+            <Form.Item
+              name="video_status"
+              label="Trạng thái video"
+              rules={[{ required: true, message: "Vui lòng chọn trạng thái!" }]}
+            >
+              <Select placeholder="Chọn trạng thái video">
+                <Select.Option value="draft">Nháp</Select.Option>
+                <Select.Option value="published">Công khai</Select.Option>
+              </Select>
+            </Form.Item>
 
-                      <Form.Item
-                        name={[name, 'description']}
-                        label="Mô tả video"
-                      >
-                        <TextArea rows={2} placeholder="Mô tả video (tùy chọn)" />
-                      </Form.Item>
+            <Form.Item
+              name="video_description"
+              label="Mô tả video"
+            >
+              <TextArea rows={2} placeholder="Mô tả video (tùy chọn)" />
+            </Form.Item>
 
-                      <Row gutter={16}>
-                        <Col span={12}>
-                          <Form.Item
-                            name={[name, 'duration']}
-                            label="Thời lượng (giây)"
-                            rules={[{ required: true, message: "Vui lòng nhập thời lượng!" }]}
-                          >
-                            <InputNumber
-                              style={{ width: "100%" }}
-                              min={1}
-                              placeholder="Nhập thời lượng video tính bằng giây"
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item
-                            name={[name, 'video_file']}
-                            label="File video"
-                            rules={[
-                              {
-                                validator: (_, value) => {
-                                  // Kiểm tra xem có video có sẵn hoặc file mới không
-                                  const hasExistingVideo = videoFileList[name] && videoFileList[name].url;
-                                  const hasNewFile = value && value.fileList && value.fileList.length > 0;
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="video_duration"
+                  label="Thời lượng (giây)"
+                  rules={[{ required: true, message: "Vui lòng nhập thời lượng!" }]}
+                >
+                  <InputNumber
+                    style={{ width: "100%" }}
+                    min={1}
+                    placeholder="Nhập thời lượng video tính bằng giây"
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="video_file"
+                  label="File video"
+                  rules={[
+                    {
+                      required: true,
+                      message: "Vui lòng tải lên video!"
+                    }
+                  ]}
+                >
+                  <Upload
+                    listType="picture-card"
+                    maxCount={1}
+                    accept="video/*"
+                    beforeUpload={() => false}
+                    onChange={(info) => {
+                      console.log('Add Lesson - Upload onChange:', info);
+                      // Cập nhật videoFileList khi có file mới
+                      if (info.fileList.length > 0) {
+                        setVideoFileList(prev => {
+                          const newList = {
+                            ...prev,
+                            newLesson: info.fileList[0]
+                          };
+                          console.log('Add Lesson - Updated videoFileList:', newList);
+                          return newList;
+                        });
 
-                                  if (hasExistingVideo || hasNewFile) {
-                                    return Promise.resolve();
-                                  }
-                                  return Promise.reject(new Error('Vui lòng tải lên video hoặc sử dụng video có sẵn!'));
-                                }
-                              }
-                            ]}
-                          >
-                            <Upload
-                              listType="picture-card"
-                              maxCount={1}
-                              accept="video/*"
-                              beforeUpload={() => false}
-                              onChange={(info) => {
-                                console.log(`Add Lesson - Upload onChange for video ${name}:`, info);
-                                // Cập nhật videoFileList khi có file mới
-                                if (info.fileList.length > 0) {
-                                  setVideoFileList(prev => {
-                                    const newList = {
-                                      ...prev,
-                                      [name]: info.fileList[0]
-                                    };
-                                    console.log('Add Lesson - Updated videoFileList:', newList);
-                                    return newList;
-                                  });
-
-                                  const file = info.fileList[0].originFileObj;
-                                  if (file) {
-                                    console.log(`Add Lesson - File uploaded for video ${name}:`, file);
-                                    // Tự động lấy thời lượng video
-                                    const video = document.createElement('video');
-                                    video.preload = 'metadata';
-                                    video.onloadedmetadata = () => {
-                                      const duration = Math.round(video.duration);
-                                      console.log(`Add Lesson - Duration for video ${name}:`, duration);
-                                      lessonForm.setFieldsValue({
-                                        videos: lessonForm.getFieldValue('videos').map((v: any, index: number) =>
-                                          index === name ? { ...v, duration } : v
-                                        )
-                                      });
-                                    };
-                                    video.src = URL.createObjectURL(file);
-                                  }
-                                } else {
-                                  // Xóa file khỏi videoFileList
-                                  setVideoFileList(prev => {
-                                    const newList = { ...prev };
-                                    delete newList[name];
-                                    console.log('Add Lesson - Removed file from videoFileList:', newList);
-                                    return newList;
-                                  });
-                                }
-                              }}
-                            >
-                              <div>
-                                <PlusOutlined />
-                                <div style={{ marginTop: 8 }}>Tải lên video</div>
-                              </div>
-                            </Upload>
-                          </Form.Item>
-                        </Col>
-                      </Row>
-
-                      <Button
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => remove(name)}
-                      >
-                        Xóa video
-                      </Button>
-                    </Card>
-                  ))}
-                  {fields.length === 0 && (
-                    <Button
-                      type="dashed"
-                      onClick={() => add()}
-                      icon={<PlusOutlined />}
-                      block
-                    >
-                      Thêm video
-                    </Button>
-                  )}
-                  {fields.length > 0 && (
-                    <Button
-                      type="dashed"
-                      onClick={() => add()}
-                      icon={<PlusOutlined />}
-                      block
-                    >
-                      Thêm video khác
-                    </Button>
-                  )}
-                </>
-              )}
-            </Form.List>
+                        const file = info.fileList[0].originFileObj;
+                        if (file) {
+                          console.log('Add Lesson - File uploaded:', file);
+                          // Tự động lấy thời lượng video
+                          const video = document.createElement('video');
+                          video.preload = 'metadata';
+                          video.onloadedmetadata = () => {
+                            const duration = Math.round(video.duration);
+                            console.log('Add Lesson - Duration:', duration);
+                            lessonForm.setFieldsValue({
+                              video_duration: duration
+                            });
+                          };
+                          video.src = URL.createObjectURL(file);
+                        }
+                      } else {
+                        // Xóa file khỏi videoFileList
+                        setVideoFileList(prev => {
+                          const newList = { ...prev };
+                          delete newList.newLesson;
+                          console.log('Add Lesson - Removed file from videoFileList:', newList);
+                          return newList;
+                        });
+                      }
+                    }}
+                    onPreview={(file) => openVideoPreview(file)}
+                  >
+                    <div>
+                      <PlusOutlined />
+                      <div style={{ marginTop: 8 }}>Tải lên video</div>
+                    </div>
+                  </Upload>
+                </Form.Item>
+              </Col>
+            </Row>
 
             <div style={{ color: '#888', fontSize: '12px' }}>
               <InfoCircleOutlined /> Hỗ trợ định dạng: MP4, AVI, MOV, WMV. Kích thước tối đa: 500MB.
@@ -2224,10 +2460,35 @@ const EditCourse: React.FC = () => {
           {/* Quiz Section */}
           <Card title="Quiz bài học">
             <Form.List name="questions">
-              {(fields, { add, remove }) => (
+              {(fields, { add, remove, move }) => (
                 <>
                   {fields.map(({ key, name }) => (
-                    <Card key={key} title={`Câu hỏi ${name + 1}`} className="mb-4">
+                    <div
+                      key={key}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (draggingQuestionIdx !== null && draggingQuestionIdx !== name) {
+                          move(draggingQuestionIdx, name);
+                        }
+                        setDraggingQuestionIdx(null);
+                      }}
+                      style={{ marginBottom: '16px' }}
+                    >
+                      <Card
+                        title={
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span>{`Câu hỏi ${name + 1}`}</span>
+                            <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', color: '#888' }}
+                              draggable
+                              onDragStart={() => setDraggingQuestionIdx(name)}
+                              onDragEnd={() => setDraggingQuestionIdx(null)}
+                            >
+                              <DragOutlined style={{ cursor: 'grab' }} />
+                            </span>
+                          </div>
+                        }
+                        className="mb-0"
+                      >
                       <Form.Item
                         name={[name, 'question']}
                         label="Câu hỏi"
@@ -2239,16 +2500,54 @@ const EditCourse: React.FC = () => {
                       <Form.List name={[name, 'options']}>
                         {(optionFields, { add: addOption, remove: removeOption }) => (
                           <>
-                            {optionFields.map(({ key: optionKey, name: optionName }) => (
+                            <div style={{ marginBottom: '16px' }}>
+                              <div style={{ marginBottom: '8px', fontWeight: '500', color: '#666' }}>
+                                Lựa chọn (tích vào ô bên trái để chọn đáp án đúng):
+                              </div>
                               <Form.Item
-                                key={optionKey}
-                                name={optionName}
-                                label={`Lựa chọn ${optionName + 1}`}
-                                rules={[{ required: true, message: "Vui lòng nhập lựa chọn!" }]}
+                                name={[name, 'correctIndex']}
+                                style={{ marginBottom: 0 }}
+                                rules={[{ required: true, message: 'Vui lòng chọn đáp án đúng!' }]}
                               >
-                                <Input placeholder={`Nhập lựa chọn ${optionName + 1}`} />
+                                <Radio.Group>
+                                  {optionFields.map(({ key: optionKey, name: optionName }) => (
+                                    <div key={optionKey} style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      marginBottom: '8px',
+                                      padding: '8px',
+                                      border: '1px solid #d9d9d9',
+                                      borderRadius: '6px',
+                                      backgroundColor: '#fafafa'
+                                    }}>
+                                      <Radio value={optionName} style={{ marginRight: '8px' }} />
+                                      <Form.Item
+                                        name={[name, 'options', optionName]}
+                                        style={{ flex: 1, marginBottom: 0 }}
+                                        rules={[{ required: true, message: 'Vui lòng nhập lựa chọn!' }]}
+                                      >
+                                        <Input
+                                          placeholder={`Nhập lựa chọn ${optionName + 1}`}
+                                          style={{ border: 'none', backgroundColor: 'transparent' }}
+                                        />
+                                      </Form.Item>
+                                      {optionFields.length > 2 && (
+                                        <Button
+                                          type="text"
+                                          danger
+                                          size="small"
+                                          icon={<DeleteOutlined />}
+                                          onClick={() => removeOption(optionName)}
+                                          style={{ marginLeft: '8px' }}
+                                        >
+                                          Xóa
+                                        </Button>
+                                      )}
+                                    </div>
+                                  ))}
+                                </Radio.Group>
                               </Form.Item>
-                            ))}
+                            </div>
                             <Button
                               type="dashed"
                               onClick={() => addOption()}
@@ -2261,27 +2560,6 @@ const EditCourse: React.FC = () => {
                         )}
                       </Form.List>
 
-                      <Form.Item
-                        name={[name, 'correctIndex']}
-                        label="Đáp án đúng"
-                        rules={[{ required: true, message: "Vui lòng chọn đáp án đúng!" }]}
-                      >
-                        <Select placeholder="Chọn đáp án đúng">
-                          {(() => {
-                            // Lấy số lựa chọn hiện tại của câu hỏi này
-                            const currentOptions = lessonForm.getFieldValue(['questions', name, 'options']) || [];
-                            const optionCount = currentOptions.length;
-
-                            // Tạo mảng index dựa trên số lựa chọn thực tế
-                            return Array.from({ length: Math.max(optionCount, 1) }, (_, index) => (
-                              <Select.Option key={index} value={index}>
-                                Lựa chọn {index + 1}
-                              </Select.Option>
-                            ));
-                          })()}
-                        </Select>
-                      </Form.Item>
-
                       <Button
                         type="text"
                         danger
@@ -2291,10 +2569,15 @@ const EditCourse: React.FC = () => {
                         Xóa câu hỏi
                       </Button>
                     </Card>
+                    </div>
                   ))}
                   <Button
                     type="dashed"
-                    onClick={() => add()}
+                    onClick={() => add({
+                      question: '',
+                      options: ['', ''], // Khởi tạo với 2 lựa chọn mặc định
+                      correctIndex: 0
+                    })}
                     icon={<PlusOutlined />}
                     block
                   >
@@ -2305,6 +2588,26 @@ const EditCourse: React.FC = () => {
             </Form.List>
           </Card>
         </Form>
+      </Modal>
+
+      {/* Video Preview Modal */}
+      <Modal
+        title="Xem trước video"
+        open={showVideoPreview}
+        onCancel={closeVideoPreview}
+        footer={null}
+        width={900}
+        destroyOnClose
+      >
+        {previewVideoUrl ? (
+          <video
+            src={previewVideoUrl}
+            controls
+            style={{ width: '100%', borderRadius: 8 }}
+          />
+        ) : (
+          <Alert type="info" message="Không có video để xem trước" />
+        )}
       </Modal>
 
       {/* Section Edit Modal */}

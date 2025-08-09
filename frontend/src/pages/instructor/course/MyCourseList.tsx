@@ -120,35 +120,54 @@ const MyCourseList: React.FC = () => {
       dataIndex: "title",
       key: "title",
       render: (_, record) => (
-        <Space style={{ cursor: 'pointer' }} onClick={() => navigate(`/instructor/courses/${record.id}`)}>
-          <Avatar shape="square" size={64} src={record.Image} />
-          <Text strong>{record.title}</Text>
-        </Space>
+        <div 
+          style={{ 
+            cursor: 'pointer',
+            padding: '12px',
+            borderRadius: '12px',
+            transition: 'all 0.3s ease',
+            border: '1px solid transparent'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
+            e.currentTarget.style.borderColor = '#667eea';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.borderColor = 'transparent';
+          }}
+          onClick={() => navigate(`/instructor/courses/${record.id}`)}
+        >
+          <Space size="middle">
+            <Avatar 
+              shape="square" 
+              size={64} 
+              src={record.Image} 
+              className="course-avatar"
+              style={{ 
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+              }}
+            />
+            <div>
+              <Text strong style={{ 
+                fontSize: '16px', 
+                color: '#2c3e50',
+                display: 'block',
+                marginBottom: '4px'
+              }}>
+                {record.title}
+              </Text>
+              <Text type="secondary" style={{ fontSize: '13px' }}>
+                {record.type || 'Chưa phân loại'}
+              </Text>
+            </div>
+          </Space>
+        </div>
       ),
     },
     {
-      title: "Học viên",
-      dataIndex: "students",
-      key: "students",
-      render: () => Math.floor(Math.random() * 500) + 50,
-    },
-    {
-      title: "Giá gốc",
-      dataIndex: "oldPrice",
-      key: "oldPrice",
-      render: (oldPrice, record) => {
-        if (!record.hasDiscount || !oldPrice) {
-          return <span style={{ color: '#999' }}>-</span>;
-        }
-        return (
-          <span style={{ textDecoration: 'line-through', color: '#999' }}>
-            {Number(oldPrice).toLocaleString('vi-VN')}đ
-          </span>
-        );
-      },
-    },
-    {
-      title: "Giá đã giảm",
+      title: "Giá tiền",
       dataIndex: "price",
       key: "price",
       render: (price, record) => {
@@ -209,48 +228,6 @@ const MyCourseList: React.FC = () => {
           </div>
         );
       },
-    },
-    {
-      title: "Trạng thái hiển thị",
-      key: "displayStatus",
-      render: (_, record) => {
-        const isApproved = record.status === 'approved' || record.status === 'published';
-        const displayOptions = [
-          { value: 'published', label: 'Hiển thị' },
-          { value: 'hidden', label: 'Ẩn' }
-        ];
-        const handleChangeDisplay = async (value: string) => {
-          try {
-            await courseService.updateCourseStatus(record.id, { displayStatus: value });
-            setCourses((prev) =>
-              prev.map((course) =>
-                course.id === record.id ? { ...course, displayStatus: value } : course
-              )
-            );
-            message.success(value === 'published' ? 'Đã chuyển sang hiển thị' : 'Đã ẩn khóa học');
-          } catch (err) {
-            console.error('Lỗi khi thay đổi trạng thái hiển thị:', err);
-            message.error('Không thể thay đổi trạng thái hiển thị');
-          }
-        };
-        return (
-          <Space>
-            <Select
-              value={record.displayStatus || 'published'}
-              style={{ width: 120 }}
-              onChange={handleChangeDisplay}
-              disabled={!isApproved}
-              options={displayOptions}
-            />
-          </Space>
-        );
-      },
-    },
-    {
-      title: "Cập nhật lần cuối",
-      dataIndex: "updatedAt",
-      key: "updatedAt",
-      render: (updatedAt: string) => dayjs(updatedAt).format('DD/MM/YYYY HH:mm'),
     },
     {
       title: "Hành động",
@@ -378,71 +355,246 @@ const MyCourseList: React.FC = () => {
     totalCourses: courses.length,
     publishedCourses: courses.filter(c => c.status === 'published').length,
     draftCourses: courses.filter(c => c.status === 'draft').length,
-    totalStudents: 1234,
+    totalStudents: courses.reduce((total, course) => total + (course.students_count || 0), 0),
   }), [courses]);
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ 
+      padding: '32px 24px', 
+      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+      minHeight: '100vh'
+    }}>
       <style>{`
-        .ant-table-row:hover {
-          background-color: #fafafa !important;
+        .stats-card {
+          background: rgba(255, 255, 255, 0.95);
+          border-radius: 16px;
+          border: none;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+          backdrop-filter: blur(10px);
+          transition: all 0.3s ease;
         }
-        .ant-table-row:hover td {
-            background: #fafafa !important;
+        .stats-card:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+        }
+        .main-card {
+          background: rgba(255, 255, 255, 0.95);
+          border-radius: 20px;
+          border: none;
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+          backdrop-filter: blur(10px);
+        }
+        .ant-table {
+          background: transparent;
+        }
+        .ant-table-thead > tr > th {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          font-weight: 600;
+        }
+        .ant-table-tbody > tr > td {
+          border-bottom: 1px solid #f0f0f0;
+          background: transparent;
+        }
+        .ant-table-tbody > tr:hover > td {
+          background: rgba(102, 126, 234, 0.05) !important;
+        }
+        .course-avatar {
+          border-radius: 12px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .search-input {
+          border-radius: 12px;
+          border: 2px solid #e8e8e8;
+          transition: all 0.3s ease;
+        }
+        .search-input:focus {
+          border-color: #667eea;
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .filter-select {
+          border-radius: 12px;
+          border: 2px solid #e8e8e8;
+        }
+        .create-button {
+          border-radius: 12px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border: none;
+          height: 40px;
+          font-weight: 600;
+          box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+          transition: all 0.3s ease;
+        }
+        .create-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+        }
+        .page-title {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          font-weight: 700;
+          margin-bottom: 32px;
         }
       `}</style>
+
       <motion.div initial="hidden" animate="visible" variants={FADE_IN_UP_VARIANTS}>
-        <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
-          <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Tổng số khóa học" value={stats.totalCourses} prefix={<BookOutlined />} /></Card></motion.div></Col>
-          <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Đã xuất bản" value={stats.publishedCourses} prefix={<BookOutlined />} valueStyle={{ color: '#3f8600' }} /></Card></motion.div></Col>
-          <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Chưa xuất bản" value={stats.draftCourses} prefix={<BookOutlined />} valueStyle={{ color: '#cf1322' }} /></Card></motion.div></Col>
-          <Col span={6}><motion.div whileHover={{ y: -5 }}><Card><Statistic title="Tổng học viên" value={stats.totalStudents} prefix={<UserOutlined />} /></Card></motion.div></Col>
+        <Title level={2} className="page-title" style={{ textAlign: 'center' }}>
+          Quản lý khóa học của tôi
+        </Title>
+        
+        <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
+          <Col xs={24} sm={12} lg={6}>
+            <motion.div whileHover={{ y: -8 }} transition={{ type: "spring", stiffness: 300 }}>
+              <Card className="stats-card">
+                <Statistic 
+                  title={<span style={{ color: '#667eea', fontWeight: '600' }}>Tổng số khóa học</span>}
+                  value={stats.totalCourses} 
+                  prefix={<BookOutlined style={{ color: '#667eea' }} />}
+                  valueStyle={{ color: '#2c3e50', fontWeight: '700', fontSize: '28px' }}
+                />
+              </Card>
+            </motion.div>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <motion.div whileHover={{ y: -8 }} transition={{ type: "spring", stiffness: 300 }}>
+              <Card className="stats-card">
+                <Statistic 
+                  title={<span style={{ color: '#52c41a', fontWeight: '600' }}>Đã xuất bản</span>}
+                  value={stats.publishedCourses} 
+                  prefix={<BookOutlined style={{ color: '#52c41a' }} />}
+                  valueStyle={{ color: '#52c41a', fontWeight: '700', fontSize: '28px' }}
+                />
+              </Card>
+            </motion.div>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <motion.div whileHover={{ y: -8 }} transition={{ type: "spring", stiffness: 300 }}>
+              <Card className="stats-card">
+                <Statistic 
+                  title={<span style={{ color: '#faad14', fontWeight: '600' }}>Chưa xuất bản</span>}
+                  value={stats.draftCourses} 
+                  prefix={<BookOutlined style={{ color: '#faad14' }} />}
+                  valueStyle={{ color: '#faad14', fontWeight: '700', fontSize: '28px' }}
+                />
+              </Card>
+            </motion.div>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <motion.div whileHover={{ y: -8 }} transition={{ type: "spring", stiffness: 300 }}>
+              <Card className="stats-card">
+                <Statistic 
+                  title={<span style={{ color: '#722ed1', fontWeight: '600' }}>Tổng học viên</span>}
+                  value={stats.totalStudents} 
+                  prefix={<UserOutlined style={{ color: '#722ed1' }} />}
+                  valueStyle={{ color: '#722ed1', fontWeight: '700', fontSize: '28px' }}
+                />
+              </Card>
+            </motion.div>
+          </Col>
         </Row>
       </motion.div>
 
-      <motion.div initial="hidden" animate="visible" variants={{ ...FADE_IN_UP_VARIANTS, visible: { ...FADE_IN_UP_VARIANTS.visible, transition: { delay: 0.2 } } }}>
-        <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-            <Title level={4} style={{ margin: 0 }}>Danh sách khóa học của tôi</Title>
-            <Space>
+      <motion.div 
+        initial="hidden" 
+        animate="visible" 
+        variants={{ ...FADE_IN_UP_VARIANTS, visible: { ...FADE_IN_UP_VARIANTS.visible, transition: { delay: 0.2 } } }}
+      >
+        <Card className="main-card">
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: '24px',
+            marginBottom: '32px'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}>
+              <Title level={3} style={{ 
+                margin: 0, 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                fontWeight: '700'
+              }}>
+                Danh sách khóa học
+              </Title>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />} 
+                onClick={() => navigate('/instructor/courses/create')}
+                className="create-button"
+                size="large"
+              >
+                Tạo khóa học mới
+              </Button>
+            </div>
+            
+            <div style={{ 
+              display: 'flex', 
+              gap: '16px', 
+              flexWrap: 'wrap',
+              alignItems: 'center'
+            }}>
               <Input
-                placeholder="Tìm kiếm theo tên..."
-                prefix={<SearchOutlined />}
+                placeholder="🔍 Tìm kiếm theo tên khóa học..."
+                prefix={<SearchOutlined style={{ color: '#667eea' }} />}
                 onChange={e => setSearchTerm(e.target.value)}
-                style={{ width: 250 }}
+                style={{ width: 300 }}
                 allowClear
+                className="search-input"
+                size="large"
               />
               <Select
                 defaultValue="all"
                 onChange={setStatusFilter}
-                style={{ width: 150 }}
+                style={{ width: 180 }}
+                className="filter-select"
+                size="large"
+                placeholder="Trạng thái"
               >
-                <Option value="all">Tất cả trạng thái</Option>
-                <Option value="draft">Bản nháp</Option>
-                <Option value="pending">Chờ duyệt</Option>
-                <Option value="approved">Đã duyệt</Option>
-                <Option value="rejected">Bị từ chối</Option>
+                <Option value="all">📋 Tất cả trạng thái</Option>
+                <Option value="draft">📝 Bản nháp</Option>
+                <Option value="pending">⏳ Chờ duyệt</Option>
+                <Option value="approved">✅ Đã duyệt</Option>
+                <Option value="rejected">❌ Bị từ chối</Option>
               </Select>
               <Select
                 defaultValue="all"
                 onChange={setDisplayStatusFilter}
-                style={{ width: 150 }}
+                style={{ width: 180 }}
+                className="filter-select"
+                size="large"
+                placeholder="Hiển thị"
               >
-                <Option value="all">Tất cả hiển thị</Option>
-                <Option value="published">Đang hiển thị</Option>
-                <Option value="hidden">Đang ẩn</Option>
+                <Option value="all">👁️ Tất cả hiển thị</Option>
+                <Option value="published">🌐 Đang hiển thị</Option>
+                <Option value="hidden">🙈 Đang ẩn</Option>
               </Select>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/instructor/courses/create')}>
-                Tạo khóa học mới
-              </Button>
-            </Space>
+            </div>
           </div>
+          
           <Table
             columns={columns}
             dataSource={filteredCourses}
             loading={loading}
             rowKey="id"
-            pagination={{ pageSize: 5, total: filteredCourses.length }}
+            pagination={{ 
+              pageSize: 8, 
+              total: filteredCourses.length,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} khóa học`,
+              style: { marginTop: '24px' }
+            }}
+            style={{ borderRadius: '12px', overflow: 'hidden' }}
           />
         </Card>
       </motion.div>

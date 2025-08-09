@@ -31,7 +31,6 @@ interface ApiCourse {
     name: string;
   };
   level: string;
-  language: string;
   price: number;
   discount: number;
   discount_percentage?: number;
@@ -63,6 +62,7 @@ export interface Course {
   };
   rating: number;
   reviews: number;
+  students_count?: number;
   price: number;
   oldPrice?: number;
   Image: string;
@@ -76,7 +76,6 @@ export interface Course {
   discountPercent?: number;
   status: string;
   displayStatus?: string;
-  language: string;
   level: string;
   updatedAt: string;
   rejection_reason?: string;
@@ -142,7 +141,6 @@ const mapApiCourseToAppCourse = (apiCourse: ApiCourse): Course => {
       : undefined,
     status: apiCourse.status,
     displayStatus: apiCourse.displayStatus,
-    language: apiCourse.language,
     level: apiCourse.level,
     updatedAt: apiCourse.updatedAt,
     rejection_reason: apiCourse.rejection_reason,

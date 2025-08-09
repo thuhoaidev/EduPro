@@ -102,12 +102,13 @@ interface CourseDetailData {
   Image?: string;
   status?: string;
   type?: string;
-  language?: string;
+
   level?: string;
   createdAt?: string;
   price: number;
   rating?: number;
   reviews?: number;
+  students_count?: number;
   requirements?: string[];
   author?: Author;
   sections?: Section[];
@@ -149,6 +150,20 @@ const formatDuration = (seconds: number): string => {
   }
 
   return result.trim();
+};
+
+// Hàm chuyển đổi level sang tiếng Việt
+const formatLevel = (level: string): string => {
+  const levelMap: { [key: string]: string } = {
+    'beginner': 'Người mới bắt đầu',
+    'intermediate': 'Trung cấp',
+    'advanced': 'Nâng cao',
+    'all': 'Tất cả cấp độ',
+    'basic': 'Cơ bản',
+    'expert': 'Chuyên gia'
+  };
+  
+  return levelMap[level?.toLowerCase()] || level || 'Không xác định';
 };
 
 const CourseDetail: React.FC = () => {
@@ -284,85 +299,282 @@ const CourseDetail: React.FC = () => {
   };
 
   const renderVideoPreview = (video: Video) => (
-    <div style={{ textAlign: 'center' }}>
-      <Title level={4}>{video.title || 'Video Preview'}</Title>
+    <div style={{ padding: '0 16px' }}>
+      <div style={{ 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: '16px',
+        padding: '24px',
+        marginBottom: '24px',
+        color: 'white',
+        textAlign: 'center'
+      }}>
+        <VideoCameraOutlined style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.9 }} />
+        <Title level={3} style={{ color: 'white', margin: '0 0 8px 0' }}>
+          {video.title || 'Video Preview'}
+        </Title>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <ClockCircleOutlined />
+            <span>{formatDuration(video.duration)}</span>
+          </div>
+          {video.description && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <FileTextOutlined />
+              <span>Có mô tả</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       {video.url ? (
-        <video 
-          controls 
-          style={{ width: '100%', maxWidth: '600px', borderRadius: '8px' }}
-          src={video.url}
-        >
-          Your browser does not support the video tag.
-        </video>
+        <div style={{ 
+          background: '#000', 
+          borderRadius: '16px', 
+          overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          marginBottom: '24px'
+        }}>
+          <video 
+            controls 
+            style={{ 
+              width: '100%', 
+              height: 'auto',
+              display: 'block'
+            }}
+            src={video.url}
+            poster={video.url ? undefined : 'https://via.placeholder.com/800x450/1a73e8/FFFFFF?text=Video+Preview'}
+          >
+            Your browser does not support the video tag.
+          </video>
+        </div>
       ) : (
         <div style={{ 
-          width: '100%', 
-          maxWidth: '600px', 
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+          borderRadius: '16px',
           height: '300px', 
-          background: '#f0f0f0', 
           display: 'flex', 
+          flexDirection: 'column',
           alignItems: 'center', 
           justifyContent: 'center',
-          borderRadius: '8px',
-          margin: '0 auto'
+          marginBottom: '24px',
+          border: '2px dashed #d9d9d9'
         }}>
-          <Text type="secondary">Video không khả dụng</Text>
+          <VideoCameraOutlined style={{ fontSize: '64px', color: '#bfbfbf', marginBottom: '16px' }} />
+          <Text type="secondary" style={{ fontSize: '16px', marginBottom: '8px' }}>
+            Video không khả dụng
+          </Text>
+          <Text type="secondary" style={{ fontSize: '14px' }}>
+            Video này chưa được tải lên hoặc đã bị xóa
+          </Text>
         </div>
       )}
-      <div style={{ marginTop: '16px' }}>
-        <Text type="secondary">Thời lượng: {formatDuration(video.duration)}</Text>
-      </div>
+
+      {video.description && (
+        <Card 
+          style={{ 
+            borderRadius: '12px',
+            border: '1px solid #f0f0f0',
+            background: '#fafafa'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <FileTextOutlined style={{ color: '#1a73e8', fontSize: '18px', marginTop: '2px' }} />
+            <div>
+              <Text strong style={{ display: 'block', marginBottom: '8px' }}>Mô tả video:</Text>
+              <Paragraph style={{ margin: 0, color: '#666', lineHeight: '1.6' }}>
+                {video.description}
+              </Paragraph>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 
   const renderQuizPreview = (quiz: Quiz) => (
-    <div>
-      <Title level={4}>{quiz.title || 'Quiz Preview'}</Title>
-      <Descriptions bordered size="small" style={{ marginTop: '16px' }}>
-        <Descriptions.Item label="Số câu hỏi" span={3}>
-          {quiz.questions?.length || 0}
-        </Descriptions.Item>
-      </Descriptions>
-      
+    <div style={{ padding: '0 16px' }}>
+      <div style={{ 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: '16px',
+        padding: '24px',
+        marginBottom: '24px',
+        color: 'white',
+        textAlign: 'center'
+      }}>
+        <FormOutlined style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.9 }} />
+        <Title level={3} style={{ color: 'white', margin: '0 0 8px 0' }}>
+          {quiz.title || 'Quiz Preview'}
+        </Title>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <FormOutlined />
+            <span>{quiz.questions?.length || 0} câu hỏi</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <CheckCircleOutlined />
+            <span>Đáp án đúng được đánh dấu</span>
+          </div>
+        </div>
+      </div>
+
       {quiz.questions && quiz.questions.length > 0 ? (
-        <div style={{ marginTop: '16px' }}>
-          <Title level={5}>Danh sách câu hỏi:</Title>
+        <div>
+          <div style={{ 
+            background: '#f8f9fa', 
+            borderRadius: '12px', 
+            padding: '16px', 
+            marginBottom: '20px',
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <FormOutlined style={{ color: '#1a73e8', fontSize: '18px' }} />
+              <Text strong style={{ fontSize: '16px' }}>Tổng quan Quiz</Text>
+            </div>
+            <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+              <div style={{ 
+                background: 'white', 
+                padding: '12px 16px', 
+                borderRadius: '8px',
+                border: '1px solid #e9ecef',
+                minWidth: '120px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1a73e8' }}>
+                  {quiz.questions.length}
+                </div>
+                <div style={{ fontSize: '12px', color: '#666' }}>Tổng câu hỏi</div>
+              </div>
+              <div style={{ 
+                background: 'white', 
+                padding: '12px 16px', 
+                borderRadius: '8px',
+                border: '1px solid #e9ecef',
+                minWidth: '120px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
+                  {quiz.questions.reduce((count, q) => count + (q.options?.length || 0), 0)}
+                </div>
+                <div style={{ fontSize: '12px', color: '#666' }}>Tổng lựa chọn</div>
+              </div>
+            </div>
+          </div>
+
+          <Title level={4} style={{ marginBottom: '20px', color: '#1a73e8' }}>
+            <FormOutlined style={{ marginRight: '8px' }} />
+            Danh sách câu hỏi
+          </Title>
+          
           {quiz.questions.map((question, index) => (
             <Card 
               key={index} 
-              size="small" 
-              style={{ marginBottom: '8px' }}
-              title={`Câu ${index + 1}`}
+              style={{ 
+                marginBottom: '16px',
+                borderRadius: '12px',
+                border: '1px solid #e9ecef',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+              }}
+              bodyStyle={{ padding: '20px' }}
             >
-              <Paragraph style={{ marginBottom: '8px' }}>{question.question}</Paragraph>
-              <Space direction="vertical" style={{ width: '100%' }}>
+              <div style={{ 
+                background: '#1a73e8', 
+                color: 'white', 
+                padding: '6px 12px', 
+                borderRadius: '20px',
+                display: 'inline-block',
+                fontSize: '12px',
+                fontWeight: '500',
+                marginBottom: '16px'
+              }}>
+                Câu {index + 1}
+              </div>
+              
+              <Paragraph style={{ 
+                marginBottom: '16px', 
+                fontSize: '16px',
+                fontWeight: '500',
+                color: '#2c3e50',
+                lineHeight: '1.6'
+              }}>
+                {question.question}
+              </Paragraph>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {question.options.map((option, optionIndex) => (
                   <div 
                     key={optionIndex}
                     style={{
-                      padding: '8px 12px',
-                      background: optionIndex === question.correctIndex ? '#f6ffed' : '#fafafa',
-                      border: optionIndex === question.correctIndex ? '1px solid #b7eb8f' : '1px solid #d9d9d9',
-                      borderRadius: '4px',
+                      padding: '12px 16px',
+                      background: optionIndex === question.correctIndex 
+                        ? 'linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%)' 
+                        : '#fafafa',
+                      border: optionIndex === question.correctIndex 
+                        ? '2px solid #52c41a' 
+                        : '1px solid #e9ecef',
+                      borderRadius: '8px',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px'
+                      gap: '12px',
+                      transition: 'all 0.2s ease',
+                      cursor: 'default'
                     }}
                   >
-                    {optionIndex === question.correctIndex ? (
-                      <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                    ) : (
-                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '1px solid #d9d9d9' }} />
+                    <div style={{ 
+                      width: '20px', 
+                      height: '20px', 
+                      borderRadius: '50%', 
+                      border: optionIndex === question.correctIndex ? '2px solid #52c41a' : '2px solid #d9d9d9',
+                      background: optionIndex === question.correctIndex ? '#52c41a' : 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      {optionIndex === question.correctIndex ? (
+                        <CheckCircleOutlined style={{ color: 'white', fontSize: '12px' }} />
+                      ) : (
+                        <span style={{ fontSize: '10px', color: '#666' }}>
+                          {String.fromCharCode(65 + optionIndex)}
+                        </span>
+                      )}
+                    </div>
+                    <Text style={{ 
+                      flex: 1,
+                      color: optionIndex === question.correctIndex ? '#1f1f1f' : '#666',
+                      fontWeight: optionIndex === question.correctIndex ? '500' : 'normal'
+                    }}>
+                      {option}
+                    </Text>
+                    {optionIndex === question.correctIndex && (
+                      <Tag color="success" style={{ marginLeft: 'auto' }}>
+                        Đáp án đúng
+                      </Tag>
                     )}
-                    <Text>{option}</Text>
                   </div>
                 ))}
-              </Space>
+              </div>
             </Card>
           ))}
         </div>
       ) : (
-        <Empty description="Chưa có câu hỏi nào" />
+        <div style={{ 
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+          borderRadius: '16px',
+          height: '200px', 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center', 
+          justifyContent: 'center',
+          border: '2px dashed #d9d9d9'
+        }}>
+          <FormOutlined style={{ fontSize: '48px', color: '#bfbfbf', marginBottom: '16px' }} />
+          <Text type="secondary" style={{ fontSize: '16px', marginBottom: '8px' }}>
+            Chưa có câu hỏi nào
+          </Text>
+          <Text type="secondary" style={{ fontSize: '14px' }}>
+            Quiz này chưa được tạo hoặc đã bị xóa
+          </Text>
+        </div>
       )}
     </div>
   );
@@ -547,10 +759,13 @@ const CourseDetail: React.FC = () => {
                  .section-title {
            display: flex;
            align-items: center;
-           gap: 8px;
-           font-weight: 500;
+           gap: 4px;
+           font-weight: 50;
            color: #1a73e8;
-           font-size: 14px;
+           font-size: 10px;
+           span {
+            font-size: 20px;
+           }
          }
                  .section-stats {
            display: flex;
@@ -589,8 +804,7 @@ const CourseDetail: React.FC = () => {
               <Space style={{ margin: '8px 0 16px 0', flexWrap: 'wrap' }}>
                 <span className="course-badge">{course.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}</span>
                 <Tag color="purple">{course.type || course.category?.name || ''}</Tag>
-                <Tag color="geekblue">{course.language}</Tag>
-                <Tag color="cyan">{course.level}</Tag>
+                <Tag color="cyan">{formatLevel(course.level)}</Tag>
                 <Tag icon={<CalendarOutlined />} color="default">{course.createdAt ? new Date(course.createdAt).toLocaleDateString() : ''}</Tag>
               </Space>
               <Paragraph type="secondary" style={{ marginTop: 0, fontSize: 16 }}>{course.subtitle || course.description || ''}</Paragraph>
@@ -613,8 +827,8 @@ const CourseDetail: React.FC = () => {
                     </>
                   )}
                 </div>
-                <div className="course-meta-item"><TeamOutlined style={{ color: '#1a73e8' }} />{Math.floor(Math.random() * 500) + 50} học viên</div>
-                <div className="course-meta-item"><StarFilled style={{ color: '#faad14' }} />{course.rating || 4.5} <span style={{ color: '#888', fontWeight: 400 }}>({course.reviews || 0} đánh giá)</span></div>
+                <div className="course-meta-item"><TeamOutlined style={{ color: '#1a73e8' }} />{course.students_count || 0} học viên</div>
+                <div className="course-meta-item"><StarFilled style={{ color: '#faad14' }} />{course.rating ? course.rating.toFixed(1) : 'Chưa có'} <span style={{ color: '#888', fontWeight: 400 }}>({course.reviews || 0} đánh giá)</span></div>
                 <div className="course-meta-item"><BookOutlined style={{ color: '#1a73e8' }} />{totalLessons} bài học</div>
                 <div className="course-meta-item"><ClockCircleOutlined style={{ color: '#1a73e8' }} />{formatDuration(totalDuration)}</div>
               </div>
@@ -666,7 +880,6 @@ const CourseDetail: React.FC = () => {
                           </div>
                           <div className="section-stats">
                             <span>{sectionLessons.length} bài học</span>
-                            <span>{formatDuration(sectionDuration)}</span>
                             {previewLessons > 0 && (
                               <Badge count={previewLessons} style={{ backgroundColor: '#1a73e8' }} />
                             )}
@@ -810,14 +1023,34 @@ const CourseDetail: React.FC = () => {
 
       {/* Modal xem trước video/quiz */}
       <Modal
-        title={previewContent?.type === 'video' ? 'Xem trước Video' : 'Xem trước Quiz'}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {previewContent?.type === 'video' ? (
+              <>
+                <VideoCameraOutlined style={{ color: '#1a73e8', fontSize: '20px' }} />
+                <span>Xem trước Video</span>
+              </>
+            ) : (
+              <>
+                <FormOutlined style={{ color: '#1a73e8', fontSize: '20px' }} />
+                <span>Xem trước Quiz</span>
+              </>
+            )}
+          </div>
+        }
         open={previewModalVisible}
         onCancel={() => {
           setPreviewModalVisible(false);
           setPreviewContent(null);
         }}
         footer={null}
-        width={800}
+        width={900}
+        style={{ top: 20 }}
+        bodyStyle={{ 
+          padding: '24px 0',
+          maxHeight: '80vh',
+          overflowY: 'auto'
+        }}
         destroyOnClose
       >
         {previewContent?.type === 'video' && renderVideoPreview(previewContent.data)}

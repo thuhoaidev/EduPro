@@ -24,11 +24,7 @@ const createCourseSchema = Joi.object({
     'any.only': 'Trình độ phải là beginner, intermediate hoặc advanced',
     'any.required': 'Trình độ là bắt buộc',
   }),
-  language: Joi.string().required().valid('vi', 'en', 'Vietnamese', 'English').messages({
-    'string.empty': 'Ngôn ngữ không được để trống',
-    'any.only': 'Ngôn ngữ phải là Vietnamese hoặc English',
-    'any.required': 'Ngôn ngữ là bắt buộc',
-  }),
+
   price: Joi.number().required().integer().min(0).max(100000000).messages({
     'number.base': 'Giá phải là số nguyên',
     'number.integer': 'Giá phải là số nguyên',
@@ -69,7 +65,6 @@ const updateCourseSchema = createCourseSchema.fork(
     'description',
     'category',
     'level',
-    'language',
     'price',
     'requirements',
     'discount_amount',
