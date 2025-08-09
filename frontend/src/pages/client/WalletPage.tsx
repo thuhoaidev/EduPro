@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Card, Table, Button, InputNumber, Select, message, Tag, Form, Typography, Modal, Statistic, Row, Col, Divider, Space, Alert } from "antd";
+import { Card, Table, Button, InputNumber, Select, message, Tag, Form, Typography, Modal, Statistic, Row, Col, Divider, Space, Alert, Descriptions, Avatar } from "antd";
 import { useNavigate } from "react-router-dom";
 import WithdrawModal from '../../components/common/WithdrawModal';
 import { userWalletService } from '../../services/apiService';
+import orderService from '../../services/orderService';
 import { EyeOutlined, WalletOutlined, PlusOutlined, MinusOutlined, HistoryOutlined, DollarOutlined, ExclamationCircleOutlined, ReloadOutlined } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
@@ -18,6 +19,7 @@ const WalletPage: React.FC = () => {
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [detailModal, setDetailModal] = useState<{ open: boolean; data?: any }>({ open: false });
+  const [invoiceModal, setInvoiceModal] = useState<{ open: boolean; data?: any }>({ open: false });
   const [showAllWithdraw, setShowAllWithdraw] = useState(false);
   const [showVnpayWarning, setShowVnpayWarning] = useState(false);
   const [vnpayError, setVnpayError] = useState(false);
@@ -350,6 +352,39 @@ const WalletPage: React.FC = () => {
     setDetailModal({ open: true, data: record });
   };
 
+  const showInvoice = async (record: any) => {
+    try {
+      let invoiceData = { ...record };
+      
+      // Lấy thông tin user từ localStorage hoặc context
+      const userInfo = JSON.parse(localStorage.getItem('user') || '{}');
+      invoiceData.userAvatar = userInfo.avatar || 'https://via.placeholder.com/40x40';
+      invoiceData.userName = userInfo.fullname || userInfo.username || 'Người dùng';
+      
+      // Nếu có orderId, lấy thông tin đơn hàng để hiển thị thông tin khóa học
+      if (record.orderId && token) {
+        try {
+          const orderDetail = await orderService.getOrderDetail(record.orderId, token);
+          if (orderDetail.order && orderDetail.order.items && orderDetail.order.items.length > 0) {
+            const firstItem = orderDetail.order.items[0];
+            invoiceData.courseTitle = firstItem.courseId?.title || 'Khóa học';
+            invoiceData.courseThumbnail = firstItem.courseId?.thumbnail;
+            invoiceData.instructorName = (firstItem.courseId as any)?.instructor?.fullname || 'EduPro';
+            invoiceData.instructorAvatar = (firstItem.courseId as any)?.instructor?.avatar || 'https://via.placeholder.com/40x40';
+          }
+        } catch (orderError) {
+          console.log('Could not fetch order details:', orderError);
+          // Vẫn hiển thị hóa đơn ngay cả khi không lấy được thông tin đơn hàng
+        }
+      }
+      
+      setInvoiceModal({ open: true, data: invoiceData });
+    } catch (error) {
+      console.error('Error loading invoice details:', error);
+      message.error('Không thể tải thông tin hóa đơn');
+    }
+  };
+
   const handleAmountChange = (value: number | string | null) => {
     if (typeof value === 'number') {
       setAmount(value);
@@ -608,6 +643,23 @@ const WalletPage: React.FC = () => {
       render: (v: string) => (
         <Text type="secondary">{new Date(v).toLocaleString()}</Text>
       ) 
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      render: (_: any, record: any) => (
+        <Space>
+          <Button 
+            type="primary" 
+            size="small"
+            icon={<EyeOutlined />} 
+            onClick={() => showInvoice(record)}
+            style={{ borderRadius: '6px' }}
+          >
+            Hóa đơn
+          </Button>
+        </Space>
+      ),
     },
   ];
 
@@ -1269,6 +1321,267 @@ const WalletPage: React.FC = () => {
                   </Col>
                 )}
               </Row>
+            </div>
+          )}
+        </Modal>
+
+        {/* Invoice Modal */}
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <EyeOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+              Hóa đơn chi tiết
+            </div>
+          }
+          open={invoiceModal.open}
+          onCancel={() => setInvoiceModal({ open: false })}
+          footer={null}
+          width={700}
+          style={{ borderRadius: '12px' }}
+        >
+          {invoiceModal.data && (
+            <div style={{ padding: '16px 0' }}>
+              <Card 
+                style={{ 
+                  borderRadius: '12px', 
+                  border: '2px solid #e5e7eb',
+                  background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)'
+                }}
+                bodyStyle={{ padding: '24px' }}
+              >
+                {/* Header */}
+                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                  <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
+                    HÓA ĐƠN THANH TOÁN
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: '14px' }}>
+                    EduPro - Nền tảng giáo dục trực tuyến
+                  </Text>
+                </div>
+
+                {/* User Information */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: '24px',
+                  padding: '16px',
+                  background: '#f8fafc',
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar 
+                      size={48}
+                      src={invoiceModal.data.userAvatar}
+                      style={{ marginRight: '12px' }}
+                    />
+                    <div>
+                      <Text strong style={{ fontSize: '16px', color: '#1f2937' }}>
+                        {invoiceModal.data.userName}
+                      </Text>
+                      <br />
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        Khách hàng
+                      </Text>
+                    </div>
+                  </div>
+                  
+                  {invoiceModal.data.instructorName && (
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <div style={{ textAlign: 'right', marginRight: '12px' }}>
+                        <Text strong style={{ fontSize: '16px', color: '#1f2937' }}>
+                          {invoiceModal.data.instructorName}
+                        </Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          Giảng viên
+                        </Text>
+                      </div>
+                      <Avatar 
+                        size={48}
+                        src={invoiceModal.data.instructorAvatar}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Invoice Details */}
+                <Descriptions 
+                  bordered 
+                  column={2} 
+                  size="small"
+                  style={{ marginBottom: '24px' }}
+                  labelStyle={{ fontWeight: 600, color: '#374151' }}
+                  contentStyle={{ color: '#1f2937' }}
+                >
+                  <Descriptions.Item label="Mã giao dịch" span={1}>
+                    <Text code style={{ fontSize: '14px' }}>
+                      {invoiceModal.data.txId || invoiceModal.data.orderId || 'N/A'}
+                    </Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Ngày giao dịch" span={1}>
+                    {new Date(invoiceModal.data.createdAt).toLocaleDateString('vi-VN')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Số tiền" span={2}>
+                    <Text strong style={{ fontSize: '18px', color: '#22c55e' }}>
+                      {invoiceModal.data.amount?.toLocaleString()}₫
+                    </Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Phương thức thanh toán" span={1}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      {invoiceModal.data.method === 'momo' && (
+                        <img 
+                          src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-MoMo-Square.png"
+                          alt="Momo"
+                          style={{ width: '20px', height: '20px', marginRight: '8px' }}
+                        />
+                      )}
+                      {invoiceModal.data.method === 'vnpay' && (
+                        <img 
+                          src="https://vnpay.vn/s1/statics.vnpay.vn/2023/6/0oxhzjmxbksr1686814746087.png"
+                          alt="VNPAY"
+                          style={{ width: '20px', height: '20px', marginRight: '8px' }}
+                        />
+                      )}
+                      {invoiceModal.data.method === 'zalopay' && (
+                        <img 
+                          src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-ZaloPay-Square.png"
+                          alt="ZaloPay"
+                          style={{ width: '20px', height: '20px', marginRight: '8px' }}
+                        />
+                      )}
+                      {invoiceModal.data.method === 'wallet' && (
+                        <div style={{
+                          width: '20px',
+                          height: '16px',
+                          marginRight: '8px',
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <div style={{
+                            width: '16px',
+                            height: '12px',
+                            background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+                            borderRadius: '3px 3px 0 0',
+                            position: 'relative'
+                          }}>
+                            <div style={{
+                              position: 'absolute',
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              color: '#ffffff',
+                              fontSize: '6px',
+                              fontWeight: 'bold'
+                            }}>
+                              ₫
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <span style={{ textTransform: 'uppercase', fontWeight: 500 }}>
+                        {invoiceModal.data.method}
+                      </span>
+                    </div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Trạng thái" span={1}>
+                    <Tag color="green" style={{ borderRadius: '6px', fontWeight: 600 }}>
+                      Thành công
+                    </Tag>
+                  </Descriptions.Item>
+                </Descriptions>
+
+                {/* Course Information */}
+                {invoiceModal.data.courseId && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <Title level={5} style={{ marginBottom: '16px', color: '#374151' }}>
+                      Thông tin khóa học
+                    </Title>
+                    <Card 
+                      size="small" 
+                      style={{ 
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb',
+                        background: '#f9fafb'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <Avatar 
+                          size={48}
+                          src={invoiceModal.data.courseThumbnail}
+                          style={{ marginRight: '16px' }}
+                        >
+                          📚
+                        </Avatar>
+                        <div>
+                          <Text strong style={{ fontSize: '16px', color: '#1f2937' }}>
+                            {invoiceModal.data.courseTitle || 'Khóa học'}
+                          </Text>
+                          <br />
+                          <Text type="secondary" style={{ fontSize: '14px' }}>
+                            Giảng viên: {invoiceModal.data.instructorName || 'EduPro'}
+                          </Text>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Payment Details */}
+                <div style={{ marginBottom: '24px' }}>
+                  <Title level={5} style={{ marginBottom: '16px', color: '#374151' }}>
+                    Chi tiết thanh toán
+                  </Title>
+                  <Row gutter={[16, 16]}>
+                    <Col span={12}>
+                      <div style={{ 
+                        padding: '12px', 
+                        background: '#f8fafc', 
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb'
+                      }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>Số tiền gốc</Text>
+                        <div style={{ fontSize: '16px', fontWeight: 600, color: '#1f2937' }}>
+                          {invoiceModal.data.amount?.toLocaleString()}₫
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={12}>
+                      <div style={{ 
+                        padding: '12px', 
+                        background: '#f0fdf4', 
+                        borderRadius: '8px',
+                        border: '1px solid #bbf7d0'
+                      }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>Phí giao dịch</Text>
+                        <div style={{ fontSize: '16px', fontWeight: 600, color: '#22c55e' }}>
+                          0₫
+                        </div>
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+
+                {/* Footer */}
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '16px', 
+                  background: '#f8fafc',
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    Cảm ơn bạn đã sử dụng dịch vụ của EduPro!
+                  </Text>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    Hóa đơn này được tạo tự động và có giá trị pháp lý
+                  </Text>
+                </div>
+              </Card>
             </div>
           )}
         </Modal>

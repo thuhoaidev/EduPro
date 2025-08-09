@@ -7,11 +7,10 @@ interface InvoiceDetailModalProps {
   visible: boolean;
   onClose: () => void;
   invoice: any | null;
-  onSendEmail?: () => void;
   sending?: boolean;
 }
 
-const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({ visible, onClose, invoice, onSendEmail, sending }) => {
+const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({ visible, onClose, invoice, sending }) => {
   if (!invoice) return null;
 
   const teacher = invoice.teacherId || {};
@@ -24,9 +23,6 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({ visible, onClos
       open={visible}
       onCancel={onClose}
       footer={[
-        <Button key="send" type="primary" loading={sending} onClick={onSendEmail}>
-          Gửi hóa đơn về email
-        </Button>,
         <Button key="close" onClick={onClose}>Đóng</Button>
       ]}
       title={null}

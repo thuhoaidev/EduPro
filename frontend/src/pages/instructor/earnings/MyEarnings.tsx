@@ -86,32 +86,15 @@ const MyEarnings = () => {
     }
   };
 
-  const handleSendInvoiceEmail = async () => {
-    if (!selectedInvoice) {
-      message.error("Không có hóa đơn được chọn!");
-      return;
-    }
-    console.log("Gửi email hóa đơn:", selectedInvoice);
-    setSending(true);
-    try {
-      const res = await fetch(`/api/invoices/send-email/${selectedInvoice._id}`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json"
-        }
-      });
-      const data = await res.json();
-      if (data.success) {
-        message.success("Đã gửi hóa đơn về email!");
-      } else {
-        message.error(data.message || "Gửi email thất bại!");
-      }
-    } catch (err) {
-      message.error("Gửi email thất bại!");
-    } finally {
-      setSending(false);
-    }
+  // Thay thế gửi email bằng tải PDF
+  const handleDownloadInvoice = async () => {
+    // Đã xóa chức năng tải PDF
+  };
+
+  // Xóa nút tải PDF khỏi modal
+  const handleShowInvoiceDetail = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setModalVisible(true);
   };
 
   // Tính toán thống kê
@@ -418,8 +401,6 @@ const MyEarnings = () => {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         invoice={selectedInvoice}
-        onSendEmail={handleSendInvoiceEmail}
-        sending={sending}
       />
 
       <style>{`
