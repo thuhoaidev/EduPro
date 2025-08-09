@@ -152,7 +152,7 @@ function App() {
         { path: "courses/id/:id", element: <CourseDetailPage /> },
         { path: "instructors", element: <InstructorsPage /> },
         { path: "blog", element: <BlogPage /> },
-        { path:  "/blog/:id", element: <BlogPage />},
+        { path: "/blog/:id", element: <BlogPage />},
         { path: "/blog/post/:id", element: <BlogPage /> },
         { path: "cart", element: <CartPage /> },
         { path: "checkout", element: <CheckoutPage /> },
@@ -219,6 +219,8 @@ function App() {
         { path: "roles/:id", element: <RoleDetailPage /> },
         { path: "roles/test", element: <TestRoleUpdate /> },
         { path: "device-violations", element: <AdminDeviceViolationsPage /> },
+        { path: "comments", element: <CommentsModerationPage /> },
+        { path: "blogs", element: <BlogModeration /> },
       ],
     },
     {
@@ -226,7 +228,7 @@ function App() {
       element: <ModeratorLayout />,
       children: [
         { path: "", element: <ModeratorDashboard /> },
-        { path: "reports", element: <Reports /> },
+        { path: "reports", element: <ReportsPage /> },
         { path: "blogs", element: <BlogModeration /> },
         { path: "comments", element: <CommentsModerationPage /> },
         { path: "courses", element: <CoursesModerationPage /> },

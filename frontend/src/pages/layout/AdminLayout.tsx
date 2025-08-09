@@ -159,6 +159,16 @@ const AdminLayout = () => {
             { key: "/admin/user-withdraw-requests", icon: <WalletOutlined />, label: collapsed ? "RT" : "Rút tiền" },
           ],
         },
+        
+        {
+          label: collapsed ? "BM" : "BÀI VIẾT & BÌNH LUẬN",
+          type: "group",
+          children: [
+            { key: "/admin/comments", icon: <FileTextOutlined />, label: collapsed ? "BL" : "Bình luận" },
+            { key: "/admin/blogs", icon: <FileSearchOutlined />, label: collapsed ? "BV" : "Bài viết" },
+          ],
+        },
+
         {
           label: collapsed ? "TK" : "THỐNG KÊ & BÁO CÁO",
           type: "group",

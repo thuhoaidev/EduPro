@@ -345,6 +345,14 @@ export const usePermissions = () => {
       }
       return hasPermissionSimple(user, PERMISSIONS.DELETE_COMMENTS);
     },
+    canApproveCourses: () => {
+      // Admin và Moderator có quyền approve courses
+      const roleName = typeof user?.role_id === 'string' ? user.role_id : user?.role_id?.name;
+      if (roleName === 'admin' || roleName === 'quản trị viên' || roleName === 'moderator' || roleName === 'kiểm duyệt viên') {
+        return true;
+      }
+      return hasPermissionSimple(user, PERMISSIONS.APPROVE_COURSES);
+    },
     canViewReports: () => {
       // Admin và Moderator có quyền view reports
       const roleName = typeof user?.role_id === 'string' ? user.role_id : user?.role_id?.name;
