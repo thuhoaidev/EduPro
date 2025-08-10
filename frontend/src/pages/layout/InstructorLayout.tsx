@@ -19,6 +19,7 @@ import {
   ReloadOutlined,
   GiftOutlined,
   FileTextOutlined,
+  LineChartOutlined,
 } from "@ant-design/icons";
 import {
   Layout,
@@ -54,7 +55,7 @@ interface User {
     name: string;
     description?: string;
     permissions?: string[];
-  };
+  } | string;
   approval_status?: string;
 }
 
@@ -140,11 +141,12 @@ const InstructorLayout = () => {
 
   // --- Monitor permissions changes for dynamic sidebar update ---
   useEffect(() => {
-    if (authUser?.role_id?.permissions) {
-      console.log('InstructorLayout - Permissions changed:', (authUser as User)?.role_id?.permissions);
+    const roleId = authUser?.role_id;
+    if (typeof roleId === 'object' && roleId?.permissions) {
+      console.log('InstructorLayout - Permissions changed:', roleId.permissions);
       console.log('InstructorLayout - Sidebar will re-render with new permissions');
     }
-  }, [(authUser as User)?.role_id?.permissions]);
+  }, [authUser?.role_id]);
 
   // --- Menu Items ---
   const menuItems: MenuProps["items"] = useMemo(
@@ -153,7 +155,8 @@ const InstructorLayout = () => {
       console.log('InstructorLayout - authUser:', authUser);
       console.log('InstructorLayout - permissions:', (authUser as User)?.role_id?.permissions);
       
-             const permissions = (authUser as User)?.role_id?.permissions || [];
+             const roleId = authUser?.role_id;
+             const permissions = (typeof roleId === 'object' && roleId?.permissions) ? roleId.permissions : [];
        console.log('InstructorLayout - All permissions:', permissions);
        console.log('InstructorLayout - Permissions length:', permissions.length);
       
@@ -217,7 +220,8 @@ const InstructorLayout = () => {
            children: [
              // Chỉ hiển thị nếu có quyền xem danh sách học viên hoặc xem tiến độ học viên
              ...(studentsMenu ? [
-               { key: "/instructor/students", icon: <TeamOutlined />, label: collapsed ? "TK" : "Thống kê học viên" }
+               { key: "/instructor/students", icon: <TeamOutlined />, label: collapsed ? "TK" : "Thống kê học viên" },
+               { key: "/instructor/analytics", icon: <LineChartOutlined />, label: collapsed ? "BT" : "Báo cáo thống kê" }
              ] : []),
              ...(userManagementMenu ? [
                { key: "/instructor/user-management", icon: <UserOutlined />, label: collapsed ? "PQ" : "Phân quyền người dùng" }

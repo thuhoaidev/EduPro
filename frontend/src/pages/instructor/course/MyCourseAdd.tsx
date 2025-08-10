@@ -50,7 +50,13 @@ import {
       CheckOutlined,
       CloseOutlined,
       DeleteOutlined,
+      DragOutlined,
 } from "@ant-design/icons";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
 import { courseService } from '../../../services/apiService';
 import { useNavigate } from 'react-router-dom';
 import { getAllCategories } from '../../../services/categoryService';
@@ -60,6 +66,238 @@ const { TextArea } = Input;
 const { Step } = Steps;
 const { Panel } = Collapse;
 const { Title, Text, Paragraph } = Typography;
+
+// Sortable Question Card Component
+const SortableQuestionCard = ({ 
+      id, 
+      children, 
+      questionIndex 
+}: { 
+      id: string | number; 
+      children: React.ReactNode; 
+      questionIndex: number | string;
+}) => {
+      const {
+            attributes,
+            listeners,
+            setNodeRef,
+            transform,
+            transition,
+            isDragging,
+      } = useSortable({ id });
+
+      const style = {
+            transform: CSS.Transform.toString(transform),
+            transition,
+            opacity: isDragging ? 0.5 : 1,
+      };
+
+      return (
+            <div ref={setNodeRef} style={style} {...attributes}>
+                  <Card
+                        size="small"
+                        style={{ 
+                              marginBottom: 16, 
+                              border: isDragging ? '2px dashed #1890ff' : '1px solid #d9d9d9',
+                              borderRadius: '8px'
+                        }}
+                        title={
+                              <div {...listeners} style={{ cursor: 'grab' }}>
+                                    <Space>
+                                          <DragOutlined style={{ color: '#8c8c8c' }} />
+                                          <span>Câu hỏi {Number(questionIndex) + 1}</span>
+                                    </Space>
+                              </div>
+                        }
+                  >
+                        {children}
+                  </Card>
+            </div>
+      );
+};
+
+// Sortable Questions List Component
+const SortableQuestionsList = ({ 
+      fields, 
+      remove, 
+      move 
+}: { 
+      fields: any[]; 
+      remove: (index: number) => void; 
+      move: (from: number, to: number) => void;
+}) => {
+      const sensors = useSensors(
+            useSensor(PointerSensor),
+            useSensor(KeyboardSensor, {
+                  coordinateGetter: sortableKeyboardCoordinates,
+            })
+      );
+
+      const handleDragEnd = (event: any) => {
+            const { active, over } = event;
+
+            if (active.id !== over.id) {
+                  const oldIndex = fields.findIndex(field => field.key === active.id);
+                  const newIndex = fields.findIndex(field => field.key === over.id);
+                  move(oldIndex, newIndex);
+            }
+      };
+
+      return (
+            <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+            >
+                  <SortableContext
+                        items={fields.map(field => field.key)}
+                        strategy={verticalListSortingStrategy}
+                  >
+                        {fields.map(({ key, name }) => (
+                              <SortableQuestionCard
+                                    key={key}
+                                    id={key}
+                                    questionIndex={name}
+                              >
+                                    <div style={{ position: 'relative' }}>
+                                          <Button
+                                                type="text"
+                                                danger
+                                                icon={<DeleteOutlined />}
+                                                onClick={() => remove(name)}
+                                                style={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}
+                                          />
+                                          <Form.Item
+                                                label="Câu hỏi"
+                                                name={[name, 'question']}
+                                                rules={[{ required: true, message: 'Vui lòng nhập câu hỏi!' }]}
+                                          >
+                                                <TextArea rows={2} placeholder="Nhập câu hỏi..." />
+                                          </Form.Item>
+
+                                          <Form.Item label="Các đáp án">
+                                                <Form.List name={[name, 'options']}>
+                                                      {(optionFields, { add: addOption, remove: removeOption }) => (
+                                                            <>
+                                                                  {optionFields.map(({ key: optionKey, name: optionName }) => (
+                                                                        <Space key={optionKey} align="baseline" style={{ display: 'flex', marginBottom: 8 }}>
+                                                                              <Form.Item
+                                                                                    name={optionName}
+                                                                                    rules={[{ required: true, message: 'Vui lòng nhập đáp án!' }]}
+                                                                                    style={{ flex: 1 }}
+                                                                                    noStyle
+                                                                              >
+                                                                                    <Input placeholder={`Đáp án ${optionName + 1}`} />
+                                                                              </Form.Item>
+                                                                              <Form.Item
+                                                                                    noStyle
+                                                                                    shouldUpdate={(prevValues, currentValues) => {
+                                                                                          const prevCorrectIndex = prevValues?.questions?.[name]?.correctIndex;
+                                                                                          const currentCorrectIndex = currentValues?.questions?.[name]?.correctIndex;
+                                                                                          return prevCorrectIndex !== currentCorrectIndex;
+                                                                                    }}
+                                                                              >
+                                                                                    {({ getFieldValue, setFieldValue }) => {
+                                                                                          const correctIndex = getFieldValue(['questions', name, 'correctIndex']);
+                                                                                          
+                                                                                          return (
+                                                                                                <Radio
+                                                                                                      checked={correctIndex === optionName}
+                                                                                                      onChange={() => setFieldValue(['questions', name, 'correctIndex'], optionName)}
+                                                                                                      style={{ marginLeft: 8 }}
+                                                                                                />
+                                                                                          );
+                                                                                    }}
+                                                                              </Form.Item>
+                                                                              {optionFields.length > 2 && (
+                                                                                    <Button
+                                                                                          type="text"
+                                                                                          danger
+                                                                                          icon={<DeleteOutlined />}
+                                                                                          onClick={() => removeOption(optionName)}
+                                                                                    />
+                                                                              )}
+                                                                            </Space>
+                                                                  ))}
+                                                                  <Button
+                                                                        type="dashed"
+                                                                        onClick={() => addOption()}
+                                                                        icon={<PlusOutlined />}
+                                                                  >
+                                                                        Thêm đáp án
+                                                                  </Button>
+                                                            </>
+                                                      )}
+                                                </Form.List>
+                                          </Form.Item>
+
+                                          <Form.Item
+                                                label={
+                                                      <Space>
+                                                            <Text>Đáp án đúng:</Text>
+                                                            <Text type="success" style={{ fontSize: '12px' }}>
+                                                                  (Đã chọn bằng radio button bên cạnh mỗi đáp án)
+                                                            </Text>
+                                                      </Space>
+                                                }
+                                                name={[name, 'correctIndex']}
+                                                rules={[{ required: true, message: 'Vui lòng chọn đáp án đúng!' }]}
+                                                validateTrigger={['onChange', 'onBlur']}
+                                          >
+                                                <Form.Item
+                                                      noStyle
+                                                      shouldUpdate={(prevValues, currentValues) => {
+                                                            const prevOptions = prevValues?.questions?.[name]?.options;
+                                                            const currentOptions = currentValues?.questions?.[name]?.options;
+                                                            const prevCorrectIndex = prevValues?.questions?.[name]?.correctIndex;
+                                                            const currentCorrectIndex = currentValues?.questions?.[name]?.correctIndex;
+                                                            return JSON.stringify(prevOptions) !== JSON.stringify(currentOptions) || 
+                                                                   prevCorrectIndex !== currentCorrectIndex;
+                                                      }}
+                                                >
+                                                      {({ getFieldValue, setFieldValue }) => {
+                                                            const options = getFieldValue(['questions', name, 'options']) || [];
+                                                            const correctIndex = getFieldValue(['questions', name, 'correctIndex']);
+
+                                                            return (
+                                                                  <div>
+                                                                        {options.length === 0 ? (
+                                                                              <Text type="secondary">Vui lòng thêm ít nhất 2 đáp án trước</Text>
+                                                                        ) : correctIndex !== undefined ? (
+                                                                              <div style={{ 
+                                                                                    padding: '8px 12px', 
+                                                                                    backgroundColor: '#f6ffed', 
+                                                                                    border: '1px solid #b7eb8f',
+                                                                                    borderRadius: '6px',
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center'
+                                                                              }}>
+                                                                                    <CheckCircleOutlined 
+                                                                                          style={{ 
+                                                                                                color: '#52c41a', 
+                                                                                                marginRight: 8,
+                                                                                                fontSize: '16px'
+                                                                                          }} 
+                                                                                    />
+                                                                                    <Text style={{ color: '#52c41a', fontWeight: 500 }}>
+                                                                                          Đáp án đúng: {options[correctIndex] || `Đáp án ${correctIndex + 1}`}
+                                                                                    </Text>
+                                                                              </div>
+                                                                        ) : (
+                                                                              <Text type="warning">Vui lòng chọn đáp án đúng bằng radio button bên cạnh đáp án</Text>
+                                                                        )}
+                                                                  </div>
+                                                            );
+                                                      }}
+                                                </Form.Item>
+                                          </Form.Item>
+                                    </div>
+                              </SortableQuestionCard>
+                        ))}
+                  </SortableContext>
+            </DndContext>
+      );
+};
 
 const levels = [
       { label: "Người mới bắt đầu", value: "beginner" },
@@ -505,24 +743,38 @@ const MyCourseAdd: React.FC = () => {
                                     <Form.Item
                                           label={
                                                 <span style={{ fontWeight: 600, color: '#1a1a1a' }}>
-                                                      Giá khóa học (VNĐ)
+                                                      Giá khóa học
                                                 </span>
                                           }
                                           name="price"
                                           rules={[
-                                                { required: true, message: "Vui lòng nhập giá khóa học!" },
+                                                { 
+                                                      required: true, 
+                                                      validator: (_, value) => {
+                                                            if (value === undefined || value === null || value === '') {
+                                                                  return Promise.reject(new Error('Vui lòng nhập giá khóa học!'));
+                                                            }
+                                                            return Promise.resolve();
+                                                      }
+                                                },
                                                 { type: 'number', min: 0, message: "Giá phải lớn hơn hoặc bằng 0!" }
                                           ]}
                                     >
                                           <InputNumber
-                                                placeholder="0"
+                                                placeholder="Nhập giá hoặc 0 để miễn phí"
                                                 size="large"
                                                 style={{
                                                       width: '100%',
                                                       borderRadius: '8px'
                                                 }}
-                                                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                                parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                                                formatter={value => {
+                                                      if (value === 0) return 'Miễn phí';
+                                                      return `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                                                }}
+                                                parser={value => {
+                                                      if (value === 'Miễn phí' || value === '') return 0;
+                                                      return value!.replace(/\$\s?|(,*)/g, '');
+                                                }}
                                           />
                                     </Form.Item>
 
@@ -668,33 +920,45 @@ const MyCourseAdd: React.FC = () => {
                         <Form.List name="requirements">
                               {(fields, { add, remove }) => (
                                     <>
-                                          {fields.map(({ key, name }, idx) => (
-                                                <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 12 }}>
-                                                      <Form.Item
-                                                            name={name}
-                                                            rules={[
-                                                                  { required: true, message: "Vui lòng nhập nội dung yêu cầu" },
-                                                                  { min: 3, message: "Yêu cầu phải có ít nhất 3 ký tự" }
-                                                            ]}
-                                                            style={{ flex: 1 }}
-                                                            noStyle
-                                                      >
-                                                            <Input
-                                                                  placeholder="Ví dụ: Có kiến thức cơ bản về JavaScript"
-                                                                  size="large"
-                                                                  style={{ borderRadius: '8px' }}
+                                          <div style={{ 
+                                                display: 'flex', 
+                                                flexWrap: 'wrap', 
+                                                gap: '8px',
+                                                alignItems: 'flex-start'
+                                          }}>
+                                                {fields.map(({ key, name }, idx) => (
+                                                      <div key={key} style={{ 
+                                                            display: 'flex', 
+                                                            alignItems: 'center',
+                                                            minWidth: '200px',
+                                                            maxWidth: '300px'
+                                                      }}>
+                                                            <Form.Item
+                                                                  name={name}
+                                                                  rules={[
+                                                                        { required: true, message: "Vui lòng nhập nội dung yêu cầu" },
+                                                                        { min: 3, message: "Yêu cầu phải có ít nhất 3 ký tự" }
+                                                                  ]}
+                                                                  style={{ flex: 1, marginBottom: 0 }}
+                                                                  noStyle
+                                                            >
+                                                                  <Input
+                                                                        placeholder="Ví dụ: Có kiến thức cơ bản về JavaScript"
+                                                                        size="large"
+                                                                        style={{ borderRadius: '8px' }}
+                                                                  />
+                                                            </Form.Item>
+                                                            <Button
+                                                                  type="text"
+                                                                  danger
+                                                                  icon={<MinusCircleOutlined />}
+                                                                  onClick={() => remove(name)}
+                                                                  style={{ borderRadius: '8px', marginLeft: '4px' }}
+                                                                  disabled={fields.length === 1}
                                                             />
-                                                      </Form.Item>
-                                                      <Button
-                                                            type="text"
-                                                            danger
-                                                            icon={<MinusCircleOutlined />}
-                                                            onClick={() => remove(name)}
-                                                            style={{ borderRadius: '8px' }}
-                                                            disabled={fields.length === 1}
-                                                      />
-                                                </Space>
-                                          ))}
+                                                      </div>
+                                                ))}
+                                          </div>
                                           <Form.Item>
                                                 <Button
                                                       type="dashed"
@@ -706,7 +970,8 @@ const MyCourseAdd: React.FC = () => {
                                                             height: '48px',
                                                             borderStyle: 'dashed',
                                                             borderColor: '#667eea',
-                                                            color: '#667eea'
+                                                            color: '#667eea',
+                                                            marginTop: '16px'
                                                       }}
                                                 >
                                                       Thêm yêu cầu
@@ -1109,10 +1374,14 @@ const MyCourseAdd: React.FC = () => {
                                                       }
                                                 >
                                                       <span style={{
-                                                            color: displayValues.price ? '#1a1a1a' : '#999',
-                                                            fontWeight: displayValues.price ? 600 : 400
+                                                            color: displayValues.price !== undefined && displayValues.price !== null ? '#1a1a1a' : '#999',
+                                                            fontWeight: displayValues.price !== undefined && displayValues.price !== null ? 600 : 400
                                                       }}>
-                                                            {displayValues.price ? `${displayValues.price.toLocaleString()} VNĐ` : 'Chưa nhập'}
+                                                            {displayValues.price !== undefined && displayValues.price !== null ? 
+                                                                  displayValues.price === 0 ? 
+                                                                        'Miễn phí' : 
+                                                                        `${displayValues.price.toLocaleString()} VNĐ` 
+                                                                  : 'Chưa nhập'}
                                                       </span>
                                                 </Descriptions.Item>
                                                 <Descriptions.Item
@@ -1130,7 +1399,7 @@ const MyCourseAdd: React.FC = () => {
                                                                   } else if (discountType === 'percentage' && displayValues.discountPercentage) {
                                                                         return `${displayValues.discountPercentage}%`;
                                                                   }
-                                                                  return 'Không có';
+                                                                  return 'Không';
                                                             })()}
                                                       </span>
                                                 </Descriptions.Item>
@@ -1142,10 +1411,14 @@ const MyCourseAdd: React.FC = () => {
                                                       }
                                                 >
                                                       <span style={{
-                                                            color: finalPrice ? '#52c41a' : '#999',
-                                                            fontWeight: finalPrice ? 600 : 400
+                                                            color: finalPrice !== undefined && finalPrice !== null ? '#52c41a' : '#999',
+                                                            fontWeight: finalPrice !== undefined && finalPrice !== null ? 600 : 400
                                                       }}>
-                                                            {finalPrice ? `${finalPrice.toLocaleString()} VNĐ` : 'Chưa nhập'}
+                                                            {finalPrice !== undefined && finalPrice !== null ? 
+                                                                  finalPrice === 0 ? 
+                                                                        'Miễn phí' : 
+                                                                        `${finalPrice.toLocaleString()} VNĐ` 
+                                                                  : 'Chưa nhập'}
                                                       </span>
                                                 </Descriptions.Item>
                                           </Descriptions>
@@ -1339,7 +1612,11 @@ const MyCourseAdd: React.FC = () => {
                                                       }
                                                 >
                                                       <Text strong style={{ color: '#52c41a', fontSize: '16px' }}>
-                                                            {finalPrice ? `${finalPrice.toLocaleString()} VNĐ` : 'Chưa nhập'}
+                                                            {finalPrice !== undefined && finalPrice !== null ? 
+                                                                  finalPrice === 0 ? 
+                                                                        'Miễn phí' : 
+                                                                        `${finalPrice.toLocaleString()} VNĐ` 
+                                                                  : 'Chưa nhập'}
                                                       </Text>
                                                 </Descriptions.Item>
                                           </Descriptions>
@@ -1532,123 +1809,13 @@ const MyCourseAdd: React.FC = () => {
                               initialValues={{ questions: [] }}
                         >
                               <Form.List name="questions">
-                                    {(fields, { add, remove }) => (
+                                    {(fields, { add, remove, move }) => (
                                           <>
-                                                {fields.map(({ key, name }) => (
-                                                      <Card
-                                                            key={key}
-                                                            size="small"
-                                                            style={{ marginBottom: 16 }}
-                                                            title={`Câu hỏi ${name + 1}`}
-                                                            extra={
-                                                                  <Button
-                                                                        type="text"
-                                                                        danger
-                                                                        icon={<DeleteOutlined />}
-                                                                        onClick={() => remove(name)}
-                                                                  />
-                                                            }
-                                                      >
-                                                            <Form.Item
-                                                                  label="Câu hỏi"
-                                                                  name={[name, 'question']}
-                                                                  rules={[{ required: true, message: 'Vui lòng nhập câu hỏi!' }]}
-                                                            >
-                                                                  <TextArea rows={2} placeholder="Nhập câu hỏi..." />
-                                                            </Form.Item>
-
-                                                            <Form.Item label="Các đáp án">
-                                                                  <Form.List name={[name, 'options']}>
-                                                                        {(optionFields, { add: addOption, remove: removeOption }) => (
-                                                                              <>
-                                                                                    {optionFields.map(({ key: optionKey, name: optionName }) => (
-                                                                                          <Space key={optionKey} align="baseline" style={{ display: 'flex', marginBottom: 8 }}>
-                                                                                                <Form.Item
-                                                                                                      name={optionName}
-                                                                                                      rules={[{ required: true, message: 'Vui lòng nhập đáp án!' }]}
-                                                                                                      style={{ flex: 1 }}
-                                                                                                      noStyle
-                                                                                                >
-                                                                                                      <Input placeholder={`Đáp án ${optionName + 1}`} />
-                                                                                                </Form.Item>
-                                                                                                {optionFields.length > 2 && (
-                                                                                                      <Button
-                                                                                                            type="text"
-                                                                                                            danger
-                                                                                                            icon={<DeleteOutlined />}
-                                                                                                            onClick={() => removeOption(optionName)}
-                                                                                                      />
-                                                                                                )}
-                                                                                          </Space>
-                                                                                    ))}
-                                                                                    <Button
-                                                                                          type="dashed"
-                                                                                          onClick={() => addOption()}
-                                                                                          icon={<PlusOutlined />}
-                                                                                    >
-                                                                                          Thêm đáp án
-                                                                                    </Button>
-                                                                              </>
-                                                                        )}
-                                                                  </Form.List>
-                                                            </Form.Item>
-
-                                                            <Form.Item
-                                                                  label={
-                                                                        <Space>
-                                                                              <Text>Đáp án đúng:</Text>
-                                                                              <Text type="success" style={{ fontSize: '12px' }}>
-                                                                                    (Chọn một đáp án đúng)
-                                                                              </Text>
-                                                                        </Space>
-                                                                  }
-                                                                  name={[name, 'correctIndex']}
-                                                                  rules={[{ required: true, message: 'Vui lòng chọn đáp án đúng!' }]}
-                                                                  validateTrigger={['onChange', 'onBlur']}
-                                                            >
-                                                                  <Form.Item
-                                                                        noStyle
-                                                                        shouldUpdate={(prevValues, currentValues) => {
-                                                                              const prevOptions = prevValues?.questions?.[name]?.options;
-                                                                              const currentOptions = currentValues?.questions?.[name]?.options;
-                                                                              return JSON.stringify(prevOptions) !== JSON.stringify(currentOptions);
-                                                                        }}
-                                                                  >
-                                                                        {({ getFieldValue, setFieldValue }) => {
-                                                                              const options = getFieldValue(['questions', name, 'options']) || [];
-                                                                              const correctIndex = getFieldValue(['questions', name, 'correctIndex']);
-
-                                                                              return (
-                                                                                    <div>
-                                                                                          {options.length === 0 ? (
-                                                                                                <Text type="secondary">Vui lòng thêm ít nhất 2 đáp án trước</Text>
-                                                                                          ) : (
-                                                                                                <Radio.Group
-                                                                                                      value={correctIndex}
-                                                                                                      onChange={(e) => {
-                                                                                                            setFieldValue(['questions', name, 'correctIndex'], e.target.value);
-                                                                                                      }}
-                                                                                                      style={{ width: '100%' }}
-                                                                                                >
-                                                                                                      {options.map((option: string, index: number) => (
-                                                                                                            <Radio key={index} value={index} style={{ display: 'block', marginBottom: 8 }}>
-                                                                                                                  <Space>
-                                                                                                                        <Text style={{ wordBreak: 'break-word' }}>{option || `Đáp án ${index + 1}`}</Text>
-                                                                                                                        {correctIndex === index && (
-                                                                                                                              <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                                                                                                                        )}
-                                                                                                                  </Space>
-                                                                                                            </Radio>
-                                                                                                      ))}
-                                                                                                </Radio.Group>
-                                                                                          )}
-                                                                                    </div>
-                                                                              );
-                                                                        }}
-                                                                  </Form.Item>
-                                                            </Form.Item>
-                                                      </Card>
-                                                ))}
+                                                <SortableQuestionsList 
+                                                      fields={fields} 
+                                                      remove={remove} 
+                                                      move={move} 
+                                                />
                                                 <Form.Item>
                                                       <Button
                                                             type="dashed"

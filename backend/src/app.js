@@ -39,7 +39,7 @@ const notificationRoutes = require('./routes/notification.routes');
 const vnpayRouter = require('./routes/paymentRouter');
 const userWalletRoutes = require('./routes/userWallet.routes');
 const lessonCommentRoutes = require('./routes/lessonComment.routes');
-const deviceSecurityRoutes = require('./routes/deviceSecurity.routes');
+
 const messageRoutes = require('./routes/message.routes');
 const certificateRoutes = require('./routes/certificate.routes');
 const statisticsRoutes = require('./routes/statistics.routes');
@@ -48,6 +48,8 @@ const statisticsRoutes = require('./routes/statistics.routes');
 const invoiceRoutes = require('./routes/invoice.routes');
 
 const aiRecommendationRoutes = require('./routes/aiRecommendation.routes');
+const adminRoutes = require('./routes/admin.routes');
+const instructorRoutes = require('./routes/instructor.routes');
 
 // Khởi tạo app
 const app = express();
@@ -132,13 +134,14 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api', vnpayRouter);
 app.use('/api/wallet', userWalletRoutes);
 app.use('/api/lesson-comments', lessonCommentRoutes);
-app.use('/api/device-security', deviceSecurityRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/statistics', statisticsRoutes);
 
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/ai', aiRecommendationRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/instructor', instructorRoutes);
 
 // Error handling middleware
 app.use((err, req, res, _next) => {

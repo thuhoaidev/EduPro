@@ -21,7 +21,7 @@ import { getCourseReviews, getMyReview, addOrUpdateReview, toggleLikeReview, tog
 import { SearchOutlined, LikeOutlined, DislikeOutlined, FlagOutlined } from '@ant-design/icons';
 import { issueCertificate, getCertificate } from '../../../services/certificateService';
 import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
-import CourseAccessWrapper from '../../../components/DeviceSecurity/CourseAccessWrapper';
+
 dayjs.extend(relativeTime);
 
 
@@ -640,6 +640,11 @@ const LessonVideoPage: React.FC = () => {
       return;
     }
 
+    if (!lessonId) {
+      console.log('⚠️ No lessonId provided for quiz fetch');
+      return;
+    }
+
     const fetchQuiz = async () => {
       try {
         setQuizLoading(true);
@@ -651,19 +656,26 @@ const LessonVideoPage: React.FC = () => {
           await reloadProgress();
         }
 
-        const res = await config.get(`/quizzes/video/${videoId}`);
-        setQuiz(res.data.data);
-        console.log('📝 Quiz loaded for video:', videoId);
+        const res = await config.get(`/quizzes/lesson/${lessonId}`);
+        console.log('📝 Quiz response:', res.data);
+        
+        if (res.data && res.data.success && res.data.data) {
+          setQuiz(res.data.data);
+          console.log('📝 Quiz loaded for lesson:', lessonId);
+        } else {
+          console.log('⚠️ No quiz data found for lesson:', lessonId);
+          setQuiz(null);
+        }
       } catch (e) {
         console.error('Error loading quiz:', e);
         setQuiz(null);
-        setQuizError(e instanceof Error ? e.message : 'Không tìm thấy quiz cho video này.');
+        setQuizError(e instanceof Error ? e.message : 'Không tìm thấy quiz cho bài học này.');
       } finally {
         setQuizLoading(false);
       }
     };
     fetchQuiz();
-  }, [videoId, courseId, currentLessonId, progress]);
+  }, [lessonId, courseId, currentLessonId, progress]);
 
   // Khi component unmount, dọn dẹp timeout
   useEffect(() => {
@@ -1680,12 +1692,7 @@ const LessonVideoPage: React.FC = () => {
   const lessonStatus = getLessonCompletionStatus();
 
   return (
-    <CourseAccessWrapper 
-      courseId={courseId ? parseInt(courseId) : 0} 
-      courseName={courseOverview.title || 'Khóa học'}
-      requireDeviceCheck={true}
-    >
-      <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'row-reverse', height: '100vh', background: '#f4f6fa', overflow: 'hidden' }}>
       <div style={{
         width: '30%',
         minWidth: 280,
@@ -2516,19 +2523,8 @@ const LessonVideoPage: React.FC = () => {
           placeholder="Nhập lý do báo cáo..."
         />
       </Modal>
-      </div>
-    </CourseAccessWrapper>
+    </div>
   );
 };
 
 export default LessonVideoPage;
-
-<style>{`
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none !important;
-  }
-  .hide-scrollbar {
-    -ms-overflow-style: none !important;
-    scrollbar-width: none !important;
-  }
-`}</style>

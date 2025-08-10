@@ -51,6 +51,8 @@ import MyCourseList from './pages/instructor/course/MyCourseList';
 import MyCourseAdd from './pages/instructor/course/MyCourseAdd';
 import MyLessonManager from './pages/instructor/lessons/MyLessonManager';
 import MyStudentStats from './pages/instructor/students/MyStudentStats';
+import InstructorAnalytics from './pages/instructor/analytics/InstructorAnalytics';
+import StudentDetail from './pages/instructor/students/StudentDetail';
 import MyEarnings from './pages/instructor/earnings/MyEarnings';
 import CourseDetail from './pages/instructor/course/CourseDetail';
 import LessonVideoPage from './pages/client/lessons/LessonVideoPage';
@@ -89,8 +91,7 @@ import WalletPage from "./pages/client/WalletPage";
 import WalletPaymentResultPage from "./pages/client/WalletPaymentResultPage";
 import MessagesPage from './pages/client/MessagesPage';
 import MessagesLayout from './pages/client/MessagesLayout';
-import AdminDeviceViolationsPage from './pages/admin/DeviceSecurity/AdminDeviceViolationsPage';
-import DeviceSecurityDebug from './components/DeviceSecurity/DeviceSecurityDebug';
+
 import CertificatePage from "./pages/client/CertificatePage";
 import Certificates from "./pages/client/Profile/Certificates";
 import SocialAuthCallback from './pages/client/auth/SocialAuthCallback';
@@ -168,7 +169,7 @@ function App() {
         { path: "wallet", element: <WalletPage /> },
         { path: "wallet/payment-result", element: <WalletPaymentResultPage /> },
         { path: "certificates/:courseId", element: <CertificatePage /> },
-        { path: "debug/device-security", element: <DeviceSecurityDebug /> },
+
 
         { path: '/social-callback', element: <SocialAuthCallback /> },
       ]
@@ -218,7 +219,7 @@ function App() {
         { path: "roles", element: <RolesPage /> },
         { path: "roles/:id", element: <RoleDetailPage /> },
         { path: "roles/test", element: <TestRoleUpdate /> },
-        { path: "device-violations", element: <AdminDeviceViolationsPage /> },
+
         { path: "comments", element: <CommentsModerationPage /> },
         { path: "blogs", element: <BlogModeration /> },
       ],
@@ -248,6 +249,8 @@ function App() {
         { path: "lessons", element: <MyLessonManager /> },
         { path: "lessons/edit/:id", element: <LessonEdit /> },
         { path: "students", element: <MyStudentStats /> },
+        { path: "students/:studentId", element: <StudentDetail /> },
+        { path: "analytics", element: <InstructorAnalytics /> },
         { path: "income", element: <MyEarnings /> },
         { path: "videos", element: <VideoManager /> },
         { path: "quiz", element: <QuizManager /> },

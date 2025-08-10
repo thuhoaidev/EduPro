@@ -19,6 +19,12 @@ const lessonSchema = new mongoose.Schema({
     is_preview: {
         type: Boolean,
         default: false
+    },
+    status: {
+        type: String,
+        enum: ['draft', 'published'],
+        default: 'draft',
+        index: true
     }
 }, {
     timestamps: true

@@ -1175,7 +1175,7 @@ exports.getCourseById = async (req, res, next) => {
     // Lấy danh sách chương học và bài học
     const sections = await Section.find({ course_id: courseIdForSections })
       .sort({ position: 1 })
-      .populate({ path: 'lessons', select: 'title position is_preview', options: { sort: { position: 1 } } });
+      .populate({ path: 'lessons', select: 'title position is_preview status', options: { sort: { position: 1 } } });
 
     // Lấy thông tin video và quiz cho từng lesson
     const Video = require('../models/Video');

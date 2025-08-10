@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { Card, Statistic, Table, Tag, Button, message, Popconfirm, Typography, Space, Row, Col } from "antd";
 import { DollarOutlined, UserOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, WalletOutlined, HistoryOutlined, FileTextOutlined } from "@ant-design/icons";
+import { motion } from "framer-motion";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import WithdrawModal from "../../../components/common/WithdrawModal";
 import InvoiceDetailModal from "./InvoiceDetailModal";
 
 const { Title, Text } = Typography;
+
+const FADE_IN_UP_VARIANTS = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+};
 
 const MyEarnings = () => {
   const navigate = useNavigate();
@@ -107,287 +113,458 @@ const MyEarnings = () => {
   const totalEarnings = totalWithdrawn + (wallet?.balance || 0);
 
   return (
-    <div style={{ padding: "24px", background: "#f5f5f5", minHeight: "100vh" }}>
-      {/* Thống kê chính */}
-      <Card style={{ marginBottom: 32, borderRadius: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
-        <Title level={2} style={{ marginBottom: 32, color: "#2563eb", fontWeight: 700, letterSpacing: 1 }}>
+    <div style={{ 
+      padding: "32px 24px", 
+      background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
+      minHeight: "100vh"
+    }}>
+      <style>{`
+        .stats-card {
+          background: rgba(255, 255, 255, 0.95);
+          border-radius: 16px;
+          border: none;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+          backdrop-filter: blur(10px);
+          transition: all 0.3s ease;
+        }
+        .stats-card:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+        }
+        .main-card {
+          background: rgba(255, 255, 255, 0.95);
+          border-radius: 20px;
+          border: none;
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+          backdrop-filter: blur(10px);
+        }
+        .withdraw-button {
+          border-radius: 12px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border: none;
+          font-weight: 600;
+          box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+          transition: all 0.3s ease;
+          height: 48px;
+          font-size: 16px;
+        }
+        .withdraw-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+        }
+        .page-title {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          font-weight: 700;
+          margin-bottom: 32px;
+        }
+        .ant-table {
+          background: transparent;
+        }
+        .ant-table-thead > tr > th {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          font-weight: 600;
+        }
+        .ant-table-tbody > tr > td {
+          border-bottom: 1px solid #f0f0f0;
+          background: transparent;
+        }
+        .ant-table-tbody > tr:hover > td {
+          background: rgba(102, 126, 234, 0.05) !important;
+        }
+        .table-row-earning {
+          background-color: rgba(34, 197, 94, 0.05) !important;
+        }
+        .table-row-refund {
+          background-color: rgba(156, 163, 175, 0.05) !important;
+        }
+        .table-row-withdraw {
+          background-color: rgba(239, 68, 68, 0.05) !important;
+        }
+        .table-row-approved {
+          background-color: rgba(34, 197, 94, 0.05) !important;
+        }
+        .table-row-rejected {
+          background-color: rgba(239, 68, 68, 0.05) !important;
+        }
+        .table-row-pending {
+          background-color: rgba(251, 191, 36, 0.05) !important;
+        }
+        .table-row-cancelled {
+          background-color: rgba(156, 163, 175, 0.05) !important;
+        }
+        .status-card {
+          background: rgba(255, 255, 255, 0.95);
+          border-radius: 12px;
+          border: none;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+          backdrop-filter: blur(10px);
+          transition: all 0.3s ease;
+        }
+        .status-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+      `}</style>
+
+      <motion.div initial="hidden" animate="visible" variants={FADE_IN_UP_VARIANTS}>
+        <Title level={2} className="page-title" style={{ textAlign: 'center' }}>
           <WalletOutlined style={{ marginRight: 12 }} />
           Quản lý thu nhập
         </Title>
         
-        <Row gutter={[24, 24]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="shadow-none" style={{ textAlign: "center", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white", borderRadius: 12 }}>
-              <Statistic 
-                title={<span className="text-white">Số dư hiện tại</span>} 
-                value={wallet?.balance || 0} 
-                suffix="đ" 
-                valueStyle={{ color: "white", fontWeight: 600, fontSize: 18 }} 
-              />
-            </Card>
+        {/* Thống kê chính */}
+        <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
+          <Col xs={24} sm={12} lg={6}>
+            <motion.div whileHover={{ y: -8 }} transition={{ type: "spring", stiffness: 300 }}>
+              <Card className="stats-card">
+                <Statistic 
+                  title={<span style={{ color: '#667eea', fontWeight: '600' }}>Số dư hiện tại</span>}
+                  value={wallet?.balance || 0} 
+                  suffix="đ" 
+                  prefix={<WalletOutlined style={{ color: '#667eea' }} />}
+                  valueStyle={{ color: '#2c3e50', fontWeight: '700', fontSize: '28px' }}
+                />
+              </Card>
+            </motion.div>
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="shadow-none" style={{ textAlign: "center", background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", color: "white", borderRadius: 12 }}>
-              <Statistic 
-                title={<span className="text-white">Tổng thu nhập</span>} 
-                value={totalEarnings.toLocaleString("vi-VN")} 
-                suffix="đ" 
-                valueStyle={{ color: "white", fontWeight: 600 }} 
-              />
-            </Card>
+          <Col xs={24} sm={12} lg={6}>
+            <motion.div whileHover={{ y: -8 }} transition={{ type: "spring", stiffness: 300 }}>
+              <Card className="stats-card">
+                <Statistic 
+                  title={<span style={{ color: '#52c41a', fontWeight: '600' }}>Tổng thu nhập</span>}
+                  value={totalEarnings.toLocaleString("vi-VN")} 
+                  suffix="đ" 
+                  prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
+                  valueStyle={{ color: '#52c41a', fontWeight: '700', fontSize: '28px' }}
+                />
+              </Card>
+            </motion.div>
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="shadow-none" style={{ textAlign: "center", background: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", color: "white", borderRadius: 12 }}>
-              <Statistic 
-                title={<span className="text-white">Đã rút</span>} 
-                value={totalWithdrawn.toLocaleString("vi-VN")} 
-                suffix="đ" 
-                valueStyle={{ color: "white", fontWeight: 600 }} 
-              />
-            </Card>
+          <Col xs={24} sm={12} lg={6}>
+            <motion.div whileHover={{ y: -8 }} transition={{ type: "spring", stiffness: 300 }}>
+              <Card className="stats-card">
+                <Statistic 
+                  title={<span style={{ color: '#faad14', fontWeight: '600' }}>Đã rút</span>}
+                  value={totalWithdrawn.toLocaleString("vi-VN")} 
+                  suffix="đ" 
+                  prefix={<CheckCircleOutlined style={{ color: '#faad14' }} />}
+                  valueStyle={{ color: '#faad14', fontWeight: '700', fontSize: '28px' }}
+                />
+              </Card>
+            </motion.div>
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="shadow-none" style={{ textAlign: "center", background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", color: "white", borderRadius: 12 }}>
-              <Statistic 
-                title={<span className="text-white">Yêu cầu rút tiền</span>} 
-                value={totalRequests} 
-                valueStyle={{ color: "white", fontWeight: 600 }} 
-              />
-            </Card>
+          <Col xs={24} sm={12} lg={6}>
+            <motion.div whileHover={{ y: -8 }} transition={{ type: "spring", stiffness: 300 }}>
+              <Card className="stats-card">
+                <Statistic 
+                  title={<span style={{ color: '#722ed1', fontWeight: '600' }}>Yêu cầu rút tiền</span>}
+                  value={totalRequests} 
+                  prefix={<HistoryOutlined style={{ color: '#722ed1' }} />}
+                  valueStyle={{ color: '#722ed1', fontWeight: '700', fontSize: '28px' }}
+                />
+              </Card>
+            </motion.div>
           </Col>
         </Row>
 
-        <Space size="large">
-          <Button 
-            type="primary" 
-            onClick={() => setIsModalVisible(true)} 
-            size="large"
-            style={{ 
-              borderRadius: 8, 
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", 
-              border: "none", 
-              fontWeight: 600,
-              height: 48,
-              fontSize: 16
+        <motion.div 
+          initial="hidden" 
+          animate="visible" 
+          variants={{ ...FADE_IN_UP_VARIANTS, visible: { ...FADE_IN_UP_VARIANTS.visible, transition: { delay: 0.2 } } }}
+          style={{ marginBottom: 32 }}
+        >
+          <Card className="main-card">
+            <div style={{ textAlign: 'center' }}>
+              <Button 
+                type="primary" 
+                onClick={() => setIsModalVisible(true)} 
+                className="withdraw-button"
+                icon={<DollarOutlined style={{ marginRight: 8 }} />}
+              >
+                Rút tiền
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
+      </motion.div>
+
+      <motion.div 
+        initial="hidden" 
+        animate="visible" 
+        variants={{ ...FADE_IN_UP_VARIANTS, visible: { ...FADE_IN_UP_VARIANTS.visible, transition: { delay: 0.4 } } }}
+        style={{ marginBottom: 32 }}
+      >
+        {/* Lịch sử giao dịch */}
+        <Card 
+          className="main-card"
+          title={
+            <span style={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              fontWeight: '700'
+            }}>
+              <HistoryOutlined style={{ marginRight: 8 }} />
+              Lịch sử giao dịch
+            </span>
+          }
+        >
+          <Table
+            dataSource={wallet?.history?.slice().sort((a: any, b: any) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime()) || []}
+            loading={loading}
+            rowKey={(r: any) => r?._id || Math.random().toString()}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} giao dịch`,
+              style: { marginTop: '24px' }
             }}
-          >
-            <DollarOutlined style={{ marginRight: 8 }} />
-            Rút tiền
-          </Button>
-          {/* Đã xóa nút Xem hóa đơn dẫn đến /instructor/invoices */}
-        </Space>
-      </Card>
-
-      {/* Lịch sử giao dịch */}
-      <Card 
-        style={{ marginBottom: 32, borderRadius: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.08)", overflow: "hidden" }}
-        title={
-          <Space>
-            <HistoryOutlined style={{ color: "#2563eb" }} />
-            <Text strong>Lịch sử giao dịch</Text>
-          </Space>
-        }
-      >
-        <Table
-          dataSource={wallet?.history?.slice().sort((a: any, b: any) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime()) || []}
-          loading={loading}
-          rowKey={(r: any) => r?._id || Math.random().toString()}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} giao dịch`,
-          }}
-          columns={[
-            { 
-              title: "Loại", 
-              dataIndex: "type", 
-              render: (t: string, record: any) => {
-                if (t === "earning") {
-                  return <Tag color="green" icon={<CheckCircleOutlined />} style={{ padding: "4px 10px", borderRadius: 8, fontWeight: 500, fontSize: 14 }}>Thu nhập</Tag>;
+            style={{ borderRadius: '12px', overflow: 'hidden' }}
+            columns={[
+              { 
+                title: "Loại", 
+                dataIndex: "type", 
+                render: (t: string, record: any) => {
+                  if (t === "earning") {
+                    return <Tag color="green" icon={<CheckCircleOutlined />} style={{ padding: "8px 16px", borderRadius: 8, fontWeight: 600, fontSize: 14 }}>💰 Thu nhập</Tag>;
+                  }
+                  if (t === "refund") {
+                    return <Tag color="#bfbfbf" icon={<CloseCircleOutlined />} style={{ padding: "8px 16px", borderRadius: 8, fontWeight: 600, fontSize: 14 }}>🔄 Hoàn tiền</Tag>;
+                  }
+                  return <Tag color="red" icon={<CloseCircleOutlined />} style={{ padding: "8px 16px", borderRadius: 8, fontWeight: 600, fontSize: 14 }}>💸 Rút tiền</Tag>;
                 }
-                if (t === "refund") {
-                  return <Tag color="#bfbfbf" icon={<CloseCircleOutlined />} style={{ padding: "4px 10px", borderRadius: 8, fontWeight: 500, fontSize: 14 }}>Hoàn tiền</Tag>;
-                }
-                return <Tag color="red" icon={<CloseCircleOutlined />} style={{ padding: "4px 10px", borderRadius: 8, fontWeight: 500, fontSize: 14 }}>Rút tiền</Tag>;
-              }
-            },
-            { 
-              title: "Số tiền", 
-              dataIndex: "amount", 
-              render: (amount: number, record: any) => (
-                <Text strong style={{ color: record.type === "earning" ? "#22c55e" : "#ef4444", fontSize: 16 }}>
-                  {amount.toLocaleString("vi-VN")} đ
-                </Text>
-              ),
-              sorter: (a: any, b: any) => (Number(a.amount) || 0) - (Number(b.amount) || 0),
-            },
-            { 
-              title: "Ghi chú", 
-              dataIndex: "note",
-              render: (note: string) => <Text type="secondary">{note || "Không có ghi chú"}</Text>
-            },
-            { 
-              title: "Ngày", 
-              dataIndex: "createdAt", 
-              render: (d: string) => <Text type="secondary">{new Date(d).toLocaleString()}</Text>,
-              sorter: (a: any, b: any) => new Date(String(a.createdAt)).getTime() - new Date(String(b.createdAt)).getTime(),
-              defaultSortOrder: 'descend',
-            },
-          ]}
-          rowClassName={(record: any) => {
-            if (record.type === "earning") return "table-row-earning";
-            if (record.type === "refund") return "table-row-refund";
-            return "table-row-withdraw";
-          }}
-        />
-      </Card>
-
-      {/* Yêu cầu rút tiền */}
-      <Card 
-        style={{ borderRadius: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.08)", overflow: "hidden" }}
-        title={
-          <Space>
-            <DollarOutlined style={{ color: "#2563eb" }} />
-            <Text strong>Yêu cầu rút tiền của bạn</Text>
-          </Space>
-        }
-      >
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={6}>
-            <Card style={{ textAlign: "center", background: "#fff7e6", borderRadius: 8 }}>
-              <Statistic title="Chờ duyệt" value={pendingRequests} prefix={<ClockCircleOutlined />} valueStyle={{ color: "#fa8c16" }} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card style={{ textAlign: "center", background: "#f6ffed", borderRadius: 8 }}>
-              <Statistic title="Đã duyệt" value={approvedRequests} prefix={<CheckCircleOutlined />} valueStyle={{ color: "#52c41a" }} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card style={{ textAlign: "center", background: "#fff2f0", borderRadius: 8 }}>
-              <Statistic title="Từ chối" value={rejectedRequests} prefix={<CloseCircleOutlined />} valueStyle={{ color: "#ff4d4f" }} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card style={{ textAlign: "center", background: "#f5f5f5", borderRadius: 8 }}>
-              <Statistic title="Đã hủy" value={cancelledRequests} prefix={<CloseCircleOutlined />} valueStyle={{ color: "#8c8c8c" }} />
-            </Card>
-          </Col>
-        </Row>
-
-        <Table
-          dataSource={withdrawRequests.slice().sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime())}
-          loading={loadingRequests}
-          rowKey={(r: any) => r?._id || Math.random().toString()}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`,
-          }}
-          columns={[
-            { 
-              title: "Số tiền", 
-              dataIndex: "amount", 
-              render: (amount) => (
-                <Text strong style={{ color: "#22c55e", fontSize: 16 }}>
-                  {amount.toLocaleString("vi-VN")} đ
-                </Text>
-              ),
-              sorter: (a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0),
-            },
-            { title: "Ngân hàng", dataIndex: "bank" },
-            { title: "Số tài khoản", dataIndex: "account" },
-            { title: "Chủ tài khoản", dataIndex: "holder" },
-            { 
-              title: "Trạng thái", 
-              dataIndex: "status", 
-              render: (status) => {
-                const statusConfig = {
-                  approved: { color: "green", text: "Đã duyệt", icon: <CheckCircleOutlined /> },
-                  rejected: { color: "red", text: "Từ chối", icon: <CloseCircleOutlined /> },
-                  pending: { color: "orange", text: "Chờ duyệt", icon: <ClockCircleOutlined /> },
-                  cancelled: { color: "gray", text: "Đã hủy", icon: <CloseCircleOutlined /> }
-                } as const;
-                const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-                return (
-                  <Tag color={config.color} icon={config.icon} style={{ padding: "4px 10px", borderRadius: 8, fontWeight: 500, fontSize: 14 }}>
-                    {config.text}
-                  </Tag>
-                );
               },
-              filters: [
-                { text: "Chờ duyệt", value: "pending" },
-                { text: "Đã duyệt", value: "approved" },
-                { text: "Từ chối", value: "rejected" },
-                { text: "Đã hủy", value: "cancelled" }
-              ],
-              onFilter: (value, record) => record.status === value,
-            },
-            { 
-              title: "Lý do từ chối", 
-              dataIndex: "note", 
-              render: (note, record) => record.status === "rejected" ? (
-                <Text type="danger" style={{ fontSize: 12 }}>{note}</Text>
-              ) : null 
-            },
-            { 
-              title: "Ngày yêu cầu", 
-              dataIndex: "createdAt", 
-              render: (d) => <Text type="secondary">{new Date(d).toLocaleString()}</Text>,
-              sorter: (a, b) => new Date(String(a.createdAt)).getTime() - new Date(String(b.createdAt)).getTime(),
-              defaultSortOrder: 'descend',
-            },
-            {
-              title: "Thao tác",
-              dataIndex: "_id",
-              render: (_id: string, record: any) => {
-                if (record.status === "pending") {
+              { 
+                title: "Số tiền", 
+                dataIndex: "amount", 
+                render: (amount: number, record: any) => (
+                  <Text strong style={{ color: record.type === "earning" ? "#22c55e" : "#ef4444", fontSize: 18, fontWeight: 700 }}>
+                    {amount.toLocaleString("vi-VN")} đ
+                  </Text>
+                ),
+                sorter: (a: any, b: any) => (Number(a.amount) || 0) - (Number(b.amount) || 0),
+              },
+              { 
+                title: "Ghi chú", 
+                dataIndex: "note",
+                render: (note: string) => <Text type="secondary" style={{ fontSize: 14 }}>{note || "Không có ghi chú"}</Text>
+              },
+              { 
+                title: "Ngày", 
+                dataIndex: "createdAt", 
+                render: (d: string) => <Text type="secondary" style={{ fontSize: 14 }}>{new Date(d).toLocaleString()}</Text>,
+                sorter: (a: any, b: any) => new Date(String(a.createdAt)).getTime() - new Date(String(b.createdAt)).getTime(),
+                defaultSortOrder: 'descend',
+              },
+            ]}
+            rowClassName={(record: any) => {
+              if (record.type === "earning") return "table-row-earning";
+              if (record.type === "refund") return "table-row-refund";
+              return "table-row-withdraw";
+            }}
+          />
+        </Card>
+      </motion.div>
+
+      <motion.div 
+        initial="hidden" 
+        animate="visible" 
+        variants={{ ...FADE_IN_UP_VARIANTS, visible: { ...FADE_IN_UP_VARIANTS.visible, transition: { delay: 0.6 } } }}
+      >
+        {/* Yêu cầu rút tiền */}
+        <Card 
+          className="main-card"
+          title={
+            <span style={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              fontWeight: '700'
+            }}>
+              <DollarOutlined style={{ marginRight: 8 }} />
+              Yêu cầu rút tiền của bạn
+            </span>
+          }
+        >
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            <Col xs={12} sm={6}>
+              <motion.div whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 300 }}>
+                <Card className="status-card" style={{ textAlign: "center", background: "rgba(251, 191, 36, 0.1)" }}>
+                  <Statistic 
+                    title={<span style={{ color: "#fa8c16", fontWeight: '600' }}>Chờ duyệt</span>} 
+                    value={pendingRequests} 
+                    prefix={<ClockCircleOutlined style={{ color: "#fa8c16" }} />} 
+                    valueStyle={{ color: "#fa8c16", fontWeight: '700', fontSize: '24px' }} 
+                  />
+                </Card>
+              </motion.div>
+            </Col>
+            <Col xs={12} sm={6}>
+              <motion.div whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 300 }}>
+                <Card className="status-card" style={{ textAlign: "center", background: "rgba(34, 197, 94, 0.1)" }}>
+                  <Statistic 
+                    title={<span style={{ color: "#52c41a", fontWeight: '600' }}>Đã duyệt</span>} 
+                    value={approvedRequests} 
+                    prefix={<CheckCircleOutlined style={{ color: "#52c41a" }} />} 
+                    valueStyle={{ color: "#52c41a", fontWeight: '700', fontSize: '24px' }} 
+                  />
+                </Card>
+              </motion.div>
+            </Col>
+            <Col xs={12} sm={6}>
+              <motion.div whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 300 }}>
+                <Card className="status-card" style={{ textAlign: "center", background: "rgba(239, 68, 68, 0.1)" }}>
+                  <Statistic 
+                    title={<span style={{ color: "#ff4d4f", fontWeight: '600' }}>Từ chối</span>} 
+                    value={rejectedRequests} 
+                    prefix={<CloseCircleOutlined style={{ color: "#ff4d4f" }} />} 
+                    valueStyle={{ color: "#ff4d4f", fontWeight: '700', fontSize: '24px' }} 
+                  />
+                </Card>
+              </motion.div>
+            </Col>
+            <Col xs={12} sm={6}>
+              <motion.div whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 300 }}>
+                <Card className="status-card" style={{ textAlign: "center", background: "rgba(156, 163, 175, 0.1)" }}>
+                  <Statistic 
+                    title={<span style={{ color: "#8c8c8c", fontWeight: '600' }}>Đã hủy</span>} 
+                    value={cancelledRequests} 
+                    prefix={<CloseCircleOutlined style={{ color: "#8c8c8c" }} />} 
+                    valueStyle={{ color: "#8c8c8c", fontWeight: '700', fontSize: '24px' }} 
+                  />
+                </Card>
+              </motion.div>
+            </Col>
+          </Row>
+
+          <Table
+            dataSource={withdrawRequests.slice().sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime())}
+            loading={loadingRequests}
+            rowKey={(r: any) => r?._id || Math.random().toString()}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`,
+              style: { marginTop: '24px' }
+            }}
+            style={{ borderRadius: '12px', overflow: 'hidden' }}
+            columns={[
+              { 
+                title: "Số tiền", 
+                dataIndex: "amount", 
+                render: (amount) => (
+                  <Text strong style={{ color: "#22c55e", fontSize: 18, fontWeight: 700 }}>
+                    {amount.toLocaleString("vi-VN")} đ
+                  </Text>
+                ),
+                sorter: (a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0),
+              },
+              { title: "Ngân hàng", dataIndex: "bank", render: (bank) => <Text style={{ fontSize: 14, fontWeight: 500 }}>{bank}</Text> },
+              { title: "Số tài khoản", dataIndex: "account", render: (account) => <Text style={{ fontSize: 14, fontWeight: 500 }}>{account}</Text> },
+              { title: "Chủ tài khoản", dataIndex: "holder", render: (holder) => <Text style={{ fontSize: 14, fontWeight: 500 }}>{holder}</Text> },
+              { 
+                title: "Trạng thái", 
+                dataIndex: "status", 
+                render: (status) => {
+                  const statusConfig = {
+                    approved: { color: "green", text: "✅ Đã duyệt", icon: <CheckCircleOutlined /> },
+                    rejected: { color: "red", text: "❌ Từ chối", icon: <CloseCircleOutlined /> },
+                    pending: { color: "orange", text: "⏳ Chờ duyệt", icon: <ClockCircleOutlined /> },
+                    cancelled: { color: "gray", text: "🚫 Đã hủy", icon: <CloseCircleOutlined /> }
+                  } as const;
+                  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
                   return (
-                    <Popconfirm 
-                      title="Bạn chắc chắn muốn hủy?" 
-                      onConfirm={() => handleCancelWithdraw(_id)} 
-                      okText="Đồng ý" 
-                      cancelText="Hủy"
-                    >
-                      <Button 
-                        danger 
-                        size="small"
-                        style={{ borderRadius: 6, fontWeight: 600 }}
+                    <Tag color={config.color} icon={config.icon} style={{ padding: "8px 16px", borderRadius: 8, fontWeight: 600, fontSize: 14 }}>
+                      {config.text}
+                    </Tag>
+                  );
+                },
+                filters: [
+                  { text: "Chờ duyệt", value: "pending" },
+                  { text: "Đã duyệt", value: "approved" },
+                  { text: "Từ chối", value: "rejected" },
+                  { text: "Đã hủy", value: "cancelled" }
+                ],
+                onFilter: (value, record) => record.status === value,
+              },
+              { 
+                title: "Lý do từ chối", 
+                dataIndex: "note", 
+                render: (note, record) => record.status === "rejected" ? (
+                  <Text type="danger" style={{ fontSize: 12, fontWeight: 500 }}>{note}</Text>
+                ) : null 
+              },
+              { 
+                title: "Ngày yêu cầu", 
+                dataIndex: "createdAt", 
+                render: (d) => <Text type="secondary" style={{ fontSize: 14 }}>{new Date(d).toLocaleString()}</Text>,
+                sorter: (a, b) => new Date(String(a.createdAt)).getTime() - new Date(String(b.createdAt)).getTime(),
+                defaultSortOrder: 'descend',
+              },
+              {
+                title: "Thao tác",
+                dataIndex: "_id",
+                render: (_id: string, record: any) => {
+                  if (record.status === "pending") {
+                    return (
+                      <Popconfirm 
+                        title="Bạn chắc chắn muốn hủy?" 
+                        onConfirm={() => handleCancelWithdraw(_id)} 
+                        okText="Đồng ý" 
+                        cancelText="Hủy"
                       >
-                        Hủy
+                        <Button 
+                          danger 
+                          size="small"
+                          style={{ borderRadius: 8, fontWeight: 600 }}
+                        >
+                          Hủy
+                        </Button>
+                      </Popconfirm>
+                    );
+                  } else if (record.status === "approved") {
+                    return (
+                      <Button 
+                        type="primary"
+                        size="small"
+                        icon={<FileTextOutlined />}
+                        style={{ 
+                          borderRadius: 8, 
+                          fontWeight: 600,
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          border: 'none'
+                        }}
+                        onClick={() => {
+                          setSelectedInvoice(record);
+                          setModalVisible(true);
+                        }}
+                      >
+                        Hóa đơn
                       </Button>
-                    </Popconfirm>
-                  );
-                } else if (record.status === "approved") {
-                  return (
-                    <Button 
-                      type="primary"
-                      size="small"
-                      icon={<FileTextOutlined />}
-                      style={{ borderRadius: 6, fontWeight: 600 }}
-                      onClick={() => {
-                        setSelectedInvoice(record);
-                        setModalVisible(true);
-                      }}
-                    >
-                      Hóa đơn
-                    </Button>
-                  );
-                }
-                return null;
+                    );
+                  }
+                  return null;
+                },
               },
-            },
-          ]}
-          rowClassName={(record) => {
-            if (record.status === "approved") return "table-row-approved";
-            if (record.status === "rejected") return "table-row-rejected";
-            if (record.status === "cancelled") return "table-row-cancelled";
-            return "table-row-pending";
-          }}
-        />
-      </Card>
+            ]}
+            rowClassName={(record) => {
+              if (record.status === "approved") return "table-row-approved";
+              if (record.status === "rejected") return "table-row-rejected";
+              if (record.status === "cancelled") return "table-row-cancelled";
+              return "table-row-pending";
+            }}
+          />
+        </Card>
+      </motion.div>
 
       <WithdrawModal
         visible={isModalVisible}
@@ -402,33 +579,6 @@ const MyEarnings = () => {
         onClose={() => setModalVisible(false)}
         invoice={selectedInvoice}
       />
-
-      <style>{`
-        .table-row-earning {
-          background-color: #f0fdf4 !important;
-        }
-        .table-row-refund {
-          background-color: #f5f5f5 !important;
-        }
-        .table-row-withdraw {
-          background-color: #fef2f2 !important;
-        }
-        .table-row-approved {
-          background-color: #f0fdf4 !important;
-        }
-        .table-row-rejected {
-          background-color: #fef2f2 !important;
-        }
-        .table-row-pending {
-          background-color: #fefce8 !important;
-        }
-        .table-row-cancelled {
-          background-color: #f3f4f6 !important;
-        }
-        .ant-table-tbody > tr:hover > td {
-          background-color: #e0e7ff !important;
-        }
-      `}</style>
     </div>
   );
 };

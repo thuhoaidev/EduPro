@@ -1,5 +1,5 @@
 // Middleware kiểm tra quyền dựa trên vai trò
-const checkRole = (...allowedRoles) => {
+const checkRole = (allowedRoles) => {
   return async (req, res, next) => {
     try {
       // Kiểm tra xem user có tồn tại không
@@ -15,24 +15,27 @@ const checkRole = (...allowedRoles) => {
       const userRoleName = req.user.userRoleName;
       const roleId = req.user.role_id;
 
+      // Đảm bảo allowedRoles là array
+      const rolesArray = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+      
       // Kiểm tra xem có role nào trong danh sách được phép không
       let hasPermission = false;
 
       // Kiểm tra trong roles array
       for (const role of userRoles) {
-        if (allowedRoles.includes(role)) {
+        if (rolesArray.includes(role)) {
           hasPermission = true;
           break;
         }
       }
 
       // Kiểm tra userRoleName
-      if (!hasPermission && allowedRoles.includes(userRoleName)) {
+      if (!hasPermission && rolesArray.includes(userRoleName)) {
         hasPermission = true;
       }
 
       // Kiểm tra role_id.name
-      if (!hasPermission && roleId && roleId.name && allowedRoles.includes(roleId.name)) {
+      if (!hasPermission && roleId && roleId.name && rolesArray.includes(roleId.name)) {
         hasPermission = true;
       }
 
@@ -41,7 +44,7 @@ const checkRole = (...allowedRoles) => {
           userRoles,
           userRoleName,
           roleIdName: roleId?.name,
-          allowedRoles,
+          allowedRoles: rolesArray,
           userId: req.user.id
         });
         

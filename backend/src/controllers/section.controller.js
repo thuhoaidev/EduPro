@@ -13,7 +13,7 @@ const Quiz = require('../models/Quiz');
 // Tạo chương mới
 exports.createSection = async (req, res, next) => {
   try {
-    const { course_id, title } = req.body;
+    const { course_id, title, status } = req.body;
 
     // Kiểm tra khóa học tồn tại
     const course = await Course.findById(course_id);
@@ -22,7 +22,7 @@ exports.createSection = async (req, res, next) => {
     }
 
     // Validate dữ liệu
-    const validatedData = await validateSchema(createSectionSchema, { course_id, title });
+    const validatedData = await validateSchema(createSectionSchema, { course_id, title, status });
 
     // Tạo section mới
     const section = new Section(validatedData);
@@ -41,10 +41,10 @@ exports.createSection = async (req, res, next) => {
 exports.updateSection = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title } = req.body;
+    const { title, description, status } = req.body;
 
     // Validate dữ liệu
-    const validatedData = await validateSchema(updateSectionSchema, { title });
+    const validatedData = await validateSchema(updateSectionSchema, { title, description, status });
 
     // Cập nhật section
     const section = await Section.findByIdAndUpdate(
@@ -56,6 +56,13 @@ exports.updateSection = async (req, res, next) => {
     if (!section) {
       throw new ApiError(404, 'Không tìm thấy chương');
     }
+
+    console.log('Updated section:', {
+      id: section._id,
+      title: section.title,
+      status: section.status,
+      validatedData: validatedData
+    });
 
     res.json({
       success: true,
@@ -157,7 +164,7 @@ exports.getSectionsByCourse = async (req, res, next) => {
       .sort({ position: 1 })
       .populate({
         path: 'lessons',
-        select: 'title position is_preview',
+        select: 'title position is_preview status',
         options: { sort: { position: 1 } },
       });
 
@@ -263,7 +270,7 @@ exports.updateSectionsOrder = async (req, res, next) => {
       .sort({ position: 1 })
       .populate({
         path: 'lessons',
-        select: 'title position is_preview',
+        select: 'title position is_preview status',
         options: { sort: { position: 1 } },
       });
 

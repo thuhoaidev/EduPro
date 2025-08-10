@@ -48,11 +48,28 @@ import {
   DollarOutlined,
   SettingOutlined,
   BarChartOutlined,
+  ClockCircleOutlined,
 } from "@ant-design/icons";
 import { useParams, useNavigate } from "react-router-dom";
 import { getCourseById, updateCourse, updateSection, createSection, deleteSection, createLesson, updateLesson, deleteLesson, createVideo, updateVideo, deleteVideo, createQuiz, updateQuiz } from "../../../services/courseService";
 import { getAllCategories } from "../../../services/categoryService";
 import type { Category } from "../../../interfaces/Category.interface";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
@@ -114,6 +131,7 @@ interface Lesson {
   title: string;
   position: number;
   is_preview: boolean;
+  status?: string; // Trạng thái bài học
   video?: Video; // Hỗ trợ cấu trúc cũ (đơn lẻ)
   videos?: Video[]; // Hỗ trợ cấu trúc mới (mảng)
   quiz?: Quiz;
@@ -124,6 +142,7 @@ interface Section {
   title: string;
   position: number;
   description?: string;
+  status?: string; // Trạng thái chương học
   lessons: Lesson[];
 }
 
@@ -164,9 +183,242 @@ interface EditPermissions {
   canDeleteLessons: boolean;
   canEditVideos: boolean;
   canEditQuizzes: boolean;
+  canToggleStatus: boolean;
   requiresReapproval: boolean;
   warningMessage?: string;
 }
+
+// Sortable Question Card Component
+const SortableQuestionCard = ({ 
+  id, 
+  children, 
+  questionIndex 
+}: { 
+  id: string | number; 
+  children: React.ReactNode; 
+  questionIndex: number | string;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <Card
+        size="small"
+        style={{ 
+          marginBottom: 16, 
+          border: isDragging ? '2px dashed #1890ff' : '1px solid #d9d9d9',
+          borderRadius: '8px'
+        }}
+        title={
+          <div {...listeners} style={{ cursor: 'grab' }}>
+            <Space>
+              <DragOutlined style={{ color: '#8c8c8c' }} />
+              <span>Câu hỏi {Number(questionIndex) + 1}</span>
+            </Space>
+          </div>
+        }
+      >
+        {children}
+      </Card>
+    </div>
+  );
+};
+
+// Sortable Questions List Component
+const SortableQuestionsList = ({ 
+  fields, 
+  remove, 
+  move 
+}: { 
+  fields: any[]; 
+  remove: (index: number) => void; 
+  move: (from: number, to: number) => void;
+}) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+
+    if (active.id !== over.id) {
+      const oldIndex = fields.findIndex(field => field.key === active.id);
+      const newIndex = fields.findIndex(field => field.key === over.id);
+      move(oldIndex, newIndex);
+    }
+  };
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext
+        items={fields.map(field => field.key)}
+        strategy={verticalListSortingStrategy}
+      >
+        {fields.map(({ key, name }) => (
+          <SortableQuestionCard
+            key={key}
+            id={key}
+            questionIndex={name}
+          >
+            <div style={{ position: 'relative' }}>
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => remove(name)}
+                style={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}
+              />
+              <Form.Item
+                label="Câu hỏi"
+                name={[name, 'question']}
+                rules={[{ required: true, message: 'Vui lòng nhập câu hỏi!' }]}
+              >
+                <TextArea rows={2} placeholder="Nhập câu hỏi..." />
+              </Form.Item>
+
+              <Form.Item label="Các đáp án">
+                <Form.List name={[name, 'options']}>
+                  {(optionFields, { add: addOption, remove: removeOption }) => (
+                    <>
+                      {optionFields.map(({ key: optionKey, name: optionName }) => (
+                        <Space key={optionKey} align="baseline" style={{ display: 'flex', marginBottom: 8 }}>
+                          <Form.Item
+                            name={optionName}
+                            rules={[{ required: true, message: 'Vui lòng nhập đáp án!' }]}
+                            style={{ flex: 1 }}
+                            noStyle
+                          >
+                            <Input placeholder={`Đáp án ${optionName + 1}`} />
+                          </Form.Item>
+                          <Form.Item
+                            noStyle
+                            shouldUpdate={(prevValues, currentValues) => {
+                              const prevCorrectIndex = prevValues?.questions?.[name]?.correctIndex;
+                              const currentCorrectIndex = currentValues?.questions?.[name]?.correctIndex;
+                              return prevCorrectIndex !== currentCorrectIndex;
+                            }}
+                          >
+                            {({ getFieldValue, setFieldValue }) => {
+                              const correctIndex = getFieldValue(['questions', name, 'correctIndex']);
+                              
+                              return (
+                                <Radio
+                                  checked={correctIndex === optionName}
+                                  onChange={() => setFieldValue(['questions', name, 'correctIndex'], optionName)}
+                                  style={{ marginLeft: 8 }}
+                                />
+                              );
+                            }}
+                          </Form.Item>
+                          {optionFields.length > 2 && (
+                            <Button
+                              type="text"
+                              danger
+                              icon={<DeleteOutlined />}
+                              onClick={() => removeOption(optionName)}
+                            />
+                          )}
+                        </Space>
+                      ))}
+                      <Button
+                        type="dashed"
+                        onClick={() => addOption()}
+                        icon={<PlusOutlined />}
+                      >
+                        Thêm đáp án
+                      </Button>
+                    </>
+                  )}
+                </Form.List>
+              </Form.Item>
+
+              <Form.Item
+                label={
+                  <Space>
+                    <Text>Đáp án đúng:</Text>
+                    <Text type="success" style={{ fontSize: '12px' }}>
+                      (Đã chọn bằng radio button bên cạnh mỗi đáp án)
+                    </Text>
+                  </Space>
+                }
+                name={[name, 'correctIndex']}
+                rules={[{ required: true, message: 'Vui lòng chọn đáp án đúng!' }]}
+                validateTrigger={['onChange', 'onBlur']}
+              >
+                <Form.Item
+                  noStyle
+                  shouldUpdate={(prevValues, currentValues) => {
+                    const prevOptions = prevValues?.questions?.[name]?.options;
+                    const currentOptions = currentValues?.questions?.[name]?.options;
+                    const prevCorrectIndex = prevValues?.questions?.[name]?.correctIndex;
+                    const currentCorrectIndex = currentValues?.questions?.[name]?.correctIndex;
+                    return JSON.stringify(prevOptions) !== JSON.stringify(currentOptions) || 
+                           prevCorrectIndex !== currentCorrectIndex;
+                  }}
+                >
+                  {({ getFieldValue, setFieldValue }) => {
+                    const options = getFieldValue(['questions', name, 'options']) || [];
+                    const correctIndex = getFieldValue(['questions', name, 'correctIndex']);
+
+                    return (
+                      <div>
+                        {options.length === 0 ? (
+                          <Text type="secondary">Vui lòng thêm ít nhất 2 đáp án trước</Text>
+                        ) : correctIndex !== undefined ? (
+                          <div style={{ 
+                            padding: '8px 12px', 
+                            backgroundColor: '#f6ffed', 
+                            border: '1px solid #b7eb8f',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}>
+                            <CheckCircleOutlined 
+                              style={{ 
+                                color: '#52c41a', 
+                                marginRight: 8,
+                                fontSize: '16px'
+                              }} 
+                            />
+                            <Text style={{ color: '#52c41a', fontWeight: 500 }}>
+                              Đáp án đúng: {options[correctIndex] || `Đáp án ${correctIndex + 1}`}
+                            </Text>
+                          </div>
+                        ) : (
+                          <Text type="warning">Vui lòng chọn đáp án đúng bằng radio button bên cạnh đáp án</Text>
+                        )}
+                      </div>
+                    );
+                  }}
+                </Form.Item>
+              </Form.Item>
+            </div>
+          </SortableQuestionCard>
+        ))}
+      </SortableContext>
+    </DndContext>
+  );
+};
 
 const EditCourse: React.FC = () => {
   const [form] = Form.useForm();
@@ -191,9 +443,10 @@ const EditCourse: React.FC = () => {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [lessonForm] = Form.useForm();
   const [videoFileList, setVideoFileList] = useState<{ [key: number | string]: any }>({});
-  const [draggingQuestionIdx, setDraggingQuestionIdx] = useState<number | null>(null);
   const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
   const [showVideoPreview, setShowVideoPreview] = useState(false);
+  const [justSentForReapproval, setJustSentForReapproval] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // New modal states
   const [showSectionEditModal, setShowSectionEditModal] = useState(false);
@@ -296,6 +549,10 @@ const EditCourse: React.FC = () => {
       try {
         const data = await getCourseById(id);
         setCourse(data);
+        // Only reset flag if course is not in pending state
+        if (data.status !== 'pending') {
+          setJustSentForReapproval(false);
+        }
 
         // Set fileList cho Upload nếu có thumbnail
         if (data.thumbnail) {
@@ -354,6 +611,7 @@ const EditCourse: React.FC = () => {
         canDeleteLessons: false,
         canEditVideos: false,
         canEditQuizzes: false,
+        canToggleStatus: false,
         requiresReapproval: false,
       };
     }
@@ -372,6 +630,7 @@ const EditCourse: React.FC = () => {
         canDeleteLessons: true,
         canEditVideos: true,
         canEditQuizzes: true,
+        canToggleStatus: true,
         requiresReapproval: false,
       };
     }
@@ -387,6 +646,7 @@ const EditCourse: React.FC = () => {
         canDeleteLessons: true,
         canEditVideos: true,
         canEditQuizzes: true,
+        canToggleStatus: true,
         requiresReapproval: true,
         warningMessage: "Khóa học đã bị từ chối. Sau khi chỉnh sửa, bạn cần gửi lại để duyệt.",
       };
@@ -394,6 +654,8 @@ const EditCourse: React.FC = () => {
 
     // Pending status - can edit but may require reapproval
     if (course.status === 'pending') {
+      const warningMessage = "Khóa học đang chờ duyệt lại. Nội dung mới sẽ ở trạng thái nháp cho đến khi khóa học được duyệt lại.";
+      
       return {
         canEditBasicInfo: true,
         canEditPricing: true,
@@ -403,26 +665,28 @@ const EditCourse: React.FC = () => {
         canDeleteLessons: true,
         canEditVideos: true,
         canEditQuizzes: true,
+        canToggleStatus: true,
         requiresReapproval: true,
-        warningMessage: "Khóa học đang chờ duyệt. Thay đổi lớn có thể yêu cầu duyệt lại.",
+        warningMessage,
       };
     }
 
     // Published status
     if (isPublished) {
       if (hasEnrolledStudents) {
-        // Has enrolled students - restricted editing
+        // Has enrolled students - allow editing pricing, requirements, and content structure
         return {
           canEditBasicInfo: true,
-          canEditPricing: false,
-          canEditContent: false,
+          canEditPricing: true,
+          canEditContent: true,
           canAddLessons: true,
           canEditLessons: false,
           canDeleteLessons: false,
           canEditVideos: false,
           canEditQuizzes: false,
-          requiresReapproval: false,
-          warningMessage: "Khóa học đã có học viên đăng ký. Chỉ được thêm nội dung mới, không được thay đổi hoặc xóa nội dung đã có.",
+          canToggleStatus: true,
+          requiresReapproval: true,
+          warningMessage: "Khóa học đã có học viên đăng ký. Bạn có thể chỉnh sửa thông tin và cập nhật những thay đổi mới sẽ được gửi để duyệt lại.",
         };
       } else {
         // No enrolled students - more flexible editing
@@ -435,6 +699,7 @@ const EditCourse: React.FC = () => {
           canDeleteLessons: true,
           canEditVideos: true,
           canEditQuizzes: true,
+          canToggleStatus: true,
           requiresReapproval: true,
           warningMessage: "Khóa học đã công khai. Thay đổi video/quiz có thể yêu cầu duyệt lại.",
         };
@@ -451,6 +716,7 @@ const EditCourse: React.FC = () => {
       canDeleteLessons: true,
       canEditVideos: true,
       canEditQuizzes: true,
+      canToggleStatus: true,
       requiresReapproval: false,
     };
   };
@@ -488,7 +754,7 @@ const EditCourse: React.FC = () => {
       // If reapproval is required, set status to pending
       if (permissions.requiresReapproval) {
         courseData.status = 'pending';
-        courseData.displayStatus = 'hidden';
+        // Không ẩn khóa học nữa, chỉ gửi để duyệt lại
       }
 
       await updateCourse(id!, courseData);
@@ -544,30 +810,22 @@ const EditCourse: React.FC = () => {
     const initialValues = {
       title: lesson.title,
       is_preview: lesson.is_preview,
-      videos: [], // Khởi tạo mảng rỗng
+      lesson_status: lesson.status || 'draft',
+      video_description: '',
+      video_duration: 0,
       questions: []
     };
 
     // Handle videos (support both old single video and new multiple videos)
     if (lesson.videos && lesson.videos.length > 0) {
-      // Có nhiều video - tạo fields cho từng video
-      initialValues.videos = lesson.videos.map(video => ({
-        description: video.description || '',
-        duration: video.duration || 0,
-        status: video.status || 'draft',
-        url: video.url
-      }));
+      // Lấy video đầu tiên
+      const firstVideo = lesson.videos[0];
+      initialValues.video_description = firstVideo.description || '';
+      initialValues.video_duration = firstVideo.duration || 0;
     } else if (lesson.video) {
-      // Convert single video to array format
-      initialValues.videos = [{
-        description: lesson.video.description || '',
-        duration: lesson.video.duration || 0,
-        status: lesson.video.status || 'draft',
-        url: lesson.video.url
-      }];
-    } else {
-      // Không có video - tạo 1 field trống để người dùng có thể thêm
-      initialValues.videos = [{}];
+      // Convert single video
+      initialValues.video_description = lesson.video.description || '';
+      initialValues.video_duration = lesson.video.duration || 0;
     }
 
     // Handle quiz
@@ -579,16 +837,14 @@ const EditCourse: React.FC = () => {
 
     // Set video file list if videos exist
     if (lesson.videos && lesson.videos.length > 0) {
-      const fileListObj: { [key: number]: any } = {};
-      lesson.videos.forEach((video, index) => {
-        fileListObj[index] = {
-          uid: `-${index + 1}`,
-          name: video.title || `video-${index + 1}.mp4`,
+      setVideoFileList({
+        0: {
+          uid: '-1',
+          name: lesson.videos[0].title || 'video.mp4',
           status: 'done' as const,
-          url: video.url,
-        };
+          url: lesson.videos[0].url,
+        }
       });
-      setVideoFileList(fileListObj);
     } else if (lesson.video) {
       // Hỗ trợ video đơn lẻ từ form tạo
       setVideoFileList({
@@ -623,7 +879,7 @@ const EditCourse: React.FC = () => {
     lessonForm.setFieldsValue({
       title: '',
       is_preview: false,
-      video_status: 'draft',
+      lesson_status: 'draft',
       video_description: '',
       video_duration: 0,
       questions: []
@@ -662,6 +918,10 @@ const EditCourse: React.FC = () => {
       if (id) {
         const data = await getCourseById(id);
         setCourse(data);
+        // Keep the flag if course is still in pending+hidden state
+        if (data.status === 'pending' && data.displayStatus === 'hidden') {
+          setJustSentForReapproval(true);
+        }
       }
     } catch (err: any) {
       message.error(err.message || "Lỗi khi cập nhật chương");
@@ -680,7 +940,8 @@ const EditCourse: React.FC = () => {
       // Gọi API để tạo lesson mới
       const newLesson = await createLesson(selectedSection._id, {
         title: values.title,
-        is_preview: values.is_preview || false
+        is_preview: values.is_preview || false,
+        status: values.lesson_status || 'draft'
       });
 
       // Xử lý video nếu có
@@ -689,11 +950,10 @@ const EditCourse: React.FC = () => {
 
       if (values.video_file && values.video_file.fileList && values.video_file.fileList.length > 0) {
         const videoFile = videoFileList.newLesson?.originFileObj;
-        const videoStatus = values.video_status || 'draft';
         const videoDescription = values.video_description || '';
         const videoDuration = values.video_duration || 0;
 
-        console.log('Video data:', { videoFile, videoStatus, videoDescription, videoDuration });
+        console.log('Video data:', { videoFile, videoDescription, videoDuration });
 
         if (videoFile) {
           console.log('Creating video...');
@@ -702,7 +962,7 @@ const EditCourse: React.FC = () => {
           formData.append('video', videoFile);
           formData.append('description', videoDescription);
           formData.append('duration', videoDuration.toString());
-          formData.append('status', videoStatus);
+          formData.append('status', 'published'); // Video luôn có trạng thái published
 
           await createVideo(newLesson[0]._id, formData);
           console.log('Video created successfully');
@@ -721,7 +981,35 @@ const EditCourse: React.FC = () => {
         });
       }
 
-      message.success("Thêm bài học thành công!");
+      // Kiểm tra xem khóa học có học viên đăng ký không
+      const hasEnrolledStudents = (course?.enrolledCount || 0) > 0;
+      const isPublished = course?.status === 'approved' && course?.displayStatus === 'published';
+
+      if (hasEnrolledStudents && isPublished) {
+        // Nếu có học viên đăng ký và khóa học đã công khai, gửi khóa học để duyệt lại
+        try {
+          await updateCourse(id!, {
+            title: course?.title || '',
+            description: course?.description || '',
+            category_id: course?.category?._id || '',
+            level: course?.level || 'beginner',
+            price: course?.price || 0,
+            discount_amount: course?.discount_amount || 0,
+            discount_percentage: course?.discount_percentage || 0,
+            requirements: course?.requirements || [],
+            status: 'pending'
+            // Không ẩn khóa học nữa, chỉ gửi để duyệt lại
+          });
+          setJustSentForReapproval(true);
+          message.success("Thêm bài học thành công! Bài học mới sẽ ở trạng thái nháp cho đến khi khóa học được duyệt lại.");
+        } catch (updateErr: any) {
+          console.error('Error updating course status:', updateErr);
+          message.warning("Thêm bài học thành công! Nhưng không thể cập nhật trạng thái khóa học.");
+        }
+      } else {
+        message.success("Thêm bài học thành công!");
+      }
+
       setShowAddLessonModal(false);
       lessonForm.resetFields();
       setVideoFileList({}); // Reset video file list
@@ -730,6 +1018,10 @@ const EditCourse: React.FC = () => {
       if (id) {
         const data = await getCourseById(id);
         setCourse(data);
+        // Keep the flag if course is still in pending state
+        if (data.status === 'pending') {
+          setJustSentForReapproval(true);
+        }
       }
     } catch (err: any) {
       message.error(err.message || "Lỗi khi thêm bài học");
@@ -748,16 +1040,49 @@ const EditCourse: React.FC = () => {
       // Gọi API để tạo section mới
       await createSection(id, {
         title: values.title,
-        description: values.description
+        description: values.description,
+        status: 'draft' // Section mới luôn ở trạng thái draft
       });
 
-      message.success("Thêm chương học thành công!");
+      // Kiểm tra xem khóa học có học viên đăng ký không
+      const hasEnrolledStudents = (course?.enrolledCount || 0) > 0;
+      const isPublished = course?.status === 'approved' && course?.displayStatus === 'published';
+
+      if (hasEnrolledStudents && isPublished) {
+        // Nếu có học viên đăng ký và khóa học đã công khai, gửi khóa học để duyệt lại
+        try {
+          await updateCourse(id, {
+            title: course?.title || '',
+            description: course?.description || '',
+            category_id: course?.category?._id || '',
+            level: course?.level || 'beginner',
+            price: course?.price || 0,
+            discount_amount: course?.discount_amount || 0,
+            discount_percentage: course?.discount_percentage || 0,
+            requirements: course?.requirements || [],
+            status: 'pending'
+            // Không ẩn khóa học nữa, chỉ gửi để duyệt lại
+          });
+          setJustSentForReapproval(true);
+          message.success("Thêm chương học thành công! Chương học mới sẽ ở trạng thái nháp cho đến khi khóa học được duyệt lại.");
+        } catch (updateErr: any) {
+          console.error('Error updating course status:', updateErr);
+          message.warning("Thêm chương học thành công! Nhưng không thể cập nhật trạng thái khóa học.");
+        }
+      } else {
+        message.success("Thêm chương học thành công!");
+      }
+
       setShowAddSectionModal(false);
       sectionForm.resetFields();
 
       // Refresh course data để cập nhật UI
       const data = await getCourseById(id);
       setCourse(data);
+      // Keep the flag if course is still in pending state
+      if (data.status === 'pending') {
+        setJustSentForReapproval(true);
+      }
     } catch (err: any) {
       message.error(err.message || "Lỗi khi thêm chương học");
       console.error('Error creating section:', err);
@@ -774,49 +1099,47 @@ const EditCourse: React.FC = () => {
       // Gọi API để cập nhật lesson
       await updateLesson(selectedLesson._id, {
         title: values.title,
-        is_preview: values.is_preview || false
+        is_preview: values.is_preview || false,
+        status: values.lesson_status || 'draft'
       });
 
       // Xử lý video nếu có
-      console.log('Edit - Values videos:', values.videos);
+      console.log('Edit - Values video:', values.video_file);
       console.log('Edit - Video file list:', videoFileList);
 
-      if (values.videos && values.videos.length > 0) {
-        // Xử lý từng video có file thực sự
-        for (let i = 0; i < values.videos.length; i++) {
-          const videoData = values.videos[i];
-          const videoFile = videoFileList[i]?.originFileObj;
+      if (values.video_file && values.video_file.fileList && values.video_file.fileList.length > 0) {
+        const videoFile = videoFileList[0]?.originFileObj;
+        const videoDescription = values.video_description || '';
+        const videoDuration = values.video_duration || 0;
 
-          console.log(`Edit - Video ${i}:`, { videoData, videoFile, hasFile: !!videoFile, hasStatus: !!videoData.status });
+        console.log('Edit - Video data:', { videoFile, videoDescription, videoDuration });
 
-          // Chỉ tạo/cập nhật video nếu có file và status
-          if (videoFile && videoData.status) {
-            console.log(`Edit - Processing video ${i}...`);
-            const formData = new FormData();
-            formData.append('lesson_id', selectedLesson._id);
-            formData.append('video', videoFile);
-            formData.append('description', videoData.description || '');
-            formData.append('duration', videoData.duration?.toString() || '0');
-            formData.append('status', videoData.status || 'draft');
+        if (videoFile) {
+          console.log('Edit - Creating/updating video...');
+          const formData = new FormData();
+          formData.append('lesson_id', selectedLesson._id);
+          formData.append('video', videoFile);
+          formData.append('description', videoDescription);
+          formData.append('duration', videoDuration.toString());
+          formData.append('status', 'published'); // Video luôn có trạng thái published
 
-            // Nếu video đã tồn tại thì update, nếu không thì create
-            if (selectedLesson.videos && selectedLesson.videos[i]) {
-              console.log(`Edit - Updating existing video ${i}`);
-              await updateVideo(selectedLesson.videos[i]._id, formData);
-            } else {
-              console.log(`Edit - Creating new video ${i}`);
-              await createVideo(selectedLesson._id, formData);
-            }
-            console.log(`Edit - Video ${i} processed successfully`);
-          } else if (videoData.status && !videoFile) {
-            // Có status nhưng không có file mới - có thể là video có sẵn
-            console.log(`Edit - Video ${i} has status but no new file - keeping existing video`);
+          // Nếu video đã tồn tại thì update, nếu không thì create
+          if (selectedLesson.videos && selectedLesson.videos[0]) {
+            console.log('Edit - Updating existing video');
+            await updateVideo(selectedLesson.videos[0]._id, formData);
+          } else if (selectedLesson.video) {
+            console.log('Edit - Updating existing single video');
+            await updateVideo(selectedLesson.video._id, formData);
           } else {
-            console.log(`Edit - Skipping video ${i} - no file or status`);
+            console.log('Edit - Creating new video');
+            await createVideo(selectedLesson._id, formData);
           }
+          console.log('Edit - Video processed successfully');
+        } else {
+          console.log('Edit - No video file to process');
         }
       } else {
-        console.log('Edit - No videos to process');
+        console.log('Edit - No video to process');
       }
 
       // Xử lý quiz nếu có
@@ -842,6 +1165,10 @@ const EditCourse: React.FC = () => {
       if (id) {
         const data = await getCourseById(id);
         setCourse(data);
+        // Keep the flag if course is still in pending state
+        if (data.status === 'pending') {
+          setJustSentForReapproval(true);
+        }
       }
     } catch (err: any) {
       message.error(err.message || "Lỗi khi cập nhật bài học");
@@ -879,6 +1206,10 @@ const EditCourse: React.FC = () => {
           if (id) {
             const data = await getCourseById(id);
             setCourse(data);
+            // Keep the flag if course is still in pending state
+            if (data.status === 'pending') {
+              setJustSentForReapproval(true);
+            }
           }
         } catch (err: any) {
           message.error(err.message || "Lỗi khi xóa bài học");
@@ -922,6 +1253,10 @@ const EditCourse: React.FC = () => {
           if (id) {
             const data = await getCourseById(id);
             setCourse(data);
+            // Keep the flag if course is still in pending state
+            if (data.status === 'pending') {
+              setJustSentForReapproval(true);
+            }
           }
         } catch (err: any) {
           message.error(err.message || "Lỗi khi xóa chương học");
@@ -951,6 +1286,10 @@ const EditCourse: React.FC = () => {
           if (id) {
             const data = await getCourseById(id);
             setCourse(data);
+            // Keep the flag if course is still in pending state
+            if (data.status === 'pending') {
+              setJustSentForReapproval(true);
+            }
           }
         } catch (err: any) {
           message.error(err.message || "Lỗi khi xóa video");
@@ -960,6 +1299,108 @@ const EditCourse: React.FC = () => {
         }
       },
     });
+  };
+
+  // Handler for toggling section status
+  const handleToggleSectionStatus = async (section: Section) => {
+    const currentStatus = section.status || 'draft';
+    const newStatus = currentStatus === 'published' ? 'draft' : 'published';
+    
+    console.log('Toggling section status:', {
+      sectionId: section._id,
+      currentStatus: section.status,
+      newStatus: newStatus,
+      sectionData: {
+        title: section.title,
+        description: section.description || '',
+        status: newStatus
+      }
+    });
+    
+    setSavingSection(true);
+    try {
+      const result = await updateSection(section._id, {
+        title: section.title,
+        description: section.description || '',
+        status: newStatus
+      });
+
+      console.log('Section update result:', result);
+
+      message.success(`Chuyển chương "${section.title}" sang trạng thái ${newStatus === 'published' ? 'công khai' : 'nháp'} thành công!`);
+      
+      // Refresh course data để cập nhật UI
+      if (id) {
+        try {
+          const data = await getCourseById(id);
+          console.log('Refreshed course data:', data);
+          setCourse(data);
+          
+          // Force re-render by updating expanded sections
+          setExpandedSections(new Set(Array.from(expandedSections)));
+        } catch (refreshError) {
+          console.error('Error refreshing course data:', refreshError);
+          message.warning('Cập nhật thành công nhưng không thể refresh dữ liệu. Vui lòng tải lại trang.');
+        }
+      }
+    } catch (err: any) {
+      message.error(err.message || "Lỗi khi cập nhật trạng thái chương");
+      console.error('Error updating section status:', err);
+    } finally {
+      setSavingSection(false);
+      setRefreshTrigger(prev => prev + 1);
+    }
+  };
+
+  // Handler for toggling lesson status
+  const handleToggleLessonStatus = async (lesson: Lesson) => {
+    const currentStatus = lesson.status || 'draft';
+    const newStatus = currentStatus === 'published' ? 'draft' : 'published';
+    
+    console.log('Toggling lesson status:', {
+      lessonId: lesson._id,
+      currentStatus: lesson.status,
+      newStatus: newStatus,
+      lessonData: {
+        title: lesson.title,
+        is_preview: lesson.is_preview || false,
+        status: newStatus
+      }
+    });
+    
+    setSavingLesson(true);
+    try {
+      const result = await updateLesson(lesson._id, {
+        title: lesson.title,
+        is_preview: lesson.is_preview || false,
+        status: newStatus
+      });
+
+      console.log('Lesson update result:', result);
+
+      message.success(`Chuyển bài học "${lesson.title}" sang trạng thái ${newStatus === 'published' ? 'công khai' : 'nháp'} thành công!`);
+      
+      // Refresh course data để cập nhật UI
+      if (id) {
+        try {
+          const data = await getCourseById(id);
+          console.log('Refreshed course data:', data);
+          setCourse(data);
+          
+          // Force re-render by updating expanded sections
+          setExpandedSections(new Set(Array.from(expandedSections)));
+        } catch (refreshError) {
+          console.error('Error refreshing course data:', refreshError);
+          message.warning('Cập nhật thành công nhưng không thể refresh dữ liệu. Vui lòng tải lại trang.');
+        }
+      }
+    } catch (err: any) {
+      message.error(err.message || "Lỗi khi cập nhật trạng thái bài học");
+      console.error('Error updating lesson status:', err);
+    } finally {
+      setSavingLesson(false);
+      setRefreshTrigger(prev => prev + 1);
+    }
   };
 
   if (loading) {
@@ -994,7 +1435,7 @@ const EditCourse: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto mt-6 px-4">
+    <div key={refreshTrigger} className="max-w-7xl mx-auto mt-6 px-4">
       {/* Course Info Header */}
       {course && (
         <Card className="mb-8 border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -1026,6 +1467,9 @@ const EditCourse: React.FC = () => {
                   <Tag color={getStatusColor(course.status)} className="px-3 py-1 rounded-full font-medium">
                     {course.status === 'approved' ? '✅' : course.status === 'pending' ? '⏳' : course.status === 'rejected' ? '❌' : '📝'} 
                     {statuses.find(s => s.value === course.status)?.label}
+                  </Tag>
+                  <Tag color={course.displayStatus === 'hidden' ? 'gray' : 'blue'} className="px-3 py-1 rounded-full font-medium">
+                    {course.displayStatus === 'hidden' ? '👁️ Ẩn' : '👁️ Hiển thị'}
                   </Tag>
                   {course.enrolledCount && course.enrolledCount > 0 && (
                     <Tag color="purple" className="px-3 py-1 rounded-full font-medium">
@@ -1074,6 +1518,21 @@ const EditCourse: React.FC = () => {
           showIcon
           icon={<WarningOutlined />}
           className="mb-8 border-orange-200 bg-orange-50 rounded-xl"
+          style={{ marginTop: 16, marginBottom: 16 }}
+        />
+      )}
+
+      {/* Special notification for just sent for reapproval */}
+      {justSentForReapproval && course?.status === 'pending' && (
+        <Alert
+          message="Khóa học đã được gửi để duyệt lại"
+          description="Khóa học của bạn đã được gửi đến admin để duyệt lại do có nội dung mới được thêm vào. Nội dung mới sẽ ở trạng thái nháp cho đến khi khóa học được duyệt lại."
+          type="info"
+          showIcon
+          icon={<InfoCircleOutlined />}
+          className="mb-8 border-blue-200 bg-blue-50 rounded-xl"
+          closable
+          onClose={() => setJustSentForReapproval(false)}
         />
       )}
 
@@ -1266,11 +1725,6 @@ const EditCourse: React.FC = () => {
                       <DollarOutlined className="text-white" />
                     </div>
                     <span className="text-lg font-semibold">Thông tin giá</span>
-                    {!permissions.canEditPricing && (
-                      <Tag color="red" icon={<LockOutlined />} className="ml-auto">
-                        Không thể chỉnh sửa
-                      </Tag>
-                    )}
                   </div>
                 }
                 className="mb-8 border-0 shadow-md hover:shadow-lg transition-all duration-200"
@@ -1424,7 +1878,7 @@ const EditCourse: React.FC = () => {
                         Thêm chương
                       </Button>
                     )}
-                    {!permissions.canEditContent && (
+                    {!permissions.canEditLessons && (
                       <Tag color="orange" icon={<InfoCircleOutlined />} className="px-3 py-1 rounded-full">
                         Chỉ được thêm mới
                       </Tag>
@@ -1451,9 +1905,18 @@ const EditCourse: React.FC = () => {
                                 {sectionIndex + 1}
                               </div>
                               <div>
-                                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                                  {section.title}
-                                </h3>
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-xl font-bold text-gray-900">
+                                    {section.title}
+                                  </h3>
+                                  <Tag 
+                                    color={(section.status || 'draft') === 'published' ? 'blue' : 'orange'} 
+                                    icon={(section.status || 'draft') === 'published' ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
+                                    className="text-xs px-3 py-1 rounded-full"
+                                  >
+                                    {(section.status || 'draft') === 'published' ? 'Công khai' : 'Nháp'}
+                                  </Tag>
+                                </div>
                                 {section.description && (
                                   <p className="text-sm text-gray-600 line-clamp-1 max-w-md">
                                     {section.description}
@@ -1469,6 +1932,26 @@ const EditCourse: React.FC = () => {
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
+                                {/* Toggle Section Status */}
+                                {permissions.canToggleStatus && (
+                                  <Tooltip title={`Chuyển sang ${(section.status || 'draft') === 'published' ? 'nháp' : 'công khai'}`}>
+                                    <Button
+                                      type="text"
+                                      size="large"
+                                      icon={(section.status || 'draft') === 'published' ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleSectionStatus(section);
+                                      }}
+                                      loading={savingSection}
+                                      className={`rounded-lg ${
+                                        (section.status || 'draft') === 'published' 
+                                          ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                                          : 'text-orange-600 hover:text-orange-700 hover:bg-orange-50'
+                                      }`}
+                                    />
+                                  </Tooltip>
+                                )}
                                 {permissions.canEditContent && (
                                   <Button
                                     type="text"
@@ -1526,6 +2009,13 @@ const EditCourse: React.FC = () => {
                                                 Xem trước
                                               </Tag>
                                             )}
+                                            <Tag 
+                                              color={(lesson.status || 'draft') === 'published' ? 'blue' : 'orange'} 
+                                              icon={(lesson.status || 'draft') === 'published' ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
+                                              className="text-xs px-3 py-1 rounded-full"
+                                            >
+                                              {(lesson.status || 'draft') === 'published' ? 'Công khai' : 'Nháp'}
+                                            </Tag>
                                             <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                                               Bài học #{lesson.position || lessonIndex + 1}
                                             </span>
@@ -1618,6 +2108,23 @@ const EditCourse: React.FC = () => {
 
                                     {/* Action Buttons */}
                                     <div className="flex items-center gap-3 ml-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                      {/* Toggle Lesson Status */}
+                                      {permissions.canToggleStatus && (
+                                        <Tooltip title={`Chuyển sang ${(lesson.status || 'draft') === 'published' ? 'nháp' : 'công khai'}`}>
+                                          <Button
+                                            type="text"
+                                            size="large"
+                                            icon={(lesson.status || 'draft') === 'published' ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                                            onClick={() => handleToggleLessonStatus(lesson)}
+                                            loading={savingLesson}
+                                            className={`rounded-xl ${
+                                              (lesson.status || 'draft') === 'published' 
+                                                ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                                                : 'text-orange-600 hover:text-orange-700 hover:bg-orange-50'
+                                            }`}
+                                          />
+                                        </Tooltip>
+                                      )}
                                       {permissions.canEditLessons ? (
                                         <Tooltip title="Sửa bài học">
                                           <Button
@@ -1933,16 +2440,32 @@ const EditCourse: React.FC = () => {
               <Input placeholder="Nhập tiêu đề bài học" />
             </Form.Item>
 
-            <Form.Item
-              label="Cho phép xem trước"
-              name="is_preview"
-              valuePropName="checked"
-            >
-              <Switch
-                checkedChildren="Có"
-                unCheckedChildren="Không"
-              />
-            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="Trạng thái bài học"
+                  name="lesson_status"
+                  rules={[{ required: true, message: "Vui lòng chọn trạng thái!" }]}
+                >
+                  <Select placeholder="Chọn trạng thái bài học">
+                    <Select.Option value="draft">Nháp</Select.Option>
+                    <Select.Option value="published">Công khai</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="Cho phép xem trước"
+                  name="is_preview"
+                  valuePropName="checked"
+                >
+                  <Switch
+                    checkedChildren="Có"
+                    unCheckedChildren="Không"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
           </Card>
 
           {/* Video Section */}
@@ -1956,209 +2479,157 @@ const EditCourse: React.FC = () => {
               </div>
             </div>
 
-            <Form.List name="videos">
-              {(fields, { add, remove }) => (
-                <>
-                  {fields.map(({ key, name }) => (
-                    <Card key={key} title={`Video ${name + 1}`} className="mb-4">
-                      <Form.Item
-                        name={[name, 'status']}
-                        label="Trạng thái video"
-                        rules={[{ required: true, message: "Vui lòng chọn trạng thái!" }]}
-                      >
-                        <Select placeholder="Chọn trạng thái video">
-                          <Select.Option value="draft">Nháp</Select.Option>
-                          <Select.Option value="published">Công khai</Select.Option>
-                        </Select>
-                      </Form.Item>
+            <Form.Item
+              name="video_description"
+              label="Mô tả video"
+            >
+              <TextArea rows={2} placeholder="Mô tả video (tùy chọn)" />
+            </Form.Item>
 
-                      <Form.Item
-                        name={[name, 'description']}
-                        label="Mô tả video"
-                      >
-                        <TextArea rows={2} placeholder="Mô tả video (tùy chọn)" />
-                      </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="video_duration"
+                  label="Thời lượng (giây)"
+                  rules={[{ required: true, message: "Vui lòng nhập thời lượng!" }]}
+                >
+                  <InputNumber
+                    style={{ width: "100%" }}
+                    min={1}
+                    placeholder="Nhập thời lượng video tính bằng giây"
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="video_file"
+                  label="File video"
+                  rules={[
+                    {
+                      validator: (_, value) => {
+                        // Kiểm tra xem có video có sẵn hoặc file mới không
+                        const hasExistingVideo = videoFileList[0] && videoFileList[0].url;
+                        const hasNewFile = value && value.fileList && value.fileList.length > 0;
 
-                      <Row gutter={16}>
-                        <Col span={12}>
-                          <Form.Item
-                            name={[name, 'duration']}
-                            label="Thời lượng (giây)"
-                            rules={[{ required: true, message: "Vui lòng nhập thời lượng!" }]}
-                          >
-                            <InputNumber
-                              style={{ width: "100%" }}
-                              min={1}
-                              placeholder="Nhập thời lượng video tính bằng giây"
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item
-                            name={[name, 'video_file']}
-                            label="File video"
-                            rules={[
-                              {
-                                validator: (_, value) => {
-                                  // Kiểm tra xem có video có sẵn hoặc file mới không
-                                  const hasExistingVideo = videoFileList[name] && videoFileList[name].url;
-                                  const hasNewFile = value && value.fileList && value.fileList.length > 0;
+                        if (hasExistingVideo || hasNewFile) {
+                          return Promise.resolve();
+                        }
+                        return Promise.reject(new Error('Vui lòng tải lên video hoặc sử dụng video có sẵn!'));
+                      }
+                    }
+                  ]}
+                >
+                  <Upload
+                    listType="picture-card"
+                    maxCount={1}
+                    accept="video/*"
+                    beforeUpload={() => false}
+                    fileList={videoFileList[0] ? [videoFileList[0]] : []}
+                    onChange={(info) => {
+                      console.log('Upload onChange for video:', info);
+                      // Cập nhật videoFileList khi có file mới
+                      if (info.fileList.length > 0) {
+                        setVideoFileList(prev => {
+                          const newList = {
+                            ...prev,
+                            0: info.fileList[0]
+                          };
+                          console.log('Updated videoFileList:', newList);
+                          return newList;
+                        });
 
-                                  if (hasExistingVideo || hasNewFile) {
-                                    return Promise.resolve();
-                                  }
-                                  return Promise.reject(new Error('Vui lòng tải lên video hoặc sử dụng video có sẵn!'));
-                                }
-                              }
-                            ]}
-                          >
-                              <Upload
-                              listType="picture-card"
-                              maxCount={1}
-                              accept="video/*"
-                              beforeUpload={() => false}
-                              fileList={videoFileList[name] ? [videoFileList[name]] : []}
-                              onChange={(info) => {
-                                console.log(`Upload onChange for video ${name}:`, info);
-                                // Cập nhật videoFileList khi có file mới
-                                if (info.fileList.length > 0) {
-                                  setVideoFileList(prev => {
-                                    const newList = {
-                                      ...prev,
-                                      [name]: info.fileList[0]
-                                    };
-                                    console.log('Updated videoFileList:', newList);
-                                    return newList;
-                                  });
+                        const file = info.fileList[0].originFileObj;
+                        if (file) {
+                          console.log('File uploaded for video:', file);
+                          // Tự động lấy thời lượng video
+                          const video = document.createElement('video');
+                          video.preload = 'metadata';
+                          video.onloadedmetadata = () => {
+                            const duration = Math.round(video.duration);
+                            console.log('Duration for video:', duration);
+                            lessonForm.setFieldsValue({
+                              video_duration: duration
+                            });
+                          };
+                          video.src = URL.createObjectURL(file);
+                        }
+                      } else {
+                        // Xóa file khỏi videoFileList
+                        setVideoFileList(prev => {
+                          const newList = { ...prev };
+                          delete newList[0];
+                          console.log('Removed file from videoFileList:', newList);
+                          return newList;
+                        });
+                      }
+                    }}
+                    onPreview={(file) => openVideoPreview(file)}
+                  >
+                    <div>
+                      <PlusOutlined />
+                      <div style={{ marginTop: 8 }}>Tải lên video</div>
+                    </div>
+                  </Upload>
+                </Form.Item>
+              </Col>
+            </Row>
 
-                                  const file = info.fileList[0].originFileObj;
-                                  if (file) {
-                                    console.log(`File uploaded for video ${name}:`, file);
-                                    // Tự động lấy thời lượng video
-                                    const video = document.createElement('video');
-                                    video.preload = 'metadata';
-                                    video.onloadedmetadata = () => {
-                                      const duration = Math.round(video.duration);
-                                      console.log(`Duration for video ${name}:`, duration);
-                                      lessonForm.setFieldsValue({
-                                        videos: lessonForm.getFieldValue('videos').map((v: any, index: number) =>
-                                          index === name ? { ...v, duration } : v
-                                        )
-                                      });
-                                    };
-                                    video.src = URL.createObjectURL(file);
-                                  }
-                                } else {
-                                  // Xóa file khỏi videoFileList
-                                  setVideoFileList(prev => {
-                                    const newList = { ...prev };
-                                    delete newList[name];
-                                    console.log('Removed file from videoFileList:', newList);
-                                    return newList;
-                                  });
-                                }
-                              }}
-                                onPreview={(file) => openVideoPreview(file)}
-                              >
-                              <div>
-                                <PlusOutlined />
-                                <div style={{ marginTop: 8 }}>Tải lên video</div>
-                              </div>
-                            </Upload>
-                          </Form.Item>
-                        </Col>
-                      </Row>
-
-                      {/* Hiển thị video có sẵn nếu có (chỉ trong modal chỉnh sửa) */}
-                      {selectedLesson?.videos && selectedLesson.videos[name] && (
-                        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <PlayCircleOutlined className="text-blue-600 text-lg" />
-                              <div>
-                                <div className="font-medium text-gray-900">
-                                  Video hiện tại: {selectedLesson.videos[name].title || `Video ${name + 1}`}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  Thời lượng: {formatDuration(selectedLesson.videos[name].duration || 0)}
-                                </div>
-                                {selectedLesson.videos[name].description && (
-                                  <div className="text-sm text-gray-500">
-                                    Mô tả: {selectedLesson.videos[name].description}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<PlayCircleOutlined />}
-                                onClick={() => {
-                                  if (selectedLesson.videos && selectedLesson.videos[name]) {
-                                    window.open(selectedLesson.videos[name].url, '_blank');
-                                  }
-                                }}
-                                className="text-blue-600 hover:text-blue-700"
-                              >
-                                Xem
-                              </Button>
-                              <Button
-                                type="text"
-                                size="small"
-                                danger
-                                icon={<DeleteOutlined />}
-                                loading={deletingVideo}
-                                onClick={() => {
-                                  if (selectedLesson.videos && selectedLesson.videos[name]) {
-                                    handleDeleteVideo(
-                                      selectedLesson.videos[name]._id,
-                                      selectedLesson.videos[name].title || `Video ${name + 1}`
-                                    );
-                                  }
-                                }}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                Xóa
-                              </Button>
-                            </div>
-                          </div>
+            {/* Hiển thị video có sẵn nếu có (chỉ trong modal chỉnh sửa) */}
+            {selectedLesson?.videos && selectedLesson.videos[0] && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <PlayCircleOutlined className="text-blue-600 text-lg" />
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        Video hiện tại: {selectedLesson.videos[0].title || 'Video bài học'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        Thời lượng: {formatDuration(selectedLesson.videos[0].duration || 0)}
+                      </div>
+                      {selectedLesson.videos[0].description && (
+                        <div className="text-sm text-gray-500">
+                          Mô tả: {selectedLesson.videos[0].description}
                         </div>
                       )}
-
-                      <Button
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => remove(name)}
-                      >
-                        Xóa video
-                      </Button>
-                    </Card>
-                  ))}
-                  {fields.length === 0 && (
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Button
-                      type="dashed"
-                      onClick={() => add()}
-                      icon={<PlusOutlined />}
-                      block
+                      type="text"
+                      size="small"
+                      icon={<PlayCircleOutlined />}
+                      onClick={() => {
+                        if (selectedLesson.videos && selectedLesson.videos[0]) {
+                          window.open(selectedLesson.videos[0].url, '_blank');
+                        }
+                      }}
+                      className="text-blue-600 hover:text-blue-700"
                     >
-                      Thêm video
+                      Xem
                     </Button>
-                  )}
-                  {fields.length > 0 && (
                     <Button
-                      type="dashed"
-                      onClick={() => add()}
-                      icon={<PlusOutlined />}
-                      block
+                      type="text"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      loading={deletingVideo}
+                      onClick={() => {
+                        if (selectedLesson.videos && selectedLesson.videos[0]) {
+                          handleDeleteVideo(
+                            selectedLesson.videos[0]._id,
+                            selectedLesson.videos[0].title || 'Video bài học'
+                          );
+                        }
+                      }}
+                      className="text-red-600 hover:text-red-700"
                     >
-                      Thêm video khác
+                      Xóa
                     </Button>
-                  )}
-                </>
-              )}
-            </Form.List>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div style={{ color: '#888', fontSize: '12px' }}>
               <InfoCircleOutlined /> Hỗ trợ định dạng: MP4, AVI, MOV, WMV. Kích thước tối đa: 500MB.
@@ -2170,131 +2641,21 @@ const EditCourse: React.FC = () => {
             <Form.List name="questions">
               {(fields, { add, remove, move }) => (
                 <>
-                  {fields.map(({ key, name }) => (
-                    <div
-                      key={key}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => {
-                        if (draggingQuestionIdx !== null && draggingQuestionIdx !== name) {
-                          move(draggingQuestionIdx, name);
-                        }
-                        setDraggingQuestionIdx(null);
-                      }}
-                      style={{ marginBottom: '16px' }}
+                  <SortableQuestionsList 
+                    fields={fields} 
+                    remove={remove} 
+                    move={move} 
+                  />
+                  <Form.Item>
+                    <Button
+                      type="dashed"
+                      onClick={() => add()}
+                      block
+                      icon={<PlusOutlined />}
                     >
-                      <Card
-                        title={
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span>{`Câu hỏi ${name + 1}`}</span>
-                            <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', color: '#888' }}
-                              draggable
-                              onDragStart={() => setDraggingQuestionIdx(name)}
-                              onDragEnd={() => setDraggingQuestionIdx(null)}
-                            >
-                              <DragOutlined style={{ cursor: 'grab' }} />
-                            </span>
-                          </div>
-                        }
-                        className="mb-0"
-                      >
-                      <Form.Item
-                        name={[name, 'question']}
-                        label="Câu hỏi"
-                        rules={[{ required: true, message: "Vui lòng nhập câu hỏi!" }]}
-                      >
-                        <TextArea rows={2} placeholder="Nhập câu hỏi" />
-                      </Form.Item>
-
-                      <Form.List name={[name, 'options']}>
-                        {(optionFields, { add: addOption, remove: removeOption }) => (
-                          <>
-                            <div style={{ marginBottom: '16px' }}>
-                              <div style={{ marginBottom: '8px', fontWeight: '500', color: '#666' }}>
-                                Lựa chọn (tích vào ô bên trái để chọn đáp án đúng):
-                              </div>
-                              {/* Hidden field to hold correctIndex and enable validation */}
-                              <Form.Item
-                                name={[name, 'correctIndex']}
-                                rules={[{ required: true, message: 'Vui lòng chọn đáp án đúng!' }]}
-                                style={{ display: 'none' }}
-                              >
-                                <Input />
-                              </Form.Item>
-                              {optionFields.map(({ key: optionKey, name: optionName }) => (
-                                <div key={optionKey} style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  marginBottom: '8px',
-                                  padding: '8px',
-                                  border: '1px solid #d9d9d9',
-                                  borderRadius: '6px',
-                                  backgroundColor: '#fafafa'
-                                }}>
-                                  <Radio
-                                    checked={lessonForm.getFieldValue(['questions', name, 'correctIndex']) === optionName}
-                                    onChange={() => lessonForm.setFieldValue(['questions', name, 'correctIndex'], optionName)}
-                                    style={{ marginRight: '8px' }}
-                                  />
-                                  <Form.Item
-                                    name={[name, 'options', optionName]}
-                                    style={{ flex: 1, marginBottom: 0 }}
-                                    rules={[{ required: true, message: 'Vui lòng nhập lựa chọn!' }]}
-                                  >
-                                    <Input
-                                      placeholder={`Nhập lựa chọn ${optionName + 1}`}
-                                      style={{ border: 'none', backgroundColor: 'transparent' }}
-                                    />
-                                  </Form.Item>
-                                  {optionFields.length > 2 && (
-                                    <Button
-                                      type="text"
-                                      danger
-                                      size="small"
-                                      icon={<DeleteOutlined />}
-                                      onClick={() => removeOption(optionName)}
-                                      style={{ marginLeft: '8px' }}
-                                    >
-                                      Xóa
-                                    </Button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                            <Button
-                              type="dashed"
-                              onClick={() => addOption()}
-                              icon={<PlusOutlined />}
-                              block
-                            >
-                              Thêm lựa chọn
-                            </Button>
-                          </>
-                        )}
-                      </Form.List>
-
-                      <Button
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => remove(name)}
-                      >
-                        Xóa câu hỏi
-                      </Button>
-                    </Card>
-                    </div>
-                  ))}
-                  <Button
-                    type="dashed"
-                    onClick={() => add({
-                      question: '',
-                      options: ['', ''], // Khởi tạo với 2 lựa chọn mặc định
-                      correctIndex: 0
-                    })}
-                    icon={<PlusOutlined />}
-                    block
-                  >
-                    Thêm câu hỏi
-                  </Button>
+                      Thêm câu hỏi
+                    </Button>
+                  </Form.Item>
                 </>
               )}
             </Form.List>
@@ -2332,16 +2693,32 @@ const EditCourse: React.FC = () => {
               <Input placeholder="Nhập tiêu đề bài học" />
             </Form.Item>
 
-            <Form.Item
-              label="Cho phép xem trước"
-              name="is_preview"
-              valuePropName="checked"
-            >
-              <Switch
-                checkedChildren="Có"
-                unCheckedChildren="Không"
-              />
-            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="Trạng thái bài học"
+                  name="lesson_status"
+                  rules={[{ required: true, message: "Vui lòng chọn trạng thái!" }]}
+                >
+                  <Select placeholder="Chọn trạng thái bài học">
+                    <Select.Option value="draft">Nháp</Select.Option>
+                    <Select.Option value="published">Công khai</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="Cho phép xem trước"
+                  name="is_preview"
+                  valuePropName="checked"
+                >
+                  <Switch
+                    checkedChildren="Có"
+                    unCheckedChildren="Không"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
           </Card>
 
           {/* Video Section */}
@@ -2354,17 +2731,6 @@ const EditCourse: React.FC = () => {
                 </span>
               </div>
             </div>
-
-            <Form.Item
-              name="video_status"
-              label="Trạng thái video"
-              rules={[{ required: true, message: "Vui lòng chọn trạng thái!" }]}
-            >
-              <Select placeholder="Chọn trạng thái video">
-                <Select.Option value="draft">Nháp</Select.Option>
-                <Select.Option value="published">Công khai</Select.Option>
-              </Select>
-            </Form.Item>
 
             <Form.Item
               name="video_description"
@@ -2462,127 +2828,21 @@ const EditCourse: React.FC = () => {
             <Form.List name="questions">
               {(fields, { add, remove, move }) => (
                 <>
-                  {fields.map(({ key, name }) => (
-                    <div
-                      key={key}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => {
-                        if (draggingQuestionIdx !== null && draggingQuestionIdx !== name) {
-                          move(draggingQuestionIdx, name);
-                        }
-                        setDraggingQuestionIdx(null);
-                      }}
-                      style={{ marginBottom: '16px' }}
+                  <SortableQuestionsList 
+                    fields={fields} 
+                    remove={remove} 
+                    move={move} 
+                  />
+                  <Form.Item>
+                    <Button
+                      type="dashed"
+                      onClick={() => add()}
+                      block
+                      icon={<PlusOutlined />}
                     >
-                      <Card
-                        title={
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span>{`Câu hỏi ${name + 1}`}</span>
-                            <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', color: '#888' }}
-                              draggable
-                              onDragStart={() => setDraggingQuestionIdx(name)}
-                              onDragEnd={() => setDraggingQuestionIdx(null)}
-                            >
-                              <DragOutlined style={{ cursor: 'grab' }} />
-                            </span>
-                          </div>
-                        }
-                        className="mb-0"
-                      >
-                      <Form.Item
-                        name={[name, 'question']}
-                        label="Câu hỏi"
-                        rules={[{ required: true, message: "Vui lòng nhập câu hỏi!" }]}
-                      >
-                        <TextArea rows={2} placeholder="Nhập câu hỏi" />
-                      </Form.Item>
-
-                      <Form.List name={[name, 'options']}>
-                        {(optionFields, { add: addOption, remove: removeOption }) => (
-                          <>
-                            <div style={{ marginBottom: '16px' }}>
-                              <div style={{ marginBottom: '8px', fontWeight: '500', color: '#666' }}>
-                                Lựa chọn (tích vào ô bên trái để chọn đáp án đúng):
-                              </div>
-                              <Form.Item
-                                name={[name, 'correctIndex']}
-                                style={{ marginBottom: 0 }}
-                                rules={[{ required: true, message: 'Vui lòng chọn đáp án đúng!' }]}
-                              >
-                                <Radio.Group>
-                                  {optionFields.map(({ key: optionKey, name: optionName }) => (
-                                    <div key={optionKey} style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      marginBottom: '8px',
-                                      padding: '8px',
-                                      border: '1px solid #d9d9d9',
-                                      borderRadius: '6px',
-                                      backgroundColor: '#fafafa'
-                                    }}>
-                                      <Radio value={optionName} style={{ marginRight: '8px' }} />
-                                      <Form.Item
-                                        name={[name, 'options', optionName]}
-                                        style={{ flex: 1, marginBottom: 0 }}
-                                        rules={[{ required: true, message: 'Vui lòng nhập lựa chọn!' }]}
-                                      >
-                                        <Input
-                                          placeholder={`Nhập lựa chọn ${optionName + 1}`}
-                                          style={{ border: 'none', backgroundColor: 'transparent' }}
-                                        />
-                                      </Form.Item>
-                                      {optionFields.length > 2 && (
-                                        <Button
-                                          type="text"
-                                          danger
-                                          size="small"
-                                          icon={<DeleteOutlined />}
-                                          onClick={() => removeOption(optionName)}
-                                          style={{ marginLeft: '8px' }}
-                                        >
-                                          Xóa
-                                        </Button>
-                                      )}
-                                    </div>
-                                  ))}
-                                </Radio.Group>
-                              </Form.Item>
-                            </div>
-                            <Button
-                              type="dashed"
-                              onClick={() => addOption()}
-                              icon={<PlusOutlined />}
-                              block
-                            >
-                              Thêm lựa chọn
-                            </Button>
-                          </>
-                        )}
-                      </Form.List>
-
-                      <Button
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => remove(name)}
-                      >
-                        Xóa câu hỏi
-                      </Button>
-                    </Card>
-                    </div>
-                  ))}
-                  <Button
-                    type="dashed"
-                    onClick={() => add({
-                      question: '',
-                      options: ['', ''], // Khởi tạo với 2 lựa chọn mặc định
-                      correctIndex: 0
-                    })}
-                    icon={<PlusOutlined />}
-                    block
-                  >
-                    Thêm câu hỏi
-                  </Button>
+                      Thêm câu hỏi
+                    </Button>
+                  </Form.Item>
                 </>
               )}
             </Form.List>
