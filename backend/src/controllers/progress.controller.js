@@ -139,63 +139,82 @@ exports.getUnlockedLessons = async (req, res, next) => {
   try {
     const { courseId } = req.params;
     const userId = req.user._id;
+    
+    // Kiểm tra đăng ký khóa học
     const enrollment = await Enrollment.findOne({ course: courseId, student: userId });
-    if (!enrollment) throw new ApiError(404, 'Bạn chưa đăng ký khóa học này');
-
-    // Lấy tất cả sections và lessons của khóa học
-    const sections = await Section.find({ course_id: courseId }).sort({ position: 1 }).lean();
-    const allLessons = [];
-    for (const section of sections) {
-      const lessons = await Lesson.find({ _id: { $in: section.lessons } })
-        .sort({ position: 1 })
-        .lean();
-      allLessons.push(...lessons);
+    if (!enrollment) {
+      return next(new ApiError(404, 'Bạn chưa đăng ký khóa học này'));
     }
 
-    // Lấy tất cả lessonId đã được mở khóa (có completed = true hoặc là bài học đầu tiên)
+    // Lấy tất cả sections và lessons của khóa học
+    const sections = await Section.find({ course_id: courseId })
+      .sort({ position: 1 })
+      .lean();
+      
+    if (!sections || sections.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Lấy tất cả lessons một lần
+    const allLessons = await Lesson.find({
+      _id: { $in: sections.flatMap(section => section.lessons) }
+    }).sort({ position: 1 }).lean();
+
+    if (allLessons.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Lấy tất cả lessonId đã được mở khóa (có completed = true)
     const unlockedFromProgress = Object.entries(enrollment.progress || {})
-      .filter(([_, v]) => v.completed === true)
+      .filter(([_, v]) => v && v.completed === true)
       .map(([lessonId]) => lessonId);
 
-    // Thêm bài học đầu tiên nếu chưa có
-    const firstLessonId = allLessons.length > 0 ? String(allLessons[0]._id) : null;
+    // Thêm bài học đầu tiên
+    const firstLessonId = String(allLessons[0]._id);
+    
+    // Tạo map để tìm kiếm nhanh
+    const lessonMap = new Map();
+    const sectionLessons = new Map();
+    
+    sections.forEach((section, sectionIndex) => {
+      sectionLessons.set(sectionIndex, section.lessons.map(String));
+      section.lessons.forEach(lessonId => {
+        lessonMap.set(String(lessonId), { sectionIndex });
+      });
+    });
 
     // Thêm bài học tiếp theo của những bài học đã hoàn thành
     const nextLessonsFromCompleted = [];
+    
     for (const [lessonId, progress] of Object.entries(enrollment.progress || {})) {
-      if (progress.completed === true) {
-        // Tìm bài học tiếp theo
-        for (let s = 0; s < sections.length; s++) {
-          const lessons = sections[s].lessons;
-          const lessonDocs = await Lesson.find({ _id: { $in: lessons } })
-            .sort({ position: 1 })
-            .lean();
-          for (let l = 0; l < lessonDocs.length; l++) {
-            if (String(lessonDocs[l]._id) === String(lessonId)) {
-              if (l + 1 < lessonDocs.length) {
-                nextLessonsFromCompleted.push(String(lessonDocs[l + 1]._id));
-              } else if (s + 1 < sections.length) {
-                const nextSectionLessons = await Lesson.find({
-                  _id: { $in: sections[s + 1].lessons },
-                })
-                  .sort({ position: 1 })
-                  .lean();
-                if (nextSectionLessons.length > 0) {
-                  nextLessonsFromCompleted.push(String(nextSectionLessons[0]._id));
-                }
-              }
-              break;
-            }
-          }
+      if (!progress || progress.completed !== true) continue;
+      
+      const lessonInfo = lessonMap.get(lessonId);
+      if (!lessonInfo) continue;
+      
+      const { sectionIndex } = lessonInfo;
+      const currentSectionLessons = sectionLessons.get(sectionIndex) || [];
+      const currentLessonIndex = currentSectionLessons.indexOf(lessonId);
+      
+      // Tìm bài học tiếp theo trong cùng section
+      if (currentLessonIndex !== -1 && currentLessonIndex < currentSectionLessons.length - 1) {
+        nextLessonsFromCompleted.push(currentSectionLessons[currentLessonIndex + 1]);
+      } 
+      // Nếu là bài cuối section, thêm bài đầu section tiếp theo
+      else if (sectionIndex < sections.length - 1) {
+        const nextSectionLessons = sectionLessons.get(sectionIndex + 1) || [];
+        if (nextSectionLessons.length > 0) {
+          nextLessonsFromCompleted.push(nextSectionLessons[0]);
         }
       }
     }
 
-    const unlocked = [
-      ...new Set(
-        [...unlockedFromProgress, ...nextLessonsFromCompleted, firstLessonId].filter(Boolean),
-      ),
-    ];
+    // Kết hợp và loại bỏ trùng lặp
+    const unlocked = [...new Set([
+      ...unlockedFromProgress,
+      ...nextLessonsFromCompleted,
+      firstLessonId
+    ].filter(Boolean))];
 
     res.json({ success: true, data: unlocked });
   } catch (err) {

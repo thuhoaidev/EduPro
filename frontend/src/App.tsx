@@ -78,6 +78,7 @@ import ModeratorDashboard from "./pages/Moderator/Dashboard";
 import BlogModeration from "./pages/Moderator/Blogs/BlogModeration";
 import CommentsModerationPage from "./pages/Moderator/Comments/CommentsModerationPage";
 import CoursesModerationPage from "./pages/Moderator/Courses/CoursesModerationPage";
+import ModeratorCourseDetail from "./pages/Moderator/Courses/CourseDetail";
 import Reports from "./pages/Moderator/reports/Reports";
 
 import UserSearchResultsPage from './pages/client/UserSearchResultsPage';
@@ -233,6 +234,7 @@ function App() {
         { path: "blogs", element: <BlogModeration /> },
         { path: "comments", element: <CommentsModerationPage /> },
         { path: "courses", element: <CoursesModerationPage />},
+        { path: "courses/detail/:id", element: <ModeratorCourseDetail />},
         { path: "courses/:id", element: <AdminCourseDetail />},
         { path: "statistics", element: <SimpleReportStatistics /> },
       ],

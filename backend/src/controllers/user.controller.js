@@ -484,22 +484,29 @@ exports.createUser = async (req, res) => {
     await user.save();
     await user.populate('role_id');
 
-    // Tạo bản ghi InstructorProfile tương ứng
-    await InstructorProfile.create({
-      user: user._id,
-      status: 'pending',
-      is_approved: false,
-      bio: user.bio,
-      expertise: user.instructorInfo.specializations,
-      education: [
-        {
-          degree: user.instructorInfo.degree,
-          institution: user.instructorInfo.institution,
-          year: parseInt(user.instructorInfo.graduation_year) || new Date().getFullYear(),
-        },
-      ],
-      profileImage: avatarUrl || 'default-avatar.jpg',
-    });
+    // Chỉ tạo InstructorProfile nếu user có role là instructor
+    if (role.name === 'instructor') {
+      try {
+        await InstructorProfile.create({
+          user: user._id,
+          status: 'pending',
+          is_approved: false,
+          bio: user.bio || '',
+          expertise: user.instructorInfo?.specializations || [],
+          education: [
+            {
+              degree: user.instructorInfo?.degree || '',
+              institution: user.instructorInfo?.institution || '',
+              year: parseInt(user.instructorInfo?.graduation_year) || new Date().getFullYear(),
+            },
+          ],
+          profileImage: avatarUrl || 'default-avatar.jpg',
+        });
+      } catch (profileError) {
+        console.error('Lỗi tạo InstructorProfile:', profileError);
+        // Không dừng quá trình nếu lỗi tạo profile
+      }
+    }
     // Gửi thông báo cho user mới
     /*
     await Notification.create({

@@ -723,6 +723,27 @@ export const updateQuiz = async (quizId: string, quizData: { questions: any[] })
   }
 };
 
+// Lấy quiz cho lesson
+export const getQuizByLesson = async (lessonId: string) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/quizzes/lesson/${lessonId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Không tìm thấy quiz');
+    }
+    return result.data;
+  } catch (error) {
+    console.error('Error fetching quiz:', error);
+    throw error;
+  }
+};
+
 // Lấy khóa học theo id
 export const getCourseById = async (courseId: string) => {
   try {

@@ -139,7 +139,7 @@ const AdminLayout = () => {
           label: collapsed ? "ND" : "QUẢN LÝ NỘI DUNG",
           type: "group",
           children: [
-            { key: "/admin/categories", icon: <TagsOutlined />, label: collapsed ? "DM" : "Danh mục khóa học" },
+            { key: "/admin/categories", icon: <TagsOutlined />, label: collapsed ? "DM" : "Danh mục" },
             { key: "/admin/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Khóa học" },
           ],
         },
@@ -147,7 +147,7 @@ const AdminLayout = () => {
           label: collapsed ? "ND" : "QUẢN LÝ NGƯỜI DÙNG",
           type: "group",
           children: [
-            { key: "/admin/users", icon: <UserOutlined />, label: collapsed ? "HV" : "Học viên" },
+            { key: "/admin/users", icon: <UserOutlined />, label: collapsed ? "HV" : "Người dùng" },
             { key: "/admin/instructors", icon: <TeamOutlined />, label: collapsed ? "GV" : "Giảng viên" },
             { key: "/admin/roles", icon: <KeyOutlined />, label: collapsed ? "PQ" : "Phân quyền" },
           ],
@@ -156,10 +156,10 @@ const AdminLayout = () => {
           label: collapsed ? "TC" : "TÀI CHÍNH",
           type: "group",
           children: [
-            { key: "/admin/transactions", icon: <CreditCardOutlined />, label: collapsed ? "GD" : "Giao dịch" },
+            { key: "/admin/transactions", icon: <CreditCardOutlined />, label: collapsed ? "GD" : "Lịch sử giao dịch" },
             { key: "/admin/vouchers", icon: <GiftOutlined />, label: collapsed ? "MGG" : "Mã giảm giá" },
-            { key: "/admin/earnings", icon: <DollarCircleOutlined />, label: collapsed ? "TN" : "Thu nhập" },
-            { key: "/admin/user-withdraw-requests", icon: <WalletOutlined />, label: collapsed ? "RT" : "Rút tiền" },
+            { key: "/admin/earnings", icon: <DollarCircleOutlined />, label: collapsed ? "TN" : "Thu nhập giảng viên" },
+            { key: "/admin/user-withdraw-requests", icon: <WalletOutlined />, label: collapsed ? "RT" : "Yêu cầu rút tiền" },
           ],
         },
         

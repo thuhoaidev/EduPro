@@ -22,6 +22,14 @@ router.get(
   courseController.getInstructorCourses,
 );
 
+// Lấy danh sách khóa học cho moderator (phải đặt trước /:id để tránh conflict)
+router.get(
+  '/moderator',
+  auth,
+  requireAuth(['moderator', 'admin']),
+  courseController.getModeratorCourses,
+);
+
 // Lấy chi tiết khóa học theo slug - phải đặt trước /:id
 router.get('/slug/:slug', optionalAuth, courseController.getCourseBySlug);
 
@@ -31,11 +39,27 @@ router.get('/:id', optionalAuth, courseController.getCourseById);
 // Public GET route for course sections
 router.get('/:course_id/sections', sectionController.getSectionsByCourse);
 
+// Lấy nội dung khóa học cho moderator (bao gồm tất cả trạng thái) - phải đặt trước /:course_id/content
+router.get(
+  '/:course_id/content/moderator',
+  auth,
+  requireAuth(['moderator', 'admin']),
+  courseController.getCourseSectionsAndLessonsForModerator,
+);
+
 // Lấy nội dung khóa học công khai (cho tất cả mọi người)
 router.get('/:course_id/content', courseController.getCourseSectionsAndLessons);
 
 // Lấy thống kê khóa học (cho tất cả mọi người)
 router.get('/:course_id/stats', courseController.getCourseStats);
+
+// Lấy video URL cho moderator
+router.get(
+  '/lessons/:lessonId/video',
+  auth,
+  requireAuth(['moderator', 'admin']),
+  courseController.getVideoUrlForModerator,
+);
 
 // Các route cần xác thực bên dưới
 router.post(

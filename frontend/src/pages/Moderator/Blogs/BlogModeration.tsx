@@ -292,7 +292,7 @@ const BlogModeration = () => {
               <Statistic 
                 title={
                   <Text strong style={{ fontSize: '14px', color: '#1e293b' }}>
-                    Tổng số bài viết
+                    Tổng số bài
                   </Text>
                 }
                 value={total} 

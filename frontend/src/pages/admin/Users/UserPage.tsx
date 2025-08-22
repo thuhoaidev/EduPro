@@ -592,12 +592,6 @@ const UserPage = () => {
         <div className={styles.headerRight}>
           <Space>
             <Button 
-              icon={<ExportOutlined />} 
-              className={styles.exportBtn}
-            >
-              Xuất dữ liệu
-            </Button>
-            <Button 
               type="primary" 
               icon={<UserAddOutlined />} 
               onClick={handleAddUser}

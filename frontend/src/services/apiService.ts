@@ -1,4 +1,5 @@
 // src/services/apiService.ts
+import axios from 'axios';
 import apiClient from './apiClient';
 interface ApiResponse<T> {
   success: boolean;
@@ -161,6 +162,20 @@ export const courseService = {
     }
   },
 
+  // Lấy tất cả khóa học cho moderator (bao gồm pending, approved, rejected)
+  getModeratorCourses: async (): Promise<Course[]> => {
+    try {
+      // Sử dụng API riêng cho moderator với authentication
+      const response = await apiClient.get<ApiResponse<ApiCourse[]>>('/courses/moderator');
+      return response.data?.success && Array.isArray(response.data.data)
+        ? response.data.data.map(mapApiCourseToAppCourse)
+        : [];
+    } catch (error) {
+      console.error('Lỗi khi lấy khóa học cho moderator:', error);
+      return [];
+    }
+  },
+
   // Tìm kiếm khóa học có trạng thái published
   searchCourses: async (searchTerm: string): Promise<Course[]> => {
     try {
@@ -205,8 +220,8 @@ export const courseService = {
 
   getCourseBySlug: async (slug: string): Promise<Course | null> => {
     try {
-      const cacheBustingUrl = `/courses/slug/${slug}?_=${new Date().getTime()}`;
-      const response = await apiClient.get<{ success: boolean; data: ApiCourse }>(cacheBustingUrl);
+      const cacheBustingUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/slug/${slug}?_=${new Date().getTime()}`;
+      const response = await axios.get<{ success: boolean; data: ApiCourse }>(cacheBustingUrl);
       if (response.data?.success && response.data.data) {
         return mapApiCourseToAppCourse(response.data.data);
       }
@@ -220,8 +235,8 @@ export const courseService = {
   getCourseContent: async (courseId: string): Promise<Section[]> => {
     try {
       console.log(`🔍 Fetching course content for course ID: ${courseId}`);
-      const response = await apiClient.get<{ success: boolean; data: Section[] }>(
-        `/courses/${courseId}/content`,
+      const response = await axios.get<{ success: boolean; data: Section[] }>(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/${courseId}/content`,
       );
       console.log(`📡 API Response:`, response.data);
       if (response.data?.success && Array.isArray(response.data.data)) {
@@ -238,9 +253,46 @@ export const courseService = {
     }
   },
 
+  // Lấy video URL cho moderator
+  getVideoUrlForModerator: async (lessonId: string): Promise<{ url: string; duration: number; description?: string; status: string }> => {
+    try {
+      const response = await apiClient.get<{ success: boolean; data: any }>(`/courses/lessons/${lessonId}/video`);
+      if (response.data?.success && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error('Không thể lấy video URL');
+    } catch (error) {
+      console.error('Error fetching video URL:', error);
+      throw error;
+    }
+  },
+
+  // Lấy nội dung khóa học cho moderator (bao gồm tất cả trạng thái)
+  getCourseContentForModerator: async (courseId: string): Promise<Section[]> => {
+    try {
+      console.log(`🔍 Fetching course content for moderator, course ID: ${courseId}`);
+      const response = await apiClient.get<{ success: boolean; data: Section[] }>(
+        `/courses/${courseId}/content/moderator`,
+      );
+      console.log(`📡 API Response:`, response.data);
+      if (response.data?.success && Array.isArray(response.data.data)) {
+        console.log(
+          `✅ Course content loaded successfully for moderator. Sections: ${response.data.data.length}`,
+        );
+        return response.data.data;
+      }
+      console.log(`⚠️ No course content found or invalid response`);
+      return [];
+    } catch (error) {
+      console.error(`❌ Lỗi khi lấy nội dung khóa học cho moderator ${courseId}:`, error);
+      return [];
+    }
+  },
+
   getCourseById: async (id: string): Promise<any> => {
     try {
-      const response = await apiClient.get<{ success: boolean; data: any }>(`/courses/${id}`);
+      // Sử dụng axios trực tiếp thay vì apiClient để không tự động thêm token
+      const response = await axios.get<{ success: boolean; data: any }>(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/${id}`);
       if (response.data?.success && response.data.data) {
         return response.data.data;
       }
@@ -308,16 +360,13 @@ export const courseService = {
     courseId: string,
   ): Promise<{ enrolledCount: number; averageRating: number; reviewCount: number }> => {
     try {
-      const response = await apiClient.get<{
+      const response = await axios.get<{
         success: boolean;
         data: { enrolledCount: number; averageRating: number; reviewCount: number };
-      }>(`/courses/${courseId}/stats`);
-      if (response.data?.success && response.data.data) {
-        return response.data.data;
-      }
-      return { enrolledCount: 0, averageRating: 0, reviewCount: 0 };
+      }>(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/${courseId}/stats`);
+      return response.data.data || { enrolledCount: 0, averageRating: 0, reviewCount: 0 };
     } catch (error) {
-      console.error(`Lỗi khi lấy thống kê khóa học ${courseId}:`, error);
+      console.error('Error fetching course stats:', error);
       return { enrolledCount: 0, averageRating: 0, reviewCount: 0 };
     }
   },

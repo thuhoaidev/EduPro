@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { config } from '../../api/axios';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, NavLink } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
+import { useNotification } from '../../hooks/useNotification';
+import { io } from 'socket.io-client';
 import {
   Layout, Input, Space, Button, Avatar, Dropdown, Spin, Typography, Badge, Card, List, Tag, Divider, Popover, Select, message, Menu
 } from 'antd';
@@ -33,12 +36,22 @@ import {
 import AuthNotification from '../../components/common/AuthNotification';
 import ToastNotification from '../../components/common/ToastNotification';
 import AccountTypeModal from '../../components/common/AccountTypeModal';
-import { useCart } from '../../contexts/CartContext';
 import { courseService } from '../../services/apiService';
-import { useNotification } from '../../hooks/useNotification';
 import './Header.css';
-import { io } from 'socket.io-client';
 import socket from '../../services/socket';
+
+// Debounce function to prevent excessive API calls
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return function executedFunction(...args: any[]) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 // Extend Window interface for cartContext
 declare global {
@@ -94,6 +107,9 @@ const AppHeader = () => {
     }
   };
   const { cartCount, refreshCart } = useCart();
+  
+  // Create debounced version of refreshCart to prevent excessive API calls
+  const debouncedRefreshCart = useRef(debounce(refreshCart, 1000)).current;
 
   const [user, setUser] = useState<User | null | false>(null);
   const [loading, setLoading] = useState(true);
@@ -148,39 +164,39 @@ const AppHeader = () => {
   useEffect(() => {
     const handleCoursePurchase = (event: CustomEvent) => {
       console.log('Header: Course purchased, updating cart count');
-      refreshCart();
+      debouncedRefreshCart();
     };
 
     const handleOrderSuccess = (event: CustomEvent) => {
       console.log('Header: Order success, updating cart count');
-      refreshCart();
+      debouncedRefreshCart();
     };
 
     const handlePaymentSuccess = (event: CustomEvent) => {
       console.log('Header: Payment success, updating cart count');
-      refreshCart();
+      debouncedRefreshCart();
     };
 
     const handleCartUpdate = (event: CustomEvent) => {
       console.log('Header: Cart updated, refreshing cart count');
-      refreshCart();
+      debouncedRefreshCart();
     };
 
     const handleCartItemAdded = (event: CustomEvent) => {
       console.log('Header: Cart item added, updating cart count');
-      refreshCart();
+      debouncedRefreshCart();
     };
 
     const handleCartItemRemoved = (event: CustomEvent) => {
       console.log('Header: Cart item removed, updating cart count');
-      refreshCart();
+      debouncedRefreshCart();
     };
 
     // Lắng nghe các sự kiện từ localStorage changes
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'cart' || event.key === 'cartCount' || event.key === 'checkoutData') {
         console.log('Header: Cart storage changed, updating cart count');
-        refreshCart();
+        debouncedRefreshCart();
       }
     };
 
@@ -201,7 +217,7 @@ const AppHeader = () => {
       
       if (fromPayment === 'true' || orderSuccess === 'true') {
         console.log('Header: URL indicates payment success, updating cart count');
-        refreshCart();
+        debouncedRefreshCart();
       }
     };
 
@@ -210,7 +226,7 @@ const AppHeader = () => {
 
     // Cập nhật giỏ hàng khi component mount và khi user thay đổi
     if (user) {
-      refreshCart();
+      debouncedRefreshCart();
     }
 
     return () => {
@@ -222,21 +238,21 @@ const AppHeader = () => {
       window.removeEventListener('cart-item-removed', handleCartItemRemoved as EventListener);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [refreshCart, user]);
+  }, [debouncedRefreshCart, user]);
 
   // Cập nhật giỏ hàng khi user quay lại tab
   useEffect(() => {
     const handleFocus = () => {
       console.log('Header: Window focused, updating cart count');
       if (user) {
-        refreshCart();
+        debouncedRefreshCart();
       }
     };
 
     const handleVisibilityChange = () => {
       if (!document.hidden && user) {
         console.log('Header: Page became visible, updating cart count');
-        refreshCart();
+        debouncedRefreshCart();
       }
     };
 
@@ -247,7 +263,7 @@ const AppHeader = () => {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [refreshCart, user]);
+  }, [debouncedRefreshCart, user]);
 
   // Tự động cập nhật giỏ hàng định kỳ
   useEffect(() => {
@@ -255,11 +271,11 @@ const AppHeader = () => {
 
     const interval = setInterval(() => {
       console.log('Header: Auto-refreshing cart count');
-      refreshCart();
-    }, 30000); // Cập nhật mỗi 30 giây
+      debouncedRefreshCart();
+    }, 120000); // Tăng từ 30 giây lên 2 phút để giảm API calls
 
     return () => clearInterval(interval);
-  }, [refreshCart, user]);
+  }, [debouncedRefreshCart, user]);
 
   useEffect(() => {
     setLoadingNotifications(true);

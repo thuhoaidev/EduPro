@@ -1011,6 +1011,90 @@ exports.getCourses = async (req, res, next) => {
   }
 }; // Đóng ngoặc hàm getCourses
 
+// Lấy danh sách khóa học cho moderator
+exports.getModeratorCourses = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 1000,
+      sort = '-createdAt',
+      status,
+      search,
+    } = req.query;
+
+    // Xây dựng query cho moderator
+    const query = {};
+
+    // Moderator có thể xem tất cả khóa học với các trạng thái: pending, approved, rejected
+    if (status) {
+      // Hỗ trợ multiple status values được phân tách bằng dấu phẩy
+      if (typeof status === 'string' && status.includes(',')) {
+        query.status = { $in: status.split(',').map(s => s.trim()) };
+      } else {
+        query.status = status;
+      }
+    } else {
+      // Mặc định lấy tất cả khóa học cần duyệt
+      query.status = { $in: ['pending', 'approved', 'rejected'] };
+    }
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    // Thực hiện query với phân trang
+    const courses = await Course.find(query)
+      .populate({ path: 'instructor', populate: { path: 'user', select: 'fullname avatar' } })
+      .populate('category', 'name')
+      .sort(sort)
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    // Đếm tổng số khóa học
+    const total = await Course.countDocuments(query);
+
+    const formattedCourses = await Promise.all(
+      courses.map(async course => {
+        // Lấy tất cả section thuộc khóa học
+        const sections = await Section.find({ course_id: course._id }).select('lessons');
+        // Tính tổng số bài học từ tất cả section
+        const totalLessons = sections.reduce((sum, section) => {
+          return sum + (section.lessons?.length || 0);
+        }, 0);
+
+        const obj = course.toObject();
+        obj.finalPrice = Math.round(obj.price * (1 - (obj.discount || 0) / 100));
+        obj.discount = obj.discount || 0;
+        obj.instructor = course.instructor
+          ? {
+              bio: course.instructor.bio,
+              expertise: course.instructor.expertise,
+              user: course.instructor.user,
+            }
+          : null;
+        obj.totalLessons = totalLessons;
+        return obj;
+      }),
+    );
+
+    res.json({
+      success: true,
+      data: formattedCourses,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Lấy khóa học theo slug
 exports.getCourseBySlug = async (req, res, next) => {
   try {
@@ -1133,6 +1217,115 @@ exports.getCourseSectionsAndLessons = async (req, res, next) => {
     next(error);
   }
 }; // Đóng ngoặc hàm getCourseSectionsAndLessons
+
+// Lấy danh sách chương học và bài học cho moderator (bao gồm tất cả trạng thái)
+exports.getCourseSectionsAndLessonsForModerator = async (req, res, next) => {
+  try {
+    const { course_id } = req.params;
+
+    // Kiểm tra khóa học tồn tại (không giới hạn trạng thái)
+    const course = await Course.findOne({ _id: course_id });
+    if (!course) {
+      throw new ApiError(404, 'Không tìm thấy khóa học');
+    }
+
+    // Lấy danh sách chương học và bài học
+    const sections = await Section.find({ course_id })
+      .sort({ position: 1 })
+      .populate({
+        path: 'lessons',
+        select: 'title position is_preview',
+        options: { sort: { position: 1 } },
+      });
+
+    // Lấy thông tin video và quiz cho từng lesson
+    const Video = require('../models/Video');
+    const Quiz = require('../models/Quiz');
+    const sectionsWithDetails = await Promise.all(
+      sections.map(async section => {
+        const lessonsWithDetails = await Promise.all(
+          section.lessons.map(async lesson => {
+            const videos = await Video.find({ lesson_id: lesson._id }).sort({ createdAt: 1 });
+            const quiz = await Quiz.findOne({ lesson_id: lesson._id });
+            return {
+              _id: lesson._id,
+              title: lesson.title,
+              position: lesson.position,
+              is_preview: lesson.is_preview,
+              video: videos.length > 0 ? {
+                _id: videos[0]._id,
+                url: videos[0].url,
+                duration: videos[0].duration,
+                description: videos[0].description,
+                status: videos[0].status,
+              } : null,
+              quiz: quiz
+                ? {
+                    _id: quiz._id,
+                    questions: quiz.questions,
+                  }
+                : null,
+            };
+          }),
+        );
+        return {
+          _id: section._id,
+          title: section.title,
+          description: section.description,
+          position: section.position,
+          lessons: lessonsWithDetails,
+        };
+      }),
+    );
+
+    res.json({
+      success: true,
+      data: sectionsWithDetails,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Lấy video URL với authentication cho moderator
+exports.getVideoUrlForModerator = async (req, res, next) => {
+  try {
+    const { lessonId } = req.params;
+
+    // Kiểm tra quyền truy cập
+    if (!req.user.roles.includes('moderator') && !req.user.roles.includes('admin')) {
+      throw new ApiError(403, 'Bạn không có quyền truy cập video này');
+    }
+
+    // Tìm lesson và video
+    const Lesson = require('../models/Lesson');
+    const Video = require('../models/Video');
+    
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) {
+      throw new ApiError(404, 'Không tìm thấy bài học');
+    }
+
+    const videos = await Video.find({ lesson_id: lessonId }).sort({ createdAt: 1 });
+    if (videos.length === 0) {
+      throw new ApiError(404, 'Không tìm thấy video cho bài học này');
+    }
+
+    const video = videos[0]; // Lấy video đầu tiên
+    
+    res.json({
+      success: true,
+      data: {
+        url: video.url,
+        duration: video.duration,
+        description: video.description,
+        status: video.status,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 exports.getCourseById = async (req, res, next) => {
   try {
