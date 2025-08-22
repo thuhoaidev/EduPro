@@ -220,14 +220,18 @@ export const courseService = {
 
   getCourseBySlug: async (slug: string): Promise<Course | null> => {
     try {
-      const cacheBustingUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/slug/${slug}?_=${new Date().getTime()}`;
-      const response = await axios.get<{ success: boolean; data: ApiCourse }>(cacheBustingUrl);
+      console.log(`🔍 Fetching course by slug: ${slug}`);
+      const response = await apiClient.get<{ success: boolean; data: ApiCourse }>(`/courses/slug/${slug}`);
+      console.log(`📡 API Response for slug ${slug}:`, response.data);
       if (response.data?.success && response.data.data) {
-        return mapApiCourseToAppCourse(response.data.data);
+        const mappedCourse = mapApiCourseToAppCourse(response.data.data);
+        console.log(`✅ Course mapped successfully:`, mappedCourse);
+        return mappedCourse;
       }
+      console.log(`⚠️ No course found for slug: ${slug}`);
       return null;
     } catch (error) {
-      console.error(`Lỗi khi lấy khóa học với slug ${slug}:`, error);
+      console.error(`❌ Lỗi khi lấy khóa học với slug ${slug}:`, error);
       return null;
     }
   },
@@ -235,9 +239,7 @@ export const courseService = {
   getCourseContent: async (courseId: string): Promise<Section[]> => {
     try {
       console.log(`🔍 Fetching course content for course ID: ${courseId}`);
-      const response = await axios.get<{ success: boolean; data: Section[] }>(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/${courseId}/content`,
-      );
+      const response = await apiClient.get<{ success: boolean; data: Section[] }>(`/courses/${courseId}/content`);
       console.log(`📡 API Response:`, response.data);
       if (response.data?.success && Array.isArray(response.data.data)) {
         console.log(
@@ -291,14 +293,17 @@ export const courseService = {
 
   getCourseById: async (id: string): Promise<any> => {
     try {
-      // Sử dụng axios trực tiếp thay vì apiClient để không tự động thêm token
-      const response = await axios.get<{ success: boolean; data: any }>(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/${id}`);
+      console.log(`🔍 Fetching course by ID: ${id}`);
+      const response = await apiClient.get<{ success: boolean; data: any }>(`/courses/${id}`);
+      console.log(`📡 API Response for ID ${id}:`, response.data);
       if (response.data?.success && response.data.data) {
+        console.log(`✅ Course found by ID:`, response.data.data);
         return response.data.data;
       }
+      console.log(`⚠️ No course found for ID: ${id}`);
       return null;
     } catch (error) {
-      console.error(`Lỗi khi lấy khóa học với id ${id}:`, error);
+      console.error(`❌ Lỗi khi lấy khóa học với id ${id}:`, error);
       return null;
     }
   },
@@ -360,13 +365,15 @@ export const courseService = {
     courseId: string,
   ): Promise<{ enrolledCount: number; averageRating: number; reviewCount: number }> => {
     try {
-      const response = await axios.get<{
+      console.log(`🔍 Fetching course stats for course ID: ${courseId}`);
+      const response = await apiClient.get<{
         success: boolean;
         data: { enrolledCount: number; averageRating: number; reviewCount: number };
-      }>(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/courses/${courseId}/stats`);
+      }>(`/courses/${courseId}/stats`);
+      console.log(`📡 Course stats response:`, response.data);
       return response.data.data || { enrolledCount: 0, averageRating: 0, reviewCount: 0 };
     } catch (error) {
-      console.error('Error fetching course stats:', error);
+      console.error('❌ Error fetching course stats:', error);
       return { enrolledCount: 0, averageRating: 0, reviewCount: 0 };
     }
   },

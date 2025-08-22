@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Layout, Row, Col, Typography, Tag, Button, Rate, Avatar, Spin, Alert, Empty, Card, List, Breadcrumb, message, Modal, Input } from 'antd';
 import { BookOutlined, UserOutlined, GlobalOutlined, StarFilled, CheckCircleOutlined, ShoppingCartOutlined, LockOutlined, PlayCircleOutlined, TeamOutlined, RiseOutlined, DownOutlined, ClockCircleOutlined, LikeOutlined, DislikeOutlined, SaveOutlined, ExclamationCircleOutlined, LoginOutlined } from '@ant-design/icons';
-import { courseService } from '../../services/apiService';
+import { courseService, mapApiCourseToAppCourse } from '../../services/apiService';
 import type { Course, Section, Lesson } from '../../services/apiService';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { config } from '../../api/axios';
@@ -188,14 +188,19 @@ const CourseDetailPage: React.FC = () => {
                 
                 // Thử lấy bằng slug trước
                 if (slug) {
+                    console.log(`🔍 Trying to fetch course by slug: ${slug}`);
                     courseObj = await courseService.getCourseBySlug(slug);
+                    console.log(`📚 Course by slug result:`, courseObj);
                 }
                 
                 // Nếu không tìm thấy bằng slug, thử lấy bằng ID
                 if (!courseObj && id) {
+                    console.log(`🔍 Trying to fetch course by ID: ${id}`);
                     const apiRes = await courseService.getCourseById(id);
+                    console.log(`📚 Course by ID result:`, apiRes);
                     if (apiRes) {
-                        courseObj = courseService.mapApiCourseToAppCourse(apiRes);
+                        courseObj = mapApiCourseToAppCourse(apiRes);
+                        console.log(`📚 Mapped course:`, courseObj);
                     }
                 }
                 
