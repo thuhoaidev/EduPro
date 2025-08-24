@@ -10,8 +10,6 @@ import {
   Space,  
   Tooltip,
   Modal,
-  Row,
-  Col,
   Alert,
   List,
   Spin
@@ -632,59 +630,58 @@ const BlogWritePage = () => {
            </div>
          </div>
 
-        <Row gutter={24}>
-                     {/* Main Content */}
-           <Col xs={24} lg={18}>
-             <Card className="floating-card shadow-lg border-0">
-               {/* Title Input */}
-               <div className="mb-6">
-                 <Input
-                   placeholder="Tiêu đề bài viết..."
-                   value={title}
-                   onChange={(e) => setTitle(e.target.value)}
-                   className="text-xl font-semibold border-0 border-b-2 border-purple-300 rounded-none px-0 py-3 focus:border-pink-500 focus:shadow-lg"
-                   style={{ boxShadow: 'none' }}
-                 />
-               </div>
+        {/* Main Content - Full Width */}
+        <div className="w-full">
+          <Card className="floating-card shadow-lg border-0">
+            {/* Title Input */}
+            <div className="mb-6">
+              <Input
+                placeholder="Tiêu đề bài viết..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="text-xl font-semibold border-0 border-b-2 border-purple-300 rounded-none px-0 py-3 focus:border-pink-500 focus:shadow-lg"
+                style={{ boxShadow: 'none' }}
+              />
+            </div>
 
-               {/* Toolbar */}
-               {!isPreviewMode && (
-                 <div className="flex items-center gap-2 mb-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
-                   {toolbarButtons.map((btn, index) => (
-                     <Tooltip key={index} title={btn.tooltip}>
-                       <Button
-                         size="small"
-                         icon={btn.icon}
-                         onClick={btn.action}
-                         className="toolbar-btn border-0"
-                       />
-                     </Tooltip>
-                   ))}
-                   <div className="w-px h-6 bg-gradient-to-b from-pink-300 to-purple-300 mx-2" />
-                   <Upload
-                     beforeUpload={handleImageUpload}
-                     showUploadList={false}
-                     accept="image/*"
-                   >
-                     <Tooltip title="Thêm ảnh">
-                       <Button size="small" icon={<PictureOutlined />} className="toolbar-btn border-0" />
-                     </Tooltip>
-                   </Upload>
-                   <div className="flex-1" />
-                 </div>
-               )}
+            {/* Toolbar */}
+            {!isPreviewMode && (
+              <div className="flex items-center gap-2 mb-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
+                {toolbarButtons.map((btn, index) => (
+                  <Tooltip key={index} title={btn.tooltip}>
+                    <Button
+                      size="small"
+                      icon={btn.icon}
+                      onClick={btn.action}
+                      className="toolbar-btn border-0"
+                    />
+                  </Tooltip>
+                ))}
+                <div className="w-px h-6 bg-gradient-to-b from-pink-300 to-purple-300 mx-2" />
+                <Upload
+                  beforeUpload={handleImageUpload}
+                  showUploadList={false}
+                  accept="image/*"
+                >
+                  <Tooltip title="Thêm ảnh">
+                    <Button size="small" icon={<PictureOutlined />} className="toolbar-btn border-0" />
+                  </Tooltip>
+                </Upload>
+                <div className="flex-1" />
+              </div>
+            )}
 
-               {/* Content Area */}
-               <div className="min-h-[500px]">
-                 {isPreviewMode ? (
-                   <div className="prose max-w-none">
-                     <h2 className="text-2xl font-bold mb-4 rainbow-text">{title || 'Tiêu đề bài viết'}</h2>
-                     {renderPreview()}
-                   </div>
-                 ) : (
-                   <TextArea
-                     ref={textAreaRef}
-                     placeholder="Viết nội dung bài viết của bạn ở đây...
+            {/* Content Area */}
+            <div className="min-h-[500px]">
+              {isPreviewMode ? (
+                <div className="prose max-w-none">
+                  <h2 className="text-2xl font-bold mb-4 rainbow-text">{title || 'Tiêu đề bài viết'}</h2>
+                  {renderPreview()}
+                </div>
+              ) : (
+                <TextArea
+                  ref={textAreaRef}
+                  placeholder="Viết nội dung bài viết của bạn ở đây...
 
 Một số gợi ý:
 - Sử dụng **in đậm** để nhấn mạnh
@@ -693,164 +690,133 @@ Một số gợi ý:
 - Thêm ảnh để minh họa
 
 Hãy chia sẻ những kiến thức và kinh nghiệm quý báu của bạn!"
-                     value={content}
-                     onChange={(e) => setContent(e.target.value)}
-                     autoSize={{ minRows: 20 }}
-                     className="border-0 text-base leading-relaxed resize-none focus:ring-2 focus:ring-pink-300"
-                     style={{ boxShadow: 'none' }}
-                   />
-                 )}
-               </div>
-             </Card>
-           </Col>
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  autoSize={{ minRows: 20 }}
+                  className="border-0 text-base leading-relaxed resize-none focus:ring-2 focus:ring-pink-300"
+                  style={{ boxShadow: 'none' }}
+                />
+              )}
+            </div>
+          </Card>
 
-                     {/* Sidebar */}
-           <Col xs={24} lg={6}>
-             <Space direction="vertical" size="large" className="w-full">
-               {/* Cover Image Upload */}
-               <Card title={<span className="rainbow-text font-bold">🖼️ Ảnh bìa</span>} className="floating-card shadow-lg border-0">
-                 {coverImagePreview ? (
-                   <div className="space-y-3">
-                     <div className="relative">
-                       <img
-                         src={coverImagePreview}
-                         alt="Cover preview"
-                         className="w-full h-32 object-cover rounded-lg border-2 border-purple-200"
-                       />
-                       <button
-                         onClick={removeCoverImage}
-                         className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
-                       >
-                         ×
-                       </button>
-                     </div>
-                     <div className="text-xs text-gray-500 text-center">
-                       {coverImage?.name}
-                     </div>
-                   </div>
-                 ) : (
-                   <Upload
-                     beforeUpload={handleCoverImageUpload}
-                     showUploadList={false}
-                     accept="image/*"
-                   >
-                     <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center hover:border-purple-400 transition-colors cursor-pointer">
-                       <PictureOutlined className="text-3xl text-purple-400 mb-2" />
-                       <div className="text-sm font-medium text-purple-600 mb-1">Thêm ảnh bìa</div>
-                       <div className="text-xs text-gray-500">JPG, PNG, GIF (tối đa 5MB)</div>
-                     </div>
-                   </Upload>
-                 )}
-                 {!coverImage && (
-                   <div className="mt-2 text-xs text-red-500 text-center">
-                     ⚠️ Ảnh bìa là bắt buộc
-                   </div>
-                 )}
-               </Card>
+          {/* Essential Controls - Inline */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Cover Image Upload */}
+            <Card title={<span className="rainbow-text font-bold">🖼️ Ảnh bìa</span>} className="floating-card shadow-lg border-0">
+              {coverImagePreview ? (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <img
+                      src={coverImagePreview}
+                      alt="Cover preview"
+                      className="w-full h-32 object-cover rounded-lg border-2 border-purple-200"
+                    />
+                    <button
+                      onClick={removeCoverImage}
+                      className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="text-xs text-gray-500 text-center">
+                    {coverImage?.name}
+                  </div>
+                </div>
+              ) : (
+                <Upload
+                  beforeUpload={handleCoverImageUpload}
+                  showUploadList={false}
+                  accept="image/*"
+                >
+                  <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center hover:border-purple-400 transition-colors cursor-pointer">
+                    <PictureOutlined className="text-3xl text-purple-400 mb-2" />
+                    <div className="text-sm font-medium text-purple-600 mb-1">Thêm ảnh bìa</div>
+                    <div className="text-xs text-gray-500">JPG, PNG, GIF (tối đa 5MB)</div>
+                  </div>
+                </Upload>
+              )}
+              {!coverImage && (
+                <div className="mt-2 text-xs text-red-500 text-center">
+                  ⚠️ Ảnh bìa là bắt buộc
+                </div>
+              )}
+            </Card>
 
-               {/* Category Selection - THAY ĐỔI CHÍNH Ở ĐÂY */}
-                               <Card title={<span className="rainbow-text font-bold">🎨 Danh mục</span>} className="floating-card shadow-lg border-0">
-                  <Spin spinning={loadingCategories}>
-                    {categories.length > 0 ? (
-                      <div className="space-y-2">
-                        {categories.map((cat) => (
-                          <div
-                            key={cat.id}
-                            className={`category-item p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                              category === cat.value ? 'selected' : ''
-                            }`}
-                            onClick={() => {
-                              setCategory(cat.value);
-                              console.log('Selected category:', cat);
+            {/* Category Selection */}
+            <Card title={<span className="rainbow-text font-bold">🎨 Danh mục</span>} className="floating-card shadow-lg border-0">
+              <Spin spinning={loadingCategories}>
+                {categories.length > 0 ? (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {categories.map((cat) => (
+                      <div
+                        key={cat.id}
+                        className={`category-item p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          category === cat.value ? 'selected' : ''
+                        }`}
+                        onClick={() => {
+                          setCategory(cat.value);
+                          console.log('Selected category:', cat);
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <div 
+                            className="flex items-center justify-center w-8 h-8 rounded-lg mr-3 text-sm"
+                            style={{ 
+                              backgroundColor: category === cat.value ? '#3b82f6' : '#f3f4f6',
+                              color: category === cat.value ? '#ffffff' : '#6b7280'
                             }}
                           >
-                            <div className="flex items-center">
-                              <div 
-                                className="flex items-center justify-center w-8 h-8 rounded-lg mr-3 text-sm"
-                                style={{ 
-                                  backgroundColor: category === cat.value ? '#3b82f6' : '#f3f4f6',
-                                  color: category === cat.value ? '#ffffff' : '#6b7280'
-                                }}
-                              >
-                                {cat.icon}
-                              </div>
-                              <div className="flex-1">
-                                <div className="font-medium text-gray-900 text-sm">{cat.name}</div>
-                              </div>
-                              {category === cat.value && (
-                                <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center ml-2">
-                                  <div className="w-2 h-2 bg-white rounded-full"></div>
-                                </div>
-                              )}
-                            </div>
+                            {cat.icon}
                           </div>
-                        ))}
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900 text-sm">{cat.name}</div>
+                          </div>
+                          {category === cat.value && (
+                            <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center ml-2">
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    ) : !loadingCategories ? (
-                      <div className="text-center text-gray-500 py-8">
-                        <CodeOutlined className="text-2xl mb-2" />
-                        <div>Không có danh mục nào</div>
-                        <div className="text-xs mt-1">Kiểm tra kết nối API</div>
-                      </div>
-                    ) : null}
-                  </Spin>
-                 
+                    ))}
+                  </div>
+                ) : !loadingCategories ? (
+                  <div className="text-center text-gray-500 py-8">
+                    <CodeOutlined className="text-2xl mb-2" />
+                    <div>Không có danh mục nào</div>
+                    <div className="text-xs mt-1">Kiểm tra kết nối API</div>
+                  </div>
+                ) : null}
+              </Spin>
+            </Card>
 
-               </Card>
-
-               {/* Publishing */}
-               <Card className="floating-card shadow-lg border-0">
-                 <Space direction="vertical" size="middle" className="w-full">
-                   <Button
-                     type="primary"
-                     size="large"
-                     icon={<SendOutlined />}
-                     onClick={handlePublish}
-                     loading={isPublishing}
-                     className="w-full h-12 bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 border-0 font-semibold glow-effect pulse-animation"
-                   >
-                     {blogId ? 'Cập nhật bài' : 'Đăng bài'}
-                   </Button>
-                   <Button
-                     size="large"
-                     icon={<SaveOutlined />}
-                     onClick={handleSaveDraft}
-                     loading={isSaving}
-                     className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-500 border-0 font-semibold text-white hover:from-yellow-500 hover:to-orange-600"
-                   >
-                     Lưu nháp
-                   </Button>
-                 </Space>
-               </Card>
-
-               {/* Writing Tips */}
-               <Card title={<><QuestionCircleOutlined className="mr-2 rainbow-text" />💡 Gợi ý viết bài</>} className="floating-card shadow-lg border-0">
-                 <div className="space-y-3">
-                   <div className="text-sm p-3 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200">
-                     <div className="font-medium text-purple-700 mb-1">✍️ Tiêu đề hấp dẫn</div>
-                     <div className="text-purple-600 text-xs">Sử dụng từ khóa quan trọng, tạo tò mò cho người đọc</div>
-                   </div>
-                   <div className="text-sm p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-200">
-                     <div className="font-medium text-blue-700 mb-1">🎯 Nội dung có cấu trúc</div>
-                     <div className="text-blue-600 text-xs">Chia thành các phần rõ ràng, sử dụng heading</div>
-                   </div>
-                   <div className="text-sm p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-                     <div className="font-medium text-green-700 mb-1">🖼️ Sử dụng hình ảnh</div>
-                     <div className="text-green-600 text-xs">Thêm ảnh minh họa để bài viết sinh động hơn</div>
-                   </div>
-                   <div className="text-sm p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
-                     <div className="font-medium text-orange-700 mb-1">⌨️ Phím tắt</div>
-                     <div className="text-orange-600 text-xs">
-                       Ctrl+B (đậm), Ctrl+I (nghiêng), Ctrl+S (lưu), Ctrl+Enter (đăng)
-                     </div>
-                   </div>
-                 </div>
-               </Card>
-
-
-             </Space>
-           </Col>
-        </Row>
+            {/* Publishing */}
+            <Card className="floating-card shadow-lg border-0">
+              <Space direction="vertical" size="middle" className="w-full">
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<SendOutlined />}
+                  onClick={handlePublish}
+                  loading={isPublishing}
+                  className="w-full h-12 bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 border-0 font-semibold glow-effect pulse-animation"
+                >
+                  {blogId ? 'Cập nhật bài' : 'Đăng bài'}
+                </Button>
+                <Button
+                  size="large"
+                  icon={<SaveOutlined />}
+                  onClick={handleSaveDraft}
+                  loading={isSaving}
+                  className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-500 border-0 font-semibold text-white hover:from-yellow-500 hover:to-orange-600"
+                >
+                  Lưu nháp
+                </Button>
+              </Space>
+            </Card>
+          </div>
+        </div>
 
         {/* Keyboard Shortcuts Modal */}
         <Modal

@@ -18,6 +18,9 @@ const ClientLayout = () => {
   const isVouchersPage = location.pathname.startsWith('/vouchers');
   const isInstructorsPage = location.pathname.startsWith('/instructors');
   const isBlogPage = location.pathname === '/blog';
+  const isBlogDetailPage = /^\/blog\/[^\/]+$/.test(location.pathname) && location.pathname !== '/blog/write' && location.pathname !== '/blog/mine';
+  const isBlogWritePage = location.pathname === '/blog/write';
+  const isMyBlogPostsPage = location.pathname === '/blog/mine';
   const isCartPage = location.pathname === '/cart';
   const isCheckoutPage = location.pathname === '/checkout';
   const isLessonVideoOrQuiz = /^\/lessons\/[^/]+\/(video|quiz)$/.test(location.pathname);
@@ -35,7 +38,8 @@ const ClientLayout = () => {
     <Layout className="client-layout">
       <AppHeader />
       <Layout className="main-content">
-        {!isProfilePage && !isCoursesPage && !isVouchersPage && !isInstructorsPage && !isBlogPage && !isCartPage && !isCheckoutPage && !isLessonVideoOrQuiz && !isUserProfilePage && !isSavedBlogPage && !isWalletPage && !isUserReportPage && !isOrdersPage && !isCertificatesPage && (
+        {/* Ẩn sidebar cho các trang không cần navigation category */}
+        {!isProfilePage && !isCoursesPage && !isVouchersPage && !isInstructorsPage && !isBlogPage && !isBlogDetailPage && !isBlogWritePage && !isMyBlogPostsPage && !isCartPage && !isCheckoutPage && !isLessonVideoOrQuiz && !isUserProfilePage && !isSavedBlogPage && !isWalletPage && !isUserReportPage && !isOrdersPage && !isCertificatesPage && (
           <div className="sidebar-container">
             <AppSidebar />
           </div>
@@ -52,7 +56,7 @@ const ClientLayout = () => {
       {user && (
         <AIRecommendationModal
           visible={ai.visible}
-          onClose={() => ai.setVisible(false)}
+          onClose={ai.setVisible}
           loading={ai.loading}
           recommendations={ai.recommendations}
           reasons={ai.reasons}

@@ -25,6 +25,11 @@ const blogCommentSchema = new mongoose.Schema({
     ref: 'User',
     default: []
   }],
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'hidden'],
+    default: 'pending'
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -747,13 +747,6 @@ const handleUnsavePost = async (blogId: string, blogTitle: string) => {
               <Title level={2} style={{ margin: 0 }}>Bài viết đã lưu</Title>
               <Text type="secondary">Quản lý và xem lại các bài viết bạn đã lưu</Text>
             </div>
-            <Space>
-              <Button
-                icon={isRealtimeActive ? <SyncOutlined spin /> : <ReloadOutlined />}
-                onClick={() => setIsRealtimeActive(v => !v)}
-              >{isRealtimeActive ? 'Realtime ON' : 'Realtime OFF'}</Button>
-              <Button icon={<ReloadOutlined />} onClick={() => fetchSavedPosts()}>Làm mới</Button>
-            </Space>
           </div>
         </div>
 

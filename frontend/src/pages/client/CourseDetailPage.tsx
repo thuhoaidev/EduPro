@@ -471,14 +471,20 @@ const CourseDetailPage: React.FC = () => {
         setReviewLoading(true);
         setReviewError(null);
         try {
-            await addOrUpdateReview(course.id, reviewValue, reviewComment);
+            console.log('Submitting review:', { courseId: course.id, rating: reviewValue, comment: reviewComment });
+            const result = await addOrUpdateReview(course.id, reviewValue, reviewComment);
+            console.log('Review result:', result);
             message.success('Đã gửi đánh giá!');
             // Reload reviews
             const reviewsData = await getCourseReviews(course.id);
             setReviews(reviewsData || []);
             setMyReview({ rating: reviewValue, comment: reviewComment });
-        } catch {
-            setReviewError('Không thể gửi đánh giá.');
+            // Reset form
+            setReviewValue(0);
+            setReviewComment('');
+        } catch (error) {
+            console.error('Error submitting review:', error);
+            setReviewError('Không thể gửi đánh giá. Vui lòng thử lại.');
         }
         setReviewLoading(false);
     };

@@ -236,10 +236,14 @@ const getBlogComments = async (req, res) => {
     return res.status(400).json({ success: false, message: 'ID blog không hợp lệ.' });
   }
   try {
-    // Lấy comment cha và populate replies nhiều cấp
-    let comments = await BlogComment.find({ blog: id, parent: null })
+    // Lấy comment cha và populate replies nhiều cấp (chỉ lấy comments không bị ẩn)
+    let comments = await BlogComment.find({ blog: id, parent: null, status: { $ne: 'hidden' } })
       .populate('author', 'fullname nickname email avatar')
-      .populate({ path: 'replies', populate: { path: 'author', select: 'fullname nickname email avatar' } })
+      .populate({ 
+        path: 'replies', 
+        match: { status: { $ne: 'hidden' } }, // Chỉ lấy replies không bị ẩn
+        populate: { path: 'author', select: 'fullname nickname email avatar' } 
+      })
       .sort({ createdAt: -1 })
       .lean();
     // Đệ quy populate replies sâu
@@ -264,9 +268,24 @@ const getBlogComments = async (req, res) => {
 
 const getAllComments = async (req, res) => {
   try {
-    const comments = await BlogComment.find({})
-      .populate('author', 'fullname nickname email')
+    const comments = await BlogComment.find({}) // Lấy tất cả comments cho admin/moderator
+      .populate('author', 'fullname nickname email avatar')
       .populate('blog', 'title')
+      .select('content author blog createdAt status')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: comments });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi lấy danh sách bình luận', error: error.message });
+  }
+};
+
+// API riêng cho client - chỉ lấy comments không bị ẩn
+const getPublicComments = async (req, res) => {
+  try {
+    const comments = await BlogComment.find({ status: { $ne: 'hidden' } })
+      .populate('author', 'fullname nickname email avatar')
+      .populate('blog', 'title')
+      .select('content author blog createdAt status')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: comments });
   } catch (error) {
@@ -623,6 +642,7 @@ module.exports = {
   replyComment,
   getBlogComments,
   getAllComments,
+  getPublicComments,
   toggleSavePost,
   getSavedPosts,
   approveOrRejectBlog,

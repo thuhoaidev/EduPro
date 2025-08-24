@@ -477,17 +477,22 @@ const getInstructorStatistics = catchAsync(async (req, res) => {
 // Lấy thống kê công khai cho homepage
 const getPublicStatistics = catchAsync(async (req, res) => {
   try {
+    console.log('Getting public statistics...');
+    
     // Đếm tổng số học viên (chỉ student, không bao gồm admin và instructor)
     const totalUsers = await User.countDocuments({ role: 'student' });
+    console.log('Total students found:', totalUsers);
     
     // Đếm tổng số khóa học đã publish
     const totalCourses = await Course.countDocuments({ status: 'published' });
+    console.log('Total published courses found:', totalCourses);
     
     // Đếm tổng số instructor đã được approve
     const totalInstructors = await User.countDocuments({ 
       role: 'instructor',
       isApproved: true 
     });
+    console.log('Total approved instructors found:', totalInstructors);
     
     // Tính rating trung bình của tất cả khóa học đã publish
     const averageRating = await Course.aggregate([
@@ -499,18 +504,22 @@ const getPublicStatistics = catchAsync(async (req, res) => {
       },
       { $group: { _id: null, avgRating: { $avg: '$rating' } } }
     ]);
+    console.log('Average rating calculated:', averageRating[0]?.avgRating);
     
     // Đếm tổng số enrollment
     const totalEnrollments = await Enrollment.countDocuments();
+    console.log('Total enrollments found:', totalEnrollments);
     
-    // Nếu database trống, cung cấp dữ liệu mẫu
+    // Nếu database trống, cung cấp dữ liệu thực tế
     const statistics = {
-      totalUsers: totalUsers || 1250,
-      totalCourses: totalCourses || 45,
-      totalInstructors: totalInstructors || 12,
-      averageRating: averageRating[0]?.avgRating ? Math.round(averageRating[0].avgRating * 10) / 10 : 4.9,
-      totalEnrollments: totalEnrollments || 3200
+      totalUsers: totalUsers || 0,
+      totalCourses: totalCourses || 0,
+      totalInstructors: totalInstructors || 0,
+      averageRating: averageRating[0]?.avgRating ? Math.round(averageRating[0].avgRating * 10) / 10 : 0,
+      totalEnrollments: totalEnrollments || 0
     };
+    
+    console.log('Final statistics object:', statistics);
     
     res.status(200).json({
       success: true,
@@ -518,15 +527,15 @@ const getPublicStatistics = catchAsync(async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting public statistics:', error);
-    // Trả về dữ liệu mẫu nếu có lỗi
+    // Trả về dữ liệu rỗng nếu có lỗi
     res.status(200).json({
       success: true,
       data: {
-        totalUsers: 1250,
-        totalCourses: 45,
-        totalInstructors: 12,
-        averageRating: 4.9,
-        totalEnrollments: 3200
+        totalUsers: 0,
+        totalCourses: 0,
+        totalInstructors: 0,
+        averageRating: 0,
+        totalEnrollments: 0
       }
     });
   }

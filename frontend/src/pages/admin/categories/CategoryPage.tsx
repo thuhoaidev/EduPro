@@ -48,7 +48,7 @@ import { getAllCategories, createCategory, updateCategory, deleteCategory } from
 import type { Category } from "../../../interfaces/Category.interface";
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
-import styles from '../Users/UserPage.module.css';
+import { motion } from 'framer-motion';
 
 dayjs.locale('vi');
 
@@ -77,36 +77,72 @@ const FilterSection = ({
   dateRange,
   search,
 }: FilterSectionProps) => (
-  <Card className={styles.filterCard} bordered={false}>
-    <div className={styles.filterGroup}>
-      <Input
-        placeholder="Tìm kiếm danh mục..."
-        prefix={<SearchOutlined />}
-        value={searchInput}
-        onChange={(e) => setSearchInput(e.target.value)}
-        onPressEnter={() => setSearch(searchInput)}
-        className={styles.filterInput}
-        allowClear
-      />
-      <Select
-        placeholder="Lọc theo trạng thái"
-        value={selectedStatus}
-        onChange={setSelectedStatus}
-        className={styles.filterSelect}
-        allowClear
-      >
-        <Select.Option value="active">Hiển thị</Select.Option>
-        <Select.Option value="inactive">Ẩn</Select.Option>
-      </Select>
-      <RangePicker
-        placeholder={['Từ ngày', 'Đến ngày']}
-        onChange={(dates) => setDateRange(dates)}
-        className={styles.filterDateRange}
-        format="DD/MM/YYYY"
-        value={dateRange}
-      />
-    </div>
-  </Card>
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6, delay: 0.3 }}
+  >
+    <Card 
+      style={{ 
+        background: 'rgba(255, 255, 255, 0.95)', 
+        backdropFilter: 'blur(10px)',
+        borderRadius: '16px',
+        border: 'none',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+        marginBottom: '24px'
+      }}
+    >
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
+        <Input
+          placeholder="Tìm kiếm danh mục..."
+          prefix={<SearchOutlined />}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onPressEnter={() => setSearch(searchInput)}
+          style={{ 
+            minWidth: '250px',
+            borderRadius: '8px',
+            border: '1px solid #d9d9d9'
+          }}
+          allowClear
+        />
+        <Select
+          placeholder="Lọc theo trạng thái"
+          value={selectedStatus}
+          onChange={setSelectedStatus}
+          style={{ 
+            minWidth: '180px',
+            borderRadius: '8px'
+          }}
+          allowClear
+        >
+          <Select.Option value="active">Hiển thị</Select.Option>
+          <Select.Option value="inactive">Ẩn</Select.Option>
+        </Select>
+        <RangePicker
+          placeholder={['Từ ngày', 'Đến ngày']}
+          onChange={(dates) => setDateRange(dates)}
+          style={{ 
+            borderRadius: '8px',
+            border: '1px solid #d9d9d9'
+          }}
+          format="DD/MM/YYYY"
+          value={dateRange}
+        />
+        <Button
+          type="primary"
+          icon={<FilterOutlined />}
+          onClick={() => setSearch(searchInput)}
+          style={{ 
+            borderRadius: '8px',
+            height: '40px'
+          }}
+        >
+          Lọc
+        </Button>
+      </div>
+    </Card>
+  </motion.div>
 );
 
 // StatCards component
@@ -123,93 +159,171 @@ const StatCards = ({ categoryStats }: StatCardsProps) => {
   const inactivePercentage = categoryStats.total > 0 ? (categoryStats.inactive / categoryStats.total) * 100 : 0;
 
   return (
-    <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} bordered={false}>
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#1890ff' }}>
-              <TagsOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Tổng số danh mục" 
-                value={categoryStats.total} 
-                valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <RiseOutlined style={{ color: '#52c41a' }} />
-                <Text type="secondary">Tất cả danh mục</Text>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.2 }}
+    >
+      <Row gutter={[24, 24]} style={{ marginBottom: '32px' }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#e6f7ff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <TagsOutlined style={{ color: '#1890ff', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Tổng số danh mục</Text>}
+                  value={categoryStats.total}
+                  valueStyle={{ color: '#1890ff', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <RiseOutlined style={{ color: '#52c41a' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>Tất cả danh mục</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} bordered={false}>
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#52c41a' }}>
-              <CheckCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Hiển thị" 
-                value={categoryStats.active} 
-                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <RiseOutlined style={{ color: '#52c41a' }} />
-                <Text type="secondary">{activePercentage.toFixed(1)}%</Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#f6ffed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Hiển thị</Text>}
+                  value={categoryStats.active}
+                  valueStyle={{ color: '#52c41a', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <RiseOutlined style={{ color: '#52c41a' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>{activePercentage.toFixed(1)}%</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} bordered={false}>
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#ff4d4f' }}>
-              <CloseCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Ẩn" 
-                value={categoryStats.inactive} 
-                valueStyle={{ color: '#ff4d4f', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <FallOutlined style={{ color: '#ff4d4f' }} />
-                <Text type="secondary">{inactivePercentage.toFixed(1)}%</Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#fff1f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Ẩn</Text>}
+                  value={categoryStats.inactive}
+                  valueStyle={{ color: '#ff4d4f', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <FallOutlined style={{ color: '#ff4d4f' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>{inactivePercentage.toFixed(1)}%</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} bordered={false}>
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#722ed1' }}>
-              <FileTextOutlined style={{ color: 'white', fontSize: '24px' }} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#f9f0ff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <FileTextOutlined style={{ color: '#722ed1', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Tỷ lệ hoạt động</Text>}
+                  value={activePercentage} 
+                  suffix="%" 
+                  precision={1}
+                  valueStyle={{ color: '#722ed1', fontSize: '28px', fontWeight: 600 }}
+                />
+                <Progress 
+                  percent={activePercentage} 
+                  size="small" 
+                  strokeColor="#722ed1"
+                  showInfo={false}
+                  style={{ marginTop: '8px' }}
+                />
+              </div>
             </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Tỷ lệ hoạt động" 
-                value={activePercentage} 
-                suffix="%" 
-                precision={1}
-                valueStyle={{ color: '#722ed1', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <Progress 
-                percent={activePercentage} 
-                size="small" 
-                strokeColor="#722ed1"
-                showInfo={false}
-                style={{ marginTop: '8px' }}
-              />
-            </div>
-          </div>
-        </Card>
-      </Col>
-    </Row>
+          </Card>
+        </Col>
+      </Row>
+    </motion.div>
   );
 };
 
@@ -543,226 +657,377 @@ const CategoryPage = () => {
 
   if (loading && categories.length === 0) {
     return (
-      <div className={styles.userPageContainer}>
-        <div className={styles.loadingContainer}>
-          <Spin size="large" />
-          <Text style={{ marginTop: 16 }}>Đang tải dữ liệu...</Text>
-        </div>
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              textAlign: 'center',
+              padding: '80px 24px'
+            }}
+          >
+            <Spin size="large" />
+            <Text style={{ marginTop: 16, fontSize: '16px' }}>Đang tải dữ liệu...</Text>
+          </Card>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className={styles.userPageContainer}>
-      {/* Page Header */}
-      <div className={styles.pageHeader}>
-        <div className={styles.headerLeft}>
-          <Title level={2} className={styles.pageTitle}>
-            <TrophyOutlined className={styles.titleIcon} />
-            Quản lý danh mục
-          </Title>
-          <Paragraph className={styles.pageSubtitle}>
-            Quản lý và theo dõi các danh mục khóa học trong hệ thống
-          </Paragraph>
-        </div>
-        <div className={styles.headerRight}>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddCategory}
-            className={styles.addUserBtn}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        {/* Page Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          style={{ marginBottom: '32px' }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
           >
-            Thêm danh mục
-          </Button>
-        </div>
-      </div>
-
-      {/* Statistics Cards */}
-      <StatCards categoryStats={categoryStats} />
-
-      {/* Filter Section */}
-      <FilterSection
-        searchInput={searchInput}
-        setSearchInput={setSearchInput}
-        setSearch={setSearch}
-        selectedStatus={selectedStatus}
-        setSelectedStatus={setSelectedStatus}
-        setDateRange={setDateRange}
-        dateRange={dateRange}
-        search={search}
-      />
-
-      {/* Categories Table */}
-      <Card className={styles.userTableCard} bordered={false}>
-        <div className={styles.tableHeader}>
-          <div className={styles.tableTitleSection}>
-            <BookOutlined className={styles.tableIcon} />
-            <Title level={4} className={styles.tableTitle}>
-              Danh sách danh mục
-            </Title>
-            <Badge count={categories.length} className={styles.userCountBadge} />
-          </div>
-          <div className={styles.tableActions}>
-            <Text type="secondary">
-              Hiển thị {((pagination.current - 1) * pagination.pageSize) + 1} - {Math.min(pagination.current * pagination.pageSize, categories.length)} của {categories.length} danh mục
-            </Text>
-          </div>
-        </div>
-        
-        <Table
-          columns={columns}
-          dataSource={categories}
-          loading={loading}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} danh mục`,
-            pageSizeOptions: ['10', '20', '50', '100'],
-            size: 'small',
-          }}
-          onChange={(pagination) => fetchCategories(pagination.current, pagination.pageSize)}
-          rowKey="_id"
-          className={styles.userTable}
-          scroll={{ x: 800 }}
-          size="small"
-          onRow={(record) => ({
-            onClick: () => handleViewCategory(record),
-            style: { cursor: 'pointer' },
-          })}
-        />
-      </Card>
-
-      {/* Add/Edit Category Modal */}
-      <Modal
-        title={
-          <div className={styles.modalTitle}>
-            <TagsOutlined className={styles.modalIcon} />
-            {editingCategory ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'}
-          </div>
-        }
-        open={isModalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        okText="Lưu"
-        cancelText="Hủy"
-        width={800}
-        className={styles.userModal}
-      >
-        <Form form={form} layout="vertical" className={styles.userForm}>
-          <Row gutter={[16, 16]}>
-            <Col span={24}>
-              <Form.Item
-                name="name"
-                label="Tên danh mục"
-                rules={[{ required: true, message: 'Vui lòng nhập tên danh mục' }]}
-                className={styles.formItem}
-              >
-                <Input placeholder="Nhập tên danh mục" className={styles.input} />
-              </Form.Item>
-            </Col>
-
-            <Col span={24}>
-              <Form.Item
-                name="description"
-                label="Mô tả"
-                className={styles.formItem}
-              >
-                <Input.TextArea 
-                  placeholder="Nhập mô tả danh mục" 
-                  className={styles.input}
-                  rows={4}
-                />
-              </Form.Item>
-            </Col>
-
-            <Col span={24}>
-              <Form.Item
-                name="status"
-                label="Trạng thái"
-                rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
-                className={styles.formItem}
-              >
-                <Select placeholder="Chọn trạng thái" className={styles.input}>
-                  <Select.Option value="active">
-                    <Space>
-                      <CheckCircleOutlined style={{ color: 'green' }} />
-                      Hiển thị
-                    </Space>
-                  </Select.Option>
-                  <Select.Option value="inactive">
-                    <Space>
-                      <CloseCircleOutlined style={{ color: 'red' }} />
-                      Ẩn
-                    </Space>
-                  </Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
-
-      {/* Category Detail Modal */}
-      <Modal
-        title={
-          <div className={styles.modalTitle}>
-            <TagsOutlined className={styles.modalIcon} />
-            Chi tiết danh mục
-          </div>
-        }
-        open={isDetailModalVisible}
-        onCancel={() => setIsDetailModalVisible(false)}
-        footer={null}
-        width={600}
-        className={styles.userModal}
-      >
-        {viewingCategory && (
-          <div>
-            <div className={styles.userDetailHeaderBox}>
-              <Title level={3} style={{ margin: 0 }}>
-                {viewingCategory.name}
-              </Title>
-              {getStatusTag(viewingCategory.status)}
-            </div>
-            
-            <Divider />
-            
-            <Card className={styles.userDetailCard} bordered={false}>
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <FileTextOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                  <Text strong>Mô tả:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">
-                    {viewingCategory.description || 'Không có mô tả'}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <Title level={2} style={{ margin: 0, color: '#1a1a1a' }}>
+                  <TrophyOutlined style={{ marginRight: '12px', color: '#667eea' }} />
+                  Quản lý danh mục
+                </Title>
+                <Paragraph style={{ margin: '8px 0 0 0', fontSize: '16px', color: '#666' }}>
+                  Quản lý và theo dõi các danh mục khóa học trong hệ thống
+                </Paragraph>
+                <div style={{ marginTop: '12px' }}>
+                  <Text type="secondary" style={{ fontSize: '14px' }}>
+                    <ClockCircleOutlined style={{ marginRight: '8px' }} />
+                    Cập nhật: {new Date().toLocaleString('vi-VN')}
                   </Text>
                 </div>
               </div>
-            </Card>
-            
-            <Divider />
-            
-            <div className={styles.userDetailRow}>
-              <div className={styles.userDetailLabel}>
-                <CalendarOutlined style={{ marginRight: '8px', color: '#52c41a' }} />
-                <Text strong>Ngày tạo:</Text>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleAddCategory}
+                style={{ 
+                  borderRadius: '8px',
+                  height: '40px',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Thêm danh mục
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Statistics Cards */}
+        <StatCards categoryStats={categoryStats} />
+
+        {/* Filter Section */}
+        <FilterSection
+          searchInput={searchInput}
+          setSearchInput={setSearchInput}
+          setSearch={setSearch}
+          selectedStatus={selectedStatus}
+          setSelectedStatus={setSelectedStatus}
+          setDateRange={setDateRange}
+          dateRange={dateRange}
+          search={search}
+        />
+
+        {/* Categories Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '20px', 
+              paddingBottom: '12px', 
+              borderBottom: '1px solid #f0f0f0',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <BookOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+                <Title level={4} style={{ margin: 0, color: '#1a1a1a' }}>
+                  Danh sách danh mục
+                </Title>
+                <Badge count={categories.length} style={{ 
+                  backgroundColor: '#1890ff',
+                  borderRadius: '8px'
+                }} />
               </div>
-              <Text>{dayjs(viewingCategory.createdAt).format('DD/MM/YYYY HH:mm')}</Text>
+              <div>
+                <Text type="secondary" style={{ fontSize: '14px' }}>
+                  Hiển thị {((pagination.current - 1) * pagination.pageSize) + 1} - {Math.min(pagination.current * pagination.pageSize, categories.length)} của {categories.length} danh mục
+                </Text>
+              </div>
             </div>
             
-            <div className={styles.userDetailRow}>
-              <div className={styles.userDetailLabel}>
-                <CalendarOutlined style={{ marginRight: '8px', color: '#faad14' }} />
-                <Text strong>Ngày chỉnh sửa:</Text>
-              </div>
-              <Text>{dayjs(viewingCategory.updatedAt).format('DD/MM/YYYY HH:mm')}</Text>
+            <Table
+              columns={columns}
+              dataSource={categories}
+              loading={loading}
+              pagination={{
+                ...pagination,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} danh mục`,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                size: 'small',
+              }}
+              onChange={(pagination) => fetchCategories(pagination.current, pagination.pageSize)}
+              rowKey="_id"
+              style={{ 
+                borderRadius: '12px',
+                overflow: 'hidden'
+              }}
+              scroll={{ x: 800 }}
+              size="small"
+              onRow={(record) => ({
+                onClick: () => handleViewCategory(record),
+                style: { cursor: 'pointer' },
+              })}
+            />
+          </Card>
+        </motion.div>
+
+        {/* Add/Edit Category Modal */}
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <TagsOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+              <Text strong style={{ fontSize: '18px', color: '#1a1a1a' }}>
+                {editingCategory ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'}
+              </Text>
             </div>
-          </div>
-        )}
-      </Modal>
-    </div>
+          }
+          open={isModalVisible}
+          onOk={handleModalOk}
+          onCancel={handleModalCancel}
+          okText="Lưu"
+          cancelText="Hủy"
+          width={800}
+          style={{ borderRadius: '16px' }}
+          okButtonProps={{ 
+            style: { 
+              borderRadius: '8px',
+              height: '40px',
+              fontSize: '14px',
+              fontWeight: '500'
+            } 
+          }}
+          cancelButtonProps={{ 
+            style: { 
+              borderRadius: '8px',
+              height: '40px',
+              fontSize: '14px'
+            } 
+          }}
+        >
+          <Form form={form} layout="vertical" style={{ marginTop: '16px' }}>
+            <Row gutter={[16, 16]}>
+              <Col span={24}>
+                <Form.Item
+                  name="name"
+                  label={<Text strong>Tên danh mục</Text>}
+                  rules={[{ required: true, message: 'Vui lòng nhập tên danh mục' }]}
+                >
+                  <Input 
+                    placeholder="Nhập tên danh mục" 
+                    style={{ 
+                      borderRadius: '8px',
+                      height: '40px',
+                      fontSize: '14px'
+                    }} 
+                  />
+                </Form.Item>
+              </Col>
+
+              <Col span={24}>
+                <Form.Item
+                  name="description"
+                  label={<Text strong>Mô tả</Text>}
+                >
+                  <Input.TextArea 
+                    placeholder="Nhập mô tả danh mục" 
+                    style={{ 
+                      borderRadius: '8px',
+                      fontSize: '14px'
+                    }}
+                    rows={4}
+                  />
+                </Form.Item>
+              </Col>
+
+              <Col span={24}>
+                <Form.Item
+                  name="status"
+                  label={<Text strong>Trạng thái</Text>}
+                  rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
+                >
+                  <Select 
+                    placeholder="Chọn trạng thái" 
+                    style={{ 
+                      borderRadius: '8px',
+                      height: '40px'
+                    }}
+                  >
+                    <Select.Option value="active">
+                      <Space>
+                        <CheckCircleOutlined style={{ color: 'green' }} />
+                        Hiển thị
+                      </Space>
+                    </Select.Option>
+                    <Select.Option value="inactive">
+                      <Space>
+                        <CloseCircleOutlined style={{ color: 'red' }} />
+                        Ẩn
+                      </Space>
+                    </Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Modal>
+
+        {/* Category Detail Modal */}
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <TagsOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+              <Text strong style={{ fontSize: '18px', color: '#1a1a1a' }}>
+                Chi tiết danh mục
+              </Text>
+            </div>
+          }
+          open={isDetailModalVisible}
+          onCancel={() => setIsDetailModalVisible(false)}
+          footer={null}
+          width={600}
+          style={{ borderRadius: '16px' }}
+        >
+          {viewingCategory && (
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                padding: '16px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '12px',
+                marginBottom: '20px'
+              }}>
+                <Title level={3} style={{ margin: 0, color: '#1a1a1a' }}>
+                  {viewingCategory.name}
+                </Title>
+                {getStatusTag(viewingCategory.status)}
+              </div>
+              
+              <Divider />
+              
+              <Card 
+                style={{ 
+                  backgroundColor: '#fafafa',
+                  borderRadius: '12px',
+                  border: '1px solid #f0f0f0'
+                }} 
+                bordered={false}
+              >
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: '12px',
+                  padding: '12px 0'
+                }}>
+                  <FileTextOutlined style={{ 
+                    marginTop: '2px',
+                    color: '#1890ff', 
+                    fontSize: '16px' 
+                  }} />
+                  <div>
+                    <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Mô tả:</Text>
+                    <div style={{ marginTop: '8px' }}>
+                      <Text type="secondary" style={{ fontSize: '14px', lineHeight: '1.6' }}>
+                        {viewingCategory.description || 'Không có mô tả'}
+                      </Text>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+              
+              <Divider />
+              
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px',
+                padding: '12px 0'
+              }}>
+                <CalendarOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
+                <div>
+                  <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Ngày tạo:</Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Text style={{ fontSize: '14px', color: '#666' }}>
+                      {dayjs(viewingCategory.createdAt).format('DD/MM/YYYY HH:mm')}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px',
+                padding: '12px 0'
+              }}>
+                <CalendarOutlined style={{ color: '#faad14', fontSize: '16px' }} />
+                <div>
+                  <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Ngày chỉnh sửa:</Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Text style={{ fontSize: '14px', color: '#666' }}>
+                      {dayjs(viewingCategory.updatedAt).format('DD/MM/YYYY HH:mm')}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal>
+      </div>
+    </motion.div>
   );
 };
 

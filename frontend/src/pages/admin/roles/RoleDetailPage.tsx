@@ -74,6 +74,8 @@ interface User {
   last_login?: string;
   created_at?: string;
   updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
   permissions?: string[];
   role_id?: string;
   nickname?: string;
@@ -457,7 +459,7 @@ const RoleDetailPage: React.FC = () => {
      },
      {
        id: '60',
-       name: 'approve_courses',
+       name: 'duyệt khóa học',
        description: 'Duyệt khóa học',
        category: 'Duyệt nội dung',
        isActive: true,
@@ -526,6 +528,24 @@ const RoleDetailPage: React.FC = () => {
        isActive: true,
      },
   ]);
+
+  // Hàm chuyển đổi tên vai trò sang tiếng Việt
+  const getRoleDisplayName = (roleName: string) => {
+    switch (roleName.toLowerCase()) {
+      case 'admin':
+        return 'Quản trị viên';
+      case 'instructor':
+        return 'Giảng viên';
+      case 'student':
+        return 'Học viên';
+      case 'moderator':
+        return 'Nhân viên kiểm duyệt';
+      case 'guest':
+        return 'Khách';
+      default:
+        return roleName;
+    }
+  };
 
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isUserDetailModalVisible, setIsUserDetailModalVisible] = useState(false);
@@ -671,36 +691,6 @@ const RoleDetailPage: React.FC = () => {
       },
     },
     {
-      title: 'Tham gia',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (date: string) => (
-        <Text type="secondary">
-          {date ? new Date(date).toLocaleDateString('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-          }) : 'Không xác định'}
-        </Text>
-      ),
-    },
-    {
-      title: 'Đăng nhập cuối',
-      dataIndex: 'last_login',
-      key: 'last_login',
-      render: (date: string) => (
-        <Text type="secondary">
-          {date ? new Date(date).toLocaleDateString('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-          }) : 'Chưa đăng nhập'}
-        </Text>
-      ),
-    },
-    {
       title: 'Thao tác',
       key: 'actions',
       render: (_, record: User) => (
@@ -757,20 +747,20 @@ const RoleDetailPage: React.FC = () => {
             <div>
               <Title level={2} style={{ margin: 0 }}>
                         <Avatar 
-          icon={role.name === 'quản trị viên' ? <CrownOutlined /> : role.name === 'giảng viên' ? <TeamOutlined /> : <UserOutlined />}
+          icon={role.name.toLowerCase() === 'admin' || role.name.toLowerCase() === 'quản trị viên' ? <CrownOutlined /> : role.name.toLowerCase() === 'instructor' || role.name.toLowerCase() === 'giảng viên' ? <TeamOutlined /> : <UserOutlined />}
           size={48}
           style={{ 
-            backgroundColor: role.name === 'quản trị viên' ? '#ff4d4f' : role.name === 'giảng viên' ? '#1890ff' : '#52c41a',
+            backgroundColor: role.name.toLowerCase() === 'admin' || role.name.toLowerCase() === 'quản trị viên' ? '#ff4d4f' : role.name.toLowerCase() === 'instructor' || role.name.toLowerCase() === 'giảng viên' ? '#1890ff' : '#52c41a',
             marginRight: '16px'
           }}
         />
-                {role.name}
+                {getRoleDisplayName(role.name)}
               </Title>
               <Text type="secondary">{role.description}</Text>
             </div>
             
             <Space>
-              {role.name !== 'admin' && role.name !== 'quản trị viên' && (
+                              {role.name.toLowerCase() !== 'admin' && role.name.toLowerCase() !== 'quản trị viên' && (
                 <Button 
                   type="primary" 
                   icon={<EditOutlined />}
@@ -844,7 +834,7 @@ const RoleDetailPage: React.FC = () => {
                 <Card title="Thông tin vai trò">
                   <Descriptions column={1}>
                     <Descriptions.Item label="Tên vai trò">
-                      <Text strong>{role.name}</Text>
+                      <Text strong>{getRoleDisplayName(role.name)}</Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="Mô tả">
                       {role.description}
@@ -888,7 +878,7 @@ const RoleDetailPage: React.FC = () => {
                           <Text type="secondary">{categoryPermissions.length} quyền</Text>
                         </div>
                         <Progress 
-                          percent={percentage} 
+                          percent={Number(percentage.toFixed(2))} 
                           size="small" 
                           strokeColor="#1890ff"
                         />
@@ -899,7 +889,7 @@ const RoleDetailPage: React.FC = () => {
               </Col>
             </Row>
 
-            {(role.name === 'quản trị viên' || role.name === 'admin') && (
+                            {(role.name.toLowerCase() === 'admin' || role.name.toLowerCase() === 'quản trị viên') && (
               <Alert
                 message="Cảnh báo bảo mật"
                 description="Vai trò quản trị viên có toàn quyền trong hệ thống và không thể chỉnh sửa. Vai trò này có quyền truy cập tất cả chức năng trong hệ thống."
@@ -1049,14 +1039,6 @@ const RoleDetailPage: React.FC = () => {
                 </div>
               </Checkbox.Group>
             </Form.Item>
-
-            <Form.Item
-              name="isActive"
-              label="Trạng thái"
-              valuePropName="checked"
-            >
-              <Switch checkedChildren="Hoạt động" unCheckedChildren="Không hoạt động" />
-            </Form.Item>
           </Form>
                  </Modal>
 
@@ -1111,44 +1093,12 @@ const RoleDetailPage: React.FC = () => {
                            {selectedUser.status === 'hoạt_động' ? 'Hoạt động' : selectedUser.status === 'chờ_duyệt' ? 'Chờ duyệt' : 'Không hoạt động'}
                          </Tag>
                        </Descriptions.Item>
-                                               <Descriptions.Item label="Ngày tham gia">
-                          <Text>
-                            {selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString('vi-VN', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            }) : 'Không xác định'}
-                          </Text>
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Đăng nhập cuối">
-                          <Text>
-                            {(selectedUser as any).last_login ? new Date((selectedUser as any).last_login).toLocaleDateString('vi-VN', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            }) : 'Chưa đăng nhập'}
-                          </Text>
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Giới tính">
-                          <Text>{selectedUser.gender || 'Không xác định'}</Text>
-                        </Descriptions.Item>
+                      
                         <Descriptions.Item label="Loại tài khoản">
                           <Tag color={selectedUser.isInstructor ? 'blue' : 'green'}>
                             {selectedUser.isInstructor ? 'Giảng viên' : 'Học viên'}
                           </Tag>
                         </Descriptions.Item>
-                        <Descriptions.Item label="Xác thực email">
-                          <Tag color={selectedUser.email_verified ? 'green' : 'red'}>
-                            {selectedUser.email_verified ? 'Đã xác thực' : 'Chưa xác thực'}
-                          </Tag>
-                        </Descriptions.Item>
-                       <Descriptions.Item label="Vai trò hiện tại">
-                         <Tag color="blue">{role?.name}</Tag>
-                       </Descriptions.Item>
                      </Descriptions>
                    </Card>
                  </Col>

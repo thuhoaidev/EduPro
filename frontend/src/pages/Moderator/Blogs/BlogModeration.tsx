@@ -1,4 +1,4 @@
-import { Table, Button, Tag, Space, message, Input, Card, Row, Col, Statistic, Popconfirm, Modal, Typography, Avatar, Tooltip, Badge } from "antd";
+import { Table, Button, Tag, Space, message, Input, Card, Row, Col, Statistic, Popconfirm, Modal, Typography, Avatar, Tooltip, Badge, Image } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState, useEffect } from "react";
 import { 
@@ -22,7 +22,12 @@ export interface BlogPost {
   _id: string;
   title: string;
   content: string;
-  author: { _id: string; fullname: string } | string;
+  author: { 
+    _id: string; 
+    fullname: string; 
+    avatar?: string;
+    name?: string;
+  } | string;
   status: "pending" | "approved" | "hidden" | "rejected";
   createdAt: string;
   rejected_reason?: string;
@@ -152,16 +157,40 @@ const BlogModeration = () => {
       title: "Tác giả",
       dataIndex: "author",
       width: 150,
-      render: (author) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Avatar 
-            icon={<UserOutlined />} 
-            size="small"
-            style={{ backgroundColor: '#1890ff' }}
-          />
-          <Text>{author?.fullname || "Không rõ"}</Text>
-        </div>
-      ),
+      render: (author) => {
+        // Kiểm tra xem author có phải là object không
+        if (typeof author === 'object' && author !== null) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Avatar 
+                src={author.avatar}
+                icon={<UserOutlined />} 
+                size="small"
+                style={{ 
+                  backgroundColor: author.avatar ? 'transparent' : '#1890ff',
+                  border: author.avatar ? '1px solid #d9d9d9' : 'none'
+                }}
+                onError={() => {
+                  // Fallback khi avatar không tải được
+                  return false;
+                }}
+              />
+              <Text>{author.fullname || author.name || "Không rõ"}</Text>
+            </div>
+          );
+        }
+        // Nếu author là string
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Avatar 
+              icon={<UserOutlined />} 
+              size="small"
+              style={{ backgroundColor: '#1890ff' }}
+            />
+            <Text>{String(author) || "Không rõ"}</Text>
+          </div>
+        );
+      },
     },
     {
       title: "Ngày tạo",
@@ -240,7 +269,7 @@ const BlogModeration = () => {
               </Button>
             </Popconfirm>
           )}
-          {record.status !== "rejected" && (
+          {record.status !== "rejected" && record.status !== "approved" && (
             <Button
               danger
               size="small"
@@ -535,12 +564,39 @@ const BlogModeration = () => {
                   Tác giả:
                 </Text>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                  <Avatar 
-                    icon={<UserOutlined />} 
-                    size="small"
-                    style={{ backgroundColor: '#1890ff' }}
-                  />
-                  <Text>{typeof detailModal.blog.author === 'object' ? detailModal.blog.author.fullname : detailModal.blog.author || 'Không rõ'}</Text>
+                  {(() => {
+                    const author = detailModal.blog.author;
+                    if (typeof author === 'object' && author !== null) {
+                      return (
+                        <>
+                          <Avatar 
+                            src={author.avatar}
+                            icon={<UserOutlined />} 
+                            size="small"
+                            style={{ 
+                              backgroundColor: author.avatar ? 'transparent' : '#1890ff',
+                              border: author.avatar ? '1px solid #d9d9d9' : 'none'
+                            }}
+                            onError={() => {
+                              // Fallback khi avatar không tải được
+                              return false;
+                            }}
+                          />
+                          <Text>{author.fullname || author.name || 'Không rõ'}</Text>
+                        </>
+                      );
+                    }
+                    return (
+                      <>
+                        <Avatar 
+                          icon={<UserOutlined />} 
+                          size="small"
+                          style={{ backgroundColor: '#1890ff' }}
+                        />
+                        <Text>{String(author) || 'Không rõ'}</Text>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               
@@ -596,9 +652,92 @@ const BlogModeration = () => {
                   maxHeight: '300px',
                   overflowY: 'auto'
                 }}>
-                  <Text style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
-                    {detailModal.blog.content || "Không có nội dung"}
-                  </Text>
+                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                    {(() => {
+                      const content = detailModal.blog.content || "Không có nội dung";
+                      if (typeof content === 'string') {
+                        // Tách nội dung thành các phần: text và ảnh
+                        const parts = [];
+                        let lastIndex = 0;
+                        
+                        // Tìm markdown images ![alt](url)
+                        const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+                        let match;
+                        while ((match = markdownImageRegex.exec(content)) !== null) {
+                          // Thêm text trước ảnh
+                          if (match.index > lastIndex) {
+                            parts.push({
+                              type: 'text',
+                              content: content.slice(lastIndex, match.index)
+                            });
+                          }
+                          
+                          // Thêm ảnh
+                          parts.push({
+                            type: 'image',
+                            src: match[2],
+                            alt: match[1] || 'Ảnh minh họa'
+                          });
+                          
+                          lastIndex = match.index + match[0].length;
+                        }
+                        
+                        // Thêm phần text còn lại
+                        if (lastIndex < content.length) {
+                          parts.push({
+                            type: 'text',
+                            content: content.slice(lastIndex)
+                          });
+                        }
+                        
+                        // Render các phần
+                        return (
+                          <div style={{ lineHeight: '1.6' }}>
+                            {parts.map((part, index) => {
+                              if (part.type === 'text') {
+                                return (
+                                  <div key={index} style={{ whiteSpace: 'pre-wrap' }}>
+                                    {part.content}
+                                  </div>
+                                );
+                              } else if (part.type === 'image') {
+                                return (
+                                  <div key={index} style={{ margin: '16px 0', textAlign: 'center' }}>
+                                    <img 
+                                      src={part.src} 
+                                      alt={part.alt}
+                                      style={{ 
+                                        maxWidth: '100%', 
+                                        height: 'auto', 
+                                        borderRadius: '8px', 
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)' 
+                                      }}
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                      }}
+                                    />
+                                    {part.alt && part.alt !== 'Ảnh minh họa' && (
+                                      <div style={{ 
+                                        marginTop: '8px', 
+                                        fontSize: '12px', 
+                                        color: '#666', 
+                                        fontStyle: 'italic' 
+                                      }}>
+                                        {part.alt}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })}
+                          </div>
+                        );
+                      }
+                      return <Text>{content}</Text>;
+                    })()}
+                  </div>
                 </div>
               </div>
               

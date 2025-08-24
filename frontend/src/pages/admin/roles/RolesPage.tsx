@@ -437,13 +437,13 @@ const RolesPage: React.FC = () => {
        category: 'Duyệt nội dung',
        isActive: true,
      },
-     {
-       id: '60',
-       name: 'approve_courses',
-       description: 'Duyệt khóa học',
-       category: 'Duyệt nội dung',
-       isActive: true,
-     },
+           {
+        id: '60',
+        name: 'duyệt khóa học',
+        description: 'Duyệt khóa học',
+        category: 'Duyệt nội dung',
+        isActive: true,
+      },
      {
        id: '51',
        name: 'xem báo cáo',
@@ -580,10 +580,30 @@ const RolesPage: React.FC = () => {
       case 'học viên':
         return <UserOutlined style={{ color: '#52c41a' }} />;
       case 'moderator':
-      case 'điều hành viên':
+      case 'nhân viên kiểm duyệt':
         return <SafetyOutlined style={{ color: '#722ed1' }} />;
+      case 'guest':
+      case 'khách':
+        return <UserOutlined style={{ color: '#faad14' }} />;
       default:
         return <UserOutlined style={{ color: '#8c8c8c' }} />;
+    }
+  };
+
+  const getRoleDisplayName = (roleName: string) => {
+    switch (roleName.toLowerCase()) {
+      case 'admin':
+        return 'Quản trị viên';
+      case 'instructor':
+        return 'Giảng viên';
+      case 'student':
+        return 'Học viên';
+      case 'moderator':
+        return 'Nhân viên kiểm duyệt';
+      case 'guest':
+        return 'Khách';
+      default:
+        return roleName;
     }
   };
 
@@ -599,8 +619,11 @@ const RolesPage: React.FC = () => {
       case 'học viên':
         return '#52c41a';
       case 'moderator':
-      case 'điều hành viên':
+      case 'nhân viên kiểm duyệt':
         return '#722ed1';
+      case 'guest':
+      case 'khách':
+        return '#faad14';
       default:
         return '#8c8c8c';
     }
@@ -626,15 +649,15 @@ const RolesPage: React.FC = () => {
                 border: `2px solid ${getRoleColor(name)}`,
               }}
             />
-            <div>
-              <Text strong style={{ fontSize: '16px', color: getRoleColor(name) }}>
-                {name}
-              </Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                {record.description}
-              </Text>
-            </div>
+                         <div>
+               <Text strong style={{ fontSize: '16px', color: getRoleColor(name) }}>
+                 {getRoleDisplayName(name)}
+               </Text>
+               <br />
+               <Text type="secondary" style={{ fontSize: '12px' }}>
+                 {record.description}
+               </Text>
+             </div>
           </Space>
         </motion.div>
       ),
@@ -643,7 +666,7 @@ const RolesPage: React.FC = () => {
       title: 'Quyền hạn',
       dataIndex: 'permissions',
       key: 'permissions',
-      render: (permissionList: string[]) => (
+      render: (permissionList: string[], record: Role) => (
         <div style={{ maxWidth: 300 }}>
           {permissionList.includes('all') ? (
             <Badge.Ribbon text="Toàn quyền" color="red">
@@ -689,7 +712,7 @@ const RolesPage: React.FC = () => {
                  percent={Math.min((permissionList.length / permissions.length) * 100, 100)} 
                  size="small" 
                  showInfo={false}
-                 strokeColor={getRoleColor(name)}
+                 strokeColor={getRoleColor(record.name)}
                  style={{ marginTop: 8 }}
                />
             </div>
@@ -772,7 +795,7 @@ const RolesPage: React.FC = () => {
                 danger 
                 icon={<DeleteOutlined />} 
                 size="small"
-                disabled={record.name === 'admin' || record.name === 'quản trị viên'}
+                                 disabled={record.name.toLowerCase() === 'admin' || record.name.toLowerCase() === 'quản trị viên'}
                 style={{ 
                   borderRadius: '8px'
                 }}
@@ -1079,17 +1102,17 @@ const RolesPage: React.FC = () => {
                       <Descriptions column={1} size="small">
                         <Descriptions.Item label="Vai trò được sử dụng nhiều nhất">
                           <Tag color="blue" style={{ borderRadius: '8px' }}>
-                            {roles.length > 0 ? roles.reduce((max, role) => (role.userCount || 0) > (max.userCount || 0) ? role : max).name : 'Không có dữ liệu'}
+                            {roles.length > 0 ? getRoleDisplayName(roles.reduce((max, role) => (role.userCount || 0) > (max.userCount || 0) ? role : max).name) : 'Không có dữ liệu'}
                           </Tag>
                         </Descriptions.Item>
                         <Descriptions.Item label="Vai trò có nhiều quyền nhất">
                           <Tag color="green" style={{ borderRadius: '8px' }}>
-                            {roles.length > 0 ? roles.reduce((max, role) => role.permissions.length > max.permissions.length ? role : max).name : 'Không có dữ liệu'}
+                            {roles.length > 0 ? getRoleDisplayName(roles.reduce((max, role) => role.permissions.length > max.permissions.length ? role : max).name) : 'Không có dữ liệu'}
                           </Tag>
                         </Descriptions.Item>
                         <Descriptions.Item label="Vai trò mới nhất">
                           <Tag color="purple" style={{ borderRadius: '8px' }}>
-                            {roles.length > 0 ? roles.reduce((max, role) => new Date(role.createdAt || 0) > new Date(max.createdAt || 0) ? role : max).name : 'Không có dữ liệu'}
+                            {roles.length > 0 ? getRoleDisplayName(roles.reduce((max, role) => new Date(role.createdAt || 0) > new Date(max.createdAt || 0) ? role : max).name) : 'Không có dữ liệu'}
                           </Tag>
                         </Descriptions.Item>
                       </Descriptions>

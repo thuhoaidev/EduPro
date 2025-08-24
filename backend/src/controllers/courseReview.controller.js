@@ -8,29 +8,58 @@ exports.addOrUpdateReview = async (req, res, next) => {
     const { courseId } = req.params;
     const userId = req.user._id;
     const { rating, comment } = req.body;
+    
+    console.log('Adding/updating review:', { courseId, userId, rating, comment }); // Debug log
+    
     if (!rating || rating < 1 || rating > 5) throw new ApiError(400, 'Rating phải từ 1 đến 5');
+    
     let review = await CourseReview.findOneAndUpdate(
       { user: userId, course: courseId },
       { rating, comment },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
+    
+    console.log('Review saved:', review); // Debug log
+    
     // Cập nhật rating trung bình và tổng số review cho Course
     const reviews = await CourseReview.find({ course: courseId });
     const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / (reviews.length || 1);
-    await Course.findByIdAndUpdate(courseId, { rating: avgRating, totalReviews: reviews.length });
-    res.status(201).json({ success: true, data: review });
-  } catch (err) { next(err); }
+    
+    console.log('Updating course with new rating:', { avgRating, totalReviews: reviews.length }); // Debug log
+    
+    await Course.findByIdAndUpdate(courseId, { 
+      rating: Math.round(avgRating * 10) / 10, 
+      totalReviews: reviews.length 
+    });
+    
+    res.status(200).json({ 
+      success: true, 
+      data: review,
+      message: 'Đánh giá đã được lưu thành công'
+    });
+  } catch (err) { 
+    console.error('Error in addOrUpdateReview:', err); // Debug log
+    next(err); 
+  }
 };
 
 // Lấy tất cả review của khóa học
 exports.getCourseReviews = async (req, res, next) => {
   try {
     const { courseId } = req.params;
+    console.log('Getting reviews for course:', courseId); // Debug log
+    
     const reviews = await CourseReview.find({ course: courseId })
       .populate('user', 'fullname avatar')
       .sort({ createdAt: -1 });
+    
+    console.log('Found reviews:', reviews.length); // Debug log
+    
     res.json({ success: true, data: reviews });
-  } catch (err) { next(err); }
+  } catch (err) { 
+    console.error('Error in getCourseReviews:', err); // Debug log
+    next(err); 
+  }
 };
 
 // Lấy review của user cho một khóa học
@@ -38,10 +67,17 @@ exports.getMyReview = async (req, res, next) => {
   try {
     const { courseId } = req.params;
     const userId = req.user._id;
+    console.log('Getting my review for course:', { courseId, userId }); // Debug log
+    
     const review = await CourseReview.findOne({ user: userId, course: courseId });
     if (!review) throw new ApiError(404, 'Bạn chưa đánh giá khóa học này');
+    
+    console.log('Found my review:', review); // Debug log
     res.json({ success: true, data: review });
-  } catch (err) { next(err); }
+  } catch (err) { 
+    console.error('Error in getMyReview:', err); // Debug log
+    next(err); 
+  }
 };
 
 // Toggle like a review

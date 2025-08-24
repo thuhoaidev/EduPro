@@ -37,6 +37,7 @@ import {
   SendOutlined,
   UserOutlined
 } from '@ant-design/icons';
+import { Tooltip } from 'antd';
 import leoProfanity from 'leo-profanity';
 
 const { Content } = Layout;
@@ -386,12 +387,20 @@ const navigate = useNavigate();
   });
 
   const renderPostCard = (post: BlogPost) => (
-    <Card
-  key={post._id}
-  hoverable
-  style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-  styles={{ body: { padding: 0 } }}
->
+    <Tooltip title="Click để xem chi tiết bài viết" placement="top">
+      <Card
+        key={post._id}
+        hoverable
+        style={{ 
+          marginBottom: 24, 
+          borderRadius: 12, 
+          overflow: 'hidden', 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          cursor: 'pointer'
+        }}
+        styles={{ body: { padding: 0 } }}
+        onClick={() => navigate(`/blog/${post._id}`)}
+      >
 
       <Row gutter={0}>
         <Col xs={24} sm={8}>
@@ -458,116 +467,127 @@ const navigate = useNavigate();
                 <span><CalendarOutlined /> {new Date(post.createdAt).toLocaleDateString('vi-VN')}</span>
                 <span><EyeOutlined /> {post.views || 0}</span>
                 <Button
-  type="text"
-  size="small"
-  icon={post.isLiked ? <HeartFilled style={{ color: '#ff4d4f' }} /> : <HeartOutlined />}
-  onClick={() => handleLikePost(post._id)}
->
-  {post.likes}
-</Button>
-
+                  type="text"
+                  size="small"
+                  icon={post.isLiked ? <HeartFilled style={{ color: '#ff4d4f' }} /> : <HeartOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleLikePost(post._id);
+                  }}
+                >
+                  {post.likes}
+                </Button>
 
                 <Button
                   type="text"
                   size="small"
                   icon={<MessageOutlined />}
-                  onClick={() => showCommentModal(post)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    showCommentModal(post);
+                  }}
                   style={{ padding: 0, color: '#666', border: 'none' }}
                 >
                   {post.comments || 0}
                 </Button>
               </div>
               
-              <Dropdown
-  menu={{
-    items: [
-      {
-        key: 'view',
-        label: (
-          <Button
-            type="text"
-            block
-            style={{ textAlign: 'left' }}
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/blog/post/${post._id}`)}
-          >
-            Xem bài viết
-          </Button>
-        )
-      },
-      {
-        key: 'edit',
-        label: (
-          <Button
-            type="text"
-            block
-            style={{ textAlign: 'left' }}
-            icon={<EditOutlined />}
-          >
-            Chỉnh sửa
-          </Button>
-        )
-      },
-      {
-        key: 'comment',
-        label: (
-          <Button
-            type="text"
-            block
-            style={{ textAlign: 'left' }}
-            icon={<MessageOutlined />}
-            onClick={() => showCommentModal(post)}
-          >
-            Bình luận
-          </Button>
-        )
-      },
-      {
-        key: 'share',
-        label: (
-          <Button
-            type="text"
-            block
-            style={{ textAlign: 'left' }}
-            icon={<ShareAltOutlined />}
-            onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/blog/post/${post._id}`);
-              message.success('Đã sao chép link bài viết');
-            }}
-          >
-            Chia sẻ
-          </Button>
-        )
-      },
-      {
-        key: 'delete',
-        danger: true,
-        label: (
-          <Button
-            type="text"
-            block
-            style={{ textAlign: 'left' }}
-            icon={<DeleteOutlined />}
-            danger
-            onClick={() => handleDeletePost(post._id)}
-          >
-            Xóa bài viết
-          </Button>
-        )
-      }
-    ]
-  }}
-  trigger={['click']}
-  placement="bottomRight"
->
-  <Button type="text" icon={<MoreOutlined />} />
-</Dropdown>
+              <Space>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<EyeOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/blog/${post._id}`);
+                  }}
+                  style={{ 
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    border: 'none',
+                    borderRadius: 6
+                  }}
+                >
+                  Xem chi tiết
+                </Button>
+                
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        key: 'edit',
+                        label: (
+                          <Button
+                            type="text"
+                            block
+                            style={{ textAlign: 'left' }}
+                            icon={<EditOutlined />}
+                          >
+                            Chỉnh sửa
+                          </Button>
+                        )
+                      },
+                      {
+                        key: 'comment',
+                        label: (
+                          <Button
+                            type="text"
+                            block
+                            style={{ textAlign: 'left' }}
+                            icon={<MessageOutlined />}
+                            onClick={() => showCommentModal(post)}
+                          >
+                            Bình luận
+                          </Button>
+                        )
+                      },
+                      {
+                        key: 'share',
+                        label: (
+                          <Button
+                            type="text"
+                            block
+                            style={{ textAlign: 'left' }}
+                            icon={<ShareAltOutlined />}
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/blog/${post._id}`);
+                              message.success('Đã sao chép link bài viết');
+                            }}
+                          >
+                            Chia sẻ
+                          </Button>
+                        )
+                      },
+                      {
+                        key: 'delete',
+                        danger: true,
+                        label: (
+                          <Button
+                            type="text"
+                            block
+                            style={{ textAlign: 'left' }}
+                            icon={<DeleteOutlined />}
+                            danger
+                            onClick={() => handleDeletePost(post._id)}
+                          >
+                            Xóa bài viết
+                          </Button>
+                        )
+                      }
+                    ]
+                  }}
+                  trigger={['click']}
+                  placement="bottomRight"
+                >
+                  <Button type="text" icon={<MoreOutlined />} />
+                </Dropdown>
+              </Space>
 
             </div>
           </div>
         </Col>
       </Row>
-    </Card>
+      </Card>
+    </Tooltip>
   );
 
   return (

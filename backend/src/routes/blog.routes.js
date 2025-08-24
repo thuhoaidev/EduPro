@@ -18,6 +18,7 @@ router.get('/my-posts', auth, blogController.getMyPosts);
 router.get('/pending/all', blogController.getAllPendingBlogs);
 router.get('/approved/all', blogController.getAllApprovedBlogs);
 router.get('/comments/all', blogController.getAllComments);
+router.get('/comments/public', blogController.getPublicComments);
 
 // === SAVE ===
 router.get('/saved-posts', auth, blogController.getSavedPosts);

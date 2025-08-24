@@ -47,9 +47,10 @@ import { UserStatus, type User } from "../../../interfaces/Admin.interface";
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
 import { useRef } from "react";
-import styles from "../Users/UserPage.module.css";
 import type { TablePaginationConfig } from 'antd/es/table';
 import { config } from "../../../api/axios";
+import { motion } from 'framer-motion';
+
 dayjs.locale("vi");
 
 const { Title, Text, Paragraph, Link: AntdLink } = Typography;
@@ -91,88 +92,166 @@ const StatCards = ({
     rejected: number;
   };
 }) => (
-  <Row gutter={[24, 24]} className={styles.statsRow}>
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6, delay: 0.2 }}
+  >
+    <Row gutter={[24, 24]} style={{ marginBottom: '32px' }}>
     <Col xs={24} sm={12} lg={6}>
-      <Card className={styles.statCard} bordered={false}>
-        <div className={styles.statContent}>
-          <div className={styles.statIcon} style={{ backgroundColor: '#e6f7ff' }}>
-            <TeamOutlined style={{ color: '#1890ff' }} />
+        <Card 
+          style={{ 
+            background: 'rgba(255, 255, 255, 0.95)', 
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            border: 'none',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.3s ease'
+          }}
+          hoverable
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ 
+              width: '60px', 
+              height: '60px', 
+              borderRadius: '12px', 
+              backgroundColor: '#e6f7ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <TeamOutlined style={{ color: '#1890ff', fontSize: '24px' }} />
           </div>
-          <div className={styles.statInfo}>
+            <div style={{ flex: 1 }}>
             <Statistic
-              title="Tổng giảng viên"
+                title={<Text style={{ fontSize: '14px', color: '#666' }}>Tổng giảng viên</Text>}
               value={stats.total}
-              valueStyle={{ color: '#1890ff', fontSize: 28, fontWeight: 600 }}
+                valueStyle={{ color: '#1890ff', fontSize: '28px', fontWeight: 600 }}
             />
-            <div className={styles.statTrend}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
               <RiseOutlined style={{ color: '#52c41a' }} />
-              <Text type="secondary">+15% tháng này</Text>
+                <Text type="secondary" style={{ fontSize: '12px' }}>+15% tháng này</Text>
             </div>
           </div>
         </div>
       </Card>
     </Col>
     <Col xs={24} sm={12} lg={6}>
-      <Card className={styles.statCard} bordered={false}>
-        <div className={styles.statContent}>
-          <div className={styles.statIcon} style={{ backgroundColor: '#f6ffed' }}>
-            <CheckCircleOutlined style={{ color: '#52c41a' }} />
+        <Card 
+          style={{ 
+            background: 'rgba(255, 255, 255, 0.95)', 
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            border: 'none',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.3s ease'
+          }}
+          hoverable
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ 
+              width: '60px', 
+              height: '60px', 
+              borderRadius: '12px', 
+              backgroundColor: '#f6ffed',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '24px' }} />
           </div>
-          <div className={styles.statInfo}>
+            <div style={{ flex: 1 }}>
             <Statistic
-              title="Đã duyệt"
+                title={<Text style={{ fontSize: '14px', color: '#666' }}>Đã duyệt</Text>}
               value={stats.approved}
-              valueStyle={{ color: '#52c41a', fontSize: 28, fontWeight: 600 }}
+                valueStyle={{ color: '#52c41a', fontSize: '28px', fontWeight: 600 }}
             />
-            <div className={styles.statTrend}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
               <RiseOutlined style={{ color: '#52c41a' }} />
-              <Text type="secondary">+8% tháng này</Text>
+                <Text type="secondary" style={{ fontSize: '12px' }}>+8% tháng này</Text>
             </div>
           </div>
         </div>
       </Card>
     </Col>
     <Col xs={24} sm={12} lg={6}>
-      <Card className={styles.statCard} bordered={false}>
-        <div className={styles.statContent}>
-          <div className={styles.statIcon} style={{ backgroundColor: '#fff7e6' }}>
-            <UserSwitchOutlined style={{ color: '#faad14' }} />
+        <Card 
+          style={{ 
+            background: 'rgba(255, 255, 255, 0.95)', 
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            border: 'none',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.3s ease'
+          }}
+          hoverable
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ 
+              width: '60px', 
+              height: '60px', 
+              borderRadius: '12px', 
+              backgroundColor: '#fff7e6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <UserSwitchOutlined style={{ color: '#faad14', fontSize: '24px' }} />
           </div>
-          <div className={styles.statInfo}>
+            <div style={{ flex: 1 }}>
             <Statistic
-              title="Chờ duyệt"
+                title={<Text style={{ fontSize: '14px', color: '#666' }}>Chờ duyệt</Text>}
               value={stats.pending}
-              valueStyle={{ color: '#faad14', fontSize: 28, fontWeight: 600 }}
+                valueStyle={{ color: '#faad14', fontSize: '28px', fontWeight: 600 }}
             />
-            <div className={styles.statTrend}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
               <RiseOutlined style={{ color: '#faad14' }} />
-              <Text type="secondary">+12% tháng này</Text>
+                <Text type="secondary" style={{ fontSize: '12px' }}>+12% tháng này</Text>
             </div>
           </div>
         </div>
       </Card>
     </Col>
     <Col xs={24} sm={12} lg={6}>
-      <Card className={styles.statCard} bordered={false}>
-        <div className={styles.statContent}>
-          <div className={styles.statIcon} style={{ backgroundColor: '#fff1f0' }}>
-            <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+        <Card 
+          style={{ 
+            background: 'rgba(255, 255, 255, 0.95)', 
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            border: 'none',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.3s ease'
+          }}
+          hoverable
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ 
+              width: '60px', 
+              height: '60px', 
+              borderRadius: '12px', 
+              backgroundColor: '#fff1f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: '24px' }} />
           </div>
-          <div className={styles.statInfo}>
+            <div style={{ flex: 1 }}>
             <Statistic
-              title="Từ chối"
+                title={<Text style={{ fontSize: '14px', color: '#666' }}>Từ chối</Text>}
               value={stats.rejected}
-              valueStyle={{ color: '#ff4d4f', fontSize: 28, fontWeight: 600 }}
+                valueStyle={{ color: '#ff4d4f', fontSize: '28px', fontWeight: 600 }}
             />
-            <div className={styles.statTrend}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
               <FallOutlined style={{ color: '#ff4d4f' }} />
-              <Text type="secondary">-5% tháng này</Text>
+                <Text type="secondary" style={{ fontSize: '12px' }}>-5% tháng này</Text>
             </div>
           </div>
         </div>
       </Card>
     </Col>
   </Row>
+  </motion.div>
 );
 
 const FilterSection = ({
@@ -190,22 +269,56 @@ const FilterSection = ({
   setSelectedApprovalStatus: (status: string | undefined) => void;
   setDateRange: (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => void;
 }) => (
-  <Card className={styles.filterCard} bordered={false}>
-    <div className={styles.filterGroup}>
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6, delay: 0.3 }}
+  >
+    <Card 
+      style={{ 
+        background: 'rgba(255, 255, 255, 0.95)', 
+        backdropFilter: 'blur(10px)',
+        borderRadius: '16px',
+        border: 'none',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+        marginBottom: '24px'
+      }}
+    >
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '20px', 
+        paddingBottom: '12px', 
+        borderBottom: '1px solid #f0f0f0'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <FilterOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+          <Text strong style={{ fontSize: '16px', color: '#1a1a1a' }}>Bộ lọc tìm kiếm</Text>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
       <Input
         placeholder="Tìm kiếm theo tên, email..."
         prefix={<SearchOutlined />}
         value={searchInput}
         onChange={(e) => setSearchInput(e.target.value)}
         onPressEnter={() => setSearch(searchInput)}
-        className={styles.filterInput}
+          style={{ 
+            minWidth: '250px',
+            borderRadius: '8px',
+            border: '1px solid #d9d9d9'
+          }}
         allowClear
       />
       <Select
         placeholder="Lọc theo trạng thái duyệt"
         value={selectedApprovalStatus}
         onChange={(val) => setSelectedApprovalStatus(val || undefined)}
-        className={styles.filterSelect}
+          style={{ 
+            minWidth: '180px',
+            borderRadius: '8px'
+          }}
         allowClear
       >
         <Select.Option value="">Tất cả</Select.Option>
@@ -216,11 +329,15 @@ const FilterSection = ({
       <DatePicker.RangePicker
         placeholder={["Từ ngày", "Đến ngày"]}
         onChange={(dates) => setDateRange(dates)}
-        className={styles.filterDateRange}
+          style={{ 
+            borderRadius: '8px',
+            border: '1px solid #d9d9d9'
+          }}
         format="DD/MM/YYYY"
       />
     </div>
   </Card>
+  </motion.div>
 );
 
 const InstructorList = () => {
@@ -430,7 +547,7 @@ const InstructorList = () => {
       <Tag
         color={tag.color}
         icon={tag.icon}
-        className={styles.statusTag}
+        className="status-tag"
       >
         {tag.label}
       </Tag>
@@ -438,19 +555,41 @@ const InstructorList = () => {
   };
 
   return (
-    <div className={styles.userPageContainer}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
       {/* Header */}
-      <div className={styles.pageHeader}>
-        <div className={styles.headerLeft}>
-          <Title level={2} className={styles.pageTitle}>
-            <TrophyOutlined className={styles.titleIcon} />
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          style={{ marginBottom: '32px' }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <Title level={2} style={{ margin: 0, color: '#1a1a1a' }}>
+                  <TrophyOutlined style={{ marginRight: '12px', color: '#667eea' }} />
             Quản lý giảng viên
           </Title>
-          <Text type="secondary" className={styles.pageSubtitle}>
+                <Text type="secondary" style={{ margin: '8px 0 0 0', fontSize: '16px', color: '#666' }}>
             Quản lý và theo dõi thông tin tất cả giảng viên hệ thống
           </Text>
         </div>
       </div>
+          </Card>
+        </motion.div>
 
       <StatCards stats={stats} />
 
@@ -463,17 +602,43 @@ const InstructorList = () => {
         setDateRange={setDateRange}
       />
 
-      <Card className={styles.userTableCard} bordered={false}>
-        <div className={styles.tableHeader}>
-          <div className={styles.tableTitleSection}>
-            <Title level={4} className={styles.tableTitle}>
-              <BookOutlined className={styles.tableIcon} />
+        {/* Course List Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '20px', 
+              paddingBottom: '12px', 
+              borderBottom: '1px solid #f0f0f0',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <BookOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+                <Title level={4} style={{ margin: 0, color: '#1a1a1a' }}>
               Danh sách tất cả giảng viên
             </Title>
-            <Badge count={instructors.length} showZero className={styles.userCountBadge} />
+                <Badge count={instructors.length} showZero style={{ 
+                  backgroundColor: '#1890ff',
+                  borderRadius: '8px'
+                }} />
           </div>
-          <div className={styles.tableActions}>
-            <Text type="secondary">
+              <div>
+                <Text type="secondary" style={{ fontSize: '14px' }}>
               Hiển thị {((pagination.current - 1) * pagination.pageSize) + 1} - {Math.min(pagination.current * pagination.pageSize, pagination.total)} của {pagination.total} giảng viên
             </Text>
           </div>
@@ -492,7 +657,7 @@ const InstructorList = () => {
             size: 'small',
           }}
           onChange={handleTableChange}
-          className={styles.userTable}
+          className="user-table"
           scroll={{ x: 1100 }}
           size="small"
           onRow={(record) => {
@@ -633,13 +798,16 @@ const InstructorList = () => {
           ]}
         />
       </Card>
+      </motion.div>
 
       {/* Instructor Details Modal */}
       <Modal
         title={
-          <div className={styles.modalTitle}>
-            <UserOutlined className={styles.modalIcon} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <UserOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+            <Text strong style={{ fontSize: '18px', color: '#1a1a1a' }}>
             Chi tiết giảng viên
+            </Text>
           </div>
         }
         open={isDetailsModalVisible}
@@ -647,56 +815,141 @@ const InstructorList = () => {
         footer={null}
         width={900}
         destroyOnHidden
-        className={styles.userDetailModal}
+        style={{ borderRadius: '16px' }}
       >
         {viewingInstructor && (
-          <div className={styles.userDetailWrapper}>
-            <div className={styles.userDetailHeaderBox}>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            style={{ marginTop: '16px' }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '16px',
+              padding: '16px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '12px',
+              marginBottom: '20px'
+            }}>
               <Avatar
                 size={96}
                 src={viewingInstructor.avatar && viewingInstructor.avatar !== 'default-avatar.jpg' && viewingInstructor.avatar !== '' && (viewingInstructor.avatar.includes('googleusercontent.com') || viewingInstructor.avatar.startsWith('http')) ? viewingInstructor.avatar : undefined}
-                className={styles.userDetailAvatar}
+                style={{ border: '2px solid #f0f0f0' }}
               />
-              <div className={styles.userDetailHeaderInfo}>
-                <div className={styles.userDetailName}>{viewingInstructor.fullname}</div>
-                <div className={styles.userDetailEmail}>
-                  <MailOutlined className={styles.emailIcon} />
+              <div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1a1a1a', marginBottom: '8px' }}>
+                  {viewingInstructor.fullname}
+                </div>
+                <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <MailOutlined style={{ color: '#1890ff' }} />
                   {viewingInstructor.email}
                 </div>
-                <div className={styles.userDetailRoleTag}>
-                  {getApprovalStatusTag(viewingInstructor.approvalStatus)}
+                <div>{getApprovalStatusTag(viewingInstructor.approvalStatus)}</div>
+              </div>
+            </div>
+
+            <Card 
+              style={{ 
+                backgroundColor: '#fafafa',
+                borderRadius: '12px',
+                border: '1px solid #f0f0f0',
+                marginBottom: '20px'
+              }} 
+              bordered={false}
+            >
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px',
+                padding: '12px 0'
+              }}>
+                <CalendarOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
+                <div>
+                  <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Ngày nộp hồ sơ:</Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Text style={{ fontSize: '14px', color: '#666' }}>
+                      {viewingInstructor.applicationDate ? dayjs(viewingInstructor.applicationDate).format("DD/MM/YYYY HH:mm") : "Chưa cập nhật"}
+                    </Text>
                 </div>
               </div>
             </div>
 
-            <div className={styles.userDetailCard}>
-              <div className={styles.userDetailRow}>
-                <span className={styles.userDetailLabel}><CalendarOutlined /> Ngày nộp hồ sơ:</span>
-                <span>{viewingInstructor.applicationDate ? dayjs(viewingInstructor.applicationDate).format("DD/MM/YYYY HH:mm") : "Chưa cập nhật"}</span>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px',
+                padding: '12px 0'
+              }}>
+                <PhoneOutlined style={{ color: '#fa8c16', fontSize: '16px' }} />
+                <div>
+                  <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Số điện thoại:</Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Text style={{ fontSize: '14px', color: '#666' }}>
+                      {viewingInstructor.phone || 'Chưa cập nhật'}
+                    </Text>
               </div>
-              <div className={styles.userDetailRow}>
-                <span className={styles.userDetailLabel}><PhoneOutlined /> Số điện thoại:</span>
-                <span>{viewingInstructor.phone || 'Chưa cập nhật'}</span>
               </div>
-              <div className={styles.userDetailRow}>
-                <span className={styles.userDetailLabel}><HomeOutlined /> Địa chỉ:</span>
-                <span>{viewingInstructor.address || 'Chưa cập nhật'}</span>
               </div>
-              <div className={styles.userDetailRow}>
-                <span className={styles.userDetailLabel}><GiftOutlined /> Ngày sinh:</span>
-                <span>{viewingInstructor.dob ? dayjs(viewingInstructor.dob).format('DD/MM/YYYY') : 'Chưa cập nhật'}</span>
+              
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px',
+                padding: '12px 0'
+              }}>
+                <HomeOutlined style={{ color: '#722ed1', fontSize: '16px' }} />
+                <div>
+                  <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Địa chỉ:</Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Text style={{ fontSize: '14px', color: '#666' }}>
+                      {viewingInstructor.address || 'Chưa cập nhật'}
+                    </Text>
               </div>
-              <div className={styles.userDetailRow}>
-                <span className={styles.userDetailLabel}><ManOutlined /> Giới tính:</span>
-                <span>{viewingInstructor.gender || 'Chưa cập nhật'}</span>
               </div>
             </div>
+              
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px',
+                padding: '12px 0'
+              }}>
+                <GiftOutlined style={{ color: '#eb2f96', fontSize: '16px' }} />
+                <div>
+                  <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Ngày sinh:</Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Text style={{ fontSize: '14px', color: '#666' }}>
+                      {viewingInstructor.dob ? dayjs(viewingInstructor.dob).format('DD/MM/YYYY') : 'Chưa cập nhật'}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px',
+                padding: '12px 0'
+              }}>
+                <ManOutlined style={{ color: '#13c2c2', fontSize: '16px' }} />
+                <div>
+                  <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Giới tính:</Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Text style={{ fontSize: '14px', color: '#666' }}>
+                      {viewingInstructor.gender || 'Chưa cập nhật'}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+            </Card>
 
             <Divider orientation="left">
               <StarOutlined style={{ color: '#1890ff', marginRight: 8 }} />
               Học vấn & Chuyên môn
             </Divider>
-            <Descriptions column={2} bordered size="small" className={styles.detailDescriptions}>
+            <Descriptions column={2} bordered size="small" style={{ marginBottom: '20px' }}>
               <Descriptions.Item label="Bằng cấp">{viewingInstructor.degree || "Chưa cập nhật"}</Descriptions.Item>
               <Descriptions.Item label="Trường đào tạo">{viewingInstructor.university || "Chưa cập nhật"}</Descriptions.Item>
               <Descriptions.Item label="Chuyên ngành">{viewingInstructor.major || "Chưa cập nhật"}</Descriptions.Item>
@@ -714,7 +967,7 @@ const InstructorList = () => {
               <BookOutlined style={{ color: '#1890ff', marginRight: 8 }} />
               Hồ sơ & Tài liệu
             </Divider>
-            <Descriptions column={2} bordered size="small" className={styles.detailDescriptions}>
+            <Descriptions column={2} bordered size="small">
               <Descriptions.Item label="CV">
                 {viewingInstructor.cvUrl ? (
                   <AntdLink href={viewingInstructor.cvUrl} target="_blank" rel="noopener noreferrer">Tải CV</AntdLink>
@@ -781,10 +1034,11 @@ const InstructorList = () => {
                 </Descriptions.Item>
               )}
             </Descriptions>
-          </div>
+          </motion.div>
         )}
       </Modal>
     </div>
+    </motion.div>
   );
 };
 

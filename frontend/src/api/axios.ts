@@ -78,6 +78,7 @@ config.interceptors.response.use(
       '/blogs',
       '/users/verify-instructor-email/',
       '/auth/verify-email/',
+      '/statistics/public',
     ];
 
     // Kiểm tra xem request có phải là route public không

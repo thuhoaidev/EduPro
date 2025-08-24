@@ -16,7 +16,10 @@ router.delete('/:id', auth, async (req, res) => {
 // Ẩn/duyệt bình luận
 router.put('/:id/approve-or-hide', auth, async (req, res) => {
     try {
-        const { status } = req.body; // status: 'approved' | 'hidden'
+        const { status } = req.body; // status: 'approved' | 'hidden' | 'pending'
+        if (!['approved', 'hidden', 'pending'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ.' });
+        }
         await BlogComment.findByIdAndUpdate(req.params.id, { status });
         res.json({ success: true, message: 'Cập nhật trạng thái bình luận thành công.' });
     } catch (err) {
