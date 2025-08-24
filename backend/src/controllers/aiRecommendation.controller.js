@@ -18,9 +18,11 @@ exports.getRecommendations = catchAsync(async (req, res, next) => {
     .populate('course', 'category level')
     .lean();
   
-  const enrolledCourseIds = enrolledCourses.map(e => e.course._id.toString());
-  const enrolledCategories = [...new Set(enrolledCourses.map(e => e.course.category?.toString()))];
-  const enrolledLevels = [...new Set(enrolledCourses.map(e => e.course.level))];
+  // Lọc bỏ các enrollment có course null và lấy thông tin cần thiết
+  const validEnrolledCourses = enrolledCourses.filter(e => e.course !== null);
+  const enrolledCourseIds = validEnrolledCourses.map(e => e.course._id.toString());
+  const enrolledCategories = [...new Set(validEnrolledCourses.map(e => e.course.category?.toString()).filter(Boolean))];
+  const enrolledLevels = [...new Set(validEnrolledCourses.map(e => e.course.level).filter(Boolean))];
   
   // Lấy tất cả khóa học đã xuất bản
   const allCourses = await Course.find({ displayStatus: 'published' })
@@ -39,35 +41,35 @@ exports.getRecommendations = catchAsync(async (req, res, next) => {
     let score = 0;
     
     // Điểm cơ bản từ hành vi người dùng
-    const viewed = userBehavior.viewedCourses.find(v => v.courseId.equals(course._id));
+    const viewed = userBehavior.viewedCourses.find(v => v.courseId && v.courseId.toString() === course._id.toString());
     if (viewed) {
-      score += viewed.viewCount * 2 + Math.min(viewed.totalTimeSpent, 300) / 30;
+      score += viewed.viewCount * 2 + Math.min(viewed.totalTimeSpent || 0, 300) / 30;
     }
     
-    if (userBehavior.completedCourses.some(c => c.courseId.equals(course._id))) {
+    if (userBehavior.completedCourses.some(c => c.courseId && c.courseId.toString() === course._id.toString())) {
       score += 10;
     }
     
-    const rated = userBehavior.ratedCourses.find(r => r.courseId.equals(course._id));
+    const rated = userBehavior.ratedCourses.find(r => r.courseId && r.courseId.toString() === course._id.toString());
     if (rated && rated.rating >= 4) {
       score += 5;
     }
     
-    if (userBehavior.commentedCourses.some(c => c.courseId.equals(course._id))) {
+    if (userBehavior.commentedCourses.some(c => c.courseId && c.courseId.toString() === course._id.toString())) {
       score += 2;
     }
     
-    if (userBehavior.bookmarkedCourses.some(c => c.courseId.equals(course._id))) {
+    if (userBehavior.bookmarkedCourses.some(c => c.courseId && c.courseId.toString() === course._id.toString())) {
       score += 2;
     }
     
-    if (userBehavior.sharedCourses.some(c => c.courseId.equals(course._id))) {
+    if (userBehavior.sharedCourses.some(c => c.courseId && c.courseId.toString() === course._id.toString())) {
       score += 1;
     }
     
-    const purchased = userBehavior.purchasedCourses.find(p => p.courseId.equals(course._id));
+    const purchased = userBehavior.purchasedCourses.find(p => p.courseId && p.courseId.toString() === course._id.toString());
     if (purchased) {
-      score += 8 + Math.min(purchased.price / 100000, 5);
+      score += 8 + Math.min((purchased.price || 0) / 100000, 5);
     }
     
     // Ưu tiên khóa học liên quan đến category đang học
@@ -126,13 +128,13 @@ exports.getRecommendations = catchAsync(async (req, res, next) => {
   const reasons = [];
   
   // Lý do dựa trên khóa học đang học
-  if (enrolledCourses.length > 0) {
+  if (validEnrolledCourses.length > 0) {
     const categoryCounts = {};
     const levelCounts = {};
     
-    enrolledCourses.forEach(enrollment => {
-      const category = enrollment.course.category?.name;
-      const level = enrollment.course.level;
+    validEnrolledCourses.forEach(enrollment => {
+      const category = enrollment.course?.category?.name;
+      const level = enrollment.course?.level;
       
       if (category) categoryCounts[category] = (categoryCounts[category] || 0) + 1;
       if (level) levelCounts[level] = (levelCounts[level] || 0) + 1;
@@ -225,7 +227,7 @@ exports.updateUserBehavior = catchAsync(async (req, res, next) => {
   // Cập nhật hành vi dựa trên loại
   switch (behaviorType) {
     case 'view':
-      const existingView = userBehavior.viewedCourses.find(v => v.courseId.equals(courseId));
+      const existingView = userBehavior.viewedCourses.find(v => v.courseId && v.courseId.toString() === courseId.toString());
       if (existingView) {
         existingView.viewCount += 1;
         existingView.lastViewed = new Date();
@@ -241,7 +243,7 @@ exports.updateUserBehavior = catchAsync(async (req, res, next) => {
       break;
       
     case 'complete':
-      if (!userBehavior.completedCourses.some(c => c.courseId.equals(courseId))) {
+      if (!userBehavior.completedCourses.some(c => c.courseId && c.courseId.toString() === courseId.toString())) {
         userBehavior.completedCourses.push({
           courseId,
           completedAt: new Date()
@@ -250,7 +252,7 @@ exports.updateUserBehavior = catchAsync(async (req, res, next) => {
       break;
       
     case 'rate':
-      const existingRating = userBehavior.ratedCourses.find(r => r.courseId.equals(courseId));
+      const existingRating = userBehavior.ratedCourses.find(r => r.courseId && r.courseId.toString() === courseId.toString());
       if (existingRating) {
         existingRating.rating = data.rating;
         existingRating.ratedAt = new Date();
@@ -264,7 +266,7 @@ exports.updateUserBehavior = catchAsync(async (req, res, next) => {
       break;
       
     case 'bookmark':
-      if (!userBehavior.bookmarkedCourses.some(c => c.courseId.equals(courseId))) {
+      if (!userBehavior.bookmarkedCourses.some(c => c.courseId && c.courseId.toString() === courseId.toString())) {
         userBehavior.bookmarkedCourses.push({
           courseId,
           bookmarkedAt: new Date()
@@ -273,7 +275,7 @@ exports.updateUserBehavior = catchAsync(async (req, res, next) => {
       break;
       
     case 'share':
-      if (!userBehavior.sharedCourses.some(c => c.courseId.equals(courseId))) {
+      if (!userBehavior.sharedCourses.some(c => c.courseId && c.courseId.toString() === courseId.toString())) {
         userBehavior.sharedCourses.push({
           courseId,
           sharedAt: new Date()
@@ -282,13 +284,13 @@ exports.updateUserBehavior = catchAsync(async (req, res, next) => {
       break;
       
     case 'purchase':
-      if (!userBehavior.purchasedCourses.some(c => c.courseId.equals(courseId))) {
+      if (!userBehavior.purchasedCourses.some(c => c.courseId && c.courseId.toString() === courseId.toString())) {
         userBehavior.purchasedCourses.push({
           courseId,
           price: data.price,
           purchasedAt: new Date()
         });
-        userBehavior.totalSpent += data.price;
+        userBehavior.totalSpent += data.price || 0;
       }
       break;
   }
@@ -328,12 +330,13 @@ exports.getUserBehaviorStats = catchAsync(async (req, res, next) => {
   // Tính toán thống kê
   const stats = {
     totalCoursesViewed: userBehavior.viewedCourses.length,
-    totalTimeSpent: userBehavior.viewedCourses.reduce((sum, v) => sum + v.totalTimeSpent, 0),
+    totalTimeSpent: userBehavior.viewedCourses.reduce((sum, v) => sum + (v.totalTimeSpent || 0), 0),
     totalCoursesCompleted: userBehavior.completedCourses.length,
     totalCoursesRated: userBehavior.ratedCourses.length,
     totalCoursesPurchased: userBehavior.purchasedCourses.length,
     totalSpent: userBehavior.totalSpent,
     recentActivity: userBehavior.viewedCourses
+      .filter(v => v.courseId) // Lọc bỏ các courseId null
       .sort((a, b) => new Date(b.lastViewed) - new Date(a.lastViewed))
       .slice(0, 10)
       .map(v => ({

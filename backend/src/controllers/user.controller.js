@@ -1734,9 +1734,17 @@ exports.getMyEnrollments = async (req, res, next) => {
       enrollments.map(async enroll => {
         const course = enroll.course;
 
-        // 👇 Tính totalLessons cho từng course
+        // Nếu course null (course đã bị xóa), bỏ qua hoặc trả bản ghi tối giản
+        if (!course) {
+          return {
+            ...enroll.toObject(),
+            course: null,
+          };
+        }
+
+        // Tính totalLessons cho từng course
         let totalLessons = 0;
-        if (course?._id) {
+        if (course._id) {
           const sections = await Section.find({ course_id: course._id }).select('lessons');
           totalLessons = sections.reduce((sum, section) => {
             return sum + (section.lessons?.length || 0);
@@ -1746,8 +1754,8 @@ exports.getMyEnrollments = async (req, res, next) => {
         return {
           ...enroll.toObject(),
           course: {
-            ...course.toObject(),
-            totalLessons, // 👈 Gắn vào đây
+            ...(course.toObject ? course.toObject() : course),
+            totalLessons,
           },
         };
       }),

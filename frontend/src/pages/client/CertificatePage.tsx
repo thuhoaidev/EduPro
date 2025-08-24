@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getCertificate } from "../../services/certificateService";
 import { Spin, Alert, Button } from "antd";
+import CertificatePreview from "../../components/CertificatePreview";
 
 const CertificatePage: React.FC = () => {
   const { courseId } = useParams();
@@ -87,6 +88,19 @@ const CertificatePage: React.FC = () => {
   return (
     <div style={{ maxWidth: 600, margin: "40px auto", padding: 24, background: "#fff", borderRadius: 16 }}>
       <h2>Chứng chỉ hoàn thành khóa học</h2>
+      {certificate && (
+  <div style={{ marginTop: 24 }}>
+    <CertificatePreview
+      certificate={{
+        code: certificate.code,
+        issuedAt: new Date(certificate.issuedAt).toLocaleDateString(),
+        learnerName: certificate.name || "Tên học viên",
+        courseName: certificate.courseName || "Khóa học",
+      }}
+    />
+  </div>
+)}
+
       <p><b>Mã chứng chỉ:</b> {certificate.code}</p>
       <p><b>Ngày cấp:</b> {new Date(certificate.issuedAt).toLocaleDateString()}</p>
       {certificate.file && (

@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const messageController = require('../controllers/message.controller');
-const { auth } = require('../middlewares/auth');
+const { auth, optionalAuth } = require('../middlewares/auth');
+
+// Route health check không cần auth
+router.get('/health', optionalAuth, (req, res) => {
+  res.json({ success: true, message: 'Messages API is working' });
+});
 
 // Gửi tin nhắn
 router.post('/', auth, messageController.sendMessage);
