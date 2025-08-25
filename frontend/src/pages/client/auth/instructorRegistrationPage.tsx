@@ -172,18 +172,17 @@ export function InstructorRegistrationPage() {
       // Thêm thông tin chuyên môn
       const specializationsValue = values.specializations || form.getFieldValue('specializations') || [];
       if (Array.isArray(specializationsValue)) {
-        specializationsValue.forEach((spec, idx) => {
-          if (typeof spec === 'string' && spec.trim()) {
-            formData.append(`specializations[${idx}]`, spec.trim());
-          }
-        });
+        // Gửi specializations như một JSON string để backend có thể parse
+        formData.append('specializations', JSON.stringify(specializationsValue));
+      } else {
+        formData.append('specializations', JSON.stringify([]));
       }
       formData.append('teachingExperience', (values.teachingExperience || form.getFieldValue('teachingExperience') || '').toString());
       formData.append('experienceDescription', (values.experienceDescription || form.getFieldValue('experienceDescription') || '').toString().trim());
 
       // Thêm thông tin bổ sung
       formData.append('bio', values.bio || form.getFieldValue('bio') || '');
-      if (values.linkedin || form.getFieldValue('linkedin')) formData.append('linkedin', values.linkedin || form.getFieldValue('linkedin'));
+      if (values.linkedin || form.getFieldValue('linkedin')) formData.append('facebook', values.linkedin || form.getFieldValue('linkedin'));
       if (values.github || form.getFieldValue('github')) formData.append('github', values.github || form.getFieldValue('github'));
       if (values.website || form.getFieldValue('website')) formData.append('website', values.website || form.getFieldValue('website'));
 

@@ -1261,6 +1261,17 @@ exports.registerInstructor = async (req, res) => {
     const cleanGithub = github?.trim();
     const cleanWebsite = website?.trim();
 
+    // Parse specializations if it's a JSON string
+    let parsedSpecializations = specializations;
+    if (typeof specializations === 'string') {
+      try {
+        parsedSpecializations = JSON.parse(specializations);
+      } catch (error) {
+        console.log('Failed to parse specializations JSON, using as-is:', specializations);
+        parsedSpecializations = [specializations];
+      }
+    }
+
     // Map gender values
     const genderMap = {
       nam: 'Nam',
@@ -1297,7 +1308,7 @@ exports.registerInstructor = async (req, res) => {
       institution: cleanInstitution,
       graduationYear,
       major: cleanMajor,
-      specializations,
+      specializations: parsedSpecializations,
       teachingExperience,
       experienceDescription,
       bio: cleanBio,
@@ -1350,12 +1361,12 @@ exports.registerInstructor = async (req, res) => {
       });
     }
 
-    if (!specializations || !teachingExperience || !experienceDescription) {
+    if (!parsedSpecializations || !teachingExperience || !experienceDescription) {
       return res.status(400).json({
         success: false,
         message: 'Thiếu thông tin chuyên môn bắt buộc',
         missing: {
-          specializations: !specializations,
+          specializations: !parsedSpecializations,
           teachingExperience: !teachingExperience,
           experienceDescription: !experienceDescription,
         },
@@ -1465,7 +1476,7 @@ exports.registerInstructor = async (req, res) => {
       instructorInfo: {
         is_approved: false,
         experience_years: parseInt(teachingExperience) || 0,
-        specializations: Array.isArray(specializations) ? specializations : [specializations],
+        specializations: Array.isArray(parsedSpecializations) ? parsedSpecializations : [parsedSpecializations],
         teaching_experience: {
           years: parseInt(teachingExperience) || 0,
           description: experienceDescription,

@@ -647,8 +647,8 @@ const AppHeader = () => {
     : undefined;
 
   // Debug log để kiểm tra userMenu
-  console.log('userMenu created:', userMenu);
-  console.log('userMenu onClick:', userMenu?.onClick);
+  // console.log('userMenu created:', userMenu);
+  // console.log('userMenu onClick:', userMenu?.onClick);
 
   const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
     fontWeight: isActive ? '600' : '500',

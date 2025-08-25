@@ -146,7 +146,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Kiểm tra token trước khi gọi API
       const token = localStorage.getItem('token');
       if (!token) {
-        console.log('Không có token, chỉ xóa local state');
+        // Không có token, chỉ xóa local state
         setCartCount(0);
         setCartItems([]);
         return;
@@ -167,7 +167,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCartItems([]);
       
       if (error.response?.status === 401) {
-        console.log('Token không hợp lệ khi xóa giỏ hàng');
+        // Token không hợp lệ, xóa token và chuyển về trang đăng nhập
+        localStorage.removeItem('token');
+        window.location.href = '/login';
       }
     }
   };
