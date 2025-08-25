@@ -132,6 +132,7 @@ export const PERMISSIONS = {
   REJECT_BLOGS: 'từ chối bài viết',
   APPROVE_COMMENTS: 'duyệt bình luận',
   DELETE_COMMENTS: 'xóa bình luận',
+  APPROVE_COURSES: 'approve_courses',
   
   // Report Handling
   VIEW_REPORTS: 'xem báo cáo',

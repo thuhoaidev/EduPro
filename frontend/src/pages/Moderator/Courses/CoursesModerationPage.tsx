@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   Input,
@@ -19,6 +20,7 @@ import {
   Avatar,
   Badge,
   Progress,
+  Form,
 } from "antd";
 import {
   BookOutlined,
@@ -34,6 +36,7 @@ import {
   CloseCircleFilled,
   ClockCircleFilled,
   FileTextOutlined,
+  ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import { courseService } from '../../../services/apiService';
 import type { Course } from '../../../services/apiService';
@@ -51,6 +54,7 @@ const statusColorMap: Record<string, string> = {
 };
 
 const CoursesModerationPage: React.FC = () => {
+  const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -61,13 +65,45 @@ const CoursesModerationPage: React.FC = () => {
     const fetchCourses = async () => {
       setLoading(true);
       try {
-        console.log('CoursesModerationPage - Fetching courses...');
-        const data = await courseService.getAllCourses();
+        // Kiểm tra token trước khi gọi API
+        const token = localStorage.getItem('token');
+        if (!token) {
+          message.error('Vui lòng đăng nhập để truy cập');
+          return;
+        }
+
+        // Kiểm tra role của user
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          const userRole = user?.role?.name || user?.role_id?.name || user?.role;
+          console.log('User role:', userRole);
+          // Cho phép admin và moderator truy cập
+          const allowedRoles = ['moderator', 'admin'];
+          if (!allowedRoles.includes(userRole)) {
+            message.error('Bạn không có quyền truy cập trang moderator');
+            return;
+          }
+        }
+
+        console.log('CoursesModerationPage - Fetching courses for moderator...');
+        const data = await courseService.getModeratorCourses();
         console.log('CoursesModerationPage - API response:', data);
         const allCourses = Array.isArray(data) ? data : [];
         console.log('CoursesModerationPage - Processed courses:', allCourses);
+        
+        // Debug: Kiểm tra avatar của từng khóa học
+        allCourses.forEach((course, index) => {
+          console.log(`Course ${index + 1}:`, {
+            title: course.title,
+            author: course.author,
+            avatar: course.author?.avatar
+          });
+        });
+        
         setCourses(allCourses);
       } catch (error) {
+        console.error('Error fetching courses:', error);
         message.error('Không thể tải danh sách khóa học');
       } finally {
         setLoading(false);
@@ -98,63 +134,53 @@ const CoursesModerationPage: React.FC = () => {
 
   const handleApprove = async (courseId: string) => {
     Modal.confirm({
-      title: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CheckCircleFilled style={{ color: '#52c41a' }} />
-          <span>Duyệt khóa học</span>
-        </div>
-      ),
-      content: 'Bạn có chắc chắn muốn duyệt khóa học này? Khóa học sẽ được hiển thị công khai sau khi duyệt.',
+      title: 'Duyệt khóa học',
+      content: 'Bạn có chắc chắn muốn duyệt khóa học này?',
       okText: 'Duyệt',
       cancelText: 'Hủy',
-      okButtonProps: { 
-        style: { 
-          background: '#52c41a',
-          borderColor: '#52c41a',
-          borderRadius: '6px'
-        } 
-      },
       onOk: async () => {
         try {
           await courseService.approveCourse(courseId, 'approve');
           message.success('Đã duyệt khóa học thành công!');
-          const data = await courseService.getAllCourses();
+          // Refresh danh sách khóa học
+          const data = await courseService.getModeratorCourses();
           const allCourses = Array.isArray(data) ? data : [];
           setCourses(allCourses);
         } catch (error) {
+          console.error('Lỗi khi duyệt khóa học:', error);
           message.error('Duyệt khóa học thất bại!');
         }
       },
     });
   };
 
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [rejectForm] = Form.useForm();
+
   const handleReject = async (courseId: string) => {
-    Modal.confirm({
-      title: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CloseCircleFilled style={{ color: '#ff4d4f' }} />
-          <span>Từ chối khóa học</span>
-        </div>
-      ),
-      content: 'Bạn có chắc chắn muốn từ chối khóa học này? Khóa học sẽ bị ẩn khỏi hệ thống.',
-      okText: 'Từ chối',
-      okType: 'danger',
-      cancelText: 'Hủy',
-      okButtonProps: { 
-        style: { borderRadius: '6px' }
-      },
-      onOk: async () => {
-        try {
-          await courseService.approveCourse(courseId, 'reject');
-          message.success('Đã từ chối khóa học!');
-          const data = await courseService.getAllCourses();
-          const allCourses = Array.isArray(data) ? data : [];
-          setCourses(allCourses);
-        } catch (error) {
-          message.error('Từ chối khóa học thất bại!');
-        }
-      },
-    });
+    setSelectedCourseId(courseId);
+    setRejectModalVisible(true);
+    rejectForm.resetFields();
+  };
+
+  const handleRejectSubmit = async (values: { reason: string }) => {
+    if (!selectedCourseId) return;
+    
+    try {
+      await courseService.approveCourse(selectedCourseId, 'reject', values.reason);
+      message.success('Đã từ chối khóa học!');
+      setRejectModalVisible(false);
+      setSelectedCourseId(null);
+      rejectForm.resetFields();
+      // Refresh danh sách khóa học
+      const data = await courseService.getModeratorCourses();
+      const allCourses = Array.isArray(data) ? data : [];
+      setCourses(allCourses);
+    } catch (error) {
+      console.error('Lỗi khi từ chối khóa học:', error);
+      message.error('Từ chối khóa học thất bại!');
+    }
   };
 
   const handleSearch = (value: string) => {
@@ -228,9 +254,13 @@ const CoursesModerationPage: React.FC = () => {
             </Text>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Avatar 
+                src={record.author?.avatar || '/images/default-avatar.png'}
                 icon={<UserOutlined />} 
                 size="small"
-                style={{ backgroundColor: '#1890ff' }}
+                style={{ 
+                  backgroundColor: record.author?.avatar ? 'transparent' : '#1890ff',
+                  border: record.author?.avatar ? '1px solid #f0f0f0' : 'none'
+                }}
               />
               <Text type="secondary" style={{ fontSize: '12px' }}>
                 {record.author?.name || 'Không rõ'}
@@ -304,9 +334,10 @@ const CoursesModerationPage: React.FC = () => {
               size="small"
               icon={<EyeOutlined />}
               style={{ color: '#1890ff' }}
+              onClick={() => navigate(`/moderator/courses/detail/${record.id}`)}
             />
           </Tooltip>
-          {record.status !== 'approved' && (
+          {record.status === 'pending' && (
             <Tooltip title="Duyệt khóa học">
               <Button
                 type="primary"
@@ -323,7 +354,7 @@ const CoursesModerationPage: React.FC = () => {
               </Button>
             </Tooltip>
           )}
-          {record.status !== 'rejected' && (
+          {record.status === 'pending' && (
             <Tooltip title="Từ chối khóa học">
               <Button
                 danger
@@ -585,6 +616,68 @@ const CoursesModerationPage: React.FC = () => {
             />
           </div>
         </Card>
+
+        {/* Modal từ chối khóa học */}
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+              <span>Từ chối khóa học</span>
+            </div>
+          }
+          open={rejectModalVisible}
+          onCancel={() => {
+            setRejectModalVisible(false);
+            setSelectedCourseId(null);
+            rejectForm.resetFields();
+          }}
+          footer={null}
+          width={500}
+        >
+          <Form
+            form={rejectForm}
+            layout="vertical"
+            onFinish={handleRejectSubmit}
+          >
+            <Form.Item
+              label="Lý do từ chối"
+              name="reason"
+              rules={[
+                { required: true, message: 'Vui lòng nhập lý do từ chối!' },
+                { min: 10, message: 'Lý do từ chối phải có ít nhất 10 ký tự!' }
+              ]}
+            >
+              <Input.TextArea
+                rows={4}
+                placeholder="Nhập lý do từ chối khóa học..."
+                maxLength={500}
+                showCount
+              />
+            </Form.Item>
+            
+            <Form.Item className="mb-0">
+              <Space className="w-full justify-end">
+                <Button
+                  onClick={() => {
+                    setRejectModalVisible(false);
+                    setSelectedCourseId(null);
+                    rejectForm.resetFields();
+                  }}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  type="primary"
+                  danger
+                  htmlType="submit"
+                  loading={loading}
+                >
+                  Từ chối khóa học
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
 
         <style>{`
           .course-moderation-table .ant-table-thead > tr > th {

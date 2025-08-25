@@ -40,10 +40,12 @@ import {
   RiseOutlined,
   FallOutlined,
   EyeOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import { motion } from 'framer-motion';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -51,7 +53,6 @@ import voucherService from '../../../services/voucher.service';
 import type { Voucher, CreateVoucherData } from '../../../services/voucher.service';
 import { getAllCategories } from '../../../services/categoryService';
 import type { Category } from '../../../interfaces/Category.interface';
-import styles from '../Users/UserPage.module.css';
 
 const { Option } = Select;
 const { Title, Text, Paragraph } = Typography;
@@ -76,37 +77,77 @@ const FilterSection = ({
   setSortOrder,
 }: FilterSectionProps) => {
   return (
-    <Card className={styles.filterCard} bordered={false}>
-      <div className={styles.filterGroup}>
-        <Input
-          placeholder="Tìm kiếm mã giảm giá..."
-          prefix={<SearchOutlined />}
-          value={searchText}
-          onChange={e => setSearchText(e.target.value)}
-          className={styles.filterInput}
-          allowClear
-        />
-        <Select
-          value={filterStatus}
-          onChange={value => setFilterStatus(value as 'all' | 'active' | 'expired')}
-          className={styles.filterSelect}
-          options={[
-            { value: "all", label: "Tất cả trạng thái" },
-            { value: "active", label: "Đang hoạt động" },
-            { value: "expired", label: "Đã hết hạn" },
-          ]}
-        />
-        <Select
-          value={sortOrder}
-          onChange={value => setSortOrder(value as 'asc' | 'desc')}
-          className={styles.filterSelect}
-          options={[
-            { value: "asc", label: "Giá trị tăng dần" },
-            { value: "desc", label: "Giá trị giảm dần" },
-          ]}
-        />
-      </div>
-    </Card>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.3 }}
+    >
+      <Card 
+        style={{ 
+          background: 'rgba(255, 255, 255, 0.95)', 
+          backdropFilter: 'blur(10px)',
+          borderRadius: '16px',
+          border: 'none',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          marginBottom: '24px'
+        }}
+      >
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '20px', 
+          paddingBottom: '12px', 
+          borderBottom: '1px solid #f0f0f0'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <FilterOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+            <Text strong style={{ fontSize: '16px', color: '#1a1a1a' }}>Bộ lọc tìm kiếm</Text>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
+          <Input
+            placeholder="Tìm kiếm mã giảm giá..."
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            style={{ 
+              minWidth: '250px',
+              borderRadius: '8px',
+              border: '1px solid #d9d9d9'
+            }}
+            allowClear
+          />
+          <Select
+            value={filterStatus}
+            onChange={value => setFilterStatus(value as 'all' | 'active' | 'expired')}
+            style={{ 
+              minWidth: '180px',
+              borderRadius: '8px',
+              border: '1px solid #d9d9d9'
+            }}
+            options={[
+              { value: "all", label: "Tất cả trạng thái" },
+              { value: "active", label: "Đang hoạt động" },
+              { value: "expired", label: "Đã hết hạn" },
+            ]}
+          />
+          <Select
+            value={sortOrder}
+            onChange={value => setSortOrder(value as 'asc' | 'desc')}
+            style={{ 
+              minWidth: '180px',
+              borderRadius: '8px',
+              border: '1px solid #d9d9d9'
+            }}
+            options={[
+              { value: "asc", label: "Giá trị tăng dần" },
+              { value: "desc", label: "Giá trị giảm dần" },
+            ]}
+          />
+        </div>
+      </Card>
+    </motion.div>
   );
 };
 
@@ -124,68 +165,128 @@ const StatCards = ({ stats }: StatCardsProps) => {
   const expiredPercentage = stats.total > 0 ? (stats.expired / stats.total) * 100 : 0;
 
   return (
-    <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
-      <Col xs={24} sm={12} md={8}>
-        <Card className={styles.statCard} bordered={false}>
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#1890ff' }}>
-              <BookOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Tổng số mã" 
-                value={stats.total} 
-                valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <RiseOutlined style={{ color: '#52c41a' }} />
-                <Text type="secondary">Tất cả mã giảm giá</Text>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.2 }}
+    >
+      <Row gutter={[24, 24]} style={{ marginBottom: '32px' }} justify="center">
+        <Col xs={24} sm={12} md={8}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#1890ff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <BookOutlined style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic 
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Tổng số mã</Text>} 
+                  value={stats.total} 
+                  valueStyle={{ color: '#1890ff', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <RiseOutlined style={{ color: '#52c41a' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>Tất cả mã giảm giá</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={8}>
-        <Card className={styles.statCard} bordered={false}>
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#52c41a' }}>
-              <CheckCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Đang hoạt động" 
-                value={stats.active} 
-                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <RiseOutlined style={{ color: '#52c41a' }} />
-                <Text type="secondary">{activePercentage.toFixed(1)}%</Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#52c41a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CheckCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic 
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Đang hoạt động</Text>} 
+                  value={stats.active} 
+                  valueStyle={{ color: '#52c41a', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <RiseOutlined style={{ color: '#52c41a' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>{activePercentage.toFixed(1)}%</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={8}>
-        <Card className={styles.statCard} bordered={false}>
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#ff4d4f' }}>
-              <CloseCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Đã hết hạn" 
-                value={stats.expired} 
-                valueStyle={{ color: '#ff4d4f', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <FallOutlined style={{ color: '#ff4d4f' }} />
-                <Text type="secondary">{expiredPercentage.toFixed(1)}%</Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#ff4d4f',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CloseCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic 
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Đã hết hạn</Text>} 
+                  value={stats.expired} 
+                  valueStyle={{ color: '#ff4d4f', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <FallOutlined style={{ color: '#ff4d4f' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>{expiredPercentage.toFixed(1)}%</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-    </Row>
+          </Card>
+        </Col>
+      </Row>
+    </motion.div>
   );
 };
 
@@ -269,7 +370,10 @@ const VouchersPage: React.FC = () => {
     sortOrder === 'asc'
       ? (a.maxDiscount || 0) - (b.maxDiscount || 0)
       : (b.maxDiscount || 0) - (a.maxDiscount || 0)
-  );
+  ).map((item, index) => ({
+    ...item,
+    number: index + 1
+  }));
 
   const showAddModal = () => {
     setEditingVoucher(null);
@@ -335,7 +439,6 @@ const VouchersPage: React.FC = () => {
         tags: values.tags || [],
         startDate: values.startDate ? convertToUTC(values.startDate) : convertToUTC(dayjs()),
         endDate: values.endDate ? convertToUTC(values.endDate) : undefined,
-        type: values.type || 'default',
       };
       if (editingVoucher) {
         const response = await voucherService.update(editingVoucher.id, voucherData);
@@ -531,502 +634,916 @@ const VouchersPage: React.FC = () => {
 
   if (loading && data.length === 0) {
     return (
-      <div className={styles.userPageContainer}>
-        <div className={styles.loadingContainer}>
-          <Spin size="large" />
-          <Text style={{ marginTop: 16 }}>Đang tải dữ liệu...</Text>
-        </div>
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              textAlign: 'center',
+              padding: '80px 24px'
+            }}
+          >
+            <Spin size="large" />
+            <Text style={{ marginTop: 16, fontSize: '16px' }}>Đang tải dữ liệu...</Text>
+          </Card>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className={styles.userPageContainer}>
-      {/* Page Header */}
-      <div className={styles.pageHeader}>
-        <div className={styles.headerLeft}>
-          <Title level={2} className={styles.pageTitle}>
-            <TrophyOutlined className={styles.titleIcon} />
-            Quản lý mã giảm giá
-          </Title>
-          <Paragraph className={styles.pageSubtitle}>
-            Tạo và quản lý các mã giảm giá cho khóa học
-          </Paragraph>
-        </div>
-        <Button
-          icon={<PlusOutlined />}
-          type="primary"
-          onClick={showAddModal}
-          className={styles.addButton}
-          size="large"
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        {/* Page Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          style={{ marginBottom: '32px' }}
         >
-          Tạo mã giảm giá
-        </Button>
-      </div>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <Title level={2} style={{ margin: 0, color: '#1a1a1a' }}>
+                  <TrophyOutlined style={{ marginRight: '12px', color: '#667eea' }} />
+                  Quản lý mã giảm giá
+                </Title>
+                <Paragraph style={{ margin: '8px 0 0 0', fontSize: '16px', color: '#666' }}>
+                  Tạo và quản lý các mã giảm giá cho khóa học
+                </Paragraph>
+              </div>
+              <Button
+                icon={<PlusOutlined />}
+                type="primary"
+                onClick={showAddModal}
+                style={{ 
+                  borderRadius: '8px',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+                size="large"
+              >
+                Tạo mã giảm giá
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
 
-      {/* Statistics Cards */}
-      <StatCards stats={stats} />
+        {/* Statistics Cards */}
+        <StatCards stats={stats} />
 
-      {/* Filter Section */}
-      <FilterSection
-        searchText={searchText}
-        setSearchText={setSearchText}
-        filterStatus={filterStatus}
-        setFilterStatus={setFilterStatus}
-        sortOrder={sortOrder}
-        setSortOrder={setSortOrder}
-      />
-
-      {/* Vouchers Table */}
-      <Card className={styles.userTableCard} bordered={false}>
-        <div className={styles.tableHeader}>
-          <div className={styles.tableTitleSection}>
-            <BookOutlined className={styles.tableIcon} />
-            <Title level={4} className={styles.tableTitle}>
-              Danh sách mã giảm giá
-            </Title>
-            <Badge count={sortedData.length} className={styles.userCountBadge} />
-          </div>
-          <div className={styles.tableActions}>
-            <Text type="secondary">
-              Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, sortedData.length)} của {sortedData.length} mã giảm giá
-            </Text>
-          </div>
-        </div>
-        
-        <Table
-          columns={columns}
-          dataSource={sortedData}
-          loading={loading}
-          pagination={{
-            current: currentPage,
-            pageSize: pageSize,
-            total: sortedData.length,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} mã giảm giá`,
-            pageSizeOptions: ['10', '20', '50', '100'],
-            size: 'small',
-            onChange: (page, size) => {
-              setCurrentPage(page);
-              setPageSize(size || 15);
-            },
-          }}
-          rowKey="id"
-          className={styles.userTable}
-          scroll={{ x: 1000 }}
-          size="small"
+        {/* Filter Section */}
+        <FilterSection
+          searchText={searchText}
+          setSearchText={setSearchText}
+          filterStatus={filterStatus}
+          setFilterStatus={setFilterStatus}
+          sortOrder={sortOrder}
+          setSortOrder={setSortOrder}
         />
-      </Card>
 
-      {/* Add/Edit Modal */}
-      <Modal
-        title={
-          <div className={styles.modalTitle}>
-            <EditOutlined className={styles.modalIcon} />
-            {editingVoucher ? 'Chỉnh sửa mã giảm giá' : 'Tạo mã giảm giá mới'}
-          </div>
-        }
-        open={isModalVisible}
-        onOk={handleModalOk}
-        onCancel={() => {
-          setIsModalVisible(false);
-          setEditingVoucher(null);
-          form.resetFields();
-        }}
-        okText={editingVoucher ? 'Lưu thay đổi' : 'Tạo mã'}
-        cancelText="Hủy"
-        destroyOnHidden
-        centered
-        width={600}
-        className={styles.userModal}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          className={styles.userForm}
-          initialValues={{
-            discountType: 'percentage',
-            discountValue: 0,
-            maxDiscount: 0,
-            minOrderValue: 0,
-            usageLimit: 1,
-            usedCount: 0,
-            categories: [],
-            tags: [],
-            courseId: 'all',
+        {/* Vouchers Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '20px', 
+              paddingBottom: '12px', 
+              borderBottom: '1px solid #f0f0f0',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <BookOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+                <Title level={4} style={{ margin: 0, color: '#1a1a1a' }}>
+                  Danh sách mã giảm giá
+                </Title>
+                <Badge count={sortedData.length} showZero style={{ 
+                  backgroundColor: '#1890ff',
+                  borderRadius: '8px'
+                }} />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: '14px' }}>
+                  Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, sortedData.length)} của {sortedData.length} mã giảm giá
+                </Text>
+              </div>
+            </div>
+            
+            <Table
+              columns={columns}
+              dataSource={sortedData}
+              loading={loading}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: sortedData.length,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} mã giảm giá`,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                size: 'small',
+                onChange: (page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size || 15);
+                },
+              }}
+              rowKey="id"
+              style={{ 
+                borderRadius: '12px',
+                overflow: 'hidden'
+              }}
+              scroll={{ x: 1000 }}
+              size="small"
+            />
+          </Card>
+        </motion.div>
+
+        {/* Add/Edit Modal */}
+        <Modal
+          title={
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px',
+              padding: '8px 0'
+            }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                backgroundColor: '#667eea',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <EditOutlined style={{ color: 'white', fontSize: '20px' }} />
+              </div>
+              <div>
+                <Text strong style={{ fontSize: '20px', color: '#1a1a1a' }}>
+                  {editingVoucher ? 'Chỉnh sửa mã giảm giá' : 'Tạo mã giảm giá mới'}
+                </Text>
+                <div style={{ marginTop: '4px' }}>
+                  <Text type="secondary" style={{ fontSize: '14px' }}>
+                    {editingVoucher ? 'Cập nhật thông tin mã giảm giá' : 'Thêm mã giảm giá mới vào hệ thống'}
+                  </Text>
+                </div>
+              </div>
+            </div>
+          }
+          open={isModalVisible}
+          onOk={handleModalOk}
+          onCancel={() => {
+            setIsModalVisible(false);
+            setEditingVoucher(null);
+            form.resetFields();
+          }}
+          okText={editingVoucher ? 'Lưu thay đổi' : 'Tạo mã'}
+          cancelText="Hủy"
+          destroyOnHidden
+          centered
+          width={700}
+          style={{ borderRadius: '20px' }}
+          okButtonProps={{
+            style: {
+              borderRadius: '8px',
+              height: '40px',
+              fontSize: '14px',
+              fontWeight: '500'
+            }
+          }}
+          cancelButtonProps={{
+            style: {
+              borderRadius: '8px',
+              height: '40px',
+              fontSize: '14px'
+            }
           }}
         >
-          <Form.Item
-            label="Mã giảm giá"
-            name="code"
-            rules={[{ required: true, message: 'Vui lòng nhập mã giảm giá' }]}
-            className={styles.formItem}
+          <Form
+            form={form}
+            layout="vertical"
+            style={{ padding: '20px 0' }}
+            initialValues={{
+              discountType: 'percentage',
+              discountValue: 0,
+              maxDiscount: 0,
+              minOrderValue: 0,
+              usageLimit: 1,
+              usedCount: 0,
+              categories: [],
+              tags: [],
+              courseId: 'all',
+            }}
           >
-            <Input placeholder="Nhập mã giảm giá" maxLength={20} disabled={!!editingVoucher} className={styles.input} />
-          </Form.Item>
+            <Row gutter={[16, 0]}>
+              <Col span={12}>
+                <Form.Item
+                  label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Mã giảm giá</Text>}
+                  name="code"
+                  rules={[{ required: true, message: 'Vui lòng nhập mã giảm giá' }]}
+                  style={{ marginBottom: '20px' }}
+                >
+                  <Input 
+                    placeholder="Nhập mã giảm giá" 
+                    maxLength={20} 
+                    disabled={!!editingVoucher} 
+                    style={{ 
+                      borderRadius: '10px',
+                      height: '44px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '14px'
+                    }} 
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Loại giảm giá</Text>}
+                  name="discountType" 
+                  rules={[{ required: true }]} 
+                  style={{ marginBottom: '20px' }}
+                >
+                  <Select style={{ 
+                    borderRadius: '10px', 
+                    height: '44px',
+                    border: '1px solid #d9d9d9',
+                    fontSize: '14px'
+                  }}>
+                    <Option value="fixed">Số tiền (VNĐ)</Option>
+                    <Option value="percentage">Phần trăm (%)</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
 
-          <Form.Item
-            label="Tiêu đề"
-            name="title"
-            rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}
-            className={styles.formItem}
-          >
-            <Input maxLength={100} placeholder="Nhập tiêu đề cho mã giảm giá" className={styles.input} />
-          </Form.Item>
-
-          <Form.Item
-            label="Mô tả"
-            name="description"
-            className={styles.formItem}
-          >
-            <Input.TextArea maxLength={200} rows={2} placeholder="Nhập mô tả cho mã giảm giá" className={styles.input} />
-          </Form.Item>
-
-          <Form.Item
-            label="Danh mục áp dụng"
-            name="categories"
-            className={styles.formItem}
-          >
-            <Select
-              mode="multiple"
-              allowClear
-              placeholder="Chọn danh mục áp dụng"
-              className={styles.input}
-              options={[
-                { value: 'all', label: 'Tất cả danh mục' },
-                ...categories.map(cat => ({ value: cat._id, label: cat.name }))
-              ]}
-            />
-          </Form.Item>
-
-          <Form.Item label="Loại giảm giá" name="discountType" rules={[{ required: true }]} className={styles.formItem}>
-            <Select className={styles.input}>
-              <Option value="fixed">Số tiền (VNĐ)</Option>
-              <Option value="percentage">Phần trăm (%)</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Giá trị giảm"
-            name="discountValue"
-            rules={[
-              { required: true, message: 'Vui lòng nhập giá trị giảm' },
-              { type: 'number', min: 0, message: 'Giá trị không thể âm' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  const type = getFieldValue('discountType');
-                  if (type === 'percentage') {
-                    if (value < 1) return Promise.reject('Phần trăm giảm phải lớn hơn hoặc bằng 1%');
-                    if (value > 100) return Promise.reject('Phần trăm giảm không được vượt quá 100%');
-                  } else if (type === 'fixed') {
-                    if (value < 10000) return Promise.reject('Giá trị giảm phải lớn hơn hoặc bằng 10,000 VNĐ');
-                  }
-                  return Promise.resolve();
-                }
-              })
-            ]}
-            className={styles.formItem}
-          >
-            <InputNumber<number>
-              style={{ width: '100%' }}
-              min={0}
-              placeholder="Nhập giá trị giảm"
-              className={styles.input}
-              formatter={(value) => {
-                if (value === null || value === undefined) return '';
-                const type = form.getFieldValue('discountType');
-                return type === 'percentage' ? `${value}%` : `${value} VNĐ`;
-              }}
-              parser={(value) => {
-                if (!value) return 0;
-                return Number(value.replace('%', '').replace(' VNĐ', '').replace(/,/g, ''));
-              }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Giảm tối đa"
-            name="maxDiscount"
-            rules={[
-              { type: 'number', min: 0, message: 'Giá trị không thể âm' },
-            ]}
-            className={styles.formItem}
-          >
-            <InputNumber<number>
-              style={{ width: '100%' }}
-              min={0}
-              placeholder="Nhập giá trị giảm tối đa"
-              className={styles.input}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Đơn tối thiểu"
-            name="minOrderValue"
-            rules={[
-              { type: 'number', min: 0, message: 'Giá trị không thể âm' },
-            ]}
-            className={styles.formItem}
-          >
-            <InputNumber
-              style={{ width: '100%' }}
-              min={0}
-              placeholder="Nhập đơn tối thiểu"
-              className={styles.input}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Số lượng"
-            name="usageLimit"
-            rules={[
-              { required: true, message: 'Vui lòng nhập số lượng' },
-              { type: 'number', min: 1, message: 'Số lượng phải lớn hơn 0' },
-            ]}
-            className={styles.formItem}
-          >
-            <InputNumber style={{ width: '100%' }} min={1} placeholder="Nhập số lượng" className={styles.input} />
-          </Form.Item>
-
-          <Form.Item label="Loại voucher" name="type" rules={[{ required: true, message: 'Vui lòng chọn loại voucher!' }]} className={styles.formItem}> 
-            <Select placeholder="Chọn loại voucher" className={styles.input}>
-              <Select.Option value="default">default</Select.Option>
-              <Select.Option value="new-user">new-user</Select.Option>
-              <Select.Option value="birthday">birthday</Select.Option>
-              <Select.Option value="first-order">first-order</Select.Option>
-              <Select.Option value="order-count">order-count</Select.Option>
-              <Select.Option value="order-value">order-value</Select.Option>
-              <Select.Option value="flash-sale">flash-sale</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item label="Ngày tạo" name="startDate" rules={[{ required: true }]} className={styles.formItem}>
-            <DatePicker
-              style={{ width: '100%' }}
-              disabled
-              format="YYYY-MM-DD"
-              placeholder="Ngày tạo"
-              className={styles.input}
-            />
-          </Form.Item>
-
-          <Form.Item label="Ngày hết hạn" name="endDate" className={styles.formItem}>
-            <DatePicker 
-              style={{ width: '100%' }} 
-              format="YYYY-MM-DD" 
-              placeholder="Chọn ngày hết hạn (Không bắt buộc)"
-              disabledDate={current => current && current < dayjs().startOf('day')}
-              className={styles.input}
-            />
-          </Form.Item>
-
-          <Form.Item label="Tags" name="tags" className={styles.formItem}>
-            <Select
-              mode="tags"
-              style={{ width: '100%' }}
-              placeholder="Thêm tags (nhấn Enter để thêm)"
-              tokenSeparators={[',']}
-              className={styles.input}
+            <Form.Item
+              label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Tiêu đề</Text>}
+              name="title"
+              rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}
+              style={{ marginBottom: '20px' }}
             >
-              <Select.Option value="new-user">new-user</Select.Option>
-              <Select.Option value="birthday">birthday</Select.Option>
-              <Select.Option value="first-order">first-order</Select.Option>
-              <Select.Option value="order-count">order-count</Select.Option>
-              <Select.Option value="order-value">order-value</Select.Option>
-              <Select.Option value="flash-sale">flash-sale</Select.Option>
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
+              <Input 
+                maxLength={100} 
+                placeholder="Nhập tiêu đề cho mã giảm giá" 
+                style={{ 
+                  borderRadius: '10px',
+                  height: '44px',
+                  border: '1px solid #d9d9d9',
+                  fontSize: '14px'
+                }} 
+              />
+            </Form.Item>
 
-      {/* Detail Modal */}
-      <Modal
-        title={
-          <div className={styles.modalTitle}>
-            <EyeOutlined className={styles.modalIcon} />
-            Chi tiết mã giảm giá
-          </div>
-        }
-        open={isDetailModalVisible}
-        onCancel={() => {
-          setIsDetailModalVisible(false);
-          setSelectedVoucher(null);
-        }}
-        footer={null}
-        width={420}
-        centered
-        className={styles.userModal}
-      >
-        {selectedVoucher && (
-          <div style={{ padding: 8 }}>
-            <div className={styles.userDetailHeaderBox}>
-              <Title level={3} style={{ margin: 0 }}>
-                {selectedVoucher.code}
-              </Title>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                {isVoucherActive(selectedVoucher) ? (
-                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
-                ) : (
-                  <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 18 }} />
-                )}
-                <span style={{ fontSize: 14, color: isVoucherActive(selectedVoucher) ? '#52c41a' : '#ff4d4f', fontWeight: 500 }}>
-                  {isVoucherActive(selectedVoucher) ? 'Đang hoạt động' : 'Đã hết hạn'}
-                </span>
-              </div>
-            </div>
-            
-            <Divider />
-            
-            <Card className={styles.userDetailCard} bordered={false}>
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Tiêu đề:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">{selectedVoucher.title}</Text>
-                </div>
-              </div>
-              
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Mô tả:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">{selectedVoucher.description || '-'}</Text>
-                </div>
-              </div>
-              
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Loại giảm giá:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">{selectedVoucher.discountType === 'fixed' ? '💵 Số tiền' : '🎯 Phần trăm'}</Text>
-                </div>
-              </div>
-              
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Giá trị giảm:</Text>
-                </div>
-                <div>
-                  <Text type="secondary" style={{ fontWeight: 600, color: '#1677ff' }}>
-                    {selectedVoucher.discountType === 'percentage'
-                      ? `${selectedVoucher.discountValue}%`
-                      : `${selectedVoucher.discountValue.toLocaleString('vi-VN')} VNĐ`}
-                  </Text>
-                </div>
-              </div>
-              
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Giảm tối đa:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">{selectedVoucher.maxDiscount ? `${selectedVoucher.maxDiscount.toLocaleString('vi-VN')} VNĐ` : '-'}</Text>
-                </div>
-              </div>
-              
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Đơn tối thiểu:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">
-                    {selectedVoucher.minOrderValue && selectedVoucher.minOrderValue > 0
-                      ? `${selectedVoucher.minOrderValue.toLocaleString('vi-VN')} VNĐ`
-                      : '0 VNĐ'}
-                  </Text>
-                </div>
-              </div>
-              
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Đã sử dụng / Số lượng:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">{selectedVoucher.usedCount} / {selectedVoucher.usageLimit}</Text>
-                </div>
-              </div>
-              
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Danh mục:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">
-                    {selectedVoucher.categories && selectedVoucher.categories.length > 0
-                      ? selectedVoucher.categories
-                          .map(cid => {
-                            if (cid === 'all') return 'Tất cả';
-                            const cat = categories.find(c => c._id === cid);
-                            return cat ? cat.name : cid;
-                          })
-                          .join(', ')
-                      : 'Tất cả'}
-                  </Text>
-                </div>
-              </div>
-              
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Tags:</Text>
-                </div>
-                <div>
-                  {selectedVoucher.tags && selectedVoucher.tags.length > 0
-                    ? selectedVoucher.tags.map((tag, index) => (
-                        <Tag key={index} color="blue" style={{ marginRight: 4 }}>
-                          {tag}
-                        </Tag>
-                      ))
-                    : <Text type="secondary">Không có tags</Text>}
-                </div>
-              </div>
-              
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Loại voucher:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">{selectedVoucher.type || 'default'}</Text>
-                </div>
-              </div>
-              
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Ngày bắt đầu:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">{dayjs(selectedVoucher.startDate).format('YYYY-MM-DD')}</Text>
-                </div>
-              </div>
-              
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <Text strong>Ngày kết thúc:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">{selectedVoucher.endDate ? dayjs(selectedVoucher.endDate).format('YYYY-MM-DD') : 'Không giới hạn'}</Text>
-                </div>
-              </div>
-            </Card>
-            
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
-              <Button onClick={() => {
-                setIsDetailModalVisible(false);
-                showEditModal(selectedVoucher);
+            <Form.Item
+              label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Mô tả</Text>}
+              name="description"
+              style={{ marginBottom: '20px' }}
+            >
+              <Input.TextArea 
+                maxLength={200} 
+                rows={3} 
+                placeholder="Nhập mô tả chi tiết cho mã giảm giá..." 
+                style={{ 
+                  borderRadius: '10px',
+                  border: '1px solid #d9d9d9',
+                  fontSize: '14px',
+                  resize: 'none'
+                }} 
+              />
+            </Form.Item>
+
+            <Form.Item
+              label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Danh mục áp dụng</Text>}
+              name="categories"
+              style={{ marginBottom: '20px' }}
+            >
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="Chọn danh mục áp dụng"
+                style={{ 
+                  borderRadius: '10px',
+                  border: '1px solid #d9d9d9',
+                  fontSize: '14px'
+                }}
+                options={[
+                  { value: 'all', label: 'Tất cả danh mục' },
+                  ...categories.map(cat => ({ value: cat._id, label: cat.name }))
+                ]}
+              />
+            </Form.Item>
+
+            <Row gutter={[16, 0]}>
+              <Col span={12}>
+                <Form.Item
+                  label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Giá trị giảm</Text>}
+                  name="discountValue"
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập giá trị giảm' },
+                    { type: 'number', min: 0, message: 'Giá trị không thể âm' },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        const type = getFieldValue('discountType');
+                        if (type === 'percentage') {
+                          if (value < 1) return Promise.reject('Phần trăm giảm phải lớn hơn hoặc bằng 1%');
+                          if (value > 100) return Promise.reject('Phần trăm giảm không được vượt quá 100%');
+                        } else if (type === 'fixed') {
+                          if (value < 10000) return Promise.reject('Giá trị giảm phải lớn hơn hoặc bằng 10,000 VNĐ');
+                        }
+                        return Promise.resolve();
+                      }
+                    })
+                  ]}
+                  style={{ marginBottom: '20px' }}
+                >
+                  <InputNumber<number>
+                    style={{ 
+                      width: '100%',
+                      borderRadius: '10px',
+                      height: '44px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '14px'
+                    }}
+                    min={0}
+                    placeholder="Nhập giá trị giảm"
+                    formatter={(value) => {
+                      if (value === null || value === undefined) return '';
+                      const type = form.getFieldValue('discountType');
+                      return type === 'percentage' ? `${value}%` : `${value} VNĐ`;
+                    }}
+                    parser={(value) => {
+                      if (!value) return 0;
+                      return Number(value.replace('%', '').replace(' VNĐ', '').replace(/,/g, ''));
+                    }}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Giảm tối đa</Text>}
+                  name="maxDiscount"
+                  rules={[
+                    { type: 'number', min: 0, message: 'Giá trị không thể âm' },
+                  ]}
+                  style={{ marginBottom: '20px' }}
+                >
+                  <InputNumber<number>
+                    style={{ 
+                      width: '100%',
+                      borderRadius: '10px',
+                      height: '44px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '14px'
+                    }}
+                    min={0}
+                    placeholder="Nhập giá trị giảm tối đa"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={[16, 0]}>
+              <Col span={12}>
+                <Form.Item
+                  label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Đơn tối thiểu</Text>}
+                  name="minOrderValue"
+                  rules={[
+                    { type: 'number', min: 0, message: 'Giá trị không thể âm' },
+                  ]}
+                  style={{ marginBottom: '20px' }}
+                >
+                  <InputNumber
+                    style={{ 
+                      width: '100%',
+                      borderRadius: '10px',
+                      height: '44px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '14px'
+                    }}
+                    min={0}
+                    placeholder="Nhập đơn tối thiểu"
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Số lượng</Text>}
+                  name="usageLimit"
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập số lượng' },
+                    { type: 'number', min: 1, message: 'Số lượng phải lớn hơn 0' },
+                  ]}
+                  style={{ marginBottom: '20px' }}
+                >
+                  <InputNumber 
+                    style={{ 
+                      width: '100%',
+                      borderRadius: '10px',
+                      height: '44px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '14px'
+                    }} 
+                    min={1} 
+                    placeholder="Nhập số lượng" 
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={[16, 0]}>
+              <Col span={12}>
+                <Form.Item 
+                  label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Loại voucher</Text>} 
+                  name="type" 
+                  rules={[{ required: true, message: 'Vui lòng chọn loại voucher!' }]} 
+                  style={{ marginBottom: '20px' }}
+                > 
+                  <Select 
+                    placeholder="Chọn loại voucher" 
+                    style={{ 
+                      borderRadius: '10px', 
+                      height: '44px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <Select.Option value="default">Mặc định</Select.Option>
+                    <Select.Option value="new-user">Người dùng mới</Select.Option>
+                    <Select.Option value="birthday">Sinh nhật</Select.Option>
+                    <Select.Option value="first-order">Đơn hàng đầu tiên</Select.Option>
+                    <Select.Option value="order-count">Theo số lượng đơn hàng</Select.Option>
+                    <Select.Option value="order-value">Theo giá trị đơn hàng</Select.Option>
+                    <Select.Option value="flash-sale">Khuyến mãi nhanh</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item 
+                  label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Ngày tạo</Text>} 
+                  name="startDate" 
+                  rules={[{ required: true }]} 
+                  style={{ marginBottom: '20px' }}
+                >
+                  <DatePicker
+                    style={{ 
+                      width: '100%',
+                      borderRadius: '10px',
+                      height: '44px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '14px'
+                    }}
+                    disabled
+                    format="DD/MM/YYYY"
+                    placeholder="Ngày tạo"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={[16, 0]}>
+              <Col span={12}>
+                <Form.Item 
+                  label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Ngày hết hạn</Text>} 
+                  name="endDate" 
+                  style={{ marginBottom: '20px' }}
+                >
+                  <DatePicker 
+                    style={{ 
+                      width: '100%',
+                      borderRadius: '10px',
+                      height: '44px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '14px'
+                    }} 
+                    format="DD/MM/YYYY" 
+                    placeholder="Chọn ngày hết hạn (Không bắt buộc)"
+                    disabledDate={current => current && current < dayjs().startOf('day')}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item 
+                  label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Tags</Text>} 
+                  name="tags" 
+                  style={{ marginBottom: '20px' }}
+                >
+                  <Select
+                    mode="tags"
+                    style={{ 
+                      width: '100%',
+                      borderRadius: '10px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '14px'
+                    }}
+                    placeholder="Thêm tags (nhấn Enter để thêm)"
+                    tokenSeparators={[',']}
+                  >
+                    <Select.Option value="new-user">Người dùng mới</Select.Option>
+                    <Select.Option value="birthday">Sinh nhật</Select.Option>
+                    <Select.Option value="first-order">Đơn hàng đầu tiên</Select.Option>
+                    <Select.Option value="order-count">Theo số lượng đơn hàng</Select.Option>
+                    <Select.Option value="order-value">Theo giá trị đơn hàng</Select.Option>
+                    <Select.Option value="flash-sale">Khuyến mãi nhanh</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Modal>
+
+        {/* Detail Modal */}
+        <Modal
+          title={
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px',
+              padding: '8px 0'
+            }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                backgroundColor: '#667eea',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}>
-                Chỉnh sửa
-              </Button>
-              <Button type="primary" onClick={() => setIsDetailModalVisible(false)}>
-                Đóng
-              </Button>
+                <EyeOutlined style={{ color: 'white', fontSize: '20px' }} />
+              </div>
+              <div>
+                <Text strong style={{ fontSize: '20px', color: '#1a1a1a' }}>
+                  Chi tiết mã giảm giá
+                </Text>
+                <div style={{ marginTop: '4px' }}>
+                  <Text type="secondary" style={{ fontSize: '14px' }}>
+                    Xem thông tin chi tiết mã giảm giá
+                  </Text>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
-      </Modal>
-    </div>
+          }
+          open={isDetailModalVisible}
+          onCancel={() => {
+            setIsDetailModalVisible(false);
+            setSelectedVoucher(null);
+          }}
+          footer={null}
+          width={600}
+          centered
+          style={{ borderRadius: '20px' }}
+        >
+          {selectedVoucher && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              style={{ padding: '16px 0' }}
+            >
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                padding: '20px',
+                backgroundColor: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                borderRadius: '16px',
+                marginBottom: '24px',
+                border: '1px solid #e9ecef'
+              }}>
+                <div>
+                  <Title level={3} style={{ margin: 0, color: '#1a1a1a', fontSize: '24px' }}>
+                    {selectedVoucher.code}
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: '14px', marginTop: '8px', display: 'block' }}>
+                    {selectedVoucher.title}
+                  </Text>
+                </div>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px',
+                  padding: '12px 16px',
+                  backgroundColor: 'white',
+                  borderRadius: '12px',
+                  border: '1px solid #e9ecef'
+                }}>
+                  {isVoucherActive(selectedVoucher) ? (
+                    <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '20px' }} />
+                  ) : (
+                    <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: '20px' }} />
+                  )}
+                  <span style={{ 
+                    fontSize: '14px', 
+                    color: isVoucherActive(selectedVoucher) ? '#52c41a' : '#ff4d4f', 
+                    fontWeight: '600' 
+                  }}>
+                    {isVoucherActive(selectedVoucher) ? 'Đang hoạt động' : 'Đã hết hạn'}
+                  </span>
+                </div>
+              </div>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(2, 1fr)', 
+                gap: '20px',
+                marginBottom: '24px'
+              }}>
+                <Card 
+                  style={{ 
+                    backgroundColor: '#fafafa',
+                    borderRadius: '12px',
+                    border: '1px solid #f0f0f0',
+                    boxShadow: 'none'
+                  }} 
+                  bordered={false}
+                >
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px',
+                    marginBottom: '12px'
+                  }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      backgroundColor: '#1890ff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <DollarOutlined style={{ color: 'white', fontSize: '16px' }} />
+                    </div>
+                    <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Thông tin giảm giá</Text>
+                  </div>
+                  
+                  <div style={{ paddingLeft: '44px' }}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <Text type="secondary" style={{ fontSize: '13px' }}>Loại giảm giá:</Text>
+                      <div style={{ marginTop: '4px' }}>
+                        <Text style={{ fontSize: '14px', fontWeight: '500' }}>
+                          {selectedVoucher.discountType === 'fixed' ? '💵 Số tiền cố định' : '🎯 Phần trăm'}
+                        </Text>
+                      </div>
+                    </div>
+                    
+                    <div style={{ marginBottom: '12px' }}>
+                      <Text type="secondary" style={{ fontSize: '13px' }}>Giá trị giảm:</Text>
+                      <div style={{ marginTop: '4px' }}>
+                        <Text style={{ fontWeight: '600', color: '#1677ff', fontSize: '16px' }}>
+                          {selectedVoucher.discountType === 'percentage'
+                            ? `${selectedVoucher.discountValue}%`
+                            : `${selectedVoucher.discountValue.toLocaleString('vi-VN')} VNĐ`}
+                        </Text>
+                      </div>
+                    </div>
+                    
+                    <div style={{ marginBottom: '12px' }}>
+                      <Text type="secondary" style={{ fontSize: '13px' }}>Giảm tối đa:</Text>
+                      <div style={{ marginTop: '4px' }}>
+                        <Text style={{ fontSize: '14px' }}>
+                          {selectedVoucher.maxDiscount ? `${selectedVoucher.maxDiscount.toLocaleString('vi-VN')} VNĐ` : 'Không giới hạn'}
+                        </Text>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Text type="secondary" style={{ fontSize: '13px' }}>Đơn tối thiểu:</Text>
+                      <div style={{ marginTop: '4px' }}>
+                        <Text style={{ fontSize: '14px' }}>
+                          {selectedVoucher.minOrderValue && selectedVoucher.minOrderValue > 0
+                            ? `${selectedVoucher.minOrderValue.toLocaleString('vi-VN')} VNĐ`
+                            : '0 VNĐ'}
+                        </Text>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card 
+                  style={{ 
+                    backgroundColor: '#fafafa',
+                    borderRadius: '12px',
+                    border: '1px solid #f0f0f0',
+                    boxShadow: 'none'
+                  }} 
+                  bordered={false}
+                >
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px',
+                    marginBottom: '12px'
+                  }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      backgroundColor: '#52c41a',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <BookOutlined style={{ color: 'white', fontSize: '16px' }} />
+                    </div>
+                    <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Thông tin sử dụng</Text>
+                  </div>
+                  
+                  <div style={{ paddingLeft: '44px' }}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <Text type="secondary" style={{ fontSize: '13px' }}>Đã sử dụng / Số lượng:</Text>
+                      <div style={{ marginTop: '4px' }}>
+                        <Text style={{ fontSize: '14px', fontWeight: '500' }}>
+                          <span style={{ color: '#ff4d4f' }}>{selectedVoucher.usedCount}</span> / <span style={{ color: '#52c41a' }}>{selectedVoucher.usageLimit}</span>
+                        </Text>
+                      </div>
+                    </div>
+                    
+                    <div style={{ marginBottom: '12px' }}>
+                      <Text type="secondary" style={{ fontSize: '13px' }}>Loại voucher:</Text>
+                      <div style={{ marginTop: '4px' }}>
+                        <Text style={{ fontSize: '14px' }}>
+                          {selectedVoucher.type || 'default'}
+                        </Text>
+                      </div>
+                    </div>
+                    
+                    <div style={{ marginBottom: '12px' }}>
+                      <Text type="secondary" style={{ fontSize: '13px' }}>Ngày bắt đầu:</Text>
+                      <div style={{ marginTop: '4px' }}>
+                        <Text style={{ fontSize: '14px' }}>
+                          {dayjs(selectedVoucher.startDate).format('DD/MM/YYYY')}
+                        </Text>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Text type="secondary" style={{ fontSize: '13px' }}>Ngày kết thúc:</Text>
+                      <div style={{ marginTop: '4px' }}>
+                        <Text style={{ fontSize: '14px' }}>
+                          {selectedVoucher.endDate ? dayjs(selectedVoucher.endDate).format('DD/MM/YYYY') : 'Không giới hạn'}
+                        </Text>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              <Card 
+                style={{ 
+                  backgroundColor: '#fafafa',
+                  borderRadius: '12px',
+                  border: '1px solid #f0f0f0',
+                  boxShadow: 'none',
+                  marginBottom: '24px'
+                }} 
+                bordered={false}
+              >
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    backgroundColor: '#722ed1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <BookOutlined style={{ color: 'white', fontSize: '16px' }} />
+                  </div>
+                  <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Thông tin bổ sung</Text>
+                </div>
+                
+                <div style={{ paddingLeft: '44px' }}>
+                  <div style={{ marginBottom: '16px' }}>
+                    <Text type="secondary" style={{ fontSize: '13px' }}>Mô tả:</Text>
+                    <div style={{ marginTop: '4px' }}>
+                      <Text style={{ fontSize: '14px' }}>
+                        {selectedVoucher.description || 'Không có mô tả'}
+                      </Text>
+                    </div>
+                  </div>
+                  
+                  <div style={{ marginBottom: '16px' }}>
+                    <Text type="secondary" style={{ fontSize: '13px' }}>Danh mục áp dụng:</Text>
+                    <div style={{ marginTop: '4px' }}>
+                      <Text style={{ fontSize: '14px' }}>
+                        {selectedVoucher.categories && selectedVoucher.categories.length > 0
+                          ? selectedVoucher.categories
+                              .map(cid => {
+                                if (cid === 'all') return 'Tất cả danh mục';
+                                const cat = categories.find(c => c._id === cid);
+                                return cat ? cat.name : cid;
+                              })
+                              .join(', ')
+                          : 'Tất cả danh mục'}
+                      </Text>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Text type="secondary" style={{ fontSize: '13px' }}>Tags:</Text>
+                    <div style={{ marginTop: '8px' }}>
+                      {selectedVoucher.tags && selectedVoucher.tags.length > 0
+                        ? selectedVoucher.tags.map((tag, index) => (
+                            <Tag 
+                              key={index} 
+                              color="blue" 
+                              style={{ 
+                                marginRight: '8px', 
+                                marginBottom: '8px',
+                                borderRadius: '6px',
+                                padding: '4px 8px'
+                              }}
+                            >
+                              {tag}
+                            </Tag>
+                          ))
+                        : <Text type="secondary" style={{ fontSize: '14px' }}>Không có tags</Text>}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+              
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'flex-end', 
+                gap: '12px', 
+                paddingTop: '16px',
+                borderTop: '1px solid #f0f0f0'
+              }}>
+                <Button 
+                  onClick={() => {
+                    setIsDetailModalVisible(false);
+                    showEditModal(selectedVoucher);
+                  }}
+                  style={{
+                    borderRadius: '8px',
+                    height: '40px',
+                    fontSize: '14px'
+                  }}
+                >
+                  Chỉnh sửa
+                </Button>
+                <Button 
+                  type="primary" 
+                  onClick={() => setIsDetailModalVisible(false)}
+                  style={{
+                    borderRadius: '8px',
+                    height: '40px',
+                    fontSize: '14px'
+                  }}
+                >
+                  Đóng
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </Modal>
+      </div>
+    </motion.div>
   );
 };
 

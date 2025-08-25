@@ -154,22 +154,26 @@ const loadDetail = async (id: string) => {
       setSavedBlogs(prev => new Set(prev).add(blog.data._id));
     }
 
-    const mappedComments = (cmts?.data || []).map((cmt: any) => ({
-      ...cmt,
-      author: {
-        ...cmt.author,
-        avatar: cmt.author?.avatar || cmt.author?.profilePic || '',
-        name: cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'
-      },
-      replies: (cmt.replies || []).map((r: any) => ({
-        ...r,
+    const mappedComments = (cmts?.data || [])
+      .filter((cmt: any) => cmt.status !== 'hidden') // Lọc ra comments bị ẩn
+      .map((cmt: any) => ({
+        ...cmt,
         author: {
-          ...r.author,
-          avatar: r.author?.avatar || r.author?.profilePic || '',
-          name: r.author?.name || r.author?.fullname || 'Ẩn danh'
-        }
-      }))
-    }));
+          ...cmt.author,
+          avatar: cmt.author?.avatar || cmt.author?.profilePic || '',
+          name: cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'
+        },
+        replies: (cmt.replies || [])
+          .filter((r: any) => r.status !== 'hidden') // Lọc ra replies bị ẩn
+          .map((r: any) => ({
+            ...r,
+            author: {
+              ...r.author,
+              avatar: r.author?.avatar || r.author?.profilePic || '',
+              name: r.author?.name || r.author?.fullname || 'Ẩn danh'
+            }
+          }))
+      }));
 
     setComments(mappedComments);
 
@@ -283,20 +287,24 @@ const handleToggleCommentLike = async (commentId: string) => {
 };
 const reloadComments = async (blogId: string) => {
   const cmts = await axiosClient.get(`/blogs/${blogId}/comments`);
-  const mapped = (cmts?.data || []).map((cmt: any) => ({
-    ...cmt,
-    author: {
-      ...cmt.author,
-      name: cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'
-    },
-    replies: (cmt.replies || []).map((r: any) => ({
-      ...r,
+  const mapped = (cmts?.data || [])
+    .filter((cmt: any) => cmt.status !== 'hidden') // Lọc ra comments bị ẩn
+    .map((cmt: any) => ({
+      ...cmt,
       author: {
-        ...r.author,
-        name: r.author?.name || r.author?.fullname || 'Ẩn danh'
-      }
-    }))
-  }));
+        ...cmt.author,
+        name: cmt.author?.name || cmt.author?.fullname || 'Ẩn danh'
+      },
+      replies: (cmt.replies || [])
+        .filter((r: any) => r.status !== 'hidden') // Lọc ra replies bị ẩn
+        .map((r: any) => ({
+          ...r,
+          author: {
+            ...r.author,
+            name: r.author?.name || r.author?.fullname || 'Ẩn danh'
+          }
+        }))
+    }));
 
   setComments(mapped);
 
@@ -655,24 +663,7 @@ const extractFirstImageFromContent = (content: string): string | null => {
                     </div>
                   </div>
                   {/* Right: Image */}
-                  <div className="md:w-64 flex-shrink-0 flex items-center justify-center bg-gray-50">
-                    {(() => {
-                      const fallbackImage =
-                        blog.coverImage?.trim() !== ''
-                          ? blog.coverImage
-                          : blog.image?.trim() !== ''
-                          ? blog.image
-                          : extractFirstImageFromContent(blog.content) || '/images/no-image.png';
-                      return (
-                        <img
-                          src={fallbackImage}
-                          alt={blog.title}
-                          className="w-full h-48 object-cover rounded-2xl m-4 shadow-sm border border-gray-100"
-                          onError={handleImageError}
-                        />
-                      );
-                    })()}
-                  </div>
+                  
                 </div>
               ))}
             </div>
@@ -962,6 +953,9 @@ const extractFirstImageFromContent = (content: string): string | null => {
                 <MessageCircle className="w-20 h-20 text-gray-300 mx-auto mb-6" />
                 <h3 className="text-2xl font-bold text-gray-600 mb-2">Chưa có bình luận nào</h3>
                 <p className="text-gray-500 text-lg">Hãy là người đầu tiên chia sẻ suy nghĩ của bạn!</p>
+                <div className="mt-4 text-sm text-gray-400">
+                  <p>💡 Một số bình luận có thể đã bị ẩn do vi phạm quy tắc cộng đồng</p>
+                </div>
               </div>
             )}
           </div>

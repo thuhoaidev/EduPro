@@ -39,28 +39,7 @@ const courseSchema = new mongoose.Schema({
         enum: ['beginner', 'intermediate', 'advanced'],
         required: [true, 'Trình độ là bắt buộc']
     },
-    language: {
-        type: String,
-        required: [true, 'Ngôn ngữ là bắt buộc'],
-        enum: ['vi', 'en'],
-        default: 'vi',
-        get: function (value) {
-            const languageMap = {
-                'vi': 'Vietnamese',
-                'en': 'English'
-            };
-            return languageMap[value] || value;
-        },
-        set: function (value) {
-            const languageMap = {
-                'Vietnamese': 'vi',
-                'English': 'en',
-                'vi': 'vi',
-                'en': 'en'
-            };
-            return languageMap[value] || 'vi';
-        }
-    },
+
     price: {
         type: Number,
         required: [true, 'Giá là bắt buộc'],

@@ -139,17 +139,7 @@ exports.getQuizByLesson = async (req, res, next) => {
   }
 };
 
-// Lấy quiz theo lesson
-exports.getQuizByLesson = async (req, res, next) => {
-  try {
-    const { lesson_id } = req.params;
-    const quiz = await Quiz.findOne({ lesson_id });
-    if (!quiz) return res.status(404).json({ success: false, message: 'Không tìm thấy quiz' });
-    res.json({ success: true, data: quiz });
-  } catch (err) {
-    next(err);
-  }
-};
+
 
 // Nộp đáp án và check đúng/sai
 exports.submitQuiz = async (req, res, next) => {

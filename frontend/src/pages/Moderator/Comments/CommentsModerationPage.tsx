@@ -45,6 +45,7 @@ interface Comment {
   id: string;
   content: string;
   userName: string;
+  userAvatar?: string;
   postTitle: string;
   createdAt: string;
   status?: "approved" | "hidden" | "pending";
@@ -67,6 +68,7 @@ const CommentsModerationPage: React.FC = () => {
           id: c?._id || Math.random().toString(36).slice(2),
           content: c?.content || "",
           userName: c?.author?.fullname || c?.author?.nickname || 'Ẩn danh',
+          userAvatar: c?.author?.avatar || c?.author?.profilePic || '',
           postTitle: c?.blog?.title || 'Không rõ',
           createdAt: c?.createdAt || '',
           status: c?.status || 'pending',
@@ -101,11 +103,15 @@ const CommentsModerationPage: React.FC = () => {
     }
   };
 
-  const updateStatus = async (id: string, status: "hidden") => {
+  const updateStatus = async (id: string, status: "hidden" | "pending") => {
     try {
       await updateCommentStatus(id, status);
       setComments(prev => prev.map(c => c.id === id ? { ...c, status } : c));
-      message.success('Đã ẩn bình luận thành công!');
+      if (status === 'hidden') {
+        message.success('Đã ẩn bình luận thành công!');
+      } else {
+        message.success('Đã khôi phục bình luận thành công!');
+      }
     } catch {
       message.error('Lỗi cập nhật trạng thái bình luận!');
     }
@@ -122,6 +128,8 @@ const CommentsModerationPage: React.FC = () => {
         return { color: "red", text: "ĐÃ ẨN", icon: <CloseCircleFilled /> };
       case "pending":
         return { color: "orange", text: "CHỜ XỬ LÝ", icon: <ClockCircleFilled /> };
+      case "approved":
+        return { color: "green", text: "ĐÃ DUYỆT", icon: <CheckCircleFilled /> };
       default:
         return { color: "default", text: "CHỜ XỬ LÝ", icon: <ClockCircleFilled /> };
     }
@@ -132,6 +140,7 @@ const CommentsModerationPage: React.FC = () => {
     totalComments: comments.length,
     pendingComments: comments.filter(c => c.status === 'pending').length,
     hiddenComments: comments.filter(c => c.status === 'hidden').length,
+    approvedComments: comments.filter(c => c.status === 'approved').length,
   };
 
   const columns = [
@@ -156,12 +165,24 @@ const CommentsModerationPage: React.FC = () => {
       dataIndex: "userName",
       key: "userName",
       width: 150,
-      render: (text: string) => (
+      render: (text: string, record: Comment) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Avatar 
+            src={
+              record.userAvatar && 
+              record.userAvatar !== 'default-avatar.jpg' && 
+              record.userAvatar !== '' && 
+              (record.userAvatar.includes('googleusercontent.com') || record.userAvatar.startsWith('http') || record.userAvatar.startsWith('/'))
+                ? record.userAvatar 
+                : undefined
+            }
             icon={<UserOutlined />} 
             size="small"
             style={{ backgroundColor: '#1890ff' }}
+            onError={() => {
+              // Fallback to default avatar on error
+              return false;
+            }}
           />
           <Text strong style={{ fontSize: '13px' }}>{text}</Text>
         </div>
@@ -249,7 +270,7 @@ const CommentsModerationPage: React.FC = () => {
             />
           </Tooltip>
 
-          {record.status !== 'hidden' && (
+          {record.status !== 'hidden' ? (
             <Tooltip title="Ẩn bình luận">
               <Button
                 size="small"
@@ -262,6 +283,21 @@ const CommentsModerationPage: React.FC = () => {
                 onClick={() => updateStatus(record.id, "hidden")}
               >
                 Ẩn
+              </Button>
+            </Tooltip>
+          ) : (
+            <Tooltip title="Khôi phục bình luận">
+              <Button
+                size="small"
+                icon={<EyeOutlined />}
+                style={{ 
+                  color: '#52c41a',
+                  borderColor: '#52c41a',
+                  borderRadius: '6px'
+                }}
+                onClick={() => updateStatus(record.id, "pending")}
+              >
+                Khôi phục
               </Button>
             </Tooltip>
           )}
@@ -320,7 +356,7 @@ const CommentsModerationPage: React.FC = () => {
 
         {/* Statistics Cards */}
         <Row gutter={[16, 16]} style={{ marginBottom: '32px' }}>
-          <Col xs={12} sm={4} md={4}>
+          <Col xs={12} sm={6} md={3}>
             <Card 
               hoverable
               style={{ 
@@ -346,7 +382,7 @@ const CommentsModerationPage: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col xs={12} sm={4} md={4}>
+          <Col xs={12} sm={6} md={3}>
             <Card 
               hoverable
               style={{ 
@@ -382,7 +418,43 @@ const CommentsModerationPage: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col xs={12} sm={4} md={4}>
+          <Col xs={12} sm={6} md={3}>
+            <Card 
+              hoverable
+              style={{ 
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                border: 'none',
+                textAlign: 'center'
+              }}
+            >
+              <Statistic
+                title={
+                  <Text strong style={{ fontSize: '14px', color: '#1e293b' }}>
+                    Đã duyệt
+                  </Text>
+                }
+                value={stats.approvedComments}
+                prefix={<CheckCircleFilled style={{ color: '#52c41a', fontSize: '20px' }} />}
+                valueStyle={{ 
+                  color: '#52c41a', 
+                  fontSize: '24px',
+                  fontWeight: 'bold'
+                }}
+                suffix={
+                  <div style={{ marginTop: '8px' }}>
+                    <Progress 
+                      percent={stats.totalComments > 0 ? (stats.approvedComments / stats.totalComments) * 100 : 0} 
+                      size="small" 
+                      strokeColor="#52c41a"
+                      showInfo={false}
+                    />
+                  </div>
+                }
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6} md={3}>
             <Card 
               hoverable
               style={{ 
@@ -492,13 +564,35 @@ const CommentsModerationPage: React.FC = () => {
                 <Text strong style={{ fontSize: '14px', color: '#1e293b' }}>
                   Người bình luận:
                 </Text>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
                   <Avatar 
+                    src={
+                      selectedComment.userAvatar && 
+                      selectedComment.userAvatar !== 'default-avatar.jpg' && 
+                      selectedComment.userAvatar !== '' && 
+                      (selectedComment.userAvatar.includes('googleusercontent.com') || selectedComment.userAvatar.startsWith('http') || selectedComment.userAvatar.startsWith('/'))
+                        ? selectedComment.userAvatar 
+                        : undefined
+                    }
                     icon={<UserOutlined />} 
-                    size="small"
-                    style={{ backgroundColor: '#1890ff' }}
+                    size={48}
+                    style={{ 
+                      backgroundColor: '#1890ff',
+                      border: '2px solid #e2e8f0'
+                    }}
+                    onError={() => {
+                      // Fallback to default avatar on error
+                      return false;
+                    }}
                   />
-                  <Text>{selectedComment.userName}</Text>
+                  <div>
+                    <Text strong style={{ fontSize: '16px', color: '#1e293b', display: 'block' }}>
+                      {selectedComment.userName}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      ID: {selectedComment.id}
+                    </Text>
+                  </div>
                 </div>
               </div>
               
@@ -506,29 +600,89 @@ const CommentsModerationPage: React.FC = () => {
               
               <div style={{ marginBottom: '16px' }}>
                 <Text strong style={{ fontSize: '14px', color: '#1e293b' }}>
-                  Nội dung:
+                  Bài viết:
                 </Text>
                 <div style={{ 
                   marginTop: '8px', 
                   padding: '12px', 
-                  background: '#f8fafc', 
+                  background: '#f0f9ff', 
                   borderRadius: '8px',
-                  border: '1px solid #e2e8f0'
+                  border: '1px solid #bae6fd'
                 }}>
-                  <Text>{selectedComment.content}</Text>
+                  <Text strong style={{ color: '#0369a1' }}>
+                    {selectedComment.postTitle}
+                  </Text>
                 </div>
               </div>
               
               <div style={{ marginBottom: '16px' }}>
                 <Text strong style={{ fontSize: '14px', color: '#1e293b' }}>
-                  Thời gian:
+                  Nội dung bình luận:
                 </Text>
-                <div style={{ marginTop: '4px' }}>
-                  <Text type="secondary">
-                    {new Date(selectedComment.createdAt).toLocaleString("vi-VN", {
-                      hour12: false,
-                    })}
+                <div style={{ 
+                  marginTop: '8px', 
+                  padding: '16px', 
+                  background: '#f8fafc', 
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  minHeight: '60px'
+                }}>
+                  <Text style={{ fontSize: '14px', lineHeight: '1.6' }}>
+                    {selectedComment.content}
                   </Text>
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <Text strong style={{ fontSize: '14px', color: '#1e293b' }}>
+                  Thời gian bình luận:
+                </Text>
+                <div style={{ 
+                  marginTop: '8px', 
+                  padding: '12px', 
+                  background: '#fef3c7', 
+                  borderRadius: '8px',
+                  border: '1px solid #fbbf24'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ClockCircleOutlined style={{ color: '#d97706', fontSize: '16px' }} />
+                    <Text strong style={{ color: '#92400e' }}>
+                      {new Date(selectedComment.createdAt).toLocaleString("vi-VN", {
+                        hour12: false,
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <Text strong style={{ fontSize: '14px', color: '#1e293b' }}>
+                  Trạng thái:
+                </Text>
+                <div style={{ marginTop: '8px' }}>
+                  {(() => {
+                    const config = getStatusConfig(selectedComment.status || 'pending');
+                    return (
+                      <Tag 
+                        color={config.color} 
+                        icon={config.icon}
+                        style={{ 
+                          margin: 0, 
+                          borderRadius: '6px',
+                          fontWeight: 'bold',
+                          fontSize: '14px',
+                          padding: '8px 16px'
+                        }}
+                      >
+                        {config.text}
+                      </Tag>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

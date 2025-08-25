@@ -16,6 +16,12 @@ const sectionSchema = new mongoose.Schema({
         required: true,
         default: 0
     },
+    status: {
+        type: String,
+        enum: ['draft', 'published'],
+        default: 'draft',
+        index: true
+    },
     lessons: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Lesson'

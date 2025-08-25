@@ -11,6 +11,7 @@ const { Content } = Layout;
 const ProfileLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const isProfileOrdersPage = location.pathname === '/profile/orders';
 
   // Kiểm tra token và user
   useEffect(() => {
@@ -37,7 +38,7 @@ const ProfileLayout = () => {
     <Layout style={{ minHeight: '100vh' }}>
       <AppHeader />
       <Layout>
-        <ProfileNav />
+        {!isProfileOrdersPage && <ProfileNav />}
         <Layout className="site-layout">
           <Content style={{ margin: '24px 16px 0', overflow: 'initial' }}>
             {/* Đây là nơi nội dung của các route con sẽ được render */}

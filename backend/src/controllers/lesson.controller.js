@@ -20,7 +20,7 @@ exports.createLessons = async (req, res, next) => {
 
     const createdLessons = [];
     for (let i = 0; i < lessons.length; i++) {
-      const { section_id, title, is_preview } = lessons[i];
+      const { section_id, title, is_preview, status } = lessons[i];
       if (!section_id || !title) {
         return res
           .status(400)
@@ -69,6 +69,7 @@ exports.createLessons = async (req, res, next) => {
         section_id,
         title,
         is_preview,
+        status,
       });
       // Tạo lesson mới
       const lesson = new Lesson(validatedData);
@@ -91,7 +92,7 @@ exports.createLessons = async (req, res, next) => {
 exports.updateLesson = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, is_preview } = req.body;
+    const { title, is_preview, status } = req.body;
 
     // Tìm lesson để lấy section_id
     const lesson = await Lesson.findById(id);
@@ -127,13 +128,21 @@ exports.updateLesson = async (req, res, next) => {
       }
     }
     // Validate dữ liệu
-    const validatedData = await validateSchema(updateLessonSchema, { title, is_preview });
+    const validatedData = await validateSchema(updateLessonSchema, { title, is_preview, status });
     // Cập nhật lesson
     const updatedLesson = await Lesson.findByIdAndUpdate(
       id,
       { $set: validatedData },
       { new: true, runValidators: true },
     );
+    
+    console.log('Updated lesson:', {
+      id: updatedLesson._id,
+      title: updatedLesson.title,
+      status: updatedLesson.status,
+      validatedData: validatedData
+    });
+    
     res.json({
       success: true,
       data: updatedLesson,

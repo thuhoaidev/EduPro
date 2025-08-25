@@ -42,8 +42,8 @@ import {
 import axios from 'axios';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
-import styles from '../Users/UserPage.module.css';
 import type { ColumnsType } from 'antd/es/table';
+import { motion } from 'framer-motion';
 
 const { Option } = Select;
 const { Title, Text, Paragraph } = Typography;
@@ -102,48 +102,99 @@ const FilterSection = ({
   };
 
   return (
-    <Card className={styles.filterCard} bordered={false}>
-      <div className={styles.filterGroup}>
-        <Input
-          placeholder="Tìm ID đơn hàng..."
-          prefix={<SearchOutlined />}
-          value={searchText}
-          onChange={e => setSearchText(e.target.value)}
-          className={styles.filterInput}
-          allowClear
-        />
-        <Input
-          placeholder="Giá tối thiểu"
-          type="number"
-          value={minAmount ?? ''}
-          onChange={e => setMinAmount(e.target.value ? +e.target.value : null)}
-          className={styles.filterInput}
-          prefix={<DollarOutlined />}
-        />
-        <Input
-          placeholder="Giá tối đa"
-          type="number"
-          value={maxAmount ?? ''}
-          onChange={e => setMaxAmount(e.target.value ? +e.target.value : null)}
-          className={styles.filterInput}
-          prefix={<DollarOutlined />}
-        />
-        <RangePicker
-          placeholder={['Từ ngày', 'Đến ngày']}
-          onChange={(dates) => setDateRange(dates)}
-          className={styles.filterDateRange}
-          format="DD/MM/YYYY"
-          value={dateRange}
-        />
-        <Dropdown menu={sortMenu}>
-          <Button className={styles.filterButton}>
-            <FilterOutlined />
-            Sắp xếp: {sortOrder === 'asc' ? 'Tăng' : sortOrder === 'desc' ? 'Giảm' : 'Không'}
-            <CaretDownOutlined />
-          </Button>
-        </Dropdown>
-      </div>
-    </Card>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.3 }}
+    >
+      <Card 
+        style={{ 
+          background: 'rgba(255, 255, 255, 0.95)', 
+          backdropFilter: 'blur(10px)',
+          borderRadius: '16px',
+          border: 'none',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          marginBottom: '24px'
+        }}
+      >
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '20px', 
+          paddingBottom: '12px', 
+          borderBottom: '1px solid #f0f0f0'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <FilterOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+            <Text strong style={{ fontSize: '16px', color: '#1a1a1a' }}>Bộ lọc tìm kiếm</Text>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
+          <Input
+            placeholder="Tìm ID đơn hàng..."
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            style={{ 
+              minWidth: '200px',
+              borderRadius: '8px',
+              border: '1px solid #d9d9d9'
+            }}
+            allowClear
+          />
+          <Input
+            placeholder="Giá tối thiểu"
+            type="number"
+            value={minAmount ?? ''}
+            onChange={e => setMinAmount(e.target.value ? +e.target.value : null)}
+            style={{ 
+              minWidth: '150px',
+              borderRadius: '8px',
+              border: '1px solid #d9d9d9'
+            }}
+            prefix={<DollarOutlined />}
+          />
+          <Input
+            placeholder="Giá tối đa"
+            type="number"
+            value={maxAmount ?? ''}
+            onChange={e => setMaxAmount(e.target.value ? +e.target.value : null)}
+            style={{ 
+              minWidth: '150px',
+              borderRadius: '8px',
+              border: '1px solid #d9d9d9'
+            }}
+            prefix={<DollarOutlined />}
+          />
+          <RangePicker
+            placeholder={['Từ ngày', 'Đến ngày']}
+            onChange={(dates) => setDateRange(dates)}
+            style={{ 
+              borderRadius: '8px',
+              border: '1px solid #d9d9d9'
+            }}
+            format="DD/MM/YYYY"
+            value={dateRange}
+          />
+          <Dropdown menu={sortMenu}>
+            <Button 
+              style={{ 
+                borderRadius: '8px',
+                height: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <FilterOutlined />
+              Sắp xếp: {sortOrder === 'asc' ? 'Tăng' : sortOrder === 'desc' ? 'Giảm' : 'Không'}
+              <CaretDownOutlined />
+            </Button>
+          </Dropdown>
+        </div>
+      </Card>
+    </motion.div>
   );
 };
 
@@ -162,89 +213,167 @@ const StatCards = ({ transactionStats }: StatCardsProps) => {
   const pendingPercentage = transactionStats.total > 0 ? (transactionStats.pendingCount / transactionStats.total) * 100 : 0;
 
   return (
-    <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} bordered={false}>
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#1890ff' }}>
-              <ShoppingCartOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Tổng giao dịch" 
-                value={transactionStats.total} 
-                valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <RiseOutlined style={{ color: '#52c41a' }} />
-                <Text type="secondary">Tất cả đơn hàng</Text>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.2 }}
+    >
+      <Row gutter={[24, 24]} style={{ marginBottom: '32px' }} justify="center">
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#1890ff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <ShoppingCartOutlined style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic 
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Tổng giao dịch</Text>} 
+                  value={transactionStats.total} 
+                  valueStyle={{ color: '#1890ff', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <RiseOutlined style={{ color: '#52c41a' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>Tất cả đơn hàng</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} bordered={false}>
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#52c41a' }}>
-              <DollarOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Tổng doanh thu" 
-                value={transactionStats.totalAmount} 
-                suffix="đ"
-                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <RiseOutlined style={{ color: '#52c41a' }} />
-                <Text type="secondary">Tổng tiền</Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#52c41a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <DollarOutlined style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic 
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Tổng doanh thu</Text>} 
+                  value={transactionStats.totalAmount} 
+                  suffix="đ"
+                  valueStyle={{ color: '#52c41a', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <RiseOutlined style={{ color: '#52c41a' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>Tổng tiền</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} bordered={false}>
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#52c41a' }}>
-              <CheckCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Đã thanh toán" 
-                value={transactionStats.paidCount} 
-                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <RiseOutlined style={{ color: '#52c41a' }} />
-                <Text type="secondary">{paidPercentage.toFixed(1)}%</Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#52c41a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CheckCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic 
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Đã thanh toán</Text>} 
+                  value={transactionStats.paidCount} 
+                  valueStyle={{ color: '#52c41a', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <RiseOutlined style={{ color: '#52c41a' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>{paidPercentage.toFixed(1)}%</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} bordered={false}>
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#faad14' }}>
-              <ClockCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Chờ thanh toán" 
-                value={transactionStats.pendingCount} 
-                valueStyle={{ color: '#faad14', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <RiseOutlined style={{ color: '#faad14' }} />
-                <Text type="secondary">{pendingPercentage.toFixed(1)}%</Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#faad14',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <ClockCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic 
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Chờ thanh toán</Text>} 
+                  value={transactionStats.pendingCount} 
+                  valueStyle={{ color: '#faad14', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <RiseOutlined style={{ color: '#faad14' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>{pendingPercentage.toFixed(1)}%</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-    </Row>
+          </Card>
+        </Col>
+      </Row>
+    </motion.div>
   );
 };
 
@@ -490,106 +619,188 @@ const TransactionHistory = () => {
 
   if (loading && data.length === 0) {
     return (
-      <div className={styles.userPageContainer}>
-        <div className={styles.loadingContainer}>
-          <Spin size="large" />
-          <Text style={{ marginTop: 16 }}>Đang tải dữ liệu...</Text>
-        </div>
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              textAlign: 'center',
+              padding: '80px 24px'
+            }}
+          >
+            <Spin size="large" />
+            <Text style={{ marginTop: 16, fontSize: '16px' }}>Đang tải dữ liệu...</Text>
+          </Card>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className={styles.userPageContainer}>
-      {/* Page Header */}
-      <div className={styles.pageHeader}>
-        <div className={styles.headerLeft}>
-          <Title level={2} className={styles.pageTitle}>
-            <TrophyOutlined className={styles.titleIcon} />
-            Lịch sử giao dịch
-          </Title>
-          <Paragraph className={styles.pageSubtitle}>
-            Quản lý và theo dõi tất cả giao dịch trong hệ thống
-          </Paragraph>
-        </div>
-      </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        {/* Page Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          style={{ marginBottom: '32px' }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <Title level={2} style={{ margin: 0, color: '#1a1a1a' }}>
+                  <TrophyOutlined style={{ marginRight: '12px', color: '#667eea' }} />
+                  Lịch sử giao dịch
+                </Title>
+                <Paragraph style={{ margin: '8px 0 0 0', fontSize: '16px', color: '#666' }}>
+                  Quản lý và theo dõi tất cả giao dịch trong hệ thống
+                </Paragraph>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
 
-      {/* Statistics Cards */}
-      <StatCards transactionStats={transactionStats} />
+        {/* Statistics Cards */}
+        <StatCards transactionStats={transactionStats} />
 
-      {/* Filter Section */}
-      <FilterSection
-        searchText={searchText}
-        setSearchText={setSearchText}
-        minAmount={minAmount}
-        setMinAmount={setMinAmount}
-        maxAmount={maxAmount}
-        setMaxAmount={setMaxAmount}
-        sortOrder={sortOrder}
-        setSortOrder={setSortOrder}
-        dateRange={dateRange}
-        setDateRange={setDateRange}
-      />
-
-      {/* Transactions Table */}
-      <Card className={styles.userTableCard} bordered={false}>
-        <div className={styles.tableHeader}>
-          <div className={styles.tableTitleSection}>
-            <BookOutlined className={styles.tableIcon} />
-            <Title level={4} className={styles.tableTitle}>
-              Danh sách giao dịch
-            </Title>
-            <Badge count={data.length} className={styles.userCountBadge} />
-          </div>
-          <div className={styles.tableActions}>
-            <Text type="secondary">
-              Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, data.length)} của {data.length} giao dịch
-            </Text>
-          </div>
-      </div>
-
-      <Table
-        columns={columns}
-          dataSource={data}
-        loading={loading}
-          pagination={{
-            current: currentPage,
-            pageSize: pageSize,
-            total: data.length,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} giao dịch`,
-            pageSizeOptions: ['10', '20', '50', '100'],
-            size: 'small',
-            onChange: (page, size) => {
-              setCurrentPage(page);
-              setPageSize(size || 15);
-            },
-          }}
-          rowKey="key"
-          className={styles.userTable}
-          scroll={{ x: 1200 }}
-          size="small"
+        {/* Filter Section */}
+        <FilterSection
+          searchText={searchText}
+          setSearchText={setSearchText}
+          minAmount={minAmount}
+          setMinAmount={setMinAmount}
+          maxAmount={maxAmount}
+          setMaxAmount={setMaxAmount}
+          sortOrder={sortOrder}
+          setSortOrder={setSortOrder}
+          dateRange={dateRange}
+          setDateRange={setDateRange}
         />
-      </Card>
+
+        {/* Transactions Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '20px', 
+              paddingBottom: '12px', 
+              borderBottom: '1px solid #f0f0f0',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <BookOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+                <Title level={4} style={{ margin: 0, color: '#1a1a1a' }}>
+                  Danh sách giao dịch
+                </Title>
+                <Badge count={data.length} showZero style={{ 
+                  backgroundColor: '#1890ff',
+                  borderRadius: '8px'
+                }} />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: '14px' }}>
+                  Hiển thị {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, data.length)} của {data.length} giao dịch
+                </Text>
+              </div>
+            </div>
+
+            <Table
+              columns={columns}
+              dataSource={data}
+              loading={loading}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: data.length,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} giao dịch`,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                size: 'small',
+                onChange: (page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size || 15);
+                },
+              }}
+              rowKey="key"
+              style={{ 
+                borderRadius: '12px',
+                overflow: 'hidden'
+              }}
+              scroll={{ x: 1200 }}
+              size="small"
+            />
+          </Card>
+        </motion.div>
+      </div>
 
       {/* Detail Modal */}
       <Modal
         title={
-          <div className={styles.modalTitle}>
-            <EyeOutlined className={styles.modalIcon} />
-            Chi tiết đơn hàng
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <EyeOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+            <Text strong style={{ fontSize: '18px', color: '#1a1a1a' }}>
+              Chi tiết đơn hàng
+            </Text>
           </div>
         }
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         footer={null}
         width={800}
-        className={styles.userModal}
+        style={{ borderRadius: '16px' }}
       >
         {selectedOrder && (
-          <div>
-            <div className={styles.userDetailHeaderBox}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              padding: '16px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '12px',
+              marginBottom: '20px'
+            }}>
               <Title level={3} style={{ margin: 0 }}>
                 Đơn hàng #{selectedOrder._id || selectedOrder.id}
               </Title>
@@ -598,52 +809,80 @@ const TransactionHistory = () => {
             
             <Divider />
             
-            <Card className={styles.userDetailCard} bordered={false}>
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <CreditCardOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                  <Text strong>Phương thức thanh toán:</Text>
-                </div>
+            <Card 
+              style={{ 
+                backgroundColor: '#fafafa',
+                borderRadius: '12px',
+                border: '1px solid #f0f0f0',
+                marginBottom: '20px'
+              }} 
+              bordered={false}
+            >
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px',
+                padding: '12px 0'
+              }}>
+                <CreditCardOutlined style={{ color: '#1890ff', fontSize: '16px' }} />
                 <div>
-                  <Text type="secondary">
-                    {selectedOrder.paymentMethod?.toUpperCase() || 'Không xác định'}
-                  </Text>
+                  <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Phương thức thanh toán:</Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Text type="secondary" style={{ fontSize: '14px' }}>
+                      {selectedOrder.paymentMethod?.toUpperCase() || 'Không xác định'}
+                    </Text>
+                  </div>
                 </div>
               </div>
               
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <CalendarOutlined style={{ marginRight: '8px', color: '#52c41a' }} />
-                  <Text strong>Ngày đặt hàng:</Text>
-                </div>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px',
+                padding: '12px 0'
+              }}>
+                <CalendarOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
                 <div>
-                  <Text type="secondary">
-                    {dayjs(selectedOrder.createdAt).format('HH:mm DD/MM/YYYY')}
-                  </Text>
+                  <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Ngày đặt hàng:</Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Text type="secondary" style={{ fontSize: '14px' }}>
+                      {dayjs(selectedOrder.createdAt).format('HH:mm DD/MM/YYYY')}
+                    </Text>
+                  </div>
                 </div>
               </div>
             </Card>
             
             <Divider />
             
-            <div className={styles.userDetailRow}>
-              <div className={styles.userDetailLabel}>
-                <UserOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                <Text strong>Thông tin người mua:</Text>
-              </div>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px',
+              padding: '12px 0'
+            }}>
+              <UserOutlined style={{ color: '#1890ff', fontSize: '16px' }} />
               <div>
-                <Text type="secondary">
-                  {selectedOrder.fullName} • {selectedOrder.phone} • {selectedOrder.email}
-                </Text>
+                <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Thông tin người mua:</Text>
+                <div style={{ marginTop: '4px' }}>
+                  <Text type="secondary" style={{ fontSize: '14px' }}>
+                    {selectedOrder.fullName} • {selectedOrder.phone} • {selectedOrder.email}
+                  </Text>
+                </div>
               </div>
             </div>
             
             <Divider />
             
-            <div className={styles.userDetailRow}>
-              <div className={styles.userDetailLabel}>
-                <ShoppingCartOutlined style={{ marginRight: '8px', color: '#52c41a' }} />
-                <Text strong>Chi tiết sản phẩm:</Text>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px',
+              padding: '12px 0'
+            }}>
+              <ShoppingCartOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
+              <div>
+                <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Chi tiết sản phẩm:</Text>
               </div>
             </div>
             
@@ -713,10 +952,10 @@ const TransactionHistory = () => {
                 </Text>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
       </Modal>
-    </div>
+    </motion.div>
   );
 };
 

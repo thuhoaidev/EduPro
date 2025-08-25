@@ -1,10 +1,24 @@
 import { config } from '../api/axios';
+import axios from 'axios';
 
-export const addOrUpdateReview = (courseId: string, rating: number, comment: string) =>
-  config.post(`/course-reviews/${courseId}/review`, { rating, comment }).then(res => res.data.data);
+export const addOrUpdateReview = async (courseId: string, rating: number, comment: string) => {
+  try {
+    const response = await config.post(`/course-reviews/${courseId}/review`, { rating, comment });
+    console.log('Review response:', response.data); // Debug log
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error adding/updating review:', error);
+    throw error;
+  }
+};
 
 export const getCourseReviews = (courseId: string) =>
-  config.get(`/course-reviews/${courseId}/reviews`).then(res => res.data.data);
+  axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/course-reviews/${courseId}/reviews`)
+    .then(res => res.data.data || [])
+    .catch(error => {
+      console.error('Error fetching course reviews:', error);
+      return [];
+    });
 
 export const getMyReview = async (courseId: string) => {
   try {

@@ -54,6 +54,7 @@ const CheckoutPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
   const { user, token } = useAuth();
   const { removeItemsFromCart } = useCart();
   const navigate = useNavigate();
@@ -84,6 +85,7 @@ const CheckoutPage: React.FC = () => {
   // Hàm xử lý click phương thức thanh toán
   const handlePaymentMethodClick = (method: 'bank_transfer' | 'momo' | 'vnpay' | 'zalopay' | 'wallet', event: React.MouseEvent<HTMLDivElement>) => {
     createRipple(event);
+    setSelectedPaymentMethod(method);
     form.setFieldsValue({ paymentMethod: method });
   };
 
@@ -132,6 +134,14 @@ const CheckoutPage: React.FC = () => {
     };
     fetchWallet();
   }, [token]);
+
+  // Đồng bộ selectedPaymentMethod với form
+  useEffect(() => {
+    const paymentMethod = form.getFieldValue('paymentMethod');
+    if (paymentMethod) {
+      setSelectedPaymentMethod(paymentMethod);
+    }
+  }, [form]);
 
 const handleSubmit = async (values: FormValues) => {
   if (!checkoutData || !token) {
@@ -540,7 +550,7 @@ const handleSubmit = async (values: FormValues) => {
                         {/* VNPAY */}
                         <div
                           className={`payment-method-card vnpay ${
-                            form.getFieldValue('paymentMethod') === 'vnpay' ? 'selected' : ''
+                            selectedPaymentMethod === 'vnpay' ? 'selected' : ''
                           }`}
                           onClick={(e) => handlePaymentMethodClick('vnpay', e)}
                         >
@@ -574,7 +584,7 @@ const handleSubmit = async (values: FormValues) => {
                         {/* MoMo */}
                         <div
                           className={`payment-method-card momo ${
-                            form.getFieldValue('paymentMethod') === 'momo' ? 'selected' : ''
+                            selectedPaymentMethod === 'momo' ? 'selected' : ''
                           }`}
                           onClick={(e) => handlePaymentMethodClick('momo', e)}
                         >
@@ -608,7 +618,7 @@ const handleSubmit = async (values: FormValues) => {
                         {/* ZaloPay */}
                         <div
                           className={`payment-method-card zalopay ${
-                            form.getFieldValue('paymentMethod') === 'zalopay' ? 'selected' : ''
+                            selectedPaymentMethod === 'zalopay' ? 'selected' : ''
                           }`}
                           onClick={(e) => handlePaymentMethodClick('zalopay', e)}
                         >
@@ -645,33 +655,10 @@ const handleSubmit = async (values: FormValues) => {
                     <div>
                       <Text className="text-sm font-medium text-gray-600 mb-3 block">Phương thức khác</Text>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {/* Credit Card */}
-                        <div
-                          className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all duration-300 hover:shadow-lg ${
-                            form.getFieldValue('paymentMethod') === 'bank_transfer' 
-                              ? 'border-blue-500 bg-blue-50 shadow-md' 
-                              : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
-                          }`}
-                          onClick={() => form.setFieldsValue({ paymentMethod: 'bank_transfer' })}
-                        >
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg flex items-center justify-center shadow-sm relative overflow-hidden">
-                              <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-yellow-600 opacity-20"></div>
-                              <div className="relative z-10 w-6 h-4 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-sm flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 bg-yellow-300 rounded-sm"></div>
-                              </div>
-                            </div>
-                            <div>
-                              <div className="font-semibold text-gray-800 text-sm">Thẻ tín dụng</div>
-                              <div className="text-xs text-gray-500">An toàn</div>
-                            </div>
-                          </div>
-                        </div>
-
                         {/* Wallet */}
                         <div
                           className={`payment-method-card wallet ${
-                            form.getFieldValue('paymentMethod') === 'wallet' ? 'selected' : ''
+                            selectedPaymentMethod === 'wallet' ? 'selected' : ''
                           } ${walletBalance < (checkoutData?.total || 0) ? 'wallet-balance-low' : ''}`}
                           onClick={(e) => handlePaymentMethodClick('wallet', e)}
                         >

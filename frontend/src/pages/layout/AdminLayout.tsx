@@ -22,7 +22,10 @@ import {
   DashboardOutlined,
   ShoppingCartOutlined,
   CreditCardOutlined,
-  SecurityScanOutlined,
+
+
+
+
   FileTextOutlined,
 } from "@ant-design/icons";
 import {
@@ -136,7 +139,7 @@ const AdminLayout = () => {
           label: collapsed ? "ND" : "QUẢN LÝ NỘI DUNG",
           type: "group",
           children: [
-            { key: "/admin/categories", icon: <TagsOutlined />, label: collapsed ? "DM" : "Danh mục khóa học" },
+            { key: "/admin/categories", icon: <TagsOutlined />, label: collapsed ? "DM" : "Danh mục" },
             { key: "/admin/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Khóa học" },
           ],
         },
@@ -144,7 +147,7 @@ const AdminLayout = () => {
           label: collapsed ? "ND" : "QUẢN LÝ NGƯỜI DÙNG",
           type: "group",
           children: [
-            { key: "/admin/users", icon: <UserOutlined />, label: collapsed ? "HV" : "Học viên" },
+            { key: "/admin/users", icon: <UserOutlined />, label: collapsed ? "HV" : "Người dùng" },
             { key: "/admin/instructors", icon: <TeamOutlined />, label: collapsed ? "GV" : "Giảng viên" },
             { key: "/admin/roles", icon: <KeyOutlined />, label: collapsed ? "PQ" : "Phân quyền" },
           ],
@@ -153,12 +156,22 @@ const AdminLayout = () => {
           label: collapsed ? "TC" : "TÀI CHÍNH",
           type: "group",
           children: [
-            { key: "/admin/transactions", icon: <CreditCardOutlined />, label: collapsed ? "GD" : "Giao dịch" },
+            { key: "/admin/transactions", icon: <CreditCardOutlined />, label: collapsed ? "GD" : "Lịch sử giao dịch" },
             { key: "/admin/vouchers", icon: <GiftOutlined />, label: collapsed ? "MGG" : "Mã giảm giá" },
-            { key: "/admin/earnings", icon: <DollarCircleOutlined />, label: collapsed ? "TN" : "Thu nhập" },
-            { key: "/admin/user-withdraw-requests", icon: <WalletOutlined />, label: collapsed ? "RT" : "Rút tiền" },
+            { key: "/admin/earnings", icon: <DollarCircleOutlined />, label: collapsed ? "TN" : "Thu nhập giảng viên" },
+            { key: "/admin/user-withdraw-requests", icon: <WalletOutlined />, label: collapsed ? "RT" : "Yêu cầu rút tiền" },
           ],
         },
+        
+        {
+          label: collapsed ? "BM" : "BÀI VIẾT & BÌNH LUẬN",
+          type: "group",
+          children: [
+            { key: "/admin/comments", icon: <FileTextOutlined />, label: collapsed ? "BL" : "Bình luận" },
+            { key: "/admin/blogs", icon: <FileSearchOutlined />, label: collapsed ? "BV" : "Bài viết" },
+          ],
+        },
+
         {
           label: collapsed ? "TK" : "THỐNG KÊ & BÁO CÁO",
           type: "group",
@@ -167,13 +180,7 @@ const AdminLayout = () => {
             { key: "/admin/reports", icon: <WarningOutlined />, label: collapsed ? "BC" : "Báo cáo & khiếu nại" },
           ],
         },
-        {
-          label: collapsed ? "BM" : "BẢO MẬT",
-          type: "group",
-          children: [
-            { key: "/admin/device-violations", icon: <SecurityScanOutlined />, label: collapsed ? "TB" : "Vi phạm thiết bị" },
-          ],
-        },
+
       ];
 
       // Chỉ sử dụng user từ context
@@ -241,7 +248,7 @@ const AdminLayout = () => {
     '/admin/user-withdraw-requests': 'Rút tiền học viên',
     '/admin/statistics': 'Thống kê tổng quan',
     '/admin/reports': 'Báo cáo & khiếu nại',
-    '/admin/device-violations': 'Vi phạm thiết bị',
+
   };
 
   const pathSnippets = location.pathname.split("/").filter((i) => i);

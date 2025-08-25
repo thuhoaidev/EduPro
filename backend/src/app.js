@@ -39,16 +39,32 @@ const notificationRoutes = require('./routes/notification.routes');
 const vnpayRouter = require('./routes/paymentRouter');
 const userWalletRoutes = require('./routes/userWallet.routes');
 const lessonCommentRoutes = require('./routes/lessonComment.routes');
-const deviceSecurityRoutes = require('./routes/deviceSecurity.routes');
+
 const messageRoutes = require('./routes/message.routes');
 const certificateRoutes = require('./routes/certificate.routes');
 const statisticsRoutes = require('./routes/statistics.routes');
-const aiRecommendationRoutes = require('./routes/aiRecommendation.routes');
+
 
 const invoiceRoutes = require('./routes/invoice.routes');
 
+const aiRecommendationRoutes = require('./routes/aiRecommendation.routes');
+const adminRoutes = require('./routes/admin.routes');
+const instructorRoutes = require('./routes/instructor.routes');
+
 // Khởi tạo app
 const app = express();
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.FRONTEND_URL ? 
+    process.env.FRONTEND_URL.split(',') : 
+    ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar']
+};
+app.use(cors(corsOptions));
 
 // Kết nối MongoDB
 mongoose
@@ -63,15 +79,10 @@ mongoose
   });
 
 // Middleware bảo mật
+// Security middleware
 app.use(helmet()); // Bảo vệ headers
 app.use(mongoSanitize()); // Ngăn chặn NoSQL injection
 app.use(xss()); // Ngăn chặn XSS attacks
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-})); // CORS
 app.use(cookieParser()); // Parse cookies
 app.use(compression()); // Nén response
 app.use(express.json()); // Parse JSON body
@@ -130,12 +141,14 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api', vnpayRouter);
 app.use('/api/wallet', userWalletRoutes);
 app.use('/api/lesson-comments', lessonCommentRoutes);
-app.use('/api/device-security', deviceSecurityRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/statistics', statisticsRoutes);
-app.use('/api/ai', aiRecommendationRoutes);
+
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/ai', aiRecommendationRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/instructor', instructorRoutes);
 
 // Error handling middleware
 app.use((err, req, res, _next) => {

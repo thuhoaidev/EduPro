@@ -21,7 +21,8 @@ import {
   Typography,
   Badge,
   Divider,
-  Progress
+  Progress,
+  Spin
 } from "antd";
 import {
   SearchOutlined,
@@ -60,7 +61,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import type { UploadFile } from 'antd/es/upload/interface';
-import styles from './UserPage.module.css';
+import { motion } from 'framer-motion';
 
 dayjs.locale('vi');
 
@@ -84,91 +85,170 @@ interface StatCardsProps {
 }
 
 const StatCards = ({ userStats }: StatCardsProps) => (
-  <Row gutter={[24, 24]} className={styles.statsRow}>
-    <Col xs={24} sm={12} lg={6}>
-      <Card className={styles.statCard} bordered={false}>
-        <div className={styles.statContent}>
-          <div className={styles.statIcon} style={{ backgroundColor: '#e6f7ff' }}>
-            <TeamOutlined style={{ color: '#1890ff' }} />
-          </div>
-          <div className={styles.statInfo}>
-            <Statistic
-              title="Tổng người dùng"
-              value={userStats.total}
-              valueStyle={{ color: '#1890ff', fontSize: 28, fontWeight: 600 }}
-            />
-            <div className={styles.statTrend}>
-              <RiseOutlined style={{ color: '#52c41a' }} />
-              <Text type="secondary">+12% tháng này</Text>
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6, delay: 0.2 }}
+  >
+    <Row gutter={[24, 24]} style={{ marginBottom: '32px' }}>
+      <Col xs={24} sm={12} lg={6}>
+        <Card 
+          style={{ 
+            background: 'rgba(255, 255, 255, 0.95)', 
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            border: 'none',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.3s ease'
+          }}
+          hoverable
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ 
+              width: '60px', 
+              height: '60px', 
+              borderRadius: '12px', 
+              backgroundColor: '#e6f7ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <TeamOutlined style={{ color: '#1890ff', fontSize: '24px' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Statistic
+                title={<Text style={{ fontSize: '14px', color: '#666' }}>Tổng người dùng</Text>}
+                value={userStats.total}
+                valueStyle={{ color: '#1890ff', fontSize: '28px', fontWeight: 600 }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary" style={{ fontSize: '12px' }}>+12% tháng này</Text>
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
-    </Col>
-    <Col xs={24} sm={12} lg={6}>
-      <Card className={styles.statCard} bordered={false}>
-        <div className={styles.statContent}>
-          <div className={styles.statIcon} style={{ backgroundColor: '#f6ffed' }}>
-            <UserSwitchOutlined style={{ color: '#52c41a' }} />
-          </div>
-          <div className={styles.statInfo}>
-            <Statistic
-              title="Đang hoạt động"
-              value={userStats.active}
-              valueStyle={{ color: '#52c41a', fontSize: 28, fontWeight: 600 }}
-            />
-            <div className={styles.statTrend}>
-              <RiseOutlined style={{ color: '#52c41a' }} />
-              <Text type="secondary">+8% tháng này</Text>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} lg={6}>
+        <Card 
+          style={{ 
+            background: 'rgba(255, 255, 255, 0.95)', 
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            border: 'none',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.3s ease'
+          }}
+          hoverable
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ 
+              width: '60px', 
+              height: '60px', 
+              borderRadius: '12px', 
+              backgroundColor: '#f6ffed',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <UserSwitchOutlined style={{ color: '#52c41a', fontSize: '24px' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Statistic
+                title={<Text style={{ fontSize: '14px', color: '#666' }}>Đang hoạt động</Text>}
+                value={userStats.active}
+                valueStyle={{ color: '#52c41a', fontSize: '28px', fontWeight: 600 }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                <RiseOutlined style={{ color: '#52c41a' }} />
+                <Text type="secondary" style={{ fontSize: '12px' }}>+8% tháng này</Text>
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
-    </Col>
-    <Col xs={24} sm={12} lg={6}>
-      <Card className={styles.statCard} bordered={false}>
-        <div className={styles.statContent}>
-          <div className={styles.statIcon} style={{ backgroundColor: '#fff1f0' }}>
-            <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
-          </div>
-          <div className={styles.statInfo}>
-            <Statistic
-              title="Không hoạt động"
-              value={userStats.inactive}
-              valueStyle={{ color: '#ff4d4f', fontSize: 28, fontWeight: 600 }}
-            />
-            <div className={styles.statTrend}>
-              <FallOutlined style={{ color: '#ff4d4f' }} />
-              <Text type="secondary">-3% tháng này</Text>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} lg={6}>
+        <Card 
+          style={{ 
+            background: 'rgba(255, 255, 255, 0.95)', 
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            border: 'none',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.3s ease'
+          }}
+          hoverable
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ 
+              width: '60px', 
+              height: '60px', 
+              borderRadius: '12px', 
+              backgroundColor: '#fff1f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: '24px' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Statistic
+                title={<Text style={{ fontSize: '14px', color: '#666' }}>Không hoạt động</Text>}
+                value={userStats.inactive}
+                valueStyle={{ color: '#ff4d4f', fontSize: '28px', fontWeight: 600 }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                <FallOutlined style={{ color: '#ff4d4f' }} />
+                <Text type="secondary" style={{ fontSize: '12px' }}>-3% tháng này</Text>
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
-    </Col>
-    <Col xs={24} sm={12} lg={6}>
-      <Card className={styles.statCard} bordered={false}>
-        <div className={styles.statContent}>
-          <div className={styles.statIcon} style={{ backgroundColor: '#fff7e6' }}>
-            <UserOutlined style={{ color: '#fa8c16' }} />
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} lg={6}>
+        <Card 
+          style={{ 
+            background: 'rgba(255, 255, 255, 0.95)', 
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            border: 'none',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.3s ease'
+          }}
+          hoverable
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ 
+              width: '60px', 
+              height: '60px', 
+              borderRadius: '12px', 
+              backgroundColor: '#fff7e6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <UserOutlined style={{ color: '#fa8c16', fontSize: '24px' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Statistic
+                title={<Text style={{ fontSize: '14px', color: '#666' }}>Tỷ lệ hoạt động</Text>}
+                value={userStats.total > 0 ? Math.round((userStats.active / userStats.total) * 100) : 0}
+                suffix="%"
+                valueStyle={{ color: '#fa8c16', fontSize: '28px', fontWeight: 600 }}
+              />
+              <Progress 
+                percent={userStats.total > 0 ? Math.round((userStats.active / userStats.total) * 100) : 0} 
+                size="small" 
+                showInfo={false} 
+                strokeColor="#fa8c16"
+                style={{ marginTop: '8px' }}
+              />
+            </div>
           </div>
-          <div className={styles.statInfo}>
-            <Statistic
-              title="Tỷ lệ hoạt động"
-              value={userStats.total > 0 ? Math.round((userStats.active / userStats.total) * 100) : 0}
-              suffix="%"
-              valueStyle={{ color: '#fa8c16', fontSize: 28, fontWeight: 600 }}
-            />
-            <Progress 
-              percent={userStats.total > 0 ? Math.round((userStats.active / userStats.total) * 100) : 0} 
-              size="small" 
-              showInfo={false} 
-              strokeColor="#fa8c16"
-            />
-          </div>
-        </div>
-      </Card>
-    </Col>
-  </Row>
+        </Card>
+      </Col>
+    </Row>
+  </motion.div>
 );
 
 interface FilterSectionProps {
@@ -194,64 +274,92 @@ const FilterSection = ({
   setDateRange,
   onRefresh,
 }: FilterSectionProps) => (
-  <Card className={styles.filterCard} bordered={false}>
-    <div className={styles.filterHeader}>
-      <div className={styles.filterTitle}>
-        <FilterOutlined className={styles.filterIcon} />
-        <Text strong>Bộ lọc tìm kiếm</Text>
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6, delay: 0.3 }}
+  >
+    <Card 
+      style={{ 
+        background: 'rgba(255, 255, 255, 0.95)', 
+        backdropFilter: 'blur(10px)',
+        borderRadius: '16px',
+        border: 'none',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+        marginBottom: '24px'
+      }}
+    >
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '20px', 
+        paddingBottom: '12px', 
+        borderBottom: '1px solid #f0f0f0'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <FilterOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+          <Text strong style={{ fontSize: '16px', color: '#1a1a1a' }}>Bộ lọc tìm kiếm</Text>
+        </div>
       </div>
-      <Button 
-        icon={<ReloadOutlined />} 
-        onClick={onRefresh}
-        className={styles.refreshBtn}
-      >
-        Làm mới
-      </Button>
-    </div>
-    <div className={styles.filterGroup}>
-      <Input
-        placeholder="Tìm kiếm theo tên, email..."
-        prefix={<SearchOutlined />}
-        value={searchInput}
-        onChange={(e) => setSearchInput(e.target.value)}
-        onPressEnter={() => setSearch(searchInput)}
-        className={styles.filterInput}
-        allowClear
-      />
-      <Select
-        placeholder="Lọc theo vai trò"
-        value={selectedRole}
-        onChange={setSelectedRole}
-        className={styles.filterSelect}
-        allowClear
-      >
-        {Object.values(UserRole).map((role) => (
-          <Select.Option key={role} value={role}>
-            {role === UserRole.ADMIN ? 'Admin' :
-             role === UserRole.INSTRUCTOR ? 'Giảng viên' :
-             role === UserRole.STUDENT ? 'Học viên' :
-             role === UserRole.MODERATOR ? 'Kiểm duyệt' : role}
-          </Select.Option>
-        ))}
-      </Select>
-      <Select
-        placeholder="Lọc theo trạng thái"
-        value={selectedStatus}
-        onChange={setSelectedStatus}
-        className={styles.filterSelect}
-        allowClear
-      >
-        <Select.Option value={UserStatus.ACTIVE}>Hoạt động</Select.Option>
-        <Select.Option value={UserStatus.INACTIVE}>Không hoạt động</Select.Option>
-      </Select>
-      <RangePicker
-        placeholder={['Từ ngày', 'Đến ngày']}
-        onChange={(dates) => setDateRange(dates)}
-        className={styles.filterDateRange}
-        format="DD/MM/YYYY"
-      />
-    </div>
-  </Card>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
+        <Input
+          placeholder="Tìm kiếm theo tên, email..."
+          prefix={<SearchOutlined />}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onPressEnter={() => setSearch(searchInput)}
+          style={{ 
+            minWidth: '250px',
+            borderRadius: '8px',
+            border: '1px solid #d9d9d9'
+          }}
+          allowClear
+        />
+        <Select
+          placeholder="Lọc theo vai trò"
+          value={selectedRole}
+          onChange={setSelectedRole}
+          style={{ 
+            minWidth: '180px',
+            borderRadius: '8px'
+          }}
+          allowClear
+        >
+          {Object.values(UserRole).map((role) => (
+            <Select.Option key={role} value={role}>
+              {role === UserRole.ADMIN ? 'Quản trị viên' :
+               role === UserRole.INSTRUCTOR ? 'Giảng viên' :
+               role === UserRole.STUDENT ? 'Học viên' :
+               role === UserRole.MODERATOR ? 'Kiểm duyệt' : role}
+            </Select.Option>
+          ))}
+        </Select>
+        <Select
+          placeholder="Lọc theo trạng thái"
+          value={selectedStatus}
+          onChange={setSelectedStatus}
+          style={{ 
+            minWidth: '180px',
+            borderRadius: '8px'
+          }}
+          allowClear
+        >
+          <Select.Option value={UserStatus.ACTIVE}>Hoạt động</Select.Option>
+          <Select.Option value={UserStatus.INACTIVE}>Không hoạt động</Select.Option>
+        </Select>
+        <RangePicker
+          placeholder={['Từ ngày', 'Đến ngày']}
+          onChange={(dates) => setDateRange(dates)}
+          style={{ 
+            borderRadius: '8px',
+            border: '1px solid #d9d9d9'
+          }}
+          format="DD/MM/YYYY"
+        />
+      </div>
+    </Card>
+  </motion.div>
 );
 
 const UserPage = () => {
@@ -328,10 +436,10 @@ const UserPage = () => {
 
         const mappedUsers = sortedUsers.map((user, index) => ({
             id: user._id,
-          fullname: user.fullname || user.name || 'Chưa có tên',
+            fullname: user.fullname || user.name || 'Chưa có tên',
             email: user.email,
             avatar: user.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
-            role: user.role_id,
+            role_id: user.role_id,
             status: user.status,
             createdAt: user.created_at,
             updatedAt: user.updated_at,
@@ -383,7 +491,7 @@ const UserPage = () => {
       <Tag
         color={tag.color}
         icon={tag.icon}
-        className={styles.statusTag}
+        className="status-tag"
       >
         {tag.label}
       </Tag>
@@ -410,7 +518,7 @@ const UserPage = () => {
     };
     const tag = roleMap[roleName as UserRole] || { color: "default", label: roleName };
     return (
-      <Tag color={tag.color} className={styles.roleTag}>
+      <Tag color={tag.color} className="role-tag">
         {tag.label}
       </Tag>
     );
@@ -576,294 +684,498 @@ const UserPage = () => {
     fetchUsers();
   };
 
-  return (
-    <div className={styles.userPageContainer}>
-      {/* Header */}
-      <div className={styles.pageHeader}>
-        <div className={styles.headerLeft}>
-          <Title level={2} className={styles.pageTitle}>
-            <TrophyOutlined className={styles.titleIcon} />
-            Quản lý người dùng
-          </Title>
-          <Text type="secondary" className={styles.pageSubtitle}>
-            Quản lý và theo dõi thông tin người dùng hệ thống
-          </Text>
-        </div>
-        <div className={styles.headerRight}>
-          <Space>
-            <Button 
-              icon={<ExportOutlined />} 
-              className={styles.exportBtn}
-            >
-              Xuất dữ liệu
-            </Button>
-            <Button 
-              type="primary" 
-              icon={<UserAddOutlined />} 
-              onClick={handleAddUser}
-              className={styles.addUserBtn}
-            >
-              Thêm người dùng
-            </Button>
-          </Space>
-        </div>
+  if (loading && users.length === 0) {
+    return (
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              textAlign: 'center',
+              padding: '80px 24px'
+            }}
+          >
+            <Spin size="large" />
+            <Text style={{ marginTop: 16, fontSize: '16px' }}>Đang tải dữ liệu...</Text>
+          </Card>
+        </motion.div>
       </div>
+    );
+  }
 
-      <StatCards userStats={userStats} />
-      
-      <FilterSection
-        searchInput={searchInput}
-        setSearchInput={setSearchInput}
-        setSearch={setSearch}
-        selectedRole={selectedRole}
-        setSelectedRole={setSelectedRole}
-        selectedStatus={selectedStatus}
-        setSelectedStatus={setSelectedStatus}
-        setDateRange={setDateRange}
-        onRefresh={handleRefresh}
-      />
-
-      <Card className={styles.userTableCard} bordered={false}>
-        <div className={styles.tableHeader}>
-          <div className={styles.tableTitleSection}>
-            <Title level={4} className={styles.tableTitle}>
-              <TeamOutlined className={styles.tableIcon} />
-              Danh sách người dùng
-            </Title>
-            <Badge count={users.length} showZero className={styles.userCountBadge} />
-          </div>
-          <div className={styles.tableActions}>
-            <Text type="secondary">
-              Hiển thị {((pagination.current - 1) * pagination.pageSize) + 1} - {Math.min(pagination.current * pagination.pageSize, pagination.total)} của {pagination.total} người dùng
-            </Text>
-          </div>
-        </div>
-        
-        <Table
-          rowKey="id"
-          dataSource={users}
-          loading={loading}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} người dùng`,
-            pageSizeOptions: ['10', '20', '50', '100'],
-            size: 'small',
-          }}
-          onChange={handleTableChange}
-          className={styles.userTable}
-          scroll={{ x: 900 }}
-          size="small"
-          onRow={(record) => {
-            return {
-              onClick: () => {
-                handleViewDetails(record);
-              },
-            };
-          }}
-          columns={[
-            {
-              title: 'STT',
-              dataIndex: 'number',
-              width: 70,
-              align: 'center' as const,
-              render: (_, __, index) => (
-                <Badge count={index + 1} showZero style={{ backgroundColor: '#1890ff' }} />
-              ),
-            },
-            {
-              title: 'Người dùng',
-              dataIndex: 'fullname',
-              width: 250,
-              render: (_, record) => (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Avatar 
-                    src={record.avatar} 
-                    icon={<UserOutlined />} 
-                    size={40}
-                    style={{ border: '2px solid #f0f0f0' }}
-                  />
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>
-                      {record.fullname}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <MailOutlined style={{ fontSize: '12px' }} />
-                      {record.email}
-                    </div>
-                  </div>
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          style={{ marginBottom: '32px' }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <Title level={2} style={{ margin: 0, color: '#1a1a1a' }}>
+                  <TrophyOutlined style={{ marginRight: '12px', color: '#667eea' }} />
+                  Quản lý người dùng
+                </Title>
+                <Text type="secondary" style={{ margin: '8px 0 0 0', fontSize: '16px', color: '#666' }}>
+                  Quản lý và theo dõi thông tin người dùng hệ thống
+                </Text>
+                <div style={{ marginTop: '12px' }}>
+                  <Text type="secondary" style={{ fontSize: '14px' }}>
+                    <ClockCircleOutlined style={{ marginRight: '8px' }} />
+                    Cập nhật: {new Date().toLocaleString('vi-VN')}
+                  </Text>
                 </div>
-              ),
-            },
-            {
-              title: 'Vai trò',
-              dataIndex: 'role',
-              width: 120,
-              align: 'center' as const,
-              render: (role) => getRoleTag(role),
-            },
-            {
-              title: 'Trạng thái',
-              dataIndex: 'status',
-              width: 100,
-              align: 'center' as const,
-              render: (status) => getStatusTag(status),
-            },
-            {
-              title: 'Ngày tạo',
-              dataIndex: 'createdAt',
-              width: 150,
-              align: 'center' as const,
-              render: (date) => (
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>
-                    {dayjs(date).format('DD/MM/YYYY')}
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#999' }}>
-                    {dayjs(date).format('HH:mm')}
-                  </div>
-                </div>
-              ),
-            },
-            {
-              title: 'Thao tác',
-              key: 'action',
-              width: 120,
-              align: 'center' as const,
-              render: (_, record) => (
-                <Space size="small">
-                  <Tooltip title="Xem chi tiết">
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<EyeOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewDetails(record);
-                      }}
-                      style={{ color: '#1890ff' }}
-                    />
-                  </Tooltip>
-                  <Tooltip title="Chỉnh sửa">
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditUser(record);
-                      }}
-                      style={{ color: '#52c41a' }}
-                    />
-                  </Tooltip>
-                  <Tooltip title="Xóa">
-                    <Popconfirm
-                      title="Bạn có chắc chắn muốn xóa người dùng này?"
-                      onConfirm={(e) => {
-                        e?.stopPropagation();
-                        handleDeleteUser(record.id);
-                      }}
-                      onCancel={(e) => e?.stopPropagation()}
-                      okText="Xóa"
-                      cancelText="Hủy"
-                    >
-                      <Button
-                        type="text"
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </Popconfirm>
-                  </Tooltip>
-                </Space>
-              ),
-            },
-          ]}
-        />
-      </Card>
-
-      {/* Add/Edit User Modal */}
-      <Modal
-        title={
-          <div className={styles.modalTitle}>
-            {editingUser ? (
-              <>
-                <EditOutlined className={styles.modalIcon} />
-                Chỉnh sửa người dùng
-              </>
-            ) : (
-              <>
-                <UserAddOutlined className={styles.modalIcon} />
-                Thêm người dùng mới
-              </>
-            )}
-          </div>
-        }
-        open={isModalVisible}
-        onOk={handleModalOk}
-        onCancel={() => setIsModalVisible(false)}
-        okText={editingUser ? "Lưu thay đổi" : "Thêm"}
-        cancelText="Hủy"
-        destroyOnHidden
-        className={styles.userModal}
-        width={800}
-      >
-        <Form form={userForm} layout="vertical" className={styles.userForm}>
-          <div className={styles.formGrid}>
-            <div className={styles.formLeftCol}>
-              <Form.Item
-                name="fullname"
-                label="Họ và tên"
-                rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
-                className={styles.formItem}
-              >
-                <Input className={styles.input} placeholder="Nhập họ và tên" />
-              </Form.Item>
-              <Form.Item
-                name="email"
-                label="Email"
-                rules={[{ required: true, type: 'email', message: 'Vui lòng nhập email hợp lệ!' }]}
-                className={styles.formItem}
-              >
-                <Input className={styles.input} placeholder="Nhập email" />
-              </Form.Item>
-              {!editingUser && (
-                <Form.Item
-                  name="password"
-                  label="Mật khẩu"
-                  rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
-                  className={styles.formItem}
+              </div>
+              <Space>
+                <Button 
+                  type="primary" 
+                  icon={<UserAddOutlined />} 
+                  onClick={handleAddUser}
+                  style={{ 
+                    borderRadius: '8px',
+                    height: '40px',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
                 >
-                  <Input.Password className={styles.input} placeholder="Nhập mật khẩu" />
-                </Form.Item>
-              )}
-              <Form.Item 
-                name="role" 
-                label="Vai trò" 
-                rules={[{ required: true, message: 'Vui lòng chọn vai trò!' }]} 
-                className={styles.formItem}
-              >
-                <Select className={styles.input} placeholder="Chọn vai trò">
-                  {roles.map(r => <Select.Option key={r._id} value={r.name}>{r.name}</Select.Option>)}
-                </Select>
-              </Form.Item>
-              <Form.Item 
-                name="status" 
-                label="Trạng thái" 
-                rules={[{ required: true, message: 'Vui lòng chọn trạng thái!' }]} 
-                className={styles.formItem}
-              >
-                <Select className={styles.input} placeholder="Chọn trạng thái">
-                  <Select.Option value={UserStatus.ACTIVE}>Hoạt động</Select.Option>
-                  <Select.Option value={UserStatus.INACTIVE}>Không hoạt động</Select.Option>
-                </Select>
-              </Form.Item>
+                  Thêm người dùng
+                </Button>
+              </Space>
             </div>
-            <div className={styles.formRightCol}>
-              <Form.Item name="avatar" label="Ảnh đại diện" className={styles.formItem}>
-                <div className={styles.avatarUploadWrapper}>
+          </Card>
+        </motion.div>
+
+        <StatCards userStats={userStats} />
+        
+        <FilterSection
+          searchInput={searchInput}
+          setSearchInput={setSearchInput}
+          setSearch={setSearch}
+          selectedRole={selectedRole}
+          setSelectedRole={setSelectedRole}
+          selectedStatus={selectedStatus}
+          setSelectedStatus={setSelectedStatus}
+          setDateRange={setDateRange}
+          onRefresh={handleRefresh}
+        />
+
+        {/* Course List Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '20px', 
+              paddingBottom: '12px', 
+              borderBottom: '1px solid #f0f0f0',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <TeamOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+                <Title level={4} style={{ margin: 0, color: '#1a1a1a' }}>
+                  Danh sách người dùng
+                </Title>
+                <Badge count={users.length} showZero style={{ 
+                  backgroundColor: '#1890ff',
+                  borderRadius: '8px'
+                }} />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: '14px' }}>
+                  Hiển thị {((pagination.current - 1) * pagination.pageSize) + 1} - {Math.min(pagination.current * pagination.pageSize, pagination.total)} của {pagination.total} người dùng
+                </Text>
+              </div>
+            </div>
+            
+            <Table
+              rowKey="id"
+              dataSource={users}
+              loading={loading}
+              pagination={{
+                ...pagination,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} người dùng`,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                size: 'small',
+              }}
+              onChange={handleTableChange}
+              style={{ 
+                borderRadius: '12px',
+                overflow: 'hidden'
+              }}
+              scroll={{ x: 900 }}
+              size="small"
+              onRow={(record) => {
+                return {
+                  onClick: () => {
+                    handleViewDetails(record);
+                  },
+                };
+              }}
+              columns={[
+                {
+                  title: 'STT',
+                  dataIndex: 'number',
+                  width: 70,
+                  align: 'center' as const,
+                  render: (_, __, index) => (
+                    <Badge count={index + 1} showZero style={{ backgroundColor: '#1890ff' }} />
+                  ),
+                },
+                {
+                  title: 'Người dùng',
+                  dataIndex: 'fullname',
+                  width: 250,
+                  render: (_, record) => (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <Avatar 
+                        src={record.avatar} 
+                        icon={<UserOutlined />} 
+                        size={40}
+                        style={{ border: '2px solid #f0f0f0' }}
+                      />
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>
+                          {record.fullname}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <MailOutlined style={{ fontSize: '12px' }} />
+                          {record.email}
+                        </div>
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  title: 'Vai trò',
+                  dataIndex: 'role_id',
+                  width: 120,
+                  align: 'center' as const,
+                  render: (role) => getRoleTag(role),
+                },
+                {
+                  title: 'Trạng thái',
+                  dataIndex: 'status',
+                  width: 100,
+                  align: 'center' as const,
+                  render: (status) => getStatusTag(status),
+                },
+                {
+                  title: 'Ngày tạo',
+                  dataIndex: 'createdAt',
+                  width: 150,
+                  align: 'center' as const,
+                  render: (date) => (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>
+                        {dayjs(date).format('DD/MM/YYYY')}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#999' }}>
+                        {dayjs(date).format('HH:mm')}
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  title: 'Thao tác',
+                  key: 'action',
+                  width: 120,
+                  align: 'center' as const,
+                  render: (_, record) => {
+                    // Kiểm tra nếu người dùng là quản trị viên thì chỉ hiển thị nút xem chi tiết
+                    const isAdmin = record.role_id === UserRole.ADMIN || 
+                                  (typeof record.role_id === 'object' && record.role_id?.name === UserRole.ADMIN);
+                    
+                    return (
+                      <Space size="small">
+                        <Tooltip title="Xem chi tiết">
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<EyeOutlined />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewDetails(record);
+                            }}
+                            style={{ color: '#1890ff' }}
+                          />
+                        </Tooltip>
+                        {!isAdmin && (
+                          <>
+                            <Tooltip title="Chỉnh sửa">
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<EditOutlined />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditUser(record);
+                                }}
+                                style={{ color: '#52c41a' }}
+                              />
+                            </Tooltip>
+                            <Tooltip title="Xóa">
+                              <Popconfirm
+                                title="Bạn có chắc chắn muốn xóa người dùng này?"
+                                onConfirm={(e) => {
+                                  e?.stopPropagation();
+                                  handleDeleteUser(record.id);
+                                }}
+                                onCancel={(e) => e?.stopPropagation()}
+                                okText="Xóa"
+                                cancelText="Hủy"
+                              >
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </Popconfirm>
+                            </Tooltip>
+                          </>
+                        )}
+                      </Space>
+                    );
+                  },
+                },
+              ]}
+            />
+          </Card>
+        </motion.div>
+
+        {/* Add/Edit User Modal */}
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {editingUser ? (
+                <>
+                  <EditOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+                  <Text strong style={{ fontSize: '18px', color: '#1a1a1a' }}>
+                    Chỉnh sửa người dùng
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <UserAddOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+                  <Text strong style={{ fontSize: '18px', color: '#1a1a1a' }}>
+                    Thêm người dùng mới
+                  </Text>
+                </>
+              )}
+            </div>
+          }
+          open={isModalVisible}
+          onOk={handleModalOk}
+          onCancel={() => setIsModalVisible(false)}
+          okText={editingUser ? "Lưu thay đổi" : "Thêm"}
+          cancelText="Hủy"
+          destroyOnHidden
+          width={800}
+          style={{ borderRadius: '16px' }}
+          okButtonProps={{ 
+            style: { 
+              borderRadius: '8px',
+              height: '40px',
+              fontSize: '14px',
+              fontWeight: '500'
+            } 
+          }}
+          cancelButtonProps={{ 
+            style: { 
+              borderRadius: '8px',
+              height: '40px',
+              fontSize: '14px'
+            } 
+          }}
+        >
+          <Form form={userForm} layout="vertical" style={{ marginTop: '16px' }}>
+            <Row gutter={[16, 16]}>
+              <Col span={12}>
+                <Form.Item
+                  name="fullname"
+                  label={<Text strong>Họ và tên</Text>}
+                  rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
+                >
+                  <Input 
+                    placeholder="Nhập họ và tên" 
+                    style={{ 
+                      borderRadius: '8px',
+                      height: '40px',
+                      fontSize: '14px'
+                    }} 
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="email"
+                  label={<Text strong>Email</Text>}
+                  rules={[{ required: true, type: 'email', message: 'Vui lòng nhập email hợp lệ!' }]}
+                >
+                  <Input 
+                    placeholder="Nhập email" 
+                    style={{ 
+                      borderRadius: '8px',
+                      height: '40px',
+                      fontSize: '14px'
+                    }} 
+                  />
+                </Form.Item>
+              </Col>
+              {!editingUser && (
+                <Col span={12}>
+                  <Form.Item
+                    name="password"
+                    label={<Text strong>Mật khẩu</Text>}
+                    rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
+                  >
+                    <Input.Password 
+                      placeholder="Nhập mật khẩu" 
+                      style={{ 
+                        borderRadius: '8px',
+                        height: '40px',
+                        fontSize: '14px'
+                      }} 
+                    />
+                  </Form.Item>
+                </Col>
+              )}
+              <Col span={12}>
+                <Form.Item 
+                  name="role" 
+                  label={<Text strong>Vai trò</Text>}
+                  rules={[{ required: true, message: 'Vui lòng chọn vai trò!' }]} 
+                >
+                  <Select 
+                    placeholder="Chọn vai trò" 
+                    style={{ 
+                      borderRadius: '8px',
+                      height: '40px'
+                    }}
+                  >
+                    {Object.values(UserRole).map((role) => (
+                      <Select.Option key={role} value={role}>
+                        {role === UserRole.ADMIN ? 'Quản trị viên' :
+                         role === UserRole.INSTRUCTOR ? 'Giảng viên' :
+                         role === UserRole.STUDENT ? 'Học viên' :
+                         role === UserRole.MODERATOR ? 'Kiểm duyệt' : role}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item 
+                  name="status" 
+                  label={<Text strong>Trạng thái</Text>}
+                  rules={[{ required: true, message: 'Vui lòng chọn trạng thái!' }]} 
+                >
+                  <Select 
+                    placeholder="Chọn trạng thái" 
+                    style={{ 
+                      borderRadius: '8px',
+                      height: '40px'
+                    }}
+                  >
+                    <Select.Option value={UserStatus.ACTIVE}>Hoạt động</Select.Option>
+                    <Select.Option value={UserStatus.INACTIVE}>Không hoạt động</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="phone" label={<Text strong>Số điện thoại</Text>}>
+                  <Input 
+                    placeholder="Nhập số điện thoại" 
+                    style={{ 
+                      borderRadius: '8px',
+                      height: '40px',
+                      fontSize: '14px'
+                    }} 
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="address" label={<Text strong>Địa chỉ</Text>}>
+                  <Input 
+                    placeholder="Nhập địa chỉ" 
+                    style={{ 
+                      borderRadius: '8px',
+                      height: '40px',
+                      fontSize: '14px'
+                    }} 
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="dob" label={<Text strong>Ngày sinh</Text>}>
+                  <DatePicker 
+                    format="DD/MM/YYYY" 
+                    style={{ 
+                      width: '100%',
+                      borderRadius: '8px',
+                      height: '40px'
+                    }} 
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="gender" label={<Text strong>Giới tính</Text>}>
+                  <Select 
+                    placeholder="Chọn giới tính" 
+                    style={{ 
+                      borderRadius: '8px',
+                      height: '40px'
+                    }}
+                  >
+                    <Select.Option value="Nam">Nam</Select.Option>
+                    <Select.Option value="Nữ">Nữ</Select.Option>
+                    <Select.Option value="Khác">Khác</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={24}>
+                <Form.Item name="avatar" label={<Text strong>Ảnh đại diện</Text>}>
                   <Upload
                     listType="picture-card"
                     fileList={avatarFileList}
@@ -883,95 +1195,175 @@ const UserPage = () => {
                     }}
                     onChange={({ fileList }) => setAvatarFileList(fileList)}
                     beforeUpload={() => false}
-                    className={styles.avatarUpload}
+                    style={{ 
+                      borderRadius: '8px'
+                    }}
                   >
                     {avatarFileList.length < 1 && '+ Tải lên'}
                   </Upload>
-                </div>
-              </Form.Item>
-              <Form.Item name="phone" label="Số điện thoại" className={styles.formItem}>
-                <Input className={styles.input} placeholder="Nhập số điện thoại" />
-              </Form.Item>
-              <Form.Item name="address" label="Địa chỉ" className={styles.formItem}>
-                <Input className={styles.input} placeholder="Nhập địa chỉ" />
-              </Form.Item>
-              <Form.Item name="dob" label="Ngày sinh" className={styles.formItem}>
-                <DatePicker className={styles.input} format="DD/MM/YYYY" style={{ width: '100%' }} />
-              </Form.Item>
-              <Form.Item name="gender" label="Giới tính" className={styles.formItem}>
-                <Select className={styles.input} placeholder="Chọn giới tính">
-                  <Select.Option value="Nam">Nam</Select.Option>
-                  <Select.Option value="Nữ">Nữ</Select.Option>
-                  <Select.Option value="Khác">Khác</Select.Option>
-                </Select>
-              </Form.Item>
-            </div>
-          </div>
-        </Form>
-      </Modal>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Modal>
 
-      {/* User Details Modal */}
-      <Modal
-        title={
-          <div className={styles.modalTitle}>
-            <UserOutlined className={styles.modalIcon} />
-            Chi tiết người dùng
-          </div>
-        }
-        open={isDetailsModalVisible}
-        onCancel={() => setIsDetailsModalVisible(false)}
-        footer={null}
-        width={600}
-        destroyOnHidden
-        className={styles.userDetailModal}
-      >
-        {viewingUser && (
-          <div className={styles.userDetailWrapper}>
-            <div className={styles.userDetailHeaderBox}>
-              <Avatar 
-                size={96} 
-                src={viewingUser.avatar && viewingUser.avatar !== 'default-avatar.jpg' && viewingUser.avatar !== '' && (viewingUser.avatar.includes('googleusercontent.com') || viewingUser.avatar.startsWith('http')) ? viewingUser.avatar : undefined} 
-                className={styles.userDetailAvatar} 
-              />
-              <div className={styles.userDetailHeaderInfo}>
-                <div className={styles.userDetailName}>{viewingUser.fullname}</div>
-                <div className={styles.userDetailEmail}>
-                  <MailOutlined className={styles.emailIcon} />
-                  {viewingUser.email}
+        {/* User Details Modal */}
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <UserOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+              <Text strong style={{ fontSize: '18px', color: '#1a1a1a' }}>
+                Chi tiết người dùng
+              </Text>
+            </div>
+          }
+          open={isDetailsModalVisible}
+          onCancel={() => setIsDetailsModalVisible(false)}
+          footer={null}
+          width={600}
+          style={{ borderRadius: '16px' }}
+        >
+          {viewingUser && (
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '16px',
+                padding: '16px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '12px',
+                marginBottom: '20px'
+              }}>
+                <Avatar 
+                  size={96} 
+                  src={viewingUser.avatar && viewingUser.avatar !== 'default-avatar.jpg' && viewingUser.avatar !== '' && (viewingUser.avatar.includes('googleusercontent.com') || viewingUser.avatar.startsWith('http')) ? viewingUser.avatar : undefined} 
+                  style={{ border: '2px solid #f0f0f0' }}
+                />
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1a1a1a', marginBottom: '8px' }}>
+                    {viewingUser.fullname}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <MailOutlined style={{ color: '#1890ff' }} />
+                    {viewingUser.email}
+                  </div>
+                  <div>{getRoleTag(viewingUser.role_id)}</div>
                 </div>
-                <div className={styles.userDetailRoleTag}>{getRoleTag(viewingUser.role_id)}</div>
               </div>
+              
+              <Card 
+                style={{ 
+                  backgroundColor: '#fafafa',
+                  borderRadius: '12px',
+                  border: '1px solid #f0f0f0'
+                }} 
+                bordered={false}
+              >
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  padding: '12px 0'
+                }}>
+                  <CalendarOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
+                  <div>
+                    <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Ngày tạo:</Text>
+                    <div style={{ marginTop: '4px' }}>
+                      <Text style={{ fontSize: '14px', color: '#666' }}>
+                        {dayjs(viewingUser.createdAt).format('DD/MM/YYYY HH:mm')}
+                      </Text>
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  padding: '12px 0'
+                }}>
+                  <UserOutlined style={{ color: '#1890ff', fontSize: '16px' }} />
+                  <div>
+                    <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Trạng thái:</Text>
+                    <div style={{ marginTop: '4px' }}>
+                      {getStatusTag(viewingUser.status)}
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  padding: '12px 0'
+                }}>
+                  <PhoneOutlined style={{ color: '#fa8c16', fontSize: '16px' }} />
+                  <div>
+                    <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Số điện thoại:</Text>
+                    <div style={{ marginTop: '4px' }}>
+                      <Text style={{ fontSize: '14px', color: '#666' }}>
+                        {viewingUser.phone || 'Chưa cập nhật'}
+                      </Text>
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  padding: '12px 0'
+                }}>
+                  <HomeOutlined style={{ color: '#722ed1', fontSize: '16px' }} />
+                  <div>
+                    <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Địa chỉ:</Text>
+                    <div style={{ marginTop: '4px' }}>
+                      <Text style={{ fontSize: '14px', color: '#666' }}>
+                        {viewingUser.address || 'Chưa cập nhật'}
+                      </Text>
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  padding: '12px 0'
+                }}>
+                  <GiftOutlined style={{ color: '#eb2f96', fontSize: '16px' }} />
+                  <div>
+                    <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Ngày sinh:</Text>
+                    <div style={{ marginTop: '4px' }}>
+                      <Text style={{ fontSize: '14px', color: '#666' }}>
+                        {viewingUser.dob ? dayjs(viewingUser.dob).format('DD/MM/YYYY') : 'Chưa cập nhật'}
+                      </Text>
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  padding: '12px 0'
+                }}>
+                  <ManOutlined style={{ color: '#13c2c2', fontSize: '16px' }} />
+                  <div>
+                    <Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Giới tính:</Text>
+                    <div style={{ marginTop: '4px' }}>
+                      <Text style={{ fontSize: '14px', color: '#666' }}>
+                        {viewingUser.gender || 'Chưa cập nhật'}
+                      </Text>
+                    </div>
+                  </div>
+                </div>
+              </Card>
             </div>
-            <div className={styles.userDetailCard}>
-              <div className={styles.userDetailRow}>
-                <span className={styles.userDetailLabel}><CalendarOutlined /> Ngày tạo:</span>
-                <span>{dayjs(viewingUser.createdAt).format('DD/MM/YYYY HH:mm')}</span>
-              </div>
-              <div className={styles.userDetailRow}>
-                <span className={styles.userDetailLabel}><UserOutlined /> Trạng thái:</span>
-                <span>{getStatusTag(viewingUser.status)}</span>
-              </div>
-              <div className={styles.userDetailRow}>
-                <span className={styles.userDetailLabel}><PhoneOutlined /> Số điện thoại:</span>
-                <span>{viewingUser.phone || 'Chưa cập nhật'}</span>
-              </div>
-              <div className={styles.userDetailRow}>
-                <span className={styles.userDetailLabel}><HomeOutlined /> Địa chỉ:</span>
-                <span>{viewingUser.address || 'Chưa cập nhật'}</span>
-              </div>
-              <div className={styles.userDetailRow}>
-                <span className={styles.userDetailLabel}><GiftOutlined /> Ngày sinh:</span>
-                <span>{viewingUser.dob ? dayjs(viewingUser.dob).format('DD/MM/YYYY') : 'Chưa cập nhật'}</span>
-              </div>
-              <div className={styles.userDetailRow}>
-                <span className={styles.userDetailLabel}><ManOutlined /> Giới tính:</span>
-                <span>{viewingUser.gender || 'Chưa cập nhật'}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
-    </div>
+          )}
+        </Modal>
+      </div>
+    </motion.div>
   );
 };
 

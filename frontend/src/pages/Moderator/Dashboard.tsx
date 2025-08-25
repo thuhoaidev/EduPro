@@ -35,6 +35,7 @@ interface RecentActivity {
   time: string;
   status: 'pending' | 'resolved' | 'approved' | 'rejected';
   user: string;
+  userAvatar?: string;
 }
 
 const ModeratorDashboard: React.FC = () => {
@@ -85,45 +86,48 @@ const ModeratorDashboard: React.FC = () => {
         // Generate recent activities from real data
         const activities: RecentActivity[] = [];
         
-        // Add recent reports
-        reports.slice(0, 2).forEach((report: any) => {
-          activities.push({
-            id: report._id,
-            type: 'report',
-            title: `Báo cáo: ${report.title}`,
-            description: report.content?.substring(0, 50) + '...',
-            time: getTimeAgo(report.createdAt),
-            status: report.status,
-            user: report.userId?.name || report.userId?.fullname || 'Ẩn danh'
-          });
-        });
+                 // Add recent reports
+         reports.slice(0, 2).forEach((report: any) => {
+           activities.push({
+             id: report._id,
+             type: 'report',
+             title: `Báo cáo: ${report.title}`,
+             description: '', // Không hiển thị nội dung
+             time: getTimeAgo(report.createdAt),
+             status: report.status,
+             user: report.userId?.name || report.userId?.fullname || 'Ẩn danh',
+             userAvatar: report.userId?.avatar
+           });
+         });
 
-        // Add recent blogs
-        blogs.slice(0, 2).forEach((blog: any) => {
-          activities.push({
-            id: blog._id,
-            type: 'blog',
-            title: `Blog: ${blog.title}`,
-            description: blog.content?.substring(0, 50) + '...',
-            time: getTimeAgo(blog.createdAt),
-            status: blog.status,
-            user: blog.author?.fullname || blog.author?.nickname || 'Ẩn danh'
-          });
-        });
+         // Add recent blogs
+         blogs.slice(0, 2).forEach((blog: any) => {
+           activities.push({
+             id: blog._id,
+             type: 'blog',
+             title: `Blog: ${blog.title}`,
+             description: '', // Không hiển thị nội dung
+             time: getTimeAgo(blog.createdAt),
+             status: blog.status,
+             user: blog.author?.fullname || blog.author?.nickname || 'Ẩn danh',
+             userAvatar: blog.author?.avatar
+           });
+         });
 
-        // Add recent comments
-        const pendingComments = comments.filter((c: any) => c.status === 'pending').slice(0, 2);
-        pendingComments.forEach((comment: any) => {
-          activities.push({
-            id: comment._id,
-            type: 'comment',
-            title: 'Bình luận cần kiểm tra',
-            description: comment.content?.substring(0, 50) + '...',
-            time: getTimeAgo(comment.createdAt),
-            status: comment.status,
-            user: comment.author?.fullname || comment.author?.nickname || 'Ẩn danh'
-          });
-        });
+         // Add recent comments
+         const pendingComments = comments.filter((c: any) => c.status === 'pending').slice(0, 2);
+         pendingComments.forEach((comment: any) => {
+           activities.push({
+             id: comment._id,
+             type: 'comment',
+             title: 'Bình luận cần kiểm tra',
+             description: '', // Không hiển thị nội dung
+             time: getTimeAgo(comment.createdAt),
+             status: comment.status,
+             user: comment.author?.fullname || comment.author?.nickname || 'Ẩn danh',
+             userAvatar: comment.author?.avatar
+           });
+         });
 
         // Sort by time and take first 4
         activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -141,44 +145,48 @@ const ModeratorDashboard: React.FC = () => {
           todayResolved: 12
         });
         
-        setRecentActivities([
-          {
-            id: '1',
-            type: 'report',
-            title: 'Báo cáo vi phạm khóa học',
-            description: 'Khóa học "Lập trình Python cơ bản" bị báo cáo vi phạm',
-            time: '2 phút trước',
-            status: 'pending',
-            user: 'Nguyễn Văn A'
-          },
-          {
-            id: '2',
-            type: 'blog',
-            title: 'Blog mới cần duyệt',
-            description: 'Bài viết "Cách học lập trình hiệu quả" chờ duyệt',
-            time: '15 phút trước',
-            status: 'pending',
-            user: 'Trần Thị B'
-          },
-          {
-            id: '3',
-            type: 'comment',
-            title: 'Bình luận spam',
-            description: 'Phát hiện bình luận spam trong khóa học',
-            time: '1 giờ trước',
-            status: 'resolved',
-            user: 'Lê Văn C'
-          },
-          {
-            id: '4',
-            type: 'course',
-            title: 'Khóa học mới',
-            description: 'Khóa học "React Native từ cơ bản đến nâng cao"',
-            time: '2 giờ trước',
-            status: 'approved',
-            user: 'Phạm Thị D'
-          }
-        ]);
+                 setRecentActivities([
+           {
+             id: '1',
+             type: 'report',
+             title: 'Báo cáo vi phạm khóa học',
+             description: '', // Không hiển thị nội dung
+             time: '2 phút trước',
+             status: 'pending',
+             user: 'Nguyễn Văn A',
+             userAvatar: undefined
+           },
+           {
+             id: '2',
+             type: 'blog',
+             title: 'Blog mới cần duyệt',
+             description: '', // Không hiển thị nội dung
+             time: '15 phút trước',
+             status: 'pending',
+             user: 'Trần Thị B',
+             userAvatar: undefined
+           },
+           {
+             id: '3',
+             type: 'comment',
+             title: 'Bình luận spam',
+             description: '', // Không hiển thị nội dung
+             time: '1 giờ trước',
+             status: 'resolved',
+             user: 'Lê Văn C',
+             userAvatar: undefined
+           },
+           {
+             id: '4',
+             type: 'course',
+             title: 'Khóa học mới',
+             description: '', // Không hiển thị nội dung
+             time: '2 giờ trước',
+             status: 'approved',
+             user: 'Phạm Thị D',
+             userAvatar: undefined
+           }
+         ]);
       } finally {
         setLoading(false);
       }
@@ -234,6 +242,50 @@ const ModeratorDashboard: React.FC = () => {
 
   const totalPending = stats.pendingReports + stats.pendingBlogs + stats.pendingComments;
   const progressPercent = totalPending > 0 ? (stats.todayResolved / totalPending) * 100 : 0;
+
+  // Hàm xử lý xem chi tiết item
+  const handleViewItem = (item: RecentActivity) => {
+    switch (item.type) {
+      case 'report':
+        // Chuyển đến trang xem báo cáo
+        window.open(`/admin/reports/${item.id}`, '_blank');
+        break;
+      case 'blog':
+        // Chuyển đến trang xem blog
+        window.open(`/moderator/blogs/${item.id}`, '_blank');
+        break;
+      case 'comment':
+        // Chuyển đến trang xem bình luận
+        window.open(`/moderator/comments/${item.id}`, '_blank');
+        break;
+      case 'course':
+        // Chuyển đến trang xem khóa học
+        window.open(`/admin/courses/${item.id}`, '_blank');
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Hàm xử lý xử lý item
+  const handleProcessItem = (item: RecentActivity) => {
+    switch (item.type) {
+      case 'report':
+        // Chuyển đến trang xử lý báo cáo
+        window.open(`/admin/reports/${item.id}`, '_blank');
+        break;
+      case 'blog':
+        // Chuyển đến trang xử lý blog
+        window.open(`/moderator/blogs/${item.id}`, '_blank');
+        break;
+      case 'comment':
+        // Chuyển đến trang xử lý bình luận
+        window.open(`/moderator/comments/${item.id}`, '_blank');
+        break;
+      default:
+        break;
+    }
+  };
 
   return (
     <div style={{ 
@@ -429,36 +481,35 @@ const ModeratorDashboard: React.FC = () => {
                       padding: '16px 0',
                       borderBottom: '1px solid #f0f0f0'
                     }}
-                    actions={[
-                      <Button 
-                        type="text" 
-                        icon={<EyeOutlined />} 
-                        size="small"
-                        style={{ color: '#1890ff' }}
-                      >
-                        Xem
-                      </Button>,
-                      <Button 
-                        type="text" 
-                        icon={<EditOutlined />} 
-                        size="small"
-                        style={{ color: '#52c41a' }}
-                      >
-                        Xử lý
-                      </Button>
-                    ]}
+                                                              actions={[
+                      
+                       // Chỉ hiển thị nút Xử lý cho các item chưa được xử lý
+                       (item.status === 'pending' || item.status === 'rejected') && (
+                         <Button 
+                           type="text" 
+                           icon={<EditOutlined />} 
+                           size="small"
+                           style={{ color: '#52c41a' }}
+                           onClick={() => handleProcessItem(item)}
+                         >
+                           Xử lý
+                         </Button>
+                       )
+                     ].filter(Boolean)}
                   >
                     <List.Item.Meta
-                      avatar={
-                        <Avatar 
-                          icon={getActivityIcon(item.type)}
-                          style={{ 
-                            backgroundColor: item.type === 'report' ? '#fff2e8' : 
-                                           item.type === 'blog' ? '#e6f7ff' : 
-                                           item.type === 'comment' ? '#f6ffed' : '#f0f9ff'
-                          }}
-                        />
-                      }
+                                             avatar={
+                         <Avatar 
+                           src={item.userAvatar}
+                           icon={getActivityIcon(item.type)}
+                           style={{ 
+                             backgroundColor: item.userAvatar ? 'transparent' : 
+                                            item.type === 'report' ? '#fff2e8' : 
+                                            item.type === 'blog' ? '#e6f7ff' : 
+                                            item.type === 'comment' ? '#f6ffed' : '#f0f9ff'
+                           }}
+                         />
+                       }
                       title={
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Text strong>{item.title}</Text>
@@ -467,12 +518,14 @@ const ModeratorDashboard: React.FC = () => {
                       }
                       description={
                         <div>
-                          <Paragraph style={{ margin: '4px 0', color: '#666' }}>
-                            {item.description}
-                          </Paragraph>
+                          {item.description && (
+                            <Paragraph style={{ margin: '4px 0', color: '#666' }}>
+                              {item.description}
+                            </Paragraph>
+                          )}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                             <Text type="secondary" style={{ fontSize: '12px' }}>
-                              👤 {item.user}
+                              {item.user}
                             </Text>
                             <Text type="secondary" style={{ fontSize: '12px' }}>
                               ⏰ {item.time}
@@ -559,38 +612,42 @@ const ModeratorDashboard: React.FC = () => {
                 </Space>
               </Card>
 
-              {/* System Info */}
-              <Card 
-                title={
-                  <Title level={4} style={{ margin: 0, color: '#1e293b' }}>
-                    ℹ️ Thông tin hệ thống
-                  </Title>
-                }
-                style={{ 
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                  border: 'none'
-                }}
-              >
-                <div style={{ lineHeight: '2' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text>Trạng thái hệ thống:</Text>
-                    <Tag color="green">Hoạt động</Tag>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text>Tổng chờ xử lý:</Text>
-                    <Text strong style={{ color: '#faad14' }}>{totalPending}</Text>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text>Đã xử lý hôm nay:</Text>
-                    <Text strong style={{ color: '#52c41a' }}>{stats.todayResolved}</Text>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text>Tỷ lệ xử lý:</Text>
-                    <Text strong>{progressPercent.toFixed(1)}%</Text>
-                  </div>
-                </div>
-              </Card>
+                             {/* System Info */}
+               <Card 
+                 title={
+                   <Title level={4} style={{ margin: 0, color: '#1e293b' }}>
+                     ℹ️ Thông tin hệ thống
+                   </Title>
+                 }
+                 style={{ 
+                   borderRadius: '12px',
+                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                   border: 'none'
+                 }}
+               >
+                 <div style={{ lineHeight: '2' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                     <Text>Trạng thái hệ thống:</Text>
+                     <Tag color="green">Hoạt động</Tag>
+                   </div>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                     <Text>Báo cáo:</Text>
+                     <Text strong style={{ color: '#faad14' }}>{stats.pendingReports}</Text>
+                   </div>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                     <Text>Blog:</Text>
+                     <Text strong style={{ color: '#1890ff' }}>{stats.pendingBlogs}</Text>
+                   </div>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                     <Text>Bình luận:</Text>
+                     <Text strong style={{ color: '#52c41a' }}>{stats.pendingComments}</Text>
+                   </div>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                     <Text>Tổng:</Text>
+                     <Text strong style={{ color: '#faad14' }}>{totalPending}</Text>
+                   </div>
+                 </div>
+               </Card>
             </Space>
           </Col>
         </Row>

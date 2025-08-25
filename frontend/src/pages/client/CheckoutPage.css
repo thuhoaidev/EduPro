@@ -77,12 +77,31 @@
   transform: scale(0) rotate(-180deg);
   transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   box-shadow: 0 2px 8px rgba(82, 196, 26, 0.3);
+  z-index: 10;
+  pointer-events: none;
 }
 
 .payment-method-card.selected .check-icon {
   opacity: 1;
   transform: scale(1) rotate(0deg);
   animation: checkBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Đảm bảo dấu tích luôn hiển thị khi được chọn */
+.payment-method-card.selected .check-icon {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: scale(1) rotate(0deg) !important;
+  animation: checkPulse 2s infinite;
+}
+
+@keyframes checkPulse {
+  0%, 100% { 
+    box-shadow: 0 2px 8px rgba(82, 196, 26, 0.3);
+  }
+  50% { 
+    box-shadow: 0 2px 12px rgba(82, 196, 26, 0.6);
+  }
 }
 
 .payment-method-card .logo-container {
@@ -215,9 +234,18 @@
 }
 
 @keyframes checkBounce {
-  0% { transform: scale(0) rotate(-180deg); }
-  50% { transform: scale(1.2) rotate(-90deg); }
-  100% { transform: scale(1) rotate(0deg); }
+  0% { 
+    transform: scale(0) rotate(-180deg); 
+    opacity: 0;
+  }
+  50% { 
+    transform: scale(1.2) rotate(-90deg); 
+    opacity: 1;
+  }
+  100% { 
+    transform: scale(1) rotate(0deg); 
+    opacity: 1;
+  }
 }
 
 @keyframes logoGlow {

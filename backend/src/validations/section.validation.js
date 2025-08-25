@@ -8,6 +8,10 @@ const createSectionSchema = Joi.object({
     title: Joi.string().required().trim().messages({
         'string.empty': 'Tiêu đề chương không được để trống',
         'any.required': 'Tiêu đề chương là bắt buộc'
+    }),
+    status: Joi.string().valid('draft', 'published').default('draft').messages({
+        'string.empty': 'Trạng thái chương không được để trống',
+        'any.only': 'Trạng thái chương phải là draft hoặc published'
     })
 });
 
@@ -15,6 +19,13 @@ const updateSectionSchema = Joi.object({
     title: Joi.string().required().trim().messages({
         'string.empty': 'Tiêu đề chương không được để trống',
         'any.required': 'Tiêu đề chương là bắt buộc'
+    }),
+    description: Joi.string().optional().allow('').messages({
+        'string.base': 'Mô tả chương phải là chuỗi'
+    }),
+    status: Joi.string().valid('draft', 'published').messages({
+        'string.empty': 'Trạng thái chương không được để trống',
+        'any.only': 'Trạng thái chương phải là draft hoặc published'
     })
 });
 

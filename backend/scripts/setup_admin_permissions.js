@@ -79,6 +79,7 @@ const ALL_PERMISSIONS = [
   'từ chối bài viết',
   'duyệt bình luận',
   'xóa bình luận',
+  'approve_courses',
   
   // Report Handling
   'xem báo cáo',
@@ -149,7 +150,7 @@ async function setupAdminPermissions() {
         permissions: [
           'duyệt bài viết', 'từ chối bài viết', 'duyệt bình luận', 'xóa bình luận',
           'xem báo cáo', 'xử lý báo cáo', 'cảnh cáo người dùng', 'quản lý từ khóa',
-          'xem thống kê báo cáo'
+          'xem thống kê báo cáo', 'approve_courses'
         ]
       }
     ];

@@ -33,6 +33,7 @@ import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import styles from "../../styles/ModeratorLayout.module.css";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePermissions } from "../../hooks/usePermissions";
 
 const { Header, Sider, Content } = Layout;
 
@@ -103,6 +104,7 @@ const ModeratorLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
   const { user: authUser, isAuthenticated, forceReloadUser } = useAuth();
+  const { hasPermission, user } = usePermissions();
 
   // --- Check Authentication ---
   useEffect(() => {
@@ -167,8 +169,6 @@ const ModeratorLayout = () => {
       console.log('ModeratorLayout - permissions:', (authUser?.role_id as any)?.permissions);
       console.log('ModeratorLayout - forceUpdate value:', forceUpdate);
       
-      const permissions = (authUser?.role_id as any)?.permissions || [];
-      console.log('ModeratorLayout - User permissions:', permissions);
       console.log('ModeratorLayout - User role:', authUser?.role_id?.name);
       
       // Import permission check functions
@@ -177,10 +177,10 @@ const ModeratorLayout = () => {
         if (authUser?.role_id?.name === 'admin' || authUser?.role_id?.name === 'quản trị viên') {
           return true;
         }
-        // Moderator chỉ có quyền dựa trên permissions thực tế
-        const hasPermission = permissions.includes(permission);
-        console.log(`ModeratorLayout - canAccessRoute(${permission}): ${hasPermission}`);
-        return hasPermission;
+        // Sử dụng hook usePermissions để kiểm tra quyền
+        const hasPermissionResult = hasPermission(permission);
+        console.log(`ModeratorLayout - canAccessRoute(${permission}): ${hasPermissionResult}`);
+        return hasPermissionResult;
       };
       
       // Tạo menu items dựa trên permissions
@@ -194,14 +194,14 @@ const ModeratorLayout = () => {
           label: collapsed ? "KD" : "KIỂM DUYỆT NỘI DUNG",
           type: "group" as const,
           children: [
-            // Chỉ hiển thị nếu có quyền duyệt blog
-            ...(canAccessRoute('duyệt blog') ? [
+            // Chỉ hiển thị nếu có quyền duyệt bài viết
+            ...(canAccessRoute('duyệt bài viết') ? [
               { key: "/moderator/blogs", icon: <FileSearchOutlined />, label: collapsed ? "BL" : "Duyệt Blog" }
             ] : []),
-            // Chỉ hiển thị nếu có quyền duyệt khóa học
-            ...(canAccessRoute('duyệt khóa học') ? [
-              { key: "/moderator/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Duyệt Khóa học" }
-            ] : []),
+                         // Chỉ hiển thị nếu có quyền duyệt khóa học
+             ...(canAccessRoute('approve_courses') ? [
+               { key: "/moderator/courses", icon: <BookOutlined />, label: collapsed ? "KH" : "Duyệt Khóa học" }
+             ] : []),
             // Chỉ hiển thị nếu có quyền duyệt bình luận
             ...(canAccessRoute('duyệt bình luận') ? [
               { key: "/moderator/comments", icon: <CommentOutlined />, label: collapsed ? "BL" : "Danh sách Bình luận" }
@@ -232,11 +232,10 @@ const ModeratorLayout = () => {
         return true;
       });
       
-      console.log('ModeratorLayout - Final menu items:', filteredMenuItems);
-      console.log('ModeratorLayout - Available permissions:', permissions);
-      return filteredMenuItems;
+             console.log('ModeratorLayout - Final menu items:', filteredMenuItems);
+       return filteredMenuItems;
     },
-    [collapsed, authUser, forceUpdate]
+         [collapsed, authUser, forceUpdate]
   );
 
   // --- Breadcrumb ---

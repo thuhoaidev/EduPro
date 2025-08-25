@@ -5,7 +5,7 @@ const Enrollment = require('../models/Enrollment');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { validateSchema } = require('../utils/validateSchema');
-const { getRevenueDataSchema, getTopCoursesSchema, getMonthlyStatisticsSchema } = require('../validations/statistics.validation');
+const { getRevenueDataSchema, getMonthlyStatisticsSchema } = require('../validations/statistics.validation');
 
 // Lấy thống kê tổng quan
 const getOverviewStatistics = catchAsync(async (req, res) => {
@@ -22,12 +22,12 @@ const getOverviewStatistics = catchAsync(async (req, res) => {
     
     // Tính tổng doanh thu
     const totalRevenue = await Order.aggregate([
-      { $match: { status: 'completed' } },
+      { $match: { status: 'paid' } },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);
     
     // Đếm tổng đơn hàng
-    const totalOrders = await Order.countDocuments({ status: 'completed' });
+    const totalOrders = await Order.countDocuments({ status: 'paid' });
     
     // Học viên mới hôm nay
     const newUsersToday = await User.countDocuments({
@@ -51,7 +51,7 @@ const getOverviewStatistics = catchAsync(async (req, res) => {
     const revenueToday = await Order.aggregate([
       {
         $match: {
-          status: 'completed',
+          status: 'paid',
           createdAt: {
             $gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
             $lt: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
@@ -63,7 +63,7 @@ const getOverviewStatistics = catchAsync(async (req, res) => {
     
     // Đơn hàng hôm nay
     const ordersToday = await Order.countDocuments({
-      status: 'completed',
+      status: 'paid',
       createdAt: {
         $gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
         $lt: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
@@ -84,7 +84,7 @@ const getOverviewStatistics = catchAsync(async (req, res) => {
     const lastMonthRevenue = await Order.aggregate([
       {
         $match: {
-          status: 'completed',
+          status: 'paid',
           createdAt: { $lt: lastMonth }
         }
       },
@@ -92,7 +92,7 @@ const getOverviewStatistics = catchAsync(async (req, res) => {
     ]);
     
     const lastMonthOrders = await Order.countDocuments({
-      status: 'completed',
+      status: 'paid',
       createdAt: { $lt: lastMonth }
     });
     
@@ -145,7 +145,7 @@ const getRevenueData = catchAsync(async (req, res) => {
     const revenueData = await Order.aggregate([
       {
         $match: {
-          status: 'completed',
+          status: 'paid',
           createdAt: { $gte: startDate, $lte: endDate }
         }
       },
@@ -191,68 +191,7 @@ const getRevenueData = catchAsync(async (req, res) => {
   }
 });
 
-// Lấy top khóa học bán chạy
-const getTopCourses = catchAsync(async (req, res) => {
-  try {
-    // Validate query parameters
-    await validateSchema(getTopCoursesSchema, req.query);
-    
-    const { limit = 5 } = req.query;
-    
-    const topCourses = await Course.aggregate([
-      {
-        $match: { status: 'published' }
-      },
-      {
-        $lookup: {
-          from: 'enrollments',
-          localField: '_id',
-          foreignField: 'courseId',
-          as: 'enrollments'
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'instructorId',
-          foreignField: '_id',
-          as: 'instructor'
-        }
-      },
-      {
-        $addFields: {
-          sales: { $size: '$enrollments' },
-          instructor: { $arrayElemAt: ['$instructor', 0] }
-        }
-      },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          instructor: '$instructor.fullname',
-          sales: 1,
-          price: 1,
-          rating: 1,
-          thumbnail: 1,
-          revenue: { $multiply: ['$price', { $size: '$enrollments' }] }
-        }
-      },
-      { $sort: { sales: -1 } },
-      { $limit: parseInt(limit) }
-    ]);
-    
-    res.status(200).json({
-      success: true,
-      data: topCourses
-    });
-  } catch (error) {
-    console.error('Error getting top courses:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi khi lấy top khóa học'
-    });
-  }
-});
+
 
 // Lấy thống kê theo danh mục
 const getCategoryStatistics = catchAsync(async (req, res) => {
@@ -313,7 +252,7 @@ const getMonthlyStatistics = catchAsync(async (req, res) => {
     const monthlyStats = await Order.aggregate([
       {
         $match: {
-          status: 'completed',
+          status: 'paid',
           createdAt: {
             $gte: new Date(year, 0, 1),
             $lt: new Date(year + 1, 0, 1)
@@ -353,10 +292,263 @@ const getMonthlyStatistics = catchAsync(async (req, res) => {
   }
 });
 
+// Lấy thống kê khóa học
+const getCourseStatistics = catchAsync(async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const today = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+    
+    // Tổng số khóa học
+    const total = await Course.countDocuments();
+    
+    // Khóa học đã được phê duyệt (active)
+    const active = await Course.countDocuments({ status: 'published' });
+    
+    // Khóa học chờ phê duyệt
+    const pending = await Course.countDocuments({ status: 'pending' });
+    
+    // Khóa học tạo hôm nay
+    const today_start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const today_end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const todayCount = await Course.countDocuments({
+      createdAt: { $gte: today_start, $lt: today_end }
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        total,
+        active,
+        pending,
+        today: todayCount
+      }
+    });
+  } catch (error) {
+    console.error('Error getting course statistics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy thống kê khóa học'
+    });
+  }
+});
+
+// Lấy thống kê đơn hàng
+const getOrderStatistics = catchAsync(async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const today = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+    
+    // Tổng số đơn hàng
+    const total = await Order.countDocuments();
+    
+    // Đơn hàng đã thanh toán
+    const completed = await Order.countDocuments({ status: 'paid' });
+    
+    // Đơn hàng chờ thanh toán
+    const pending = await Order.countDocuments({ status: 'pending' });
+    
+    // Đơn hàng tạo hôm nay
+    const today_start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const today_end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const todayCount = await Order.countDocuments({
+      createdAt: { $gte: today_start, $lt: today_end }
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        total,
+        completed,
+        pending,
+        today: todayCount
+      }
+    });
+  } catch (error) {
+    console.error('Error getting order statistics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy thống kê đơn hàng'
+    });
+  }
+});
+
+// Lấy thống kê học viên
+const getStudentStatistics = catchAsync(async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const today = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+    
+    // Tổng số học viên (không bao gồm admin và instructor)
+    const total = await User.countDocuments({ role: 'student' });
+    
+    // Học viên có hoạt động gần đây (có enrollment trong 30 ngày qua)
+    const recentEnrollments = await Enrollment.distinct('userId', {
+      createdAt: { $gte: startDate }
+    });
+    const active = recentEnrollments.length;
+    
+    // Học viên mới đăng ký trong khoảng thời gian
+    const newStudents = await User.countDocuments({
+      role: 'student',
+      createdAt: { $gte: startDate }
+    });
+    
+    // Học viên đăng ký hôm nay
+    const today_start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const today_end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const todayCount = await User.countDocuments({
+      role: 'student',
+      createdAt: { $gte: today_start, $lt: today_end }
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        total,
+        active,
+        new: newStudents,
+        today: todayCount
+      }
+    });
+  } catch (error) {
+    console.error('Error getting student statistics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy thống kê học viên'
+    });
+  }
+});
+
+// Lấy thống kê giảng viên
+const getInstructorStatistics = catchAsync(async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const today = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+    
+    // Tổng số giảng viên
+    const total = await User.countDocuments({ role: 'instructor' });
+    
+    // Giảng viên có khóa học đã được phê duyệt
+    const activeInstructors = await Course.distinct('instructorId', {
+      status: 'published'
+    });
+    const active = activeInstructors.length;
+    
+    // Giảng viên có khóa học chờ phê duyệt
+    const pendingInstructors = await Course.distinct('instructorId', {
+      status: 'pending'
+    });
+    const pending = pendingInstructors.length;
+    
+    // Giảng viên đăng ký hôm nay
+    const today_start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const today_end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const todayCount = await User.countDocuments({
+      role: 'instructor',
+      createdAt: { $gte: today_start, $lt: today_end }
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        total,
+        active,
+        pending,
+        today: todayCount
+      }
+    });
+  } catch (error) {
+    console.error('Error getting instructor statistics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy thống kê giảng viên'
+    });
+  }
+});
+
+// Lấy thống kê công khai cho homepage
+const getPublicStatistics = catchAsync(async (req, res) => {
+  try {
+    console.log('Getting public statistics...');
+    
+    // Đếm tổng số học viên (chỉ student, không bao gồm admin và instructor)
+    const totalUsers = await User.countDocuments({ role: 'student' });
+    console.log('Total students found:', totalUsers);
+    
+    // Đếm tổng số khóa học đã publish
+    const totalCourses = await Course.countDocuments({ status: 'published' });
+    console.log('Total published courses found:', totalCourses);
+    
+    // Đếm tổng số instructor đã được approve
+    const totalInstructors = await User.countDocuments({ 
+      role: 'instructor',
+      isApproved: true 
+    });
+    console.log('Total approved instructors found:', totalInstructors);
+    
+    // Tính rating trung bình của tất cả khóa học đã publish
+    const averageRating = await Course.aggregate([
+      { 
+        $match: { 
+          status: 'published', 
+          rating: { $exists: true, $ne: null, $gt: 0 } 
+        } 
+      },
+      { $group: { _id: null, avgRating: { $avg: '$rating' } } }
+    ]);
+    console.log('Average rating calculated:', averageRating[0]?.avgRating);
+    
+    // Đếm tổng số enrollment
+    const totalEnrollments = await Enrollment.countDocuments();
+    console.log('Total enrollments found:', totalEnrollments);
+    
+    // Nếu database trống, cung cấp dữ liệu thực tế
+    const statistics = {
+      totalUsers: totalUsers || 0,
+      totalCourses: totalCourses || 0,
+      totalInstructors: totalInstructors || 0,
+      averageRating: averageRating[0]?.avgRating ? Math.round(averageRating[0].avgRating * 10) / 10 : 0,
+      totalEnrollments: totalEnrollments || 0
+    };
+    
+    console.log('Final statistics object:', statistics);
+    
+    res.status(200).json({
+      success: true,
+      data: statistics
+    });
+  } catch (error) {
+    console.error('Error getting public statistics:', error);
+    // Trả về dữ liệu rỗng nếu có lỗi
+    res.status(200).json({
+      success: true,
+      data: {
+        totalUsers: 0,
+        totalCourses: 0,
+        totalInstructors: 0,
+        averageRating: 0,
+        totalEnrollments: 0
+      }
+    });
+  }
+});
+
 module.exports = {
   getOverviewStatistics,
   getRevenueData,
-  getTopCourses,
+  getCourseStatistics,
+  getOrderStatistics,
+  getStudentStatistics,
+  getInstructorStatistics,
   getCategoryStatistics,
-  getMonthlyStatistics
+  getMonthlyStatistics,
+  getPublicStatistics
 }; 

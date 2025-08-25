@@ -9,6 +9,7 @@ const userWalletSchema = new mongoose.Schema({
       amount: Number,
       method: String,
       status: String,
+      orderId: String,
       txId: String, // Thêm trường txId để lưu mã giao dịch
       note: String, // Thêm trường note để lưu chú thích giao dịch
       createdAt: { type: Date, default: Date.now }

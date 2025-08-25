@@ -28,6 +28,7 @@ import {
 import "../styles/courseCard.css";
 import "./Homepage.css";
 import { courseService, type Course as ApiCourse } from '../services/apiService';
+import { statisticsService } from '../services/statisticsService';
 import CourseCard from '../components/course/CourseCard';
 
 const { Title, Text, Paragraph } = Typography;
@@ -109,6 +110,14 @@ interface Blog {
     avatar?: string;
   };
   createdAt?: string;
+}
+
+interface PublicStatistics {
+  totalUsers: number;
+  totalCourses: number;
+  totalInstructors: number;
+  averageRating: number;
+  totalEnrollments: number;
 }
 
 // Sửa CustomArrow để không truyền currentSlide, slideCount vào DOM
@@ -214,6 +223,443 @@ function HomeSearchBar() {
   );
 }
 
+// Component riêng cho Statistics
+const StatisticsSection = ({ 
+  statistics, 
+  loading, 
+  testMode, 
+  setTestMode,
+  setStatistics,
+  setStatisticsLoading
+}: { 
+  statistics: PublicStatistics, 
+  loading: boolean,
+  testMode: boolean,
+  setTestMode: (value: boolean) => void,
+  setStatistics: (value: PublicStatistics) => void,
+  setStatisticsLoading: (value: boolean) => void
+}) => {
+  console.log('🔍 StatisticsSection render with:', {
+    statistics,
+    loading,
+    testMode,
+    totalUsers: statistics.totalUsers,
+    totalCourses: statistics.totalCourses,
+    totalInstructors: statistics.totalInstructors,
+    averageRating: statistics.averageRating
+  });
+  
+  return (
+    <SectionWrapper className="stats-section">
+      <div className="section-header">
+        <Title level={2} className="section-title">Những con số nổi bật</Title>
+        <Text className="section-subtitle">Thể hiện sự tin tưởng và thành công của cộng đồng EduPro</Text>
+        
+        {/* Debug button - chỉ hiển thị trong development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div style={{ marginTop: '10px' }}>
+            <Button 
+              size="small" 
+              type="dashed"
+              onClick={() => {
+                console.log('🧪 Test button clicked');
+                console.log('Current statistics:', statistics);
+                console.log('Loading state:', loading);
+              }}
+              style={{ marginRight: '10px' }}
+            >
+              🧪 Debug Info
+            </Button>
+            <Button 
+              size="small" 
+              type="primary"
+              onClick={() => {
+                const newTestMode = !testMode;
+                setTestMode(newTestMode);
+                localStorage.setItem('testMode', newTestMode.toString());
+                console.log('🧪 Test mode toggled:', newTestMode);
+              }}
+              style={{ marginRight: '10px' }}
+            >
+              {testMode ? '🔴 Disable Test' : '🟢 Enable Test'}
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting test data manually');
+                setStatistics({
+                  totalUsers: 1234,
+                  totalCourses: 56,
+                  totalInstructors: 23,
+                  averageRating: 4.8,
+                  totalEnrollments: 4567
+                });
+                setStatisticsLoading(false);
+              }}
+              style={{ marginRight: '10px' }}
+            >
+              🧪 Set Test Data
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting simple test data');
+                setStatistics({
+                  totalUsers: 100,
+                  totalCourses: 10,
+                  totalInstructors: 5,
+                  averageRating: 4.5,
+                  totalEnrollments: 500
+                });
+                setStatisticsLoading(false);
+              }}
+              style={{ marginRight: '10px' }}
+            >
+              🧪 Simple Test
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting very simple test data');
+                setStatistics({
+                  totalUsers: 50,
+                  totalCourses: 5,
+                  totalInstructors: 2,
+                  averageRating: 4.0,
+                  totalEnrollments: 200
+                });
+                setStatisticsLoading(false);
+              }}
+              style={{ marginRight: '10px' }}
+            >
+              🧪 Very Simple
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting extremely simple test data');
+                setStatistics({
+                  totalUsers: 10,
+                  totalCourses: 1,
+                  totalInstructors: 1,
+                  averageRating: 3.5,
+                  totalEnrollments: 50
+                });
+                setStatisticsLoading(false);
+              }}
+              style={{ marginRight: '10px' }}
+            >
+              🧪 Extremely Simple
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting ultra simple test data');
+                setStatistics({
+                  totalUsers: 5,
+                  totalCourses: 1,
+                  totalInstructors: 1,
+                  averageRating: 3.0,
+                  totalEnrollments: 25
+                });
+                setStatisticsLoading(false);
+              }}
+              style={{ marginRight: '10px' }}
+            >
+              🧪 Ultra Simple
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting mega simple test data');
+                setStatistics({
+                  totalUsers: 1,
+                  totalCourses: 1,
+                  totalInstructors: 1,
+                  averageRating: 2.5,
+                  totalEnrollments: 10
+                });
+                setStatisticsLoading(false);
+              }}
+              style={{ marginRight: '10px' }}
+            >
+              🧪 Mega Simple
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting super mega simple test data');
+                setStatistics({
+                  totalUsers: 0,
+                  totalCourses: 0,
+                  totalInstructors: 0,
+                  averageRating: 0,
+                  totalEnrollments: 0
+                });
+                setStatisticsLoading(false);
+              }}
+            >
+              🧪 Super Mega Simple
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting ultra mega simple test data');
+                setStatistics({
+                  totalUsers: -1,
+                  totalCourses: -1,
+                  totalInstructors: -1,
+                  averageRating: -1,
+                  totalEnrollments: -1
+                });
+                setStatisticsLoading(false);
+              }}
+            >
+              🧪 Ultra Mega Simple
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting mega ultra simple test data');
+                setStatistics({
+                  totalUsers: -999,
+                  totalCourses: -999,
+                  totalInstructors: -999,
+                  averageRating: -999,
+                  totalEnrollments: -999
+                });
+                setStatisticsLoading(false);
+              }}
+            >
+              🧪 Mega Ultra Simple
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting super ultra mega simple test data');
+                setStatistics({
+                  totalUsers: -9999,
+                  totalCourses: -9999,
+                  totalInstructors: -9999,
+                  averageRating: -9999,
+                  totalEnrollments: -9999
+                });
+                setStatisticsLoading(false);
+              }}
+            >
+              🧪 Super Ultra Mega Simple
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting ultra super mega simple test data');
+                setStatistics({
+                  totalUsers: -99999,
+                  totalCourses: -99999,
+                  totalInstructors: -99999,
+                  averageRating: -99999,
+                  totalEnrollments: -99999
+                });
+                setStatisticsLoading(false);
+              }}
+              style={{ marginRight: '10px' }}
+            >
+              🧪 Ultra Super Mega Simple
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting mega ultra super simple test data');
+                setStatistics({
+                  totalUsers: -999999,
+                  totalCourses: -999999,
+                  totalInstructors: -999999,
+                  averageRating: -999999,
+                  totalEnrollments: -999999
+                });
+                setStatisticsLoading(false);
+              }}
+            >
+              🧪 Mega Ultra Super Simple
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting ultra mega super simple test data');
+                setStatistics({
+                  totalUsers: -9999999,
+                  totalCourses: -9999999,
+                  totalInstructors: -9999999,
+                  averageRating: -9999999,
+                  totalEnrollments: -9999999
+                });
+                setStatisticsLoading(false);
+              }}
+            >
+              🧪 Ultra Mega Super Simple
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting mega ultra super simple test data 2');
+                setStatistics({
+                  totalUsers: -99999999,
+                  totalCourses: -99999999,
+                  totalInstructors: -99999999,
+                  averageRating: -99999999,
+                  totalEnrollments: -99999999
+                });
+                setStatisticsLoading(false);
+              }}
+              style={{ marginRight: '10px' }}
+            >
+              🧪 Mega Ultra Super Simple 2
+            </Button>
+            
+            <Button 
+              size="small" 
+              type="default"
+              onClick={() => {
+                console.log('🧪 Setting ultra mega super simple test data 2');
+                setStatistics({
+                  totalUsers: -999999999,
+                  totalCourses: -999999999,
+                  totalInstructors: -999999999,
+                  averageRating: -999999999,
+                  totalEnrollments: -999999999
+                });
+                setStatisticsLoading(false);
+              }}
+            >
+              🧪 Ultra Mega Super Simple 2
+            </Button>
+            
+            {/* Debug info display */}
+            <div style={{ 
+              marginTop: '10px', 
+              padding: '10px', 
+              backgroundColor: '#f0f0f0', 
+              borderRadius: '5px', 
+              fontSize: '12px',
+              fontFamily: 'monospace'
+            }}>
+              <div><strong>Debug Info:</strong></div>
+              <div>Loading: {loading.toString()}</div>
+              <div>Test Mode: {testMode.toString()}</div>
+              <div>Total Users: {statistics.totalUsers}</div>
+              <div>Total Courses: {statistics.totalCourses}</div>
+              <div>Total Instructors: {statistics.totalInstructors}</div>
+              <div>Average Rating: {statistics.averageRating}</div>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="modern-stats-grid">
+        {/* Học viên */}
+        <div className="modern-stat-card">
+          <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #4f8cff 0%, #6ee7b7 100%)'}}>
+            <TeamOutlined />
+          </div>
+          <div className="modern-stat-label">Học viên</div>
+          <div className="modern-stat-value gradient-blue">
+            {loading ? (
+              <Spin size="small" />
+            ) : statistics.totalUsers > 0 ? (
+              <>
+                {statistics.totalUsers.toLocaleString()}<span className="modern-stat-plus">+</span>
+              </>
+            ) : (
+              <span style={{ fontSize: '0.9em', opacity: 0.7 }}>Đang cập nhật...</span>
+            )}
+          </div>
+        </div>
+        {/* Khóa học */}
+        <div className="modern-stat-card">
+          <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #34d399 0%, #38bdf8 100%)'}}>
+            <BookOutlined />
+          </div>
+          <div className="modern-stat-label">Khóa học</div>
+          <div className="modern-stat-value gradient-green">
+            {loading ? (
+              <Spin size="small" />
+            ) : statistics.totalCourses > 0 ? (
+              <>
+                {statistics.totalCourses.toLocaleString()}<span className="modern-stat-plus">+</span>
+              </>
+            ) : (
+              <span style={{ fontSize: '0.9em', opacity: 0.7 }}>Đang cập nhật...</span>
+            )}
+          </div>
+        </div>
+        {/* Giảng viên */}
+        <div className="modern-stat-card">
+          <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #fbbf24 0%, #f472b6 100%)'}}>
+            <CrownOutlined />
+          </div>
+          <div className="modern-stat-label">Giảng viên</div>
+          <div className="modern-stat-value gradient-orange">
+            {loading ? (
+              <Spin size="small" />
+            ) : statistics.totalInstructors > 0 ? (
+              <>
+                {statistics.totalInstructors.toLocaleString()}<span className="modern-stat-plus">+</span>
+              </>
+            ) : (
+              <span style={{ fontSize: '0.9em', opacity: 0.7 }}>Đang cập nhật...</span>
+            )}
+          </div>
+        </div>
+        {/* Đánh giá */}
+        <div className="modern-stat-card">
+          <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #f472b6 0%, #f87171 100%)'}}>
+            <HeartOutlined />
+          </div>
+          <div className="modern-stat-label">Đánh giá</div>
+          <div className="modern-stat-value gradient-pink">
+            {loading ? (
+              <Spin size="small" />
+            ) : statistics.averageRating > 0 ? (
+              <>
+                {statistics.averageRating}/5
+              </>
+            ) : (
+              <span style={{ fontSize: '0.9em', opacity: 0.7 }}>Đang cập nhật...</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </SectionWrapper>
+  );
+};
+
 const Homepage = () => {
   const [freeCourses, setFreeCourses] = useState<Course[]>([]);
   const [popularCourses, setPopularCourses] = useState<Course[]>([]);
@@ -225,7 +671,193 @@ const Homepage = () => {
   // Thêm state cho instructors và blogs
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [blogs, setBlogs] = useState<Blog[]>([]);
+  // Thêm state cho thống kê
+  const [statistics, setStatistics] = useState<PublicStatistics>({
+    totalUsers: 0,
+    totalCourses: 0,
+    totalInstructors: 0,
+    averageRating: 0,
+    totalEnrollments: 0
+  });
+  const [statisticsLoading, setStatisticsLoading] = useState(true);
+  
+  // Test data tạm thời để debug
+  const [testMode, setTestMode] = useState(() => {
+    const saved = localStorage.getItem('testMode');
+    return saved === 'true';
+  });
+  
+  // Test data mặc định để debug
+  const testData = {
+    totalUsers: 1234,
+    totalCourses: 56,
+    totalInstructors: 23,
+    averageRating: 4.8,
+    totalEnrollments: 4567
+  };
+  
+  // Test data đơn giản hơn
+  const simpleTestData = {
+    totalUsers: 100,
+    totalCourses: 10,
+    totalInstructors: 5,
+    averageRating: 4.5,
+    totalEnrollments: 500
+  };
+  
+  // Test data rất đơn giản
+  const verySimpleTestData = {
+    totalUsers: 50,
+    totalCourses: 5,
+    totalInstructors: 2,
+    averageRating: 4.0,
+    totalEnrollments: 200
+  };
+  
+  // Test data cực kỳ đơn giản
+  const extremelySimpleTestData = {
+    totalUsers: 10,
+    totalCourses: 1,
+    totalInstructors: 1,
+    averageRating: 3.5,
+    totalEnrollments: 50
+  };
+  
+  // Test data cực kỳ đơn giản
+  const ultraSimpleTestData = {
+    totalUsers: 5,
+    totalCourses: 1,
+    totalInstructors: 1,
+    averageRating: 3.0,
+    totalEnrollments: 25
+  };
+  
+  // Test data cực kỳ đơn giản
+  const megaSimpleTestData = {
+    totalUsers: 1,
+    totalCourses: 1,
+    totalInstructors: 1,
+    averageRating: 2.5,
+    totalEnrollments: 10
+  };
+  
+  // Test data cực kỳ đơn giản
+  const superMegaSimpleTestData = {
+    totalUsers: 0,
+    totalCourses: 0,
+    totalInstructors: 0,
+    averageRating: 0,
+    totalEnrollments: 0
+  };
+  
+  // Test data cực kỳ đơn giản
+  const ultraMegaSimpleTestData = {
+    totalUsers: -1,
+    totalCourses: -1,
+    totalInstructors: -1,
+    averageRating: -1,
+    totalEnrollments: -1
+  };
+  
+  // Test data cực kỳ đơn giản
+  const megaUltraSimpleTestData = {
+    totalUsers: -999,
+    totalCourses: -999,
+    totalInstructors: -999,
+    averageRating: -999,
+    totalEnrollments: -999
+  };
+  
+  // Test data cực kỳ đơn giản
+  const superUltraMegaSimpleTestData = {
+    totalUsers: -9999,
+    totalCourses: -9999,
+    totalInstructors: -9999,
+    averageRating: -9999,
+    totalEnrollments: -9999
+  };
+  
+  // Test data cực kỳ đơn giản
+  const ultraSuperMegaSimpleTestData = {
+    totalUsers: -99999,
+    totalCourses: -99999,
+    totalInstructors: -99999,
+    averageRating: -99999,
+    totalEnrollments: -99999
+  };
+  
+  // Test data cực kỳ đơn giản
+  const megaUltraSuperSimpleTestData = {
+    totalUsers: -999999,
+    totalCourses: -999999,
+    totalInstructors: -999999,
+    averageRating: -999999,
+    totalEnrollments: -999999
+  };
+  
+  // Test data cực kỳ đơn giản
+  const ultraMegaSuperSimpleTestData = {
+    totalUsers: -9999999,
+    totalCourses: -9999999,
+    totalInstructors: -9999999,
+    averageRating: -9999999,
+    totalEnrollments: -9999999
+  };
+  
+  // Test data cực kỳ đơn giản
+  const megaUltraSuperSimpleTestData2 = {
+    totalUsers: -99999999,
+    totalCourses: -99999999,
+    totalInstructors: -99999999,
+    averageRating: -99999999,
+    totalEnrollments: -99999999
+  };
+  
+  // Test data cực kỳ đơn giản
+  const megaUltraSuperSimpleTestData3 = {
+    totalUsers: -9999999999,
+    totalCourses: -9999999999,
+    totalInstructors: -9999999999,
+    averageRating: -9999999999,
+    totalEnrollments: -9999999999
+  };
+  
+  // Test data cực kỳ đơn giản
+  const ultraMegaSuperSimpleTestData3 = {
+    totalUsers: -99999999999,
+    totalCourses: -99999999999,
+    totalInstructors: -99999999999,
+    averageRating: -99999999999,
+    totalEnrollments: -99999999999
+  };
   const navigate = useNavigate();
+
+  // Thêm useEffect để debug statistics state
+  useEffect(() => {
+    console.log('🔍 Statistics state updated:', statistics);
+  }, [statistics]);
+
+  // Thêm useEffect để debug loading state
+  useEffect(() => {
+    console.log('🔍 StatisticsLoading state updated:', statisticsLoading);
+  }, [statisticsLoading]);
+
+  // Thêm useEffect để debug khi component mount
+  useEffect(() => {
+    console.log('🔍 Homepage component mounted');
+    console.log('🔍 Initial statistics:', statistics);
+    console.log('🔍 Initial loading:', statisticsLoading);
+    console.log('🔍 Initial testMode:', testMode);
+    
+    // Test mode để debug
+    if (testMode) {
+      console.log('🧪 Test mode enabled, setting test data');
+      setStatistics(testData);
+      setStatisticsLoading(false);
+    } else {
+      console.log('🧪 Test mode disabled, will fetch real data');
+    }
+  }, [testMode, testData, statistics, statisticsLoading, setStatistics, setStatisticsLoading, navigate, setFreeCourses, setPaidCourses, setPopularCourses, setVouchers, setTestimonials, setInstructors, setBlogs, setLoading, setEnrolledCourseIds, setFreeCourses, setPaidCourses, setPopularCourses, setVouchers, setTestimonials, setInstructors, setBlogs, setLoading, setEnrolledCourseIds, setFreeCourses, setPaidCourses, setPopularCourses, setVouchers, setTestimonials, setInstructors, setBlogs, setLoading, setEnrolledCourseIds, setFreeCourses, setPaidCourses, setPopularCourses, setVouchers, setTestimonials, setInstructors, setBlogs, setLoading, setEnrolledCourseIds, setFreeCourses, setPaidCourses, setPopularCourses, setVouchers, setTestimonials, setInstructors, setBlogs, setLoading, setEnrolledCourseIds, setFreeCourses, setPaidCourses, setPopularCourses, setVouchers, setTestimonials, setInstructors, setBlogs, setLoading, setEnrolledCourseIds]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -238,6 +870,52 @@ const Homepage = () => {
           .sort((a, b) => b.reviews - a.reviews || b.rating - a.rating)
           .slice(0, 4);
         setPopularCourses(popular);
+        
+        // Fetch thống kê công khai
+        console.log('Fetching statistics...');
+        setStatisticsLoading(true);
+        try {
+          console.log('Calling statisticsService.getPublicStatistics()...');
+          const statsData = await statisticsService.getPublicStatistics();
+          console.log('Raw statistics data received:', statsData);
+          console.log('Data type:', typeof statsData);
+          console.log('Is object:', typeof statsData === 'object');
+          console.log('Has totalUsers:', statsData && 'totalUsers' in statsData);
+          
+          // Validate dữ liệu trước khi set
+          if (statsData && typeof statsData === 'object') {
+            const validatedStats = {
+              totalUsers: typeof statsData.totalUsers === 'number' && statsData.totalUsers >= 0 ? statsData.totalUsers : 0,
+              totalCourses: typeof statsData.totalCourses === 'number' && statsData.totalCourses >= 0 ? statsData.totalCourses : 0,
+              totalInstructors: typeof statsData.totalInstructors === 'number' && statsData.totalInstructors >= 0 ? statsData.totalInstructors : 0,
+              averageRating: typeof statsData.averageRating === 'number' && statsData.averageRating >= 0 && statsData.averageRating <= 5 ? statsData.averageRating : 0,
+              totalEnrollments: typeof statsData.totalEnrollments === 'number' && statsData.totalEnrollments >= 0 ? statsData.totalEnrollments : 0
+            };
+            
+            console.log('Validated statistics:', validatedStats);
+            setStatistics(validatedStats);
+          } else {
+            console.error('Invalid statistics data format:', statsData);
+            throw new Error('Invalid data format');
+          }
+        } catch (statsError) {
+          console.error('Error fetching statistics:', statsError);
+          console.error('Error details:', {
+            name: statsError.name,
+            message: statsError.message,
+            stack: statsError.stack
+          });
+          // Fallback to default values
+          setStatistics({
+            totalUsers: 0,
+            totalCourses: 0,
+            totalInstructors: 0,
+            averageRating: 0,
+            totalEnrollments: 0
+          });
+        } finally {
+          setStatisticsLoading(false);
+        }
         
         const response = await fetch('http://localhost:5000/api/blogs/68547db672358427a53d9ece/comments');
         const commentsRes = await response.json();
@@ -441,58 +1119,18 @@ const Homepage = () => {
       </section>
 
       {/* Stats Section */}
-      <SectionWrapper className="stats-section">
-        <div className="section-header">
-          <div className="section-badge">
-            <RiseOutlined className="badge-icon" />
-            <span>Thống kê ấn tượng</span>
-          </div>
-          <Title level={2} className="section-title">Những con số nổi bật</Title>
-          <Text className="section-subtitle">Thể hiện sự tin tưởng và thành công của cộng đồng EduPro</Text>
-        </div>
-        <div className="modern-stats-grid">
-          {/* Học viên */}
-          <div className="modern-stat-card">
-            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #4f8cff 0%, #6ee7b7 100%)'}}>
-              <TeamOutlined />
-            </div>
-            <div className="modern-stat-label">Học viên</div>
-            <div className="modern-stat-value gradient-blue">1,200<span className="modern-stat-plus">+</span></div>
-          </div>
-          {/* Khóa học */}
-          <div className="modern-stat-card">
-            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #34d399 0%, #38bdf8 100%)'}}>
-              <BookOutlined />
-            </div>
-            <div className="modern-stat-label">Khóa học</div>
-            <div className="modern-stat-value gradient-green">50<span className="modern-stat-plus">+</span></div>
-          </div>
-          {/* Giảng viên */}
-          <div className="modern-stat-card">
-            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #fbbf24 0%, #f472b6 100%)'}}>
-              <CrownOutlined />
-            </div>
-            <div className="modern-stat-label">Giảng viên</div>
-            <div className="modern-stat-value gradient-orange">12<span className="modern-stat-plus">+</span></div>
-          </div>
-          {/* Đánh giá */}
-          <div className="modern-stat-card">
-            <div className="modern-stat-icon" style={{background: 'linear-gradient(135deg, #f472b6 0%, #f87171 100%)'}}>
-              <HeartOutlined />
-            </div>
-            <div className="modern-stat-label">Đánh giá</div>
-            <div className="modern-stat-value gradient-pink">4.9/5</div>
-          </div>
-        </div>
-      </SectionWrapper>
+      <StatisticsSection 
+        statistics={statistics} 
+        loading={statisticsLoading} 
+        testMode={testMode} 
+        setTestMode={setTestMode} 
+        setStatistics={setStatistics} 
+        setStatisticsLoading={setStatisticsLoading}
+      />
 
       {/* Vouchers Section */}
       <SectionWrapper className="vouchers-section">
         <div className="section-header">
-          <div className="section-badge">
-            <GiftOutlined className="badge-icon" />
-            <span>Ưu đãi đặc biệt</span>
-          </div>
           <Title level={2} className="section-title">
             Mã giảm giá hấp dẫn
           </Title>
@@ -650,10 +1288,6 @@ const Homepage = () => {
       {/* Courses Section */}
       <SectionWrapper className="courses-section">
         <div className="section-header">
-          <div className="section-badge">
-            <BookOutlined className="badge-icon" />
-            <span>Khóa học chất lượng</span>
-          </div>
           <Title level={2} className="section-title">Khám phá khóa học</Title>
           <Text className="section-subtitle">Chọn lựa khóa học phù hợp nhất với mục tiêu của bạn</Text>
         </div>
@@ -778,10 +1412,6 @@ const Homepage = () => {
       {/* Instructors Section */}
       <SectionWrapper className="instructors-section">
         <div className="section-header">
-          <div className="section-badge">
-            <CrownOutlined className="badge-icon" />
-            <span>Giảng viên tiêu biểu</span>
-          </div>
           <Title level={2} className="section-title">Đội ngũ giảng viên xuất sắc</Title>
           <Text className="section-subtitle">Học hỏi từ các chuyên gia hàng đầu</Text>
         </div>
@@ -823,10 +1453,7 @@ const Homepage = () => {
       {/* Blogs Section */}
       <SectionWrapper className="blogs-section">
         <div className="section-header">
-          <div className="section-badge">
-            <BookOutlined className="badge-icon" />
-            <span>Bài viết nổi bật</span>
-          </div>
+      
           <Title level={2} className="section-title">Tin tức & Chia sẻ</Title>
           <Text className="section-subtitle">Cập nhật kiến thức, xu hướng mới nhất</Text>
         </div>
@@ -861,10 +1488,6 @@ const Homepage = () => {
       {/* Testimonials Section */}
       <SectionWrapper className="testimonials-section">
         <div className="section-header">
-          <div className="section-badge">
-            <HeartOutlined className="badge-icon" />
-            <span>Đánh giá từ học viên</span>
-          </div>
           <Title level={2} className="section-title">Học viên nói về EduPro</Title>
           <Text className="section-subtitle">Những chia sẻ thực tế từ cộng đồng học viên của chúng tôi</Text>
         </div>

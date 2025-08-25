@@ -452,7 +452,7 @@ export const getSectionById = async (sectionId: string) => {
 // Cập nhật section
 export const updateSection = async (
   sectionId: string,
-  sectionData: { title: string; description?: string },
+  sectionData: { title: string; description?: string; status?: string },
 ) => {
   try {
     const token = localStorage.getItem('token');
@@ -478,7 +478,7 @@ export const updateSection = async (
 // Tạo section mới
 export const createSection = async (
   courseId: string,
-  sectionData: { title: string; description?: string },
+  sectionData: { title: string; description?: string; status?: string },
 ) => {
   try {
     const token = localStorage.getItem('token');
@@ -529,7 +529,7 @@ export const deleteSection = async (sectionId: string) => {
 // Tạo bài học mới
 export const createLesson = async (
   sectionId: string,
-  lessonData: { title: string; is_preview?: boolean },
+  lessonData: { title: string; is_preview?: boolean; status?: string },
 ) => {
   try {
     const token = localStorage.getItem('token');
@@ -545,6 +545,7 @@ export const createLesson = async (
             section_id: sectionId,
             title: lessonData.title,
             is_preview: lessonData.is_preview || false,
+            status: lessonData.status || 'draft',
           },
         ],
       }),
@@ -563,7 +564,7 @@ export const createLesson = async (
 // Cập nhật bài học
 export const updateLesson = async (
   lessonId: string,
-  lessonData: { title: string; is_preview?: boolean },
+  lessonData: { title: string; is_preview?: boolean; status?: string },
 ) => {
   try {
     const token = localStorage.getItem('token');
@@ -718,6 +719,27 @@ export const updateQuiz = async (quizId: string, quizData: { questions: any[] })
     return result.data;
   } catch (error) {
     console.error('Error updating quiz:', error);
+    throw error;
+  }
+};
+
+// Lấy quiz cho lesson
+export const getQuizByLesson = async (lessonId: string) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/quizzes/lesson/${lessonId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Không tìm thấy quiz');
+    }
+    return result.data;
+  } catch (error) {
+    console.error('Error fetching quiz:', error);
     throw error;
   }
 };

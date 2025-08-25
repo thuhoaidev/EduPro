@@ -9,7 +9,11 @@ const createLessonSchema = Joi.object({
         'string.empty': 'Tiêu đề bài học không được để trống',
         'any.required': 'Tiêu đề bài học là bắt buộc'
     }),
-    is_preview: Joi.boolean().default(false)
+    is_preview: Joi.boolean().default(false),
+    status: Joi.string().valid('draft', 'published').default('draft').messages({
+        'string.empty': 'Trạng thái bài học không được để trống',
+        'any.only': 'Trạng thái bài học phải là draft hoặc published'
+    })
 });
 
 const updateLessonSchema = Joi.object({
@@ -17,7 +21,11 @@ const updateLessonSchema = Joi.object({
         'string.empty': 'Tiêu đề bài học không được để trống',
         'any.required': 'Tiêu đề bài học là bắt buộc'
     }),
-    is_preview: Joi.boolean()
+    is_preview: Joi.boolean(),
+    status: Joi.string().valid('draft', 'published').messages({
+        'string.empty': 'Trạng thái bài học không được để trống',
+        'any.only': 'Trạng thái bài học phải là draft hoặc published'
+    })
 });
 
 const reorderLessonsSchema = Joi.object({

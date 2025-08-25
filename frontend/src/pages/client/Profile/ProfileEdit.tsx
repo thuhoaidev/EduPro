@@ -30,6 +30,15 @@ const ProfileEdit = () => {
   const [avatarUrl, setAvatarUrl] = React.useState<string>('');
   const [avatarFileList, setAvatarFileList] = React.useState<UploadFile[]>([]);
   const [previewUrl, setPreviewUrl] = React.useState<string>('');
+  const [userInitials, setUserInitials] = React.useState<string>('U');
+
+  const getInitials = (name?: string) => {
+    if (!name || typeof name !== 'string') return 'U';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'U';
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
 
   React.useEffect(() => {
     const fetchUserData = async () => {
@@ -45,7 +54,7 @@ const ProfileEdit = () => {
         console.log('User data from API:', userData);
 
         // Set avatar URL for display
-        if (userData.avatar) {
+        if (userData.avatar && userData.avatar !== 'default-avatar.jpg' && userData.avatar !== '') {
           setAvatarUrl(userData.avatar);
           setAvatarFileList([]); // reset fileList nếu có avatar từ backend
           setPreviewUrl(''); // reset preview URL
@@ -69,6 +78,10 @@ const ProfileEdit = () => {
         console.log('Form data mapped for setFieldsValue:', formData);
         form.setFieldsValue(formData);
 
+        // Cập nhật initials theo tên hiển thị
+        const displayName = formData.fullname || userData.nickname || userData.name || userData.email;
+        setUserInitials(getInitials(displayName));
+
       } catch (error) {
         console.error('Error fetching user data:', error);
         message.error('Không thể tải thông tin người dùng');
@@ -91,18 +104,29 @@ const ProfileEdit = () => {
         return;
       }
 
+      // Chuẩn hóa giới tính theo enum backend (Nam/Nữ/Khác)
+      const mapGender = (g?: string) => {
+        if (!g) return '';
+        const m = g.toLowerCase();
+        if (m === 'male' || m === 'nam') return 'Nam';
+        if (m === 'female' || m === 'nữ' || m === 'nu') return 'Nữ';
+        if (m === 'other' || m === 'khác' || m === 'khac') return 'Khác';
+        return g;
+      };
+
       // Tạo FormData để gửi cả thông tin và avatar
       const formData = new FormData();
 
-      // Thêm thông tin cơ bản
-      formData.append('fullname', values.fullname || '');
-      formData.append('email', values.email);
-      formData.append('phone', values.phone || '');
-      formData.append('address', values.address || '');
-      formData.append('dob', values.dob ? values.dob.format('YYYY-MM-DD') : '');
-      formData.append('gender', values.gender || '');
-      formData.append('bio', values.bio || '');
-      formData.append('nickname', values.nickname || '');
+      // Thêm thông tin cơ bản (chỉ append khi có giá trị hợp lệ)
+      if (values.fullname && values.fullname.trim()) formData.append('fullname', values.fullname.trim());
+      if (values.email) formData.append('email', values.email);
+      if (values.phone && values.phone.trim()) formData.append('phone', values.phone.trim());
+      if (values.address && values.address.trim()) formData.append('address', values.address.trim());
+      if (values.dob) formData.append('dob', values.dob.format('YYYY-MM-DD'));
+      const normalizedGender = mapGender(values.gender);
+      if (normalizedGender) formData.append('gender', normalizedGender);
+      if (values.bio && values.bio.trim()) formData.append('bio', values.bio.trim());
+      if (values.nickname && values.nickname.trim()) formData.append('nickname', values.nickname.trim());
 
       // Nếu có file avatar mới
       if (values.avatar && Array.isArray(values.avatar) && values.avatar.length > 0) {
@@ -115,11 +139,8 @@ const ProfileEdit = () => {
 
       console.log('Sending form data with avatar:', formData);
 
-      const response = await config.put('/users/me', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // Để browser tự set boundary cho multipart, không set Content-Type thủ công
+      const response = await config.put('/users/me', formData);
 
       console.log('Response:', response);
 
@@ -357,21 +378,39 @@ const ProfileEdit = () => {
                           </div>
                         </div>
                       ) : (
-                        <div style={{
-                          width: '100px',
-                          height: '100px',
-                          borderRadius: '50%',
-                          border: '2px dashed #d9d9d9',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          background: 'white',
-                          cursor: 'pointer',
-                          transition: 'all 0.3s'
-                        }}>
-                          <CameraOutlined style={{ fontSize: '24px', color: '#667eea', marginBottom: '8px' }} />
-                          <Text style={{ fontSize: '12px', color: '#666' }}>Tải ảnh</Text>
+                        <div style={{ position: 'relative' }}>
+                          <div style={{
+                            width: '100px',
+                            height: '100px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)',
+                            color: 'white',
+                            fontWeight: 700,
+                            fontSize: '36px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                          }}>
+                            {userInitials}
+                          </div>
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '0',
+                            right: '0',
+                            background: '#667eea',
+                            color: 'white',
+                            borderRadius: '50%',
+                            width: '32px',
+                            height: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                          }}>
+                            <CameraOutlined />
+                          </div>
                         </div>
                       )}
                     </Upload>

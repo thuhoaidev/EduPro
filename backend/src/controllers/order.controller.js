@@ -307,7 +307,15 @@ class OrderController {
       console.log('🔍 getUserOrders - Filter:', filter);
 
       const orders = await Order.find(filter)
-        .populate('items.courseId', 'title thumbnail price')
+        .populate({
+          path: 'items.courseId',
+          select: 'title thumbnail price rating instructor',
+          populate: {
+            path: 'instructor',
+            select: 'user',
+            populate: { path: 'user', select: 'fullname avatar' }
+          }
+        })
         .populate('voucherId', 'code title')
         .sort({ createdAt: -1 })
         .limit(limit * 1)
@@ -317,29 +325,101 @@ class OrderController {
 
       const total = await Order.countDocuments(filter);
 
-      return res.json({
-        success: true,
-        message: 'Lấy danh sách đơn hàng thành công',
-        data: {
-          orders: orders.map(order => ({
+      // Helper to compute course stats: videos count, enrolled count, total duration (minutes)
+      const Section = require('../models/Section');
+      const Lesson = require('../models/Lesson');
+      const Video = require('../models/Video');
+      const Enrollment = require('../models/Enrollment');
+
+      // Build enriched orders with course metadata expected by frontend
+      const enrichedOrders = await Promise.all(
+        orders.map(async (order) => {
+          const enrichedItems = await Promise.all(
+            order.items.map(async (item) => {
+              const course = item.courseId; // populated Course doc
+              let videosCount = 0;
+              let totalDuration = 0; // seconds
+              let studentsCount = 0;
+
+              try {
+                // Fetch sections and lessons once per course
+                const sections = await Section.find({ course_id: course._id }).select('lessons');
+                const lessonIds = sections.reduce((acc, sec) => {
+                  if (sec.lessons && sec.lessons.length > 0) {
+                    return acc.concat(sec.lessons);
+                  }
+                  return acc;
+                }, []);
+
+                if (lessonIds.length > 0) {
+                  const videos = await Video.find({ lesson_id: { $in: lessonIds } }).select('duration');
+                  videosCount = videos.length;
+                  totalDuration = videos.reduce((sum, v) => sum + (v.duration || 0), 0);
+                }
+
+                studentsCount = await Enrollment.countDocuments({ course: course._id });
+              } catch (e) {
+                // Fail silently for stats; keep defaults
+                console.error('Error computing course stats for order item', course._id?.toString?.(), e.message);
+              }
+
+              // Format duration in minutes
+              const totalMinutes = Math.round(totalDuration / 60);
+              const durationLabel = `${totalMinutes} phút`;
+
+              // Map to expected structure with author field
+              const coursePayload = {
+                _id: course._id,
+                title: course.title,
+                thumbnail: course.thumbnail,
+                price: course.price,
+                rating: course.rating || 0,
+                duration: durationLabel,
+                videosCount: videosCount,
+                students: studentsCount,
+                author: {
+                  name: course?.instructor?.user?.fullname || 'EduPro',
+                  avatar: course?.instructor?.user?.avatar || null,
+                },
+              };
+
+              return {
+                courseId: coursePayload,
+                price: item.price,
+                quantity: item.quantity,
+              };
+            })
+          );
+
+          return {
             id: order._id,
-            items: order.items,
+            items: enrichedItems,
             totalAmount: order.totalAmount,
             discountAmount: order.discountAmount,
             finalAmount: order.finalAmount,
             voucher: order.voucherId,
             paymentMethod: order.paymentMethod,
+            status: order.status,
+            paymentStatus: order.paymentStatus,
             fullName: order.fullName,
             phone: order.phone,
             email: order.email,
-            createdAt: order.createdAt
-          })),
+            createdAt: order.createdAt,
+          };
+        })
+      );
+
+      return res.json({
+        success: true,
+        message: 'Lấy danh sách đơn hàng thành công',
+        data: {
+          orders: enrichedOrders,
           pagination: {
             current: Number(page),
             total: Math.ceil(total / limit),
-            pageSize: Number(limit)
-          }
-        }
+            pageSize: Number(limit),
+          },
+        },
       });
     } catch (err) {
       console.error('Get user orders error:', err);

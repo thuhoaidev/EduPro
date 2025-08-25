@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { config } from '../api/axios';
+import { cartApiMonitor } from '../utils/cartApiMonitor';
 
 interface CartContextType {
   cartCount: number;
   cartItems: any[];
   updateCartCount: () => Promise<void>;
+  refreshCart: () => Promise<void>;
   addToCart: (courseId: string) => Promise<boolean>;
   removeFromCart: (cartItemId: string) => Promise<void>;
   removeItemsFromCart: (cartItemIds: string[]) => Promise<void>;
@@ -25,9 +27,24 @@ export const useCart = () => {
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cartCount, setCartCount] = useState(0);
   const [cartItems, setCartItems] = useState<any[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const lastUpdateTime = useRef<number>(0);
 
   const updateCartCount = async () => {
+    // Throttle: chỉ cho phép gọi API mỗi 2 giây
+    const now = Date.now();
+    if (isUpdating || (now - lastUpdateTime.current < 2000)) {
+      console.log('Cart update throttled - skipping API call');
+      return;
+    }
+
     try {
+      setIsUpdating(true);
+      lastUpdateTime.current = now;
+      
+      // Log the API call
+      cartApiMonitor.logCall('CartContext', 'updateCartCount');
+      
       // Kiểm tra token trước khi gọi API
       const token = localStorage.getItem('token');
       if (!token) {
@@ -39,8 +56,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const response = await config.get('/carts');
       const items = response.data.items || [];
-      setCartCount(items.length);
-      setCartItems(items);
+      const newCount = items.length;
+      
+      // Chỉ cập nhật nếu số lượng thực sự thay đổi
+      if (newCount !== cartCount || JSON.stringify(items) !== JSON.stringify(cartItems)) {
+        setCartCount(newCount);
+        setCartItems(items);
+        // Emit event để thông báo cho Header
+        window.dispatchEvent(new CustomEvent('cart-updated'));
+        console.log('Cart updated - Count:', newCount, 'Items:', items.length);
+      } else {
+        console.log('Cart data unchanged, skipping update');
+      }
     } catch (error: any) {
       console.error('Error fetching cart count:', error);
       
@@ -54,8 +81,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Các lỗi khác, giữ nguyên trạng thái
         console.log('Lỗi khác khi lấy giỏ hàng:', error.message);
       }
+    } finally {
+      setIsUpdating(false);
     }
   };
+
+  // Alias cho updateCartCount để dễ sử dụng từ bên ngoài
+  const refreshCart = updateCartCount;
 
   const addToCart = async (courseId: string): Promise<boolean> => {
     console.log('addToCart - courseId:', courseId);
@@ -69,6 +101,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await config.post('/carts', { courseId });
       await updateCartCount();
+      
+      // Emit event để thông báo cho Header
+      window.dispatchEvent(new CustomEvent('cart-item-added', { detail: { courseId } }));
+      window.dispatchEvent(new CustomEvent('cart-updated'));
+      
       return true;
     } catch (error: any) {
       console.error('Error adding to cart:', error);
@@ -101,6 +138,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await config.delete(`/carts/${cartItemId}`);
       await updateCartCount();
+      
+      // Emit event để thông báo cho Header
+      window.dispatchEvent(new CustomEvent('cart-item-removed', { detail: { cartItemId } }));
+      window.dispatchEvent(new CustomEvent('cart-updated'));
     } catch (error: any) {
       console.error('Error removing from cart:', error);
       
@@ -126,6 +167,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await config.delete('/carts/bulk', { data: { itemIds: cartItemIds } });
       await updateCartCount();
+      
+      // Emit event để thông báo cho Header
+      window.dispatchEvent(new CustomEvent('cart-item-removed', { detail: { cartItemIds } }));
+      window.dispatchEvent(new CustomEvent('cart-updated'));
+      
       console.log('✅ Đã xóa các món hàng đã thanh toán:', cartItemIds);
     } catch (error: any) {
       console.error('Error removing items from cart:', error);
@@ -158,6 +204,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Cập nhật state local
       setCartCount(0);
       setCartItems([]);
+      
+      // Emit event để thông báo cho Header
+      window.dispatchEvent(new CustomEvent('cart-updated'));
+      
       console.log('✅ Đã xóa giỏ hàng thành công - Cart count:', 0, 'Items:', []);
     } catch (error: any) {
       console.error('Error clearing cart:', error);
@@ -182,12 +232,39 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       clearCart();
     }
-  }, [localStorage.getItem('token')]);
+  }, []); // Remove the problematic dependency
+
+  // Add a separate effect to handle token changes
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'token') {
+        const newToken = event.newValue;
+        if (newToken) {
+          updateCartCount();
+        } else {
+          clearCart();
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Expose refreshCart method to window object for external access
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.cartContext = {
+        refreshCart
+      };
+    }
+  }, [refreshCart]);
 
   const value = {
     cartCount,
     cartItems,
     updateCartCount,
+    refreshCart,
     addToCart,
     removeFromCart,
     removeItemsFromCart,

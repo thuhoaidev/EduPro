@@ -38,7 +38,7 @@ import {
   FileTextOutlined,
 } from '@ant-design/icons';
 import { reportService } from '../../../services/reportService';
-import styles from '../Users/UserPage.module.css';
+import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import type { ColumnsType } from 'antd/es/table';
@@ -84,36 +84,81 @@ const FilterSection = ({
   dateRange,
   search,
 }: FilterSectionProps) => (
-          <Card className={styles.filterCard} variant="borderless">
-    <div className={styles.filterGroup}>
-      <Input
-        placeholder="Tìm kiếm báo cáo..."
-        prefix={<SearchOutlined />}
-        value={searchInput}
-        onChange={(e) => setSearchInput(e.target.value)}
-        onPressEnter={() => setSearch(searchInput)}
-        className={styles.filterInput}
-        allowClear
-      />
-      <Select
-        placeholder="Lọc theo trạng thái"
-        value={selectedStatus}
-        onChange={setSelectedStatus}
-        className={styles.filterSelect}
-        allowClear
-      >
-        <Select.Option value="pending">Chờ xử lý</Select.Option>
-        <Select.Option value="resolved">Đã xử lý</Select.Option>
-      </Select>
-      <RangePicker
-        placeholder={['Từ ngày', 'Đến ngày']}
-        onChange={(dates) => setDateRange(dates)}
-        className={styles.filterDateRange}
-        format="DD/MM/YYYY"
-        value={dateRange}
-      />
-    </div>
-  </Card>
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6, delay: 0.3 }}
+  >
+    <Card 
+      style={{ 
+        background: 'rgba(255, 255, 255, 0.95)', 
+        backdropFilter: 'blur(10px)',
+        borderRadius: '16px',
+        border: 'none',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+        marginBottom: '24px'
+      }}
+      variant="borderless"
+    >
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '20px', 
+        paddingBottom: '12px', 
+        borderBottom: '1px solid #f0f0f0'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <FilterOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+          <Text strong style={{ fontSize: '16px', color: '#1a1a1a' }}>Bộ lọc tìm kiếm</Text>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
+        <Input
+          placeholder="Tìm kiếm báo cáo..."
+          prefix={<SearchOutlined />}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onPressEnter={() => setSearch(searchInput)}
+          style={{ 
+            minWidth: '300px',
+            borderRadius: '10px',
+            height: '44px',
+            border: '1px solid #d9d9d9',
+            fontSize: '14px'
+          }}
+          allowClear
+        />
+        <Select
+          placeholder="Lọc theo trạng thái"
+          value={selectedStatus}
+          onChange={setSelectedStatus}
+          style={{ 
+            minWidth: '200px',
+            borderRadius: '10px',
+            height: '44px',
+            border: '1px solid #d9d9d9',
+            fontSize: '14px'
+          }}
+          allowClear
+        >
+          <Select.Option value="pending">Chờ xử lý</Select.Option>
+          <Select.Option value="resolved">Đã xử lý</Select.Option>
+        </Select>
+        <RangePicker
+          placeholder={['Từ ngày', 'Đến ngày']}
+          onChange={(dates) => setDateRange(dates)}
+          style={{ 
+            borderRadius: '10px',
+            height: '44px',
+            border: '1px solid #d9d9d9'
+          }}
+          format="DD/MM/YYYY"
+          value={dateRange}
+        />
+      </div>
+    </Card>
+  </motion.div>
 );
 
 // StatCards component
@@ -130,93 +175,175 @@ const StatCards = ({ reportStats }: StatCardsProps) => {
   const resolvedPercentage = reportStats.total > 0 ? (reportStats.resolved / reportStats.total) * 100 : 0;
 
   return (
-    <Row gutter={[16, 16]} className={styles.statsRow} justify="center">
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} variant="borderless">
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#1890ff' }}>
-              <FileTextOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Tổng số báo cáo" 
-                value={reportStats.total} 
-                valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <RiseOutlined style={{ color: '#52c41a' }} />
-                <Text type="secondary">Tất cả báo cáo</Text>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.2 }}
+    >
+      <Row gutter={[24, 24]} style={{ marginBottom: '32px' }} justify="center">
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            variant="borderless"
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#1890ff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <FileTextOutlined style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic 
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Tổng số báo cáo</Text>} 
+                  value={reportStats.total} 
+                  valueStyle={{ color: '#1890ff', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <RiseOutlined style={{ color: '#52c41a' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>Tất cả báo cáo</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} variant="borderless">
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#faad14' }}>
-              <ClockCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Chờ xử lý" 
-                value={reportStats.pending} 
-                valueStyle={{ color: '#faad14', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <RiseOutlined style={{ color: '#faad14' }} />
-                <Text type="secondary">{pendingPercentage.toFixed(1)}%</Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            variant="borderless"
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#faad14',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <ClockCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic 
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Chờ xử lý</Text>} 
+                  value={reportStats.pending} 
+                  valueStyle={{ color: '#faad14', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <RiseOutlined style={{ color: '#faad14' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>{pendingPercentage.toFixed(1)}%</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} variant="borderless">
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#52c41a' }}>
-              <CheckCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
-            </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Đã xử lý" 
-                value={reportStats.resolved} 
-                valueStyle={{ color: '#52c41a', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <div className={styles.statTrend}>
-                <RiseOutlined style={{ color: '#52c41a' }} />
-                <Text type="secondary">{resolvedPercentage.toFixed(1)}%</Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            variant="borderless"
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#52c41a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CheckCircleOutlined style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic 
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Đã xử lý</Text>} 
+                  value={reportStats.resolved} 
+                  valueStyle={{ color: '#52c41a', fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                  <RiseOutlined style={{ color: '#52c41a' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>{resolvedPercentage.toFixed(1)}%</Text>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={6}>
-        <Card className={styles.statCard} variant="borderless">
-          <div className={styles.statContent}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#722ed1' }}>
-              <MessageOutlined style={{ color: 'white', fontSize: '24px' }} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease'
+            }}
+            variant="borderless"
+            hoverable
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '60px', 
+                height: '60px', 
+                borderRadius: '12px', 
+                backgroundColor: '#722ed1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <MessageOutlined style={{ color: 'white', fontSize: '24px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Statistic 
+                  title={<Text style={{ fontSize: '14px', color: '#666' }}>Tỷ lệ xử lý</Text>} 
+                  value={resolvedPercentage} 
+                  suffix="%" 
+                  precision={1}
+                  valueStyle={{ color: '#722ed1', fontSize: '28px', fontWeight: 600 }}
+                />
+                <Progress 
+                  percent={resolvedPercentage} 
+                  size="small" 
+                  strokeColor="#722ed1"
+                  showInfo={false}
+                  style={{ marginTop: '8px' }}
+                />
+              </div>
             </div>
-            <div className={styles.statInfo}>
-              <Statistic 
-                title="Tỷ lệ xử lý" 
-                value={resolvedPercentage} 
-                suffix="%" 
-                precision={1}
-                valueStyle={{ color: '#722ed1', fontSize: '24px', fontWeight: 'bold' }}
-              />
-              <Progress 
-                percent={resolvedPercentage} 
-                size="small" 
-                strokeColor="#722ed1"
-                showInfo={false}
-                style={{ marginTop: '8px' }}
-              />
-            </div>
-          </div>
-        </Card>
-      </Col>
-    </Row>
+          </Card>
+        </Col>
+      </Row>
+    </motion.div>
   );
 };
 
@@ -457,188 +584,353 @@ const ReportsPage: React.FC = () => {
 
   if (loading && reports.length === 0) {
     return (
-      <div className={styles.userPageContainer}>
-        <div className={styles.loadingContainer}>
-          <Spin size="large" />
-          <Text style={{ marginTop: 16 }}>Đang tải dữ liệu...</Text>
-        </div>
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              textAlign: 'center',
+              padding: '80px 24px'
+            }}
+          >
+            <Spin size="large" />
+            <Text style={{ marginTop: 16, fontSize: '16px' }}>Đang tải dữ liệu...</Text>
+          </Card>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className={styles.userPageContainer}>
-      {/* Page Header */}
-      <div className={styles.pageHeader}>
-        <div className={styles.headerLeft}>
-          <Title level={2} className={styles.pageTitle}>
-            <TrophyOutlined className={styles.titleIcon} />
-            Quản lý báo cáo
-          </Title>
-          <Paragraph className={styles.pageSubtitle}>
-            Quản lý và xử lý các báo cáo từ người dùng trong hệ thống
-          </Paragraph>
-        </div>
-      </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div style={{ padding: '24px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        {/* Page Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          style={{ marginBottom: '32px' }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <Title level={2} style={{ margin: 0, color: '#1a1a1a' }}>
+                  <TrophyOutlined style={{ marginRight: '12px', color: '#667eea' }} />
+                  Quản lý báo cáo
+                </Title>
+                <Paragraph style={{ margin: '8px 0 0 0', fontSize: '16px', color: '#666' }}>
+                  Quản lý và xử lý các báo cáo từ người dùng trong hệ thống
+                </Paragraph>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
 
-      {/* Statistics Cards */}
-      <StatCards reportStats={reportStats} />
+        {/* Statistics Cards */}
+        <StatCards reportStats={reportStats} />
 
-      {/* Filter Section */}
-      <FilterSection
-        searchInput={searchInput}
-        setSearchInput={setSearchInput}
-        setSearch={setSearch}
-        selectedStatus={selectedStatus}
-        setSelectedStatus={setSelectedStatus}
-        setDateRange={setDateRange}
-        dateRange={dateRange}
-        search={search}
-      />
-
-      {/* Reports Table */}
-      <Card className={styles.userTableCard} variant="borderless">
-        <div className={styles.tableHeader}>
-          <div className={styles.tableTitleSection}>
-            <BookOutlined className={styles.tableIcon} />
-            <Title level={4} className={styles.tableTitle}>
-              Danh sách báo cáo
-            </Title>
-            <Badge count={reports.length} className={styles.userCountBadge} />
-          </div>
-          <div className={styles.tableActions}>
-            <Text type="secondary">
-              Hiển thị {((pagination.current - 1) * pagination.pageSize) + 1} - {Math.min(pagination.current * pagination.pageSize, reports.length)} của {reports.length} báo cáo
-            </Text>
-          </div>
-        </div>
-        
-        <Table
-          columns={columns}
-          dataSource={reports}
-          loading={loading}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} báo cáo`,
-            pageSizeOptions: ['10', '20', '50', '100'],
-            size: 'small',
-          }}
-          onChange={(pagination) => fetchReports(pagination.current, pagination.pageSize)}
-          rowKey="_id"
-          className={styles.userTable}
-          scroll={{ x: 900 }}
-          size="small"
+        {/* Filter Section */}
+        <FilterSection
+          searchInput={searchInput}
+          setSearchInput={setSearchInput}
+          setSearch={setSearch}
+          selectedStatus={selectedStatus}
+          setSelectedStatus={setSelectedStatus}
+          setDateRange={setDateRange}
+          dateRange={dateRange}
+          search={search}
         />
-      </Card>
 
-      {/* Reply Modal */}
-      <Modal
-        title={
-          <div className={styles.modalTitle}>
-            <MessageOutlined className={styles.modalIcon} />
-            Trả lời báo cáo
-          </div>
-        }
-        open={replyModalVisible}
-        onCancel={() => setReplyModalVisible(false)}
-        footer={null}
-        width={700}
-        className={styles.userModal}
-      >
-        {selectedReport && (
-          <div>
-            <div className={styles.userDetailHeaderBox}>
-              <Title level={3} style={{ margin: 0 }}>
-                {selectedReport.title}
-              </Title>
-              {getStatusTag(selectedReport.status)}
+        {/* Reports Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <Card 
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              backdropFilter: 'blur(10px)',
+              borderRadius: '16px',
+              border: 'none',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+            variant="borderless"
+          >
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '20px', 
+              paddingBottom: '12px', 
+              borderBottom: '1px solid #f0f0f0',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <BookOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+                <Title level={4} style={{ margin: 0, color: '#1a1a1a' }}>
+                  Danh sách báo cáo
+                </Title>
+                <Badge count={reports.length} style={{ 
+                  backgroundColor: '#1890ff',
+                  borderRadius: '8px'
+                }} />
+              </div>
+              <div>
+                <Text type="secondary" style={{ fontSize: '14px' }}>
+                  Hiển thị {((pagination.current - 1) * pagination.pageSize) + 1} - {Math.min(pagination.current * pagination.pageSize, reports.length)} của {reports.length} báo cáo
+                </Text>
+              </div>
             </div>
             
-            <Divider />
-            
-            <Card className={styles.userDetailCard} variant="borderless">
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <UserOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                  <Text strong>Người báo cáo:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">
-                    {selectedReport.user?.name || 'Không xác định'} ({selectedReport.user?.email || 'N/A'})
-                  </Text>
-                </div>
+            <Table
+              columns={columns}
+              dataSource={reports}
+              loading={loading}
+              pagination={{
+                ...pagination,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} báo cáo`,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                size: 'small',
+              }}
+              onChange={(pagination) => fetchReports(pagination.current, pagination.pageSize)}
+              rowKey="_id"
+              style={{ 
+                borderRadius: '12px',
+                overflow: 'hidden'
+              }}
+              scroll={{ x: 900 }}
+              size="small"
+            />
+          </Card>
+        </motion.div>
+
+        {/* Reply Modal */}
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <MessageOutlined style={{ color: '#667eea', fontSize: '20px' }} />
+              <Text strong style={{ fontSize: '18px', color: '#1a1a1a' }}>
+                Trả lời báo cáo
+              </Text>
+            </div>
+          }
+          open={replyModalVisible}
+          onCancel={() => setReplyModalVisible(false)}
+          footer={null}
+          width={700}
+          style={{ borderRadius: '16px' }}
+        >
+          {selectedReport && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: '20px',
+                padding: '16px',
+                background: '#f8f9fa',
+                borderRadius: '12px',
+                border: '1px solid #e9ecef'
+              }}>
+                <Title level={3} style={{ margin: 0 }}>
+                  {selectedReport.title}
+                </Title>
+                {getStatusTag(selectedReport.status)}
               </div>
               
-              <div className={styles.userDetailRow}>
-                <div className={styles.userDetailLabel}>
-                  <FileTextOutlined style={{ marginRight: '8px', color: '#52c41a' }} />
-                  <Text strong>Nội dung báo cáo:</Text>
-                </div>
-                <div>
-                  <Text type="secondary">
-                    {selectedReport.content}
-                  </Text>
-                </div>
-              </div>
+              <Divider />
               
-              {selectedReport.adminReply && (
-                <div className={styles.userDetailRow}>
-                  <div className={styles.userDetailLabel}>
-                    <MessageOutlined style={{ marginRight: '8px', color: '#faad14' }} />
-                    <Text strong>Phản hồi trước:</Text>
+              <Card 
+                style={{ 
+                  background: '#f8f9fa',
+                  borderRadius: '12px',
+                  border: '1px solid #e9ecef',
+                  marginBottom: '16px'
+                }}
+                variant="borderless"
+              >
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: '12px', 
+                  marginBottom: '16px',
+                  padding: '12px',
+                  background: 'white',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px',
+                    minWidth: '120px'
+                  }}>
+                    <UserOutlined style={{ color: '#1890ff' }} />
+                    <Text strong>Người báo cáo:</Text>
                   </div>
                   <div>
                     <Text type="secondary">
-                      {selectedReport.adminReply}
+                      {selectedReport.user?.name || 'Không xác định'} ({selectedReport.user?.email || 'N/A'})
                     </Text>
                   </div>
                 </div>
-              )}
-            </Card>
-            
-            <Divider />
-            
-            <div className={styles.userDetailRow}>
-              <div className={styles.userDetailLabel}>
-                <CalendarOutlined style={{ marginRight: '8px', color: '#52c41a' }} />
-                <Text strong>Ngày tạo:</Text>
-              </div>
-              <Text>{dayjs(selectedReport.createdAt).format('DD/MM/YYYY HH:mm')}</Text>
-            </div>
-            
-            <Divider />
-            
-            <Form form={form} onFinish={handleReply} className={styles.userForm}>
-              <Form.Item
-                name="adminReply"
-                label="Phản hồi của admin"
-                rules={[{ required: true, message: 'Vui lòng nhập phản hồi' }]}
-                className={styles.formItem}
-              >
-                <Input.TextArea 
-                  rows={4} 
-                  placeholder="Nhập phản hồi cho người dùng..." 
-                  className={styles.input}
-                />
-              </Form.Item>
+                
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: '12px', 
+                  marginBottom: '16px',
+                  padding: '12px',
+                  background: 'white',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px',
+                    minWidth: '120px'
+                  }}>
+                    <FileTextOutlined style={{ color: '#52c41a' }} />
+                    <Text strong>Nội dung báo cáo:</Text>
+                  </div>
+                  <div>
+                    <Text type="secondary">
+                      {selectedReport.content}
+                    </Text>
+                  </div>
+                </div>
+                
+                {selectedReport.adminReply && (
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    gap: '12px',
+                    padding: '12px',
+                    background: 'white',
+                    borderRadius: '8px'
+                  }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px',
+                      minWidth: '120px'
+                    }}>
+                      <MessageOutlined style={{ color: '#faad14' }} />
+                      <Text strong>Phản hồi trước:</Text>
+                    </div>
+                    <div>
+                      <Text type="secondary">
+                        {selectedReport.adminReply}
+                      </Text>
+                    </div>
+                  </div>
+                )}
+              </Card>
               
-              <Form.Item className="mb-0">
-                <Space className="w-full justify-end">
-                  <Button onClick={() => setReplyModalVisible(false)}>
-                    Hủy
-                  </Button>
-                  <Button type="primary" htmlType="submit">
-                    Gửi phản hồi
-                  </Button>
-                </Space>
-              </Form.Item>
-            </Form>
-          </div>
-        )}
-      </Modal>
-    </div>
+              <Divider />
+              
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px', 
+                marginBottom: '20px',
+                padding: '12px',
+                background: '#f8f9fa',
+                borderRadius: '8px'
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px',
+                  minWidth: '120px'
+                }}>
+                  <CalendarOutlined style={{ color: '#52c41a' }} />
+                  <Text strong>Ngày tạo:</Text>
+                </div>
+                <Text>{dayjs(selectedReport.createdAt).format('DD/MM/YYYY HH:mm')}</Text>
+              </div>
+              
+              <Divider />
+              
+              <Form form={form} onFinish={handleReply}>
+                <Form.Item
+                  name="adminReply"
+                  label={<Text strong style={{ fontSize: '14px', color: '#1a1a1a' }}>Phản hồi của admin</Text>}
+                  rules={[{ required: true, message: 'Vui lòng nhập phản hồi' }]}
+                  style={{ marginBottom: '20px' }}
+                >
+                  <Input.TextArea 
+                    rows={4} 
+                    placeholder="Nhập phản hồi cho người dùng..." 
+                    style={{ 
+                      borderRadius: '10px',
+                      border: '1px solid #d9d9d9',
+                      fontSize: '14px',
+                      resize: 'none'
+                    }}
+                  />
+                </Form.Item>
+                
+                <Form.Item style={{ marginBottom: 0 }}>
+                  <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                    <Button 
+                      onClick={() => setReplyModalVisible(false)}
+                      style={{ 
+                        borderRadius: '8px',
+                        height: '40px',
+                        padding: '0 20px'
+                      }}
+                    >
+                      Hủy
+                    </Button>
+                    <Button 
+                      type="primary" 
+                      htmlType="submit"
+                      style={{ 
+                        borderRadius: '8px',
+                        height: '40px',
+                        padding: '0 20px',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        border: 'none'
+                      }}
+                    >
+                      Gửi phản hồi
+                    </Button>
+                  </Space>
+                </Form.Item>
+              </Form>
+            </motion.div>
+          )}
+        </Modal>
+      </div>
+    </motion.div>
   );
 };
 
